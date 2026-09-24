@@ -1,22 +1,25 @@
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig} from 'vite';
+import 'dotenv/config';
 
-export default defineConfig(() => {
-  return {
-    plugins: [react(), tailwindcss()],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
-    },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
-});
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
+export const config = {
+  nodeEnv: process.env.NODE_ENV ?? 'development',
+  port: Number(process.env.API_PORT ?? 4000),
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  databaseUrl: process.env.DATABASE_URL,
+  isProduction: process.env.NODE_ENV === 'production',
+  requireDatabase(): string {
+    return required('DATABASE_URL');
+  },
+};
+
+if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
+  throw new Error('API_PORT must be a valid TCP port');
+}
