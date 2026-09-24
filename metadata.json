@@ -1,0 +1,6 @@
+{
+  "name": "CGG HDOS Enterprise",
+  "description": "Mining HSE Digital Operating System terpadu untuk operasi pertambangan, SMKP audit, dan manajemen keselamatan offline-first.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
