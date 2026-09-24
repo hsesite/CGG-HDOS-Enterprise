@@ -4,6 +4,8 @@ import crypto from 'node:crypto';
 import { config } from './config';
 import { checkDatabase, closeDatabase } from './db';
 import { registerAuthRoutes } from './auth';
+import { registerHseRoutes } from './hse-routes';
+import { registerRbacRoutes } from './rbac';
 
 const app = express();
 app.disable('x-powered-by');
@@ -36,6 +38,8 @@ app.get('/api/health/ready', async (_req, res) => {
   res.status(database ? 200 : 503).json({ success: database, data: { status: database ? 'ready' : 'not_ready', database }, message: database ? '' : 'Database unavailable', timestamp: new Date().toISOString() });
 });
 registerAuthRoutes(app);
+registerRbacRoutes(app);
+registerHseRoutes(app);
 app.use((_req, res) => res.status(404).json({ success: false, data: null, message: 'Route not found', timestamp: new Date().toISOString() }));
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[HDOS API] Unhandled error', error);
