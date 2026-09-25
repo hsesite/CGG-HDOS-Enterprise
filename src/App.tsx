@@ -7,7 +7,8 @@ import { WindowWrapper } from './components/layout/WindowWrapper';
 import { MissionControl } from './components/layout/MissionControl';
 import { IOSMobileSimulator } from './components/mobile/IOSMobileSimulator';
 import { LoginScreen } from './components/auth/LoginScreen';
-import { hseApi } from './core/api';
+import { getCurrentUser, logoutUser } from './core/auth-utils';
+import { AuthState } from './core/auth-state';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
@@ -41,46 +42,38 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
   useEffect(() => {
     bootHDOS().then(() => {
       setBooted(true);
-      if (!hseApi.isAuthenticated) {
-        setCheckingSession(false);
-        setIsAuthenticated(false);
-        return;
+      const user = getCurrentUser();
+      if (user) {
+        setIsAuthenticated(true);
+        setCurrentUser(user);
       }
-
-      hseApi.me()
-        .then((user) => {
-          setIsAuthenticated(true);
-          setCurrentUser({ email: user.email, displayName: user.displayName });
-        })
-        .catch(() => {
-          hseApi.logout();
-          setIsAuthenticated(false);
-        })
-        .finally(() => setCheckingSession(false));
+      setCheckingSession(false);
     });
   }, []);
 
   function handleLoggedIn(): void {
-    setIsAuthenticated(true);
-    setCheckingSession(false);
-    hseApi.me()
-      .then((user) => setCurrentUser({ email: user.email, displayName: user.displayName }))
-      .catch(() => setIsAuthenticated(false));
+    const user = getCurrentUser();
+    if (user) {
+      setIsAuthenticated(true);
+      setCurrentUser(user);
+      setCheckingSession(false);
+    }
   }
 
   async function handleLogout(): Promise<void> {
     try {
-      await hseApi.logout();
+      await logoutUser();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       setIsAuthenticated(false);
       setCurrentUser(null);
+      AuthState.clear();
     }
   }
 
