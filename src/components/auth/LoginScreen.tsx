@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { hseApi, ApiError } from '../../core/api';
-import { hdosAuth } from '../../core/auth';
+import { loginUser } from '../../core/auth-utils';
+import { AuthState } from '../../core/auth-state';
 import type { UserRole } from '../../core/types';
 
 const ROLE_PRIORITY: UserRole[] = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
@@ -17,12 +17,11 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): JSX.Ele
     setPending(true);
 
     try {
-      const user = await hseApi.login(email.trim(), password);
-      const normalizedRole = user.roles.find((role) => ROLE_PRIORITY.includes(role as UserRole)) as UserRole | undefined;
-      hdosAuth.setRole(normalizedRole ?? 'SPV HSE');
+      const user = await loginUser(email.trim(), password);
+      AuthState.saveUser(user);
       onLoggedIn();
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Login gagal. Periksa email dan password.';
+      const message = err instanceof Error ? err.message : 'Login gagal. Periksa email dan password.';
       setError(message);
     } finally {
       setPending(false);
@@ -79,7 +78,10 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): JSX.Ele
         </form>
 
         <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-3 text-xs text-neutral-400">
-          Default admin seed: <span className="font-mono text-neutral-200">admin@ptcgg.com</span>
+          <div className="font-mono mb-1 text-neutral-200">Akun Demo:</div>
+          Email: <span className="font-mono text-neutral-200">admin@ptcgg.com</span>
+          <br />
+          Password: Cek `.env` di server (minimal 12 karakter)
         </div>
       </div>
     </div>
