@@ -39,12 +39,40 @@ function setToken(token: string | null): void {
   else window.sessionStorage.removeItem(TOKEN_KEY);
 }
 
+/**
+ * JSONP request untuk Google Apps Script (mengatasi CORS)
+ */
+function requestJsonp<T>(url: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const callbackName = `callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const script = document.createElement('script');
+    
+    const urlObj = new URL(url);
+    urlObj.searchParams.set('callback', callbackName);
+    
+    (window as any)[callbackName] = (data: any) => {
+      delete (window as any)[callbackName];
+      document.body.removeChild(script);
+      resolve(data);
+    };
+    
+    script.onerror = () => {
+      delete (window as any)[callbackName];
+      document.body.removeChild(script);
+      reject(new ApiError(0, 'JSONP request failed'));
+    };
+    
+    script.src = urlObj.toString();
+    document.body.appendChild(script);
+  });
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
-  let response: Response;
+  let response: T;
 
   if (IS_GOOGLE_APPS_SCRIPT) {
-    // Google Apps Script: Convert all requests to GET with query params
+    // Google Apps Script: Gunakan JSONP untuk mengatasi CORS
     const url = new URL(API_BASE_URL);
     const method = (init.method ?? 'GET').toUpperCase();
     
@@ -55,19 +83,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const body = init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined;
     if (body) url.searchParams.set('payload', body);
     
-    console.log('[API GAS] Request:', method, path, url.toString());
-    response = await fetch(url.toString());
+    console.log('[API GAS JSONP] Request:', method, path);
+    response = await requestJsonp<T>(url.toString());
   } else {
     // Standard Express.js REST API
     const headers = new Headers(init.headers);
     headers.set('content-type', 'application/json');
     if (token) headers.set('authorization', `Bearer ${token}`);
-    response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+    const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+    response = (await res.json().catch(() => null)) as T;
   }
 
-  const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
-  if (!response.ok || !body?.success) {
-    throw new ApiError(response.status, body?.message || `API request failed (${response.status})`);
+  const body = response as ApiEnvelope<T> | null;
+  if (!body?.success) {
+    throw new ApiError(0, body?.message || 'API request failed');
   }
   return body.data;
 }
