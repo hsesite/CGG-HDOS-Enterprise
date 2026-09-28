@@ -1,4 +1,9 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ??
+  import.meta.env.VITE_GAS_URL ??
+  'http://localhost:4000'
+).replace(/\/$/, '');
+const IS_GOOGLE_APPS_SCRIPT = API_BASE_URL.includes('script.google.com');
 const TOKEN_KEY = 'hdos_api_session';
 
 type ApiEnvelope<T> = {
@@ -34,12 +39,32 @@ function setToken(token: string | null): void {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  headers.set('content-type', 'application/json');
+  const method = (init.method ?? 'GET').toUpperCase();
   const token = getToken();
-  if (token) headers.set('authorization', `Bearer ${token}`);
+  let response: Response;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  if (IS_GOOGLE_APPS_SCRIPT) {
+    const payload = typeof init.body === 'string' ? init.body : '{}';
+    if (method === 'GET') {
+      const url = new URL(API_BASE_URL);
+      url.searchParams.set('path', path);
+      url.searchParams.set('method', method);
+      if (token) url.searchParams.set('token', token);
+      response = await fetch(url.toString());
+    } else {
+      response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path, method, token, payload }),
+      });
+    }
+  } else {
+    const headers = new Headers(init.headers);
+    headers.set('content-type', 'application/json');
+    if (token) headers.set('authorization', `Bearer ${token}`);
+    response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  }
+
   const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
   if (!response.ok || !body?.success) {
     throw new ApiError(response.status, body?.message || `API request failed (${response.status})`);
