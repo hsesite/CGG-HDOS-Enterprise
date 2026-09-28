@@ -1,8 +1,6 @@
 import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport, MiningLocationGIS, AppWindow, WindowId } from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
-import { hdosSync } from './sync';
-import { hdosAuth } from './auth';
 import { useState, useEffect } from 'react';
 
 // Seed Data
@@ -134,6 +132,9 @@ export class HDOSCentralStore {
 
       const storedInc = await hdosDB.getAll<Incident>('incident');
       if (storedInc.length > 0) this.incidents = storedInc;
+
+      const storedDocs = await hdosDB.getAll<DocumentItem>('repository');
+      if (storedDocs.length > 0) this.documents = storedDocs;
     } catch (err) {
       console.warn('[HDOS Store] IndexedDB fallback', err);
     }
@@ -322,6 +323,23 @@ export class HDOSCentralStore {
     this.notify();
     hdosEvents.emit('incident:created', newInc);
     return newInc;
+  }
+
+  async addDocument(document: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'>): Promise<DocumentItem> {
+    const count = this.documents.length + 1;
+    const categoryCode = document.category.toUpperCase();
+    const newDocument: DocumentItem = {
+      ...document,
+      id: `doc_${Date.now()}`,
+      docNumber: `CGG-HSE-${categoryCode}-${String(count).padStart(3, '0')}`,
+      revision: 1,
+    };
+
+    this.documents.unshift(newDocument);
+    await hdosDB.put('repository', newDocument);
+    this.notify();
+    hdosEvents.emit('document:created', newDocument);
+    return newDocument;
   }
 
   async updatePICAStatus(id: string, updates: Partial<PICA>): Promise<PICA | null> {

@@ -89,7 +89,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     // Standard Express.js REST API
     const headers = new Headers(init.headers);
     headers.set('content-type', 'application/json');
-    if (token) headers.set('authorization', `Bearer ${token}`);
+    if (token) headers.set('authorization', 'Bearer ' + token);
     const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
     response = (await res.json().catch(() => null)) as T;
   }

@@ -6,7 +6,7 @@ export interface CardProps {
   variant?: 'default' | 'elevated' | 'outlined';
 }
 
-export function Card({ children, className = '', variant = 'default' }: CardProps): JSX.Element {
+export function Card({ children, className = '', variant = 'default' }: CardProps) {
   const baseStyle = 'rounded-2xl transition-all duration-300';
   
   const variants = {
@@ -36,7 +36,7 @@ export function Button({
   disabled,
   className = '',
   ...props
-}: ButtonProps): JSX.Element {
+}: ButtonProps) {
   const baseStyle = 'font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2';
   
   const sizes = {
@@ -76,7 +76,7 @@ export interface BadgeProps {
   className?: string;
 }
 
-export function Badge({ children, variant = 'default', className = '' }: BadgeProps): JSX.Element {
+export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {
   const variants = {
     default: 'bg-neutral-700 text-neutral-100',
     success: 'bg-green-600/30 text-green-300 border border-green-500/50',
@@ -97,7 +97,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   error?: string;
 }
 
-export function Input({ label, error, className = '', ...props }: InputProps): JSX.Element {
+export function Input({ label, error, className = '', ...props }: InputProps) {
   return (
     <div className="space-y-2">
       {label && (
@@ -122,7 +122,7 @@ export interface StatProps {
   className?: string;
 }
 
-export function Stat({ label, value, icon, trend, className = '' }: StatProps): JSX.Element {
+export function Stat({ label, value, icon, trend, className = '' }: StatProps) {
   return (
     <Card variant="elevated" className={`p-4 ${className}`}>
       <div className="flex items-center justify-between">

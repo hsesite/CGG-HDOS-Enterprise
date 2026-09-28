@@ -3,18 +3,11 @@ import {
   LayoutDashboard,
   ClipboardCheck,
   MapPin,
-  FolderGit2,
-  MoreHorizontal,
   Wifi,
-  WifiOff,
   Battery,
   Signal,
-  AlertTriangle,
   Plus,
-  ShieldCheck,
   CheckSquare,
-  Flame,
-  Sun,
   X,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';

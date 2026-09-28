@@ -1,5 +1,4 @@
 import { hseApi } from './api';
-import type { Inspection, Hazard, PICA, Incident } from './types';
 
 export type SyncQueueItem = {
   id: string;
@@ -18,7 +17,7 @@ const RETRY_DELAY_MS = 2000;
 class ApiSyncQueue {
   private queue: Map<string, SyncQueueItem> = new Map();
   private isOnline = navigator.onLine;
-  private syncTimer: NodeJS.Timeout | null = null;
+  private syncTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.loadQueue();

@@ -1,4 +1,4 @@
-export function Skeleton({ className = '' }: { className?: string }): JSX.Element {
+export function Skeleton({ className = '' }: { className?: string }) {
   return (
     <div
       className={`bg-neutral-800/50 rounded-lg animate-pulse ${className}`}
@@ -6,7 +6,7 @@ export function Skeleton({ className = '' }: { className?: string }): JSX.Elemen
   );
 }
 
-export function CardSkeleton(): JSX.Element {
+export function CardSkeleton() {
   return (
     <div className="apple-glass-card p-4 rounded-2xl space-y-3">
       <Skeleton className="h-4 w-1/3" />
@@ -16,7 +16,7 @@ export function CardSkeleton(): JSX.Element {
   );
 }
 
-export function ChartSkeleton(): JSX.Element {
+export function ChartSkeleton() {
   return (
     <div className="apple-glass-card p-6 rounded-2xl space-y-4">
       <Skeleton className="h-6 w-1/4" />

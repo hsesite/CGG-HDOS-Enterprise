@@ -4,7 +4,7 @@ import { AuthState } from '../../core/auth-state';
 import { Button, Input, Card } from '../ui';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
-export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): JSX.Element {
+export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [email, setEmail] = useState('admin@ptcgg.com');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

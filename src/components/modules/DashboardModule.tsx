@@ -8,14 +8,8 @@ import {
   Activity,
   Flame,
   CloudLightning,
-  MapPin,
-  ArrowRight,
   Plus,
-  Compass,
-  FileText,
-  Users,
   TrendingUp,
-  Calendar,
   RefreshCw,
 } from 'lucide-react';
 import {
@@ -29,10 +23,10 @@ import {
   Legend,
 } from 'recharts';
 import { useHDOSStore } from '../../core/store';
+import type { WindowId } from '../../core/types';
 import { hdosSync } from '../../core/sync';
 import { Button } from '../ui';
 import { KPICard } from '../ui/KPICard';
-import { CardSkeleton, ChartSkeleton } from '../ui/Skeleton';
 
 export const DashboardModule: React.FC = () => {
   const store = useHDOSStore();
@@ -91,13 +85,17 @@ export const DashboardModule: React.FC = () => {
     return trendData.slice(trendData.length - days);
   }, [trendData, timeRange]);
 
-  // Calculate safe hours delta
-  const rangeDeltaHours = useMemo(() => {
-    if (activeTrendData.length < 2) return 0;
-    const first = activeTrendData[0].safeHours;
-    const last = activeTrendData[activeTrendData.length - 1].safeHours;
-    return last - first;
-  }, [activeTrendData]);
+  const quickActions: Array<{
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: 'blue' | 'red' | 'purple' | 'green';
+    action: WindowId;
+  }> = [
+    { label: 'New Inspection', icon: Plus, color: 'blue', action: 'inspection' },
+    { label: 'Report Hazard', icon: AlertTriangle, color: 'red', action: 'hazard' },
+    { label: 'AI Scan', icon: Flame, color: 'purple', action: 'ai' },
+    { label: 'Cloud Sync', icon: CloudLightning, color: 'green', action: 'sync' },
+  ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
@@ -282,12 +280,7 @@ export const DashboardModule: React.FC = () => {
             Quick Actions
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'New Inspection', icon: Plus, color: 'blue', action: 'inspection' },
-              { label: 'Report Hazard', icon: AlertTriangle, color: 'red', action: 'hazard' },
-              { label: 'AI Scan', icon: Flame, color: 'purple', action: 'ai' },
-              { label: 'Cloud Sync', icon: CloudLightning, color: 'green', action: 'sync' },
-            ].map((item) => {
+            {quickActions.map((item) => {
               const Icon = item.icon;
               const colorMap = {
                 blue: 'bg-blue-500/15 border-blue-500/30 hover:bg-blue-500/25 text-blue-200',
@@ -299,7 +292,7 @@ export const DashboardModule: React.FC = () => {
               return (
                 <button
                   key={item.label}
-                  onClick={() => store.openWindow(item.action as any)}
+                  onClick={() => store.openWindow(item.action)}
                   className={`p-3 rounded-xl border ${colorMap[item.color as keyof typeof colorMap]} transition-all cursor-pointer group`}
                 >
                   <Icon className="w-4 h-4 mb-1 group-hover:scale-110 transition-transform" />

@@ -1,4 +1,3 @@
-import { hseApi } from './api';
 import type { ApiUser } from './api';
 
 export class AuthState {

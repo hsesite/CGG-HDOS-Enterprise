@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import {
   FolderGit2,
-  FileText,
   Plus,
   Search,
   Download,
-  CheckCircle,
-  Clock,
-  Tag,
-  Eye,
   Shield,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';

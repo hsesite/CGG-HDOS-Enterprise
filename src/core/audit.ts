@@ -1,5 +1,3 @@
-import { hseApi } from './api';
-
 export class AuditLog {
   static log(action: string, entity: string, entityId: string, details?: unknown): void {
     const timestamp = new Date().toISOString();

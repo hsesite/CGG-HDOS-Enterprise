@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { hseApi } from '../api';
 
 export function withPermission(permission: string, component: ReactNode, fallback?: ReactNode): ReactNode {
   if (typeof window === 'undefined') return fallback || null;
