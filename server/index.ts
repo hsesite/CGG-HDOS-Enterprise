@@ -18,29 +18,36 @@ app.use((req, res, next) => {
   res.setHeader('referrer-policy', 'no-referrer');
   next();
 });
+
+const allowedOrigins = new Set([
+  'https://hsesite.github.io',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://hdos-frontend.onrender.com',
+  ...config.corsOrigins,
+]);
+
 app.use((req, res, next) => {
   const origin = req.header('origin');
-  // Allow GitHub Pages and configured CORS origins
-  const allowedOrigins = [
-    'https://hsesite.github.io',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://hdos-frontend.onrender.com',
-    ...(config.corsOrigins || []),
-  ];
-  
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin && allowedOrigins.has(origin)) {
     res.setHeader('access-control-allow-origin', origin);
     res.setHeader('vary', 'Origin');
     res.setHeader('access-control-allow-credentials', 'true');
   }
   if (req.method === 'OPTIONS') {
-    res.setHeader('access-control-allow-methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
-    res.setHeader('access-control-allow-headers', 'content-type,authorization,x-request-id');
-    res.status(204).end(); return;
+    if (origin && allowedOrigins.has(origin)) {
+      res.setHeader('access-control-allow-methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
+      res.setHeader('access-control-allow-headers', 'content-type,authorization,x-request-id');
+      res.setHeader('access-control-max-age', '3600');
+      res.status(204).end();
+      return;
+    }
+    res.status(403).json({ success: false, data: null, message: 'CORS origin not allowed', timestamp: new Date().toISOString() });
+    return;
   }
   next();
 });
+
 app.get('/api/health/live', (_req, res) => res.json({ success: true, data: { status: 'live' }, message: '', timestamp: new Date().toISOString() }));
 app.get('/api/health/ready', async (_req, res) => {
   const database = await checkDatabase();
