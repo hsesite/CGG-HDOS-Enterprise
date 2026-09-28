@@ -133,6 +133,14 @@ export class HDOSSyncEngine {
     }
   }
 
+  /**
+   * Alias untuk triggerSync() - Sinkronisasi semua pending items dari queue
+   * Kompatibel dengan interface publik yang lebih umum
+   */
+  async syncAll(): Promise<boolean> {
+    return this.triggerSync();
+  }
+
   exportToGoogleSheetsCSV(records: any[], entityName: string): void {
     if (!records || records.length === 0) return;
     const headers = Object.keys(records[0]).join(',');
