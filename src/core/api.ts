@@ -1,7 +1,7 @@
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ??
   import.meta.env.VITE_GAS_URL ??
-  'http://localhost:4000'
+  'https://script.google.com/macros/s/AKfycbylyiRliD50g3idlFVmWf56dAoARyEx6FMWMFXKXvmaAf0lJMnCvs_1xcTlY-GFdfz71g/exec'
 ).replace(/\/$/, '');
 
 const IS_GOOGLE_APPS_SCRIPT = API_BASE_URL.includes('script.google.com');
@@ -43,23 +43,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   let response: Response;
 
-  if (!IS_GOOGLE_APPS_SCRIPT) {
+  if (IS_GOOGLE_APPS_SCRIPT) {
+    // Google Apps Script: Convert all requests to GET with query params
+    const url = new URL(API_BASE_URL);
+    const method = (init.method ?? 'GET').toUpperCase();
+    
+    url.searchParams.set('path', path);
+    url.searchParams.set('method', method);
+    if (token) url.searchParams.set('token', token);
+    
+    const body = init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined;
+    if (body) url.searchParams.set('payload', body);
+    
+    console.log('[API GAS] Request:', method, path, url.toString());
+    response = await fetch(url.toString());
+  } else {
     // Standard Express.js REST API
     const headers = new Headers(init.headers);
     headers.set('content-type', 'application/json');
     if (token) headers.set('authorization', `Bearer ${token}`);
     response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
-  } else {
-    // Google Apps Script (fallback - not recommended)
-    const url = new URL(API_BASE_URL);
-    const method = (init.method ?? 'GET').toUpperCase();
-    url.searchParams.set('path', path);
-    url.searchParams.set('method', method);
-    if (token) url.searchParams.set('token', token);
-    const body = init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined;
-    if (body) url.searchParams.set('payload', body);
-    console.log('[API] GAS Request:', url.toString());
-    response = await fetch(url.toString(), { method: 'GET' });
   }
 
   const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
