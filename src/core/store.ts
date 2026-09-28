@@ -326,12 +326,18 @@ export class HDOSCentralStore {
   }
 
   async addDocument(document: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'>): Promise<DocumentItem> {
-    const count = this.documents.length + 1;
     const categoryCode = document.category.toUpperCase();
+    const docPrefix = `CGG-HSE-${categoryCode}-`;
+    const nextSequence =
+      this.documents.reduce((max, item) => {
+        if (!item.docNumber.startsWith(docPrefix)) return max;
+        const suffix = Number.parseInt(item.docNumber.slice(docPrefix.length), 10);
+        return Number.isFinite(suffix) ? Math.max(max, suffix) : max;
+      }, 0) + 1;
     const newDocument: DocumentItem = {
       ...document,
       id: `doc_${Date.now()}`,
-      docNumber: `CGG-HSE-${categoryCode}-${String(count).padStart(3, '0')}`,
+      docNumber: `${docPrefix}${String(nextSequence).padStart(3, '0')}`,
       revision: 1,
     };
 
