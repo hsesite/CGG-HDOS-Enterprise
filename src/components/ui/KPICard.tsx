@@ -1,4 +1,4 @@
-import React from 'lucide-react';
+import React from 'react';
 
 export interface KPICardProps {
   title: string;
@@ -41,41 +41,34 @@ export function KPICard({
   return (
     <div
       onClick={onClick}
-      className={`apple-glass-card p-4 rounded-2xl border transition-all duration-300 ${
-        statusColors[status]
-      } ${onClick ? 'cursor-pointer hover:shadow-lg' : ''} ${className}`}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      className={`apple-glass-card rounded-2xl border p-4 transition-all duration-300 ${statusColors[status]} ${
+        onClick ? 'cursor-pointer hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#00E676]/50' : ''
+      } ${className}`}
     >
-      {/* Header: Title + Icon */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-medium uppercase tracking-widest text-neutral-400">
-          {title}
-        </h3>
-        {icon && (
-          <div className={`p-2 rounded-lg ${iconBgColors[status]}`}>
-            {icon}
-          </div>
-        )}
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xs font-medium uppercase tracking-widest text-neutral-400">{title}</h3>
+        {icon ? <div className={`rounded-lg p-2 ${iconBgColors[status]}`}>{icon}</div> : null}
       </div>
 
-      {/* Main Value */}
       <div className="mb-2">
-        <p className="text-3xl font-bold text-white font-mono tabular-nums">
-          {value}
-        </p>
+        <p className="font-mono text-3xl font-bold tabular-nums text-white">{value}</p>
       </div>
 
-      {/* Footer: Subtitle + Trend */}
-      <div className="flex items-center justify-between">
-        {subtitle && (
-          <p className="text-xs text-neutral-400">{subtitle}</p>
-        )}
-        {trend && (
-          <div className={`text-xs font-semibold flex items-center gap-1 ${
-            trend.isPositive ? 'text-green-400' : 'text-red-400'
-          }`}>
+      <div className="flex min-h-5 items-center justify-between gap-2">
+        {subtitle ? <p className="text-xs text-neutral-400">{subtitle}</p> : <span />}
+        {trend ? (
+          <div className={`flex items-center gap-1 text-xs font-semibold ${trend.isPositive ? 'text-green-400' : 'text-red-400'}`}>
             {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
