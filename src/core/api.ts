@@ -44,21 +44,19 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
 
   if (IS_GOOGLE_APPS_SCRIPT) {
-    const payload = typeof init.body === 'string' ? init.body : '{}';
-    if (method === 'GET') {
-      const url = new URL(API_BASE_URL);
-      url.searchParams.set('path', path);
-      url.searchParams.set('method', method);
-      if (token) url.searchParams.set('token', token);
-      response = await fetch(url.toString());
-    } else {
-      response = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path, method, token, payload }),
-      });
-    }
+    // Google Apps Script: convert all requests to GET with query params
+    const url = new URL(API_BASE_URL);
+    url.searchParams.set('path', path);
+    url.searchParams.set('method', method);
+    if (token) url.searchParams.set('token', token);
+    
+    const body = init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined;
+    if (body) url.searchParams.set('payload', body);
+    
+    console.log('[API] Sending to GAS:', url.toString());
+    response = await fetch(url.toString(), { method: 'GET' });
   } else {
+    // Standard REST API: use actual method
     const headers = new Headers(init.headers);
     headers.set('content-type', 'application/json');
     if (token) headers.set('authorization', `Bearer ${token}`);
