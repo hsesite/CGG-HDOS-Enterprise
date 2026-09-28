@@ -36,8 +36,6 @@ jobs:
       
       - name: Build frontend
         run: bun run build
-        env:
-          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://hdos-backend.onrender.com' }}
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
