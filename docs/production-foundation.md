@@ -1,27 +1,33 @@
-# HDOS production foundation
+# Production foundation setup
 
-This branch starts the production migration without changing `main`.
+The repository changes are already applied to `build-29-production-foundation`; no manual code copying is required.
 
-## Current implementation
+## One-command database setup
 
-- Express API bootstrap with liveness/readiness endpoints.
-- Request IDs and baseline security response headers.
-- Strict JSON body limit and CORS allowlist configuration.
-- PostgreSQL foundation schema for users, RBAC, audit logs, and sync operations.
-- Graceful API shutdown handling.
-
-## Run locally
+After creating `.env` and ensuring PostgreSQL is reachable:
 
 ```bash
-cp .env.example .env
+bun install
+bun run db:migrate
+bun run db:seed
+bun run typecheck:server
 bun run server:dev
 ```
 
-The API listens on `http://localhost:4000` by default.
+`db:migrate` applies the checked-in SQL files in order inside a transaction per file. It is intended for a new development database. Before applying it to an existing production database, take a backup and use a migration history table/tool.
 
-- `GET /api/health/live`
-- `GET /api/health/ready`
+## Admin seed
 
-## Important
+Set these values in `.env` before running `bun run db:seed`:
 
-This is the first production foundation slice, not a claim that the application is production-ready yet. Authentication, migrations, domain APIs, object storage, and real sync must be implemented before production use.
+```dotenv
+SEED_ADMIN_EMAIL=admin@ptcgg.com
+SEED_ADMIN_PASSWORD=use-a-unique-password-at-least-12-characters
+SEED_ADMIN_NAME=HDOS System Administrator
+```
+
+Do not commit `.env`, real passwords, database URLs, or API keys.
+
+## Current status
+
+The API and database are production foundations. The application is not yet approved for live HSE operations until domain validation, frontend API integration, attachment storage, offline synchronization, automated tests, backups, and deployment hardening are completed.

@@ -6,6 +6,9 @@ import { Dock } from './components/layout/Dock';
 import { WindowWrapper } from './components/layout/WindowWrapper';
 import { MissionControl } from './components/layout/MissionControl';
 import { IOSMobileSimulator } from './components/mobile/IOSMobileSimulator';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { getCurrentUser, logoutUser } from './core/auth-utils';
+import { AuthState } from './core/auth-state';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
@@ -31,19 +34,50 @@ import {
   Compass,
   Cpu,
   RefreshCw,
+  LogOut,
 } from 'lucide-react';
 
 export default function App() {
   const store = useHDOSStore();
   const [booted, setBooted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
   useEffect(() => {
     bootHDOS().then(() => {
       setBooted(true);
+      const user = getCurrentUser();
+      if (user) {
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+      }
+      setCheckingSession(false);
     });
   }, []);
 
-  if (!booted) {
+  function handleLoggedIn(): void {
+    const user = getCurrentUser();
+    if (user) {
+      setIsAuthenticated(true);
+      setCurrentUser(user);
+      setCheckingSession(false);
+    }
+  }
+
+  async function handleLogout(): Promise<void> {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      AuthState.clear();
+    }
+  }
+
+  if (!booted || checkingSession) {
     return (
       <div className="fixed inset-0 bg-[#090909] text-white flex flex-col items-center justify-center space-y-4">
         <div className="w-12 h-12 rounded-2xl bg-[#00E676] text-black font-black flex items-center justify-center text-xl shadow-[0_0_30px_#00E676]">
@@ -51,13 +85,17 @@ export default function App() {
         </div>
         <div className="text-center space-y-1">
           <div className="font-bold text-sm tracking-wider">CGG HDOS ENTERPRISE v3.0</div>
-          <div className="text-xs text-neutral-400 font-mono">Memuat Core Layer &amp; IndexedDB CGG_HDOS_DB...</div>
+          <div className="text-xs text-neutral-400 font-mono">Memuat Core Layer &amp; PostgreSQL Connection...</div>
         </div>
         <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
           <div className="h-full bg-[#00E676] rounded-full animate-pulse w-3/4" />
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLoggedIn={handleLoggedIn} />;
   }
 
   return (
@@ -71,8 +109,28 @@ export default function App() {
         }}
       />
 
-      {/* Top macOS Menu Bar */}
-      <MenuBar />
+      {/* Top macOS Menu Bar with User & Logout */}
+      <div className="relative z-40 h-10 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded-lg bg-[#00E676] text-black font-bold text-xs flex items-center justify-center">
+            C
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-400">CGG HDOS v3.0</span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="text-xs text-neutral-400">
+            {currentUser?.displayName} <span className="text-neutral-600">({currentUser?.email})</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="p-1.5 rounded-lg hover:bg-white/5 transition text-neutral-400 hover:text-red-400"
+            title="Logout"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
 
       {/* Floating Workspaces & Windows (Blueprint §7) */}
       <main className="relative h-[calc(100vh-2.5rem)] w-full overflow-hidden">
