@@ -20,7 +20,16 @@ app.use((req, res, next) => {
 });
 app.use((req, res, next) => {
   const origin = req.header('origin');
-  if (origin && config.corsOrigins.includes(origin)) {
+  // Allow GitHub Pages and configured CORS origins
+  const allowedOrigins = [
+    'https://hsesite.github.io',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://hdos-frontend.onrender.com',
+    ...(config.corsOrigins || []),
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('access-control-allow-origin', origin);
     res.setHeader('vary', 'Origin');
     res.setHeader('access-control-allow-credentials', 'true');
