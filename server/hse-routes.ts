@@ -3,10 +3,10 @@ import { query } from './db';
 import { requireAuth } from './auth';
 import { requirePermission } from './rbac';
 
-type Entity = 'inspections' | 'hazards' | 'picas' | 'incidents';
+type Entity = 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository';
 type AuthRequest = Request & { user?: { id: string } };
-const tableMap: Record<Entity, string> = { inspections: 'inspections', hazards: 'hazards', picas: 'picas', incidents: 'incidents' };
-const permissions: Record<Entity, string> = { inspections: 'inspection', hazards: 'hazard', picas: 'pica', incidents: 'incident' };
+const tableMap: Record<Entity, string> = { inspections: 'inspections', hazards: 'hazards', picas: 'picas', incidents: 'incidents', repository: 'repository' };
+const permissions: Record<Entity, string> = { inspections: 'inspection', hazards: 'hazard', picas: 'pica', incidents: 'incident', repository: 'repository' };
 
 function envelope(data: unknown, message = '') { return { success: true, data, message, timestamp: new Date().toISOString() }; }
 function fail(message: string) { return { success: false, data: null, message, timestamp: new Date().toISOString() }; }

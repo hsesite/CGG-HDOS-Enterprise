@@ -67,6 +67,14 @@ export const SyncModule: React.FC = () => {
     hdosSync.exportToGoogleSheetsCSV(store.picas, 'PICA');
   };
 
+  const handleExportIncidents = () => {
+    hdosSync.exportToGoogleSheetsCSV(store.incidents, 'Incidents');
+  };
+
+  const handleExportRepository = () => {
+    hdosSync.exportToGoogleSheetsCSV(store.documents, 'Repository');
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -161,7 +169,7 @@ export const SyncModule: React.FC = () => {
           {queue.length === 0 ? (
             <div className="py-12 text-center text-xs text-neutral-400 space-y-2">
               <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400" />
-              <p>Seluruh entitas inspeksi, bahaya &amp; PICA telah 100% tersinkronisasi ke cloud.</p>
+              <p>Seluruh entitas operasional dan repository yang didukung telah 100% tersinkronisasi ke cloud.</p>
               <p className="text-[11px] text-neutral-500">
                 (Untuk menguji antrean offline, aktifkan tombol mode Offline di atas lalu buat data baru).
               </p>
@@ -240,7 +248,7 @@ export const SyncModule: React.FC = () => {
           <span className="text-xs text-neutral-400">Kompatibel Google Drive &amp; Excel</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
           <button
             onClick={handleExportInspections}
             className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
@@ -272,6 +280,28 @@ export const SyncModule: React.FC = () => {
               <div className="text-[10px] text-neutral-400 mt-0.5">{store.picas.length} baris rekaman</div>
             </div>
             <Download className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={handleExportIncidents}
+            className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
+          >
+            <div>
+              <div className="text-xs font-bold text-white">Ekspor Data Insiden</div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">{store.incidents.length} baris rekaman</div>
+            </div>
+            <Download className="w-4 h-4 text-red-300 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={handleExportRepository}
+            className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
+          >
+            <div>
+              <div className="text-xs font-bold text-white">Ekspor Repository</div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">{store.documents.length} baris rekaman</div>
+            </div>
+            <Download className="w-4 h-4 text-purple-300 group-hover:scale-110 transition-transform" />
           </button>
         </div>
       </div>

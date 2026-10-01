@@ -11,7 +11,8 @@ insert into permissions(key) values
   ('inspection.read'), ('inspection.create'), ('inspection.update'),
   ('hazard.read'), ('hazard.create'), ('hazard.update'),
   ('pica.read'), ('pica.create'), ('pica.update'),
-  ('incident.read'), ('incident.create'), ('incident.update')
+  ('incident.read'), ('incident.create'), ('incident.update'),
+  ('repository.read'), ('repository.create'), ('repository.update')
 on conflict (key) do nothing;
 
 insert into role_permissions(role_id, permission_id)
@@ -23,6 +24,12 @@ insert into role_permissions(role_id, permission_id)
 select r.id, p.id from roles r
 join permissions p on p.key in ('inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update')
 where r.name in ('Foreman Safety', 'Safety Officer')
+on conflict do nothing;
+
+insert into role_permissions(role_id, permission_id)
+select r.id, p.id from roles r
+join permissions p on p.key in ('repository.read', 'repository.create', 'repository.update')
+where r.name in ('KTT', 'Project Manager', 'SPV HSE')
 on conflict do nothing;
 
 insert into role_permissions(role_id, permission_id)

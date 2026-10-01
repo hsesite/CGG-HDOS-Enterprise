@@ -178,9 +178,16 @@ export class HDOSSyncEngine {
       hazard: 'hazards',
       incident: 'incidents',
       pica: 'picas',
+      repository: 'repository',
     } as const;
 
-    if (item.entity !== 'inspection' && item.entity !== 'hazard' && item.entity !== 'incident' && item.entity !== 'pica') {
+    if (
+      item.entity !== 'inspection' &&
+      item.entity !== 'hazard' &&
+      item.entity !== 'incident' &&
+      item.entity !== 'pica' &&
+      item.entity !== 'repository'
+    ) {
       throw new Error(`Sinkronisasi backend belum tersedia untuk entity ${item.entity}`);
     }
 
