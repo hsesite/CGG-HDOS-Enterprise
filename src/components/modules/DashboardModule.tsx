@@ -29,7 +29,7 @@ import {
   Legend,
 } from 'recharts';
 import { useHDOSStore } from '../../core/store';
-import { hdosSync } from '../../core/sync';
+import { apiIntegration } from '../../core/api-integration';
 import { Button } from '../ui';
 import { KPICard } from '../ui/KPICard';
 import { CardSkeleton, ChartSkeleton } from '../ui/Skeleton';
@@ -38,6 +38,8 @@ export const DashboardModule: React.FC = () => {
   const store = useHDOSStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<'7D' | '14D' | '30D'>('30D');
+  const [refreshMessage, setRefreshMessage] = useState('');
+  const [refreshError, setRefreshError] = useState('');
 
   const totalInspections = store.inspections.length;
   const openHazards = store.hazards.filter((h) => h.status !== 'CLOSED').length;
@@ -45,13 +47,21 @@ export const DashboardModule: React.FC = () => {
   const activePicas = store.picas.filter((p) => p.status !== 'CLOSED').length;
   const overduePicas = store.picas.filter((p) => p.status === 'OVERDUE').length;
 
-  // Refresh data from Google Sheets
+  // Refresh queue + backend hydration
   async function handleRefresh(): Promise<void> {
     setIsRefreshing(true);
+    setRefreshMessage('');
+    setRefreshError('');
     try {
-      await hdosSync.syncAll();
+      const result = await apiIntegration.hydrateRemoteData({ syncQueuedFirst: true, failIfUnauthenticated: true });
+      setRefreshMessage(
+        result.syncedQueueFirst
+          ? 'Queue lokal disinkronkan lalu data backend berhasil dimuat ulang.'
+          : 'Data backend berhasil dimuat ulang ke aplikasi.'
+      );
     } catch (error) {
       console.error('Refresh failed:', error);
+      setRefreshError(error instanceof Error ? error.message : 'Refresh data backend gagal.');
     } finally {
       setIsRefreshing(false);
     }
@@ -106,6 +116,13 @@ export const DashboardModule: React.FC = () => {
         <div className="space-y-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Executive Dashboard</h1>
           <p className="text-sm text-neutral-400">Real-time HSE operational metrics</p>
+          <p className="text-xs text-neutral-500">
+            {store.isRemoteHydrating
+              ? 'Memuat data backend...'
+              : store.lastRemoteHydratedAt
+                ? `Backend terakhir dimuat ${new Date(store.lastRemoteHydratedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                : 'Belum ada refresh backend manual pada sesi ini.'}
+          </p>
         </div>
         <Button
           variant="secondary"
@@ -118,6 +135,18 @@ export const DashboardModule: React.FC = () => {
           <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
+
+      {refreshMessage && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-300">
+          {refreshMessage}
+        </div>
+      )}
+
+      {(refreshError || store.lastRemoteHydrationError) && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200">
+          {refreshError || store.lastRemoteHydrationError}
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

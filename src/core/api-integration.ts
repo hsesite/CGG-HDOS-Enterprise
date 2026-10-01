@@ -1,6 +1,7 @@
 import { hdosStore } from './store';
 import { apiSyncQueue } from './sync-queue';
 import { hseApi, ApiError } from './api';
+import { hdosSync } from './sync';
 import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport } from './types';
 
 type ServerEnvelopeRecord = {
@@ -30,26 +31,58 @@ function normalizeRecord<T extends { id: string }>(record: T | ServerEnvelopeRec
 }
 
 export class ApiIntegration {
-  async hydrateRemoteData(): Promise<void> {
-    if (!hseApi.isAuthenticated) return;
+  async hydrateRemoteData(options?: { syncQueuedFirst?: boolean; failIfUnauthenticated?: boolean }): Promise<{ syncedQueueFirst: boolean }> {
+    if (!hseApi.isAuthenticated) {
+      const message = 'Sesi login backend belum aktif untuk refresh data.';
+      hdosStore.failRemoteHydration(message);
+      if (options?.failIfUnauthenticated) {
+        throw new Error(message);
+      }
+      return { syncedQueueFirst: false };
+    }
 
-    const [inspections, hazards, picas, incidents, documents, contractors] = await Promise.all([
-      hseApi.list<Inspection | ServerEnvelopeRecord>('inspections'),
-      hseApi.list<Hazard | ServerEnvelopeRecord>('hazards'),
-      hseApi.list<PICA | ServerEnvelopeRecord>('picas'),
-      hseApi.list<Incident | ServerEnvelopeRecord>('incidents'),
-      hseApi.list<DocumentItem | ServerEnvelopeRecord>('repository'),
-      hseApi.list<ContractorPassport | ServerEnvelopeRecord>('contractors'),
-    ]);
+    hdosStore.beginRemoteHydration();
 
-    await hdosStore.hydrateRemoteData({
-      inspections: inspections.map((item) => normalizeRecord<Inspection>(item)),
-      hazards: hazards.map((item) => normalizeRecord<Hazard>(item)),
-      picas: picas.map((item) => normalizeRecord<PICA>(item)),
-      incidents: incidents.map((item) => normalizeRecord<Incident>(item)),
-      documents: documents.map((item) => normalizeRecord<DocumentItem>(item)),
-      contractors: contractors.map((item) => normalizeRecord<ContractorPassport>(item)),
-    });
+    try {
+      let syncedQueueFirst = false;
+      if (options?.syncQueuedFirst && hdosSync.getIsOnline() && hdosSync.getQueue().length > 0) {
+        syncedQueueFirst = await hdosSync.triggerSync();
+      }
+
+      const [inspections, hazards, picas, incidents, documents, contractors] = await Promise.all([
+        hseApi.list<Inspection | ServerEnvelopeRecord>('inspections'),
+        hseApi.list<Hazard | ServerEnvelopeRecord>('hazards'),
+        hseApi.list<PICA | ServerEnvelopeRecord>('picas'),
+        hseApi.list<Incident | ServerEnvelopeRecord>('incidents'),
+        hseApi.list<DocumentItem | ServerEnvelopeRecord>('repository'),
+        hseApi.list<ContractorPassport | ServerEnvelopeRecord>('contractors'),
+      ]);
+
+      await hdosStore.hydrateRemoteData({
+        inspections: inspections.map((item) => normalizeRecord<Inspection>(item)),
+        hazards: hazards.map((item) => normalizeRecord<Hazard>(item)),
+        picas: picas.map((item) => normalizeRecord<PICA>(item)),
+        incidents: incidents.map((item) => normalizeRecord<Incident>(item)),
+        documents: documents.map((item) => normalizeRecord<DocumentItem>(item)),
+        contractors: contractors.map((item) => normalizeRecord<ContractorPassport>(item)),
+      });
+
+      hdosStore.completeRemoteHydration({
+        inspections: inspections.length,
+        hazards: hazards.length,
+        picas: picas.length,
+        incidents: incidents.length,
+        documents: documents.length,
+        contractors: contractors.length,
+        syncedQueueFirst,
+      });
+
+      return { syncedQueueFirst };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal memuat data backend.';
+      hdosStore.failRemoteHydration(message);
+      throw error;
+    }
   }
 
   async createInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {

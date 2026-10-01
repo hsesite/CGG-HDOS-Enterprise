@@ -121,6 +121,9 @@ export class HDOSCentralStore {
   public isInitializing: boolean = false;
   public isInitialized: boolean = false;
   public lastInitError: string | null = null;
+  public isRemoteHydrating: boolean = false;
+  public lastRemoteHydratedAt: string | null = null;
+  public lastRemoteHydrationError: string | null = null;
 
   private listeners: Set<() => void> = new Set();
   private maxZIndex: number = 20;
@@ -297,6 +300,28 @@ export class HDOSCentralStore {
   setMobileMode(isMobile: boolean): void {
     this.isMobileMode = isMobile;
     this.notify();
+  }
+
+  beginRemoteHydration(): void {
+    this.isRemoteHydrating = true;
+    this.lastRemoteHydrationError = null;
+    this.notify();
+    hdosEvents.emit('store:remote_hydration_started');
+  }
+
+  completeRemoteHydration(summary?: Record<string, unknown>): void {
+    this.isRemoteHydrating = false;
+    this.lastRemoteHydratedAt = new Date().toISOString();
+    this.lastRemoteHydrationError = null;
+    this.notify();
+    hdosEvents.emit('store:remote_hydration_finished', summary);
+  }
+
+  failRemoteHydration(message: string): void {
+    this.isRemoteHydrating = false;
+    this.lastRemoteHydrationError = message;
+    this.notify();
+    hdosEvents.emit('store:remote_hydration_failed', { message });
   }
 
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
