@@ -33,6 +33,9 @@ export const AIModule: React.FC = () => {
   // Document parser state
   const [parsingDoc, setParsingDoc] = useState(false);
   const [parsedForm, setParsedForm] = useState<any>(null);
+  const [publishingHazard, setPublishingHazard] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // SMKP Advisor state
   const [query, setQuery] = useState('');
@@ -52,26 +55,39 @@ export const AIModule: React.FC = () => {
 
   const handleConvertToHazard = async () => {
     if (!scanResult) return;
-    await store.addHazard({
-      title: 'AI Temuan: Unit HD Parkir Tanpa Ganjal Ban & Pekerja Blind Spot',
-      category: 'Unsafe Condition',
-      location: 'Pit Jaja KM10',
-      specificLocation: 'Ramp Akses Bench 4 Elevasi +45',
-      riskMatrix: {
-        severity: 4,
-        likelihood: 4,
-        score: 16,
-        level: scanResult.suggestedRiskLevel,
-      },
-      reporter: 'HDOS AI Vision Guard',
-      reporterRole: 'Safety Officer',
-      status: 'PICA_ISSUED',
-      actionTaken: scanResult.suggestedAction,
-      aiDetected: true,
-      aiSuggestions: scanResult.findings,
-    });
-    alert('Temuan AI berhasil dikonversi dan disimpan ke Master Hazard Register serta menerbitkan tiket PICA!');
-    store.openWindow('hazard');
+    setPublishingHazard(true);
+    setErrorMsg('');
+
+    try {
+      const created = await store.addHazard({
+        title: 'AI Temuan: Unit HD Parkir Tanpa Ganjal Ban & Pekerja Blind Spot',
+        category: 'Unsafe Condition',
+        location: 'Pit Jaja KM10',
+        specificLocation: 'Ramp Akses Bench 4 Elevasi +45',
+        riskMatrix: {
+          severity: 4,
+          likelihood: 4,
+          score: 16,
+          level: scanResult.suggestedRiskLevel,
+        },
+        reporter: 'HDOS AI Vision Guard',
+        reporterRole: 'Safety Officer',
+        status: 'PICA_ISSUED',
+        actionTaken: scanResult.suggestedAction,
+        aiDetected: true,
+        aiSuggestions: scanResult.findings,
+      });
+      setSuccessMsg(
+        `Temuan AI berhasil dikonversi menjadi hazard ${created.code}${
+          created.picaId ? ' dan tiket PICA otomatis sudah diterbitkan.' : '.'
+        }`,
+      );
+      store.openWindow('hazard');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal mengonversi temuan AI menjadi hazard.');
+    } finally {
+      setPublishingHazard(false);
+    }
   };
 
   const handleParseDocument = async (filename: string) => {
@@ -108,6 +124,20 @@ export const AIModule: React.FC = () => {
             Sistem AI beroperasi 100% offline &amp; online untuk deteksi bahaya foto, parsing dokumen form, dan audit advisor SMKP.
           </p>
         </div>
+
+        {successMsg && (
+          <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-300 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
           <button
@@ -250,10 +280,11 @@ export const AIModule: React.FC = () => {
 
                   <button
                     onClick={handleConvertToHazard}
-                    className="w-full py-2.5 rounded-xl bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer mt-2"
+                    disabled={publishingHazard}
+                    className="w-full py-2.5 rounded-xl bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer mt-2 disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Setujui &amp; Terbitkan Tiket Hazard</span>
+                    <span>{publishingHazard ? 'Menerbitkan Hazard...' : 'Setujui &amp; Terbitkan Tiket Hazard'}</span>
                   </button>
                 </div>
               ) : (

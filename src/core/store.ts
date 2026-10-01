@@ -172,6 +172,46 @@ export class HDOSCentralStore {
     this.listeners.forEach((l) => l());
   }
 
+  private getPendingIds(entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository'): Set<string> {
+    return new Set(
+      hdosSync
+        .getQueue()
+        .filter((item) => item.entity === entity)
+        .map((item) => String((item.payload as { id?: string } | null)?.id ?? ''))
+        .filter(Boolean),
+    );
+  }
+
+  private mergeRemoteRecords<T extends { id: string }>(
+    localRecords: T[],
+    remoteRecords: T[],
+    entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository',
+  ): T[] {
+    const merged = new Map<string, T>();
+    const pendingIds = this.getPendingIds(entity);
+
+    remoteRecords.forEach((record) => merged.set(record.id, record));
+
+    localRecords.forEach((record) => {
+      if (!merged.has(record.id) || pendingIds.has(record.id)) {
+        merged.set(record.id, record);
+      }
+    });
+
+    return Array.from(merged.values()).sort((a, b) => {
+      const left = String((b as { createdAt?: string }).createdAt ?? '');
+      const right = String((a as { createdAt?: string }).createdAt ?? '');
+      return left.localeCompare(right);
+    });
+  }
+
+  private async replaceStoreRecords<T extends { id: string }>(storeName: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository', records: T[]): Promise<void> {
+    await hdosDB.clear(storeName);
+    for (const record of records) {
+      await hdosDB.put(storeName, record);
+    }
+  }
+
   private async enqueueSync(
     entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository',
     action: 'CREATE' | 'UPDATE' | 'DELETE',
@@ -489,6 +529,41 @@ export class HDOSCentralStore {
     this.notify();
     hdosEvents.emit('repository:updated', updated);
     return updated;
+  }
+
+  async hydrateRemoteData(data: {
+    inspections?: Inspection[];
+    hazards?: Hazard[];
+    picas?: PICA[];
+    incidents?: Incident[];
+    documents?: DocumentItem[];
+  }): Promise<void> {
+    const nextInspections = data.inspections ? this.mergeRemoteRecords(this.inspections, data.inspections, 'inspection') : this.inspections;
+    const nextHazards = data.hazards ? this.mergeRemoteRecords(this.hazards, data.hazards, 'hazard') : this.hazards;
+    const nextPicas = data.picas ? this.mergeRemoteRecords(this.picas, data.picas, 'pica') : this.picas;
+    const nextIncidents = data.incidents ? this.mergeRemoteRecords(this.incidents, data.incidents, 'incident') : this.incidents;
+    const nextDocuments = data.documents ? this.mergeRemoteRecords(this.documents, data.documents, 'repository') : this.documents;
+
+    this.inspections = nextInspections;
+    this.hazards = nextHazards;
+    this.picas = nextPicas;
+    this.incidents = nextIncidents;
+    this.documents = nextDocuments;
+
+    await this.replaceStoreRecords('inspection', nextInspections);
+    await this.replaceStoreRecords('hazard', nextHazards);
+    await this.replaceStoreRecords('pica', nextPicas);
+    await this.replaceStoreRecords('incident', nextIncidents);
+    await this.replaceStoreRecords('repository', nextDocuments);
+
+    this.notify();
+    hdosEvents.emit('store:remote_hydrated', {
+      inspections: nextInspections.length,
+      hazards: nextHazards.length,
+      picas: nextPicas.length,
+      incidents: nextIncidents.length,
+      documents: nextDocuments.length,
+    });
   }
 }
 

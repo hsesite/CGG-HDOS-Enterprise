@@ -1,9 +1,55 @@
 import { hdosStore } from './store';
 import { apiSyncQueue } from './sync-queue';
 import { hseApi, ApiError } from './api';
-import type { Inspection, Hazard, PICA, Incident } from './types';
+import type { Inspection, Hazard, PICA, Incident, DocumentItem } from './types';
+
+type ServerEnvelopeRecord = {
+  id?: string;
+  code?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+  payload?: Record<string, unknown>;
+};
+
+function normalizeRecord<T extends { id: string }>(record: T | ServerEnvelopeRecord): T {
+  if (record && typeof record === 'object' && 'payload' in record && record.payload && typeof record.payload === 'object') {
+    return {
+      ...record.payload,
+      id: String(record.id ?? (record.payload as { id?: string }).id ?? ''),
+      code: String(record.code ?? (record.payload as { code?: string }).code ?? ''),
+      status: String(record.status ?? (record.payload as { status?: string }).status ?? ''),
+      createdAt: String(record.createdAt ?? record.created_at ?? (record.payload as { createdAt?: string }).createdAt ?? ''),
+      updatedAt: String(record.updatedAt ?? record.updated_at ?? (record.payload as { updatedAt?: string }).updatedAt ?? ''),
+    } as unknown as T;
+  }
+
+  return record as T;
+}
 
 export class ApiIntegration {
+  async hydrateRemoteData(): Promise<void> {
+    if (!hseApi.isAuthenticated) return;
+
+    const [inspections, hazards, picas, incidents, documents] = await Promise.all([
+      hseApi.list<Inspection | ServerEnvelopeRecord>('inspections'),
+      hseApi.list<Hazard | ServerEnvelopeRecord>('hazards'),
+      hseApi.list<PICA | ServerEnvelopeRecord>('picas'),
+      hseApi.list<Incident | ServerEnvelopeRecord>('incidents'),
+      hseApi.list<DocumentItem | ServerEnvelopeRecord>('repository'),
+    ]);
+
+    await hdosStore.hydrateRemoteData({
+      inspections: inspections.map((item) => normalizeRecord<Inspection>(item)),
+      hazards: hazards.map((item) => normalizeRecord<Hazard>(item)),
+      picas: picas.map((item) => normalizeRecord<PICA>(item)),
+      incidents: incidents.map((item) => normalizeRecord<Incident>(item)),
+      documents: documents.map((item) => normalizeRecord<DocumentItem>(item)),
+    });
+  }
+
   async createInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
     const created = await hdosStore.addInspection(inspection);
     if (hseApi.isAuthenticated) {

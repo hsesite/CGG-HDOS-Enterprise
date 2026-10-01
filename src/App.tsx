@@ -9,6 +9,7 @@ import { IOSMobileSimulator } from './components/mobile/IOSMobileSimulator';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
+import { apiIntegration } from './core/api-integration';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
@@ -44,23 +45,33 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
+  async function hydrateRemoteAfterAuth(): Promise<void> {
+    try {
+      await apiIntegration.hydrateRemoteData();
+    } catch (error) {
+      console.warn('Remote hydration skipped:', error);
+    }
+  }
+
   useEffect(() => {
-    bootHDOS().then(() => {
+    bootHDOS().then(async () => {
       setBooted(true);
       const user = getCurrentUser();
       if (user) {
         setIsAuthenticated(true);
         setCurrentUser(user);
+        await hydrateRemoteAfterAuth();
       }
       setCheckingSession(false);
     });
   }, []);
 
-  function handleLoggedIn(): void {
+  async function handleLoggedIn(): Promise<void> {
     const user = getCurrentUser();
     if (user) {
       setIsAuthenticated(true);
       setCurrentUser(user);
+      await hydrateRemoteAfterAuth();
       setCheckingSession(false);
     }
   }
