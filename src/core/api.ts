@@ -137,19 +137,19 @@ export const hseApi = {
     return request<ApiUser>('/api/me');
   },
 
-  list<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository'): Promise<T[]> {
+  list<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors'): Promise<T[]> {
     return request<T[]>(`/api/${entity}`);
   },
 
-  get<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository', id: string): Promise<T> {
+  get<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors', id: string): Promise<T> {
     return request<T>(`/api/${entity}/${encodeURIComponent(id)}`);
   },
 
-  create<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository', payload: unknown): Promise<T> {
+  create<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors', payload: unknown): Promise<T> {
     return request<T>(`/api/${entity}`, { method: 'POST', body: JSON.stringify(payload) });
   },
 
-  update<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository', id: string, payload: unknown): Promise<T> {
+  update<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors', id: string, payload: unknown): Promise<T> {
     return request<T>(`/api/${entity}/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
   },
 };

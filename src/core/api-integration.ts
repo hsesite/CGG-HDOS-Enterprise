@@ -1,7 +1,7 @@
 import { hdosStore } from './store';
 import { apiSyncQueue } from './sync-queue';
 import { hseApi, ApiError } from './api';
-import type { Inspection, Hazard, PICA, Incident, DocumentItem } from './types';
+import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport } from './types';
 
 type ServerEnvelopeRecord = {
   id?: string;
@@ -33,12 +33,13 @@ export class ApiIntegration {
   async hydrateRemoteData(): Promise<void> {
     if (!hseApi.isAuthenticated) return;
 
-    const [inspections, hazards, picas, incidents, documents] = await Promise.all([
+    const [inspections, hazards, picas, incidents, documents, contractors] = await Promise.all([
       hseApi.list<Inspection | ServerEnvelopeRecord>('inspections'),
       hseApi.list<Hazard | ServerEnvelopeRecord>('hazards'),
       hseApi.list<PICA | ServerEnvelopeRecord>('picas'),
       hseApi.list<Incident | ServerEnvelopeRecord>('incidents'),
       hseApi.list<DocumentItem | ServerEnvelopeRecord>('repository'),
+      hseApi.list<ContractorPassport | ServerEnvelopeRecord>('contractors'),
     ]);
 
     await hdosStore.hydrateRemoteData({
@@ -47,6 +48,7 @@ export class ApiIntegration {
       picas: picas.map((item) => normalizeRecord<PICA>(item)),
       incidents: incidents.map((item) => normalizeRecord<Incident>(item)),
       documents: documents.map((item) => normalizeRecord<DocumentItem>(item)),
+      contractors: contractors.map((item) => normalizeRecord<ContractorPassport>(item)),
     });
   }
 

@@ -19,11 +19,13 @@ import { MiningArea, InspectionItem, Inspection } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 
 interface TemplateDef {
-  id: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
+  id: string;
   title: string;
   category: string;
   smkpElement: string;
   items: { question: string; standardRef: string }[];
+  source?: 'built_in' | 'imported';
+  sourceFilename?: string;
 }
 
 const TEMPLATES: TemplateDef[] = [
@@ -80,20 +82,35 @@ const TEMPLATES: TemplateDef[] = [
   },
 ];
 
+const buildDefaultAnswers = (itemCount: number): Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }> =>
+  Array.from({ length: itemCount }).reduce<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>((acc, _item, idx) => {
+    acc[idx] = { result: 'PASS', notes: '' };
+    return acc;
+  }, {});
+
 export const InspectionModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const allTemplates: TemplateDef[] = [
+    ...TEMPLATES.map((template) => ({ ...template, source: 'built_in' as const })),
+    ...store.importedInspectionTemplates.map((template) => ({
+      id: template.id,
+      title: template.title,
+      category: `${template.category} · AI Import`,
+      smkpElement: template.smkpElement,
+      items: template.checklistItems.map((item) => ({
+        question: item.question,
+        standardRef: item.standardRef,
+      })),
+      source: 'imported' as const,
+      sourceFilename: template.sourceFilename,
+    })),
+  ];
 
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateDef['id']>('APAR');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('APAR');
   const [location, setLocation] = useState<MiningArea>('Workshop');
-  const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({
-    0: { result: 'PASS', notes: '' },
-    1: { result: 'PASS', notes: '' },
-    2: { result: 'PASS', notes: '' },
-    3: { result: 'PASS', notes: '' },
-    4: { result: 'PASS', notes: '' },
-  });
+  const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>(buildDefaultAnswers(TEMPLATES[0].items.length));
   const [inspectorName, setInspectorName] = useState(currentUser.name);
   const [generalNotes, setGeneralNotes] = useState('');
   const [photoAttached, setPhotoAttached] = useState(true);
@@ -101,7 +118,7 @@ export const InspectionModule: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId)!;
+  const currentTemplate = allTemplates.find((t) => t.id === selectedTemplateId) ?? allTemplates[0];
 
   const handleResultChange = (index: number, result: 'PASS' | 'FAIL' | 'NA') => {
     setAnswers((prev) => ({
@@ -144,7 +161,7 @@ export const InspectionModule: React.FC = () => {
 
       const newInspection = await store.addInspection({
         title: currentTemplate.title,
-        templateType: currentTemplate.id,
+        templateType: currentTemplate.source === 'imported' ? 'IMPORTED' : (currentTemplate.id as Inspection['templateType']),
         location,
         inspectorName,
         inspectorRole: currentUser.role,
@@ -162,17 +179,14 @@ export const InspectionModule: React.FC = () => {
       });
 
       setSuccessMessage(
-        `Inspeksi ${newInspection.code} berhasil disimpan ke penyimpanan lokal. ${
+        `Inspeksi ${newInspection.code} berhasil disimpan ke penyimpanan lokal${
+          currentTemplate.source === 'imported' ? ` dari template AI ${currentTemplate.sourceFilename ?? currentTemplate.title}` : ''
+        }. ${
           hasFail ? 'Tindakan koreksi (PICA) otomatis diterbitkan untuk temuan "Tidak".' : 'Seluruh item memenuhi standar.'
         }`
       );
       setGeneralNotes('');
-      setAnswers(
-        currentTemplate.items.reduce<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>((acc, _item, idx) => {
-          acc[idx] = { result: 'PASS', notes: '' };
-          return acc;
-        }, {})
-      );
+      setAnswers(buildDefaultAnswers(currentTemplate.items.length));
 
       setTimeout(() => {
         setSuccessMessage('');
@@ -251,18 +265,13 @@ export const InspectionModule: React.FC = () => {
           <div className="space-y-2">
             <label className="text-xs font-semibold text-neutral-300">Pilih Template Formulir Digital:</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {TEMPLATES.map((tmpl) => (
+              {allTemplates.map((tmpl) => (
                 <button
                   key={tmpl.id}
                   type="button"
                   onClick={() => {
                     setSelectedTemplateId(tmpl.id);
-                    // Reset answers
-                    const newAns: any = {};
-                    tmpl.items.forEach((_, idx) => {
-                      newAns[idx] = { result: 'PASS', notes: '' };
-                    });
-                    setAnswers(newAns);
+                    setAnswers(buildDefaultAnswers(tmpl.items.length));
                   }}
                   className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
                     selectedTemplateId === tmpl.id
@@ -270,12 +279,26 @@ export const InspectionModule: React.FC = () => {
                       : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
                   }`}
                 >
-                  <div className="text-[10px] uppercase font-mono text-[#42A5F5] font-semibold">{tmpl.category}</div>
+                  <div className="text-[10px] uppercase font-mono text-[#42A5F5] font-semibold flex items-center justify-between gap-2">
+                    <span>{tmpl.category}</span>
+                    {tmpl.source === 'imported' && (
+                      <span className="px-1.5 py-0.5 rounded bg-fuchsia-500/20 text-fuchsia-300 normal-case tracking-normal">
+                        AI
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs font-bold text-white mt-1 leading-snug">{tmpl.title}</div>
-                  <div className="text-[10px] text-neutral-400 mt-2">{tmpl.items.length} Parameter Uji</div>
+                  <div className="text-[10px] text-neutral-400 mt-2">
+                    {tmpl.items.length} Parameter Uji{tmpl.sourceFilename ? ` • ${tmpl.sourceFilename}` : ''}
+                  </div>
                 </button>
               ))}
             </div>
+            {store.importedInspectionTemplates.length > 0 && (
+              <div className="text-[11px] text-neutral-400">
+                {store.importedInspectionTemplates.length} template hasil AI tersedia dan tetap tersimpan setelah refresh.
+              </div>
+            )}
           </div>
 
           {/* Context & Metadata Card */}

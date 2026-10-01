@@ -1,4 +1,4 @@
-import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport, MiningLocationGIS, AppWindow, WindowId } from './types';
+import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport, MiningLocationGIS, AppWindow, WindowId, ImportedInspectionTemplate } from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
 import { hdosSync } from './sync';
@@ -102,6 +102,7 @@ export class HDOSCentralStore {
   public picas: PICA[] = [];
   public documents: DocumentItem[] = INITIAL_DOCUMENTS;
   public contractors: ContractorPassport[] = INITIAL_CONTRACTORS;
+  public importedInspectionTemplates: ImportedInspectionTemplate[] = [];
   public locations: MiningLocationGIS[] = INITIAL_LOCATIONS;
   public windows: AppWindow[] = INITIAL_WINDOWS;
   public focusedWindowId: WindowId = 'dashboard';
@@ -123,6 +124,19 @@ export class HDOSCentralStore {
 
   private listeners: Set<() => void> = new Set();
   private maxZIndex: number = 20;
+
+  private async loadImportedTemplates(): Promise<void> {
+    const configItems = await hdosDB.getAll<{ id: string; templates?: ImportedInspectionTemplate[] }>('config');
+    const stored = configItems.find((item) => item.id === 'inspection_templates');
+    this.importedInspectionTemplates = stored?.templates ?? [];
+  }
+
+  private async saveImportedTemplates(): Promise<void> {
+    await hdosDB.put('config', {
+      id: 'inspection_templates',
+      templates: this.importedInspectionTemplates,
+    });
+  }
 
   async init(): Promise<void> {
     this.isInitializing = true;
@@ -146,6 +160,13 @@ export class HDOSCentralStore {
       if (storedDocs.length > 0) {
         this.documents = storedDocs;
       }
+
+      const storedContractors = await hdosDB.getAll<ContractorPassport>('contractor');
+      if (storedContractors.length > 0) {
+        this.contractors = storedContractors;
+      }
+
+      await this.loadImportedTemplates();
     } catch (err) {
       console.warn('[HDOS Store] IndexedDB fallback', err);
       this.lastInitError = err instanceof Error ? err.message : 'Gagal memuat data lokal';
@@ -172,7 +193,7 @@ export class HDOSCentralStore {
     this.listeners.forEach((l) => l());
   }
 
-  private getPendingIds(entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository'): Set<string> {
+  private getPendingIds(entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository' | 'contractor'): Set<string> {
     return new Set(
       hdosSync
         .getQueue()
@@ -185,7 +206,7 @@ export class HDOSCentralStore {
   private mergeRemoteRecords<T extends { id: string }>(
     localRecords: T[],
     remoteRecords: T[],
-    entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository',
+    entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository' | 'contractor',
   ): T[] {
     const merged = new Map<string, T>();
     const pendingIds = this.getPendingIds(entity);
@@ -205,7 +226,7 @@ export class HDOSCentralStore {
     });
   }
 
-  private async replaceStoreRecords<T extends { id: string }>(storeName: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository', records: T[]): Promise<void> {
+  private async replaceStoreRecords<T extends { id: string }>(storeName: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository' | 'contractor', records: T[]): Promise<void> {
     await hdosDB.clear(storeName);
     for (const record of records) {
       await hdosDB.put(storeName, record);
@@ -213,7 +234,7 @@ export class HDOSCentralStore {
   }
 
   private async enqueueSync(
-    entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository',
+    entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository' | 'contractor',
     action: 'CREATE' | 'UPDATE' | 'DELETE',
     payload: unknown,
     note?: string,
@@ -531,30 +552,79 @@ export class HDOSCentralStore {
     return updated;
   }
 
+  async addContractor(contractor: Omit<ContractorPassport, 'id'>): Promise<ContractorPassport> {
+    const newContractor: ContractorPassport = {
+      ...contractor,
+      id: `contractor_${Date.now()}`,
+    };
+
+    this.contractors = [newContractor, ...this.contractors];
+    await hdosDB.put('contractor', newContractor);
+    await this.enqueueSync('contractor', 'CREATE', newContractor, `Kontraktor ${newContractor.code} tersimpan lokal`);
+    this.notify();
+    hdosEvents.emit('contractor:created', newContractor);
+    return newContractor;
+  }
+
+  async updateContractor(id: string, updates: Partial<ContractorPassport>): Promise<ContractorPassport | null> {
+    const index = this.contractors.findIndex((contractor) => contractor.id === id);
+    if (index === -1) return null;
+
+    const updated: ContractorPassport = {
+      ...this.contractors[index],
+      ...updates,
+    };
+
+    this.contractors[index] = updated;
+    await hdosDB.put('contractor', updated);
+    await this.enqueueSync('contractor', 'UPDATE', updated, `Kontraktor ${updated.code} diperbarui lokal`);
+    this.notify();
+    hdosEvents.emit('contractor:updated', updated);
+    return updated;
+  }
+
+  async importInspectionTemplate(template: Omit<ImportedInspectionTemplate, 'id' | 'createdAt'>): Promise<ImportedInspectionTemplate> {
+    const importedTemplate: ImportedInspectionTemplate = {
+      ...template,
+      id: `tmpl_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    this.importedInspectionTemplates = [importedTemplate, ...this.importedInspectionTemplates];
+    await this.saveImportedTemplates();
+    this.notify();
+    hdosEvents.emit('inspection_template:imported', importedTemplate);
+    return importedTemplate;
+  }
+
   async hydrateRemoteData(data: {
     inspections?: Inspection[];
     hazards?: Hazard[];
     picas?: PICA[];
     incidents?: Incident[];
     documents?: DocumentItem[];
+    contractors?: ContractorPassport[];
   }): Promise<void> {
     const nextInspections = data.inspections ? this.mergeRemoteRecords(this.inspections, data.inspections, 'inspection') : this.inspections;
     const nextHazards = data.hazards ? this.mergeRemoteRecords(this.hazards, data.hazards, 'hazard') : this.hazards;
     const nextPicas = data.picas ? this.mergeRemoteRecords(this.picas, data.picas, 'pica') : this.picas;
     const nextIncidents = data.incidents ? this.mergeRemoteRecords(this.incidents, data.incidents, 'incident') : this.incidents;
     const nextDocuments = data.documents ? this.mergeRemoteRecords(this.documents, data.documents, 'repository') : this.documents;
+    const nextContractors = data.contractors ? this.mergeRemoteRecords(this.contractors, data.contractors, 'contractor') : this.contractors;
 
     this.inspections = nextInspections;
     this.hazards = nextHazards;
     this.picas = nextPicas;
     this.incidents = nextIncidents;
     this.documents = nextDocuments;
+    this.contractors = nextContractors;
 
     await this.replaceStoreRecords('inspection', nextInspections);
     await this.replaceStoreRecords('hazard', nextHazards);
     await this.replaceStoreRecords('pica', nextPicas);
     await this.replaceStoreRecords('incident', nextIncidents);
     await this.replaceStoreRecords('repository', nextDocuments);
+    await this.replaceStoreRecords('contractor', nextContractors);
 
     this.notify();
     hdosEvents.emit('store:remote_hydrated', {
@@ -563,6 +633,7 @@ export class HDOSCentralStore {
       picas: nextPicas.length,
       incidents: nextIncidents.length,
       documents: nextDocuments.length,
+      contractors: nextContractors.length,
     });
   }
 }

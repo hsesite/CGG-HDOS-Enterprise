@@ -16,14 +16,17 @@ create table if not exists hazards (like inspections including all);
 create table if not exists picas (like inspections including all);
 create table if not exists incidents (like inspections including all);
 create table if not exists repository (like inspections including all);
+create table if not exists contractors (like inspections including all);
 
 create index if not exists inspections_created_idx on inspections(created_at desc);
 create index if not exists hazards_created_idx on hazards(created_at desc);
 create index if not exists picas_created_idx on picas(created_at desc);
 create index if not exists incidents_created_idx on incidents(created_at desc);
 create index if not exists repository_created_idx on repository(created_at desc);
+create index if not exists contractors_created_idx on contractors(created_at desc);
 create index if not exists inspections_payload_idx on inspections using gin(payload);
 create index if not exists hazards_payload_idx on hazards using gin(payload);
 create index if not exists picas_payload_idx on picas using gin(payload);
 create index if not exists incidents_payload_idx on incidents using gin(payload);
 create index if not exists repository_payload_idx on repository using gin(payload);
+create index if not exists contractors_payload_idx on contractors using gin(payload);
