@@ -15,9 +15,10 @@ import {
   Filter,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { MiningArea, InspectionItem, Inspection } from '../../core/types';
+import { MiningArea, InspectionItem, Inspection, DraftPhotoEvidence } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 interface TemplateDef {
   id: string;
@@ -114,7 +115,7 @@ export const InspectionModule: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>(buildDefaultAnswers(TEMPLATES[0].items.length));
   const [inspectorName, setInspectorName] = useState(currentUser.name);
   const [generalNotes, setGeneralNotes] = useState('');
-  const [photoAttached, setPhotoAttached] = useState(true);
+  const [draftPhotoEvidence, setDraftPhotoEvidence] = useState<DraftPhotoEvidence[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -179,15 +180,20 @@ export const InspectionModule: React.FC = () => {
         },
       });
 
+      if (draftPhotoEvidence.length > 0) {
+        await store.attachPhotoEvidence('inspection', newInspection.id, draftPhotoEvidence, currentUser.name);
+      }
+
       setSuccessMessage(
         `Inspeksi ${newInspection.code} berhasil disimpan ke penyimpanan lokal${
           currentTemplate.source === 'imported' ? ` dari template AI ${currentTemplate.sourceFilename ?? currentTemplate.title}` : ''
-        }. ${
+        }${draftPhotoEvidence.length > 0 ? ` dengan ${draftPhotoEvidence.length} photo evidence lokal.` : '.'} ${
           hasFail ? 'Tindakan koreksi (PICA) otomatis diterbitkan untuk temuan "Tidak".' : 'Seluruh item memenuhi standar.'
         }`
       );
       setGeneralNotes('');
       setAnswers(buildDefaultAnswers(currentTemplate.items.length));
+      setDraftPhotoEvidence([]);
 
       setTimeout(() => {
         setSuccessMessage('');
@@ -453,25 +459,16 @@ export const InspectionModule: React.FC = () => {
           </div>
 
           {/* Telemetry Stamp & Photo Attachment */}
-          <div className="apple-glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-neutral-300">
-                <Camera className="w-5 h-5 text-[#42A5F5]" />
-              </div>
-              <div>
-                <div className="font-semibold text-white">Lampiran Foto &amp; Geotag Otomatis</div>
-                <div className="text-[11px] text-neutral-400 font-mono">
-                  GPS: -2.9395, 121.9618 (UTM 51S 385100 mE) · Timestamp Terverifikasi
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-[11px] font-mono">
-                1 Foto Terlampir
-              </span>
-            </div>
-          </div>
+          <PhotoEvidencePanel
+            ownerEntity="inspection"
+            title="Lampiran Foto Evidence & Geotag Lapangan"
+            helperText="Foto inspeksi disimpan lokal di IndexedDB bersama form draft/final agar tetap terbaca setelah refresh dan saat offline."
+            emptyText="Belum ada foto inspeksi yang dipilih."
+            draftItems={draftPhotoEvidence}
+            onDraftItemsChange={setDraftPhotoEvidence}
+            onSuccess={setSuccessMessage}
+            onError={setErrorMessage}
+          />
 
           {/* Submit Action */}
           <div className="flex items-center justify-end gap-3 pt-2">
@@ -513,6 +510,7 @@ export const InspectionModule: React.FC = () => {
                     <th className="pb-3 font-semibold">Inspektur</th>
                     <th className="pb-3 font-semibold">Tanggal</th>
                     <th className="pb-3 font-semibold text-right">Skor Kepatuhan</th>
+                    <th className="pb-3 font-semibold text-right">Evidence</th>
                     <th className="pb-3 font-semibold text-right">Status</th>
                   </tr>
                 </thead>
@@ -527,6 +525,11 @@ export const InspectionModule: React.FC = () => {
                       <td className="py-3 text-right font-mono font-bold">
                         <span className={ins.scorePercent === 100 ? 'text-[#00E676]' : 'text-amber-400'}>
                           {ins.scorePercent}%
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-white/5 text-neutral-300">
+                          {store.countPhotoEvidence('inspection', ins.id)} foto
                         </span>
                       </td>
                       <td className="py-3 text-right">

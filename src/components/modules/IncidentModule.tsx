@@ -12,9 +12,10 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { Incident, MiningArea } from '../../core/types';
+import { Incident, MiningArea, DraftPhotoEvidence } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
@@ -36,6 +37,7 @@ export const IncidentModule: React.FC = () => {
   const [fiveWhy3, setFiveWhy3] = useState('');
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
+  const [draftPhotoEvidence, setDraftPhotoEvidence] = useState<DraftPhotoEvidence[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -78,15 +80,24 @@ export const IncidentModule: React.FC = () => {
         smkpReportSubmitted: false,
       });
 
+      if (draftPhotoEvidence.length > 0) {
+        await store.attachPhotoEvidence('incident', newInc.id, draftPhotoEvidence, currentUser.name);
+      }
+
       setSelectedIncident(newInc);
       setActiveTab('list');
-      setSuccessMsg(`Insiden ${newInc.code} berhasil disimpan ke penyimpanan lokal.`);
+      setSuccessMsg(
+        `Insiden ${newInc.code} berhasil disimpan ke penyimpanan lokal${
+          draftPhotoEvidence.length > 0 ? ` dengan ${draftPhotoEvidence.length} photo evidence investigasi.` : '.'
+        }`,
+      );
       setTitle('');
       setFiveWhy1('');
       setFiveWhy2('');
       setFiveWhy3('');
       setRootCause('');
       setCorrectiveAction('');
+      setDraftPhotoEvidence([]);
     } catch (error) {
       setErrorMsg(error instanceof Error ? error.message : 'Gagal menyimpan insiden.');
     } finally {
@@ -327,6 +338,17 @@ export const IncidentModule: React.FC = () => {
                   </div>
                 </div>
 
+                <PhotoEvidencePanel
+                  ownerEntity="incident"
+                  ownerId={selectedIncident.id}
+                  createdBy={currentUser.name}
+                  title="Photo Evidence Investigasi"
+                  helperText="Simpan foto area kejadian, kerusakan aset, barrier, atau bukti perbaikan selama investigasi berlangsung."
+                  emptyText="Belum ada photo evidence pada insiden ini."
+                  onSuccess={setSuccessMsg}
+                  onError={setErrorMsg}
+                />
+
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3 text-xs">
                   <div className="text-xs font-bold uppercase tracking-wider text-neutral-300">
                     Update Investigasi
@@ -526,6 +548,17 @@ export const IncidentModule: React.FC = () => {
               />
             </div>
           </div>
+
+          <PhotoEvidencePanel
+            ownerEntity="incident"
+            title="Photo Evidence Kejadian"
+            helperText="Tambah foto situasi awal, alat terlibat, titik impak, atau bukti housekeeping awal sebelum investigasi ditutup."
+            emptyText="Belum ada foto insiden yang dipilih."
+            draftItems={draftPhotoEvidence}
+            onDraftItemsChange={setDraftPhotoEvidence}
+            onSuccess={setSuccessMsg}
+            onError={setErrorMsg}
+          />
 
           <div className="flex justify-end gap-3 pt-2">
             <button

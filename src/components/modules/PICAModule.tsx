@@ -14,6 +14,7 @@ import { useHDOSStore } from '../../core/store';
 import { PICA } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 export const PICAModule: React.FC = () => {
   const store = useHDOSStore();
@@ -277,6 +278,17 @@ export const PICAModule: React.FC = () => {
                 <div className="text-xs font-bold text-white uppercase tracking-wider mb-2">
                   Alur Verifikasi Bertingkat (Sign-off)
                 </div>
+
+                <PhotoEvidencePanel
+                  ownerEntity="pica"
+                  ownerId={selectedPica.id}
+                  createdBy={currentUser.name}
+                  title="Evidence Close-out PICA"
+                  helperText="Lampirkan foto perbaikan, housekeeping akhir, guarding baru, atau bukti implementasi corrective action."
+                  emptyText="Belum ada evidence close-out pada PICA ini."
+                  onSuccess={setSuccessMsg}
+                  onError={setErrorMsg}
+                />
 
                 {/* Stage 1: Foreman Safety */}
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs">

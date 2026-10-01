@@ -171,6 +171,25 @@ export interface ImportedInspectionTemplate {
   }[];
 }
 
+export type EvidenceOwnerEntity = 'inspection' | 'hazard' | 'pica' | 'incident';
+
+export interface DraftPhotoEvidence {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataUrl: string;
+  caption?: string;
+}
+
+export interface PhotoEvidence extends DraftPhotoEvidence {
+  ownerEntity: EvidenceOwnerEntity;
+  ownerId: string;
+  createdAt: string;
+  createdBy: string;
+  syncStatus: 'LOCAL_ONLY';
+}
+
 export interface MiningLocationGIS {
   id: string;
   name: MiningArea;

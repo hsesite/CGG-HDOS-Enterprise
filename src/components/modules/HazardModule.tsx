@@ -13,9 +13,10 @@ import {
   Filter,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { MiningArea, Hazard } from '../../core/types';
+import { MiningArea, Hazard, DraftPhotoEvidence } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
@@ -32,6 +33,7 @@ export const HazardModule: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [draftPhotoEvidence, setDraftPhotoEvidence] = useState<DraftPhotoEvidence[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState<Hazard['status']>('OPEN');
@@ -72,8 +74,14 @@ export const HazardModule: React.FC = () => {
         aiDetected: false,
       });
 
+      if (draftPhotoEvidence.length > 0) {
+        await store.attachPhotoEvidence('hazard', newHaz.id, draftPhotoEvidence, currentUser.name);
+      }
+
       setSuccessMsg(
         `Laporan Bahaya ${newHaz.code} berhasil dicatat dan disimpan lokal. ${
+          draftPhotoEvidence.length > 0 ? `${draftPhotoEvidence.length} photo evidence ikut tersimpan offline. ` : ''
+        }${
           newHaz.picaId ? 'Karena tingkat risiko TINGGI/KRITIS, PICA otomatis diterbitkan untuk penanganan segera.' : ''
         }`
       );
@@ -81,6 +89,7 @@ export const HazardModule: React.FC = () => {
       setTitle('');
       setSpecificLocation('');
       setActionTaken('');
+      setDraftPhotoEvidence([]);
       setSelectedHazardId(newHaz.id);
 
       setTimeout(() => {
@@ -273,6 +282,17 @@ export const HazardModule: React.FC = () => {
                     className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#FF5252]"
                   />
                 </div>
+
+                <PhotoEvidencePanel
+                  ownerEntity="hazard"
+                  title="Photo Evidence Temuan Lapangan"
+                  helperText="Gunakan foto lapangan untuk mendukung identifikasi bahaya, wheel chock, housekeeping, guard, atau kondisi area."
+                  emptyText="Belum ada foto hazard yang dipilih."
+                  draftItems={draftPhotoEvidence}
+                  onDraftItemsChange={setDraftPhotoEvidence}
+                  onSuccess={setSuccessMsg}
+                  onError={setErrorMsg}
+                />
               </div>
             </div>
 
@@ -492,6 +512,17 @@ export const HazardModule: React.FC = () => {
                       placeholder="Catat tindakan sementara, mitigasi permanen, atau update penutupan..."
                     />
                   </div>
+
+                  <PhotoEvidencePanel
+                    ownerEntity="hazard"
+                    ownerId={selectedHazard.id}
+                    createdBy={currentUser.name}
+                    title="Evidence Penanganan Hazard"
+                    helperText="Tambah bukti foto perbaikan, isolasi area, barrier, housekeeping, atau verifikasi penutupan hazard."
+                    emptyText="Belum ada evidence foto pada hazard ini."
+                    onSuccess={setSuccessMsg}
+                    onError={setErrorMsg}
+                  />
 
                   <button
                     type="button"

@@ -1,4 +1,18 @@
-import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport, MiningLocationGIS, AppWindow, WindowId, ImportedInspectionTemplate } from './types';
+import type {
+  Inspection,
+  Hazard,
+  PICA,
+  Incident,
+  DocumentItem,
+  ContractorPassport,
+  MiningLocationGIS,
+  AppWindow,
+  WindowId,
+  ImportedInspectionTemplate,
+  PhotoEvidence,
+  DraftPhotoEvidence,
+  EvidenceOwnerEntity,
+} from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
 import { hdosSync } from './sync';
@@ -103,6 +117,7 @@ export class HDOSCentralStore {
   public documents: DocumentItem[] = INITIAL_DOCUMENTS;
   public contractors: ContractorPassport[] = INITIAL_CONTRACTORS;
   public importedInspectionTemplates: ImportedInspectionTemplate[] = [];
+  public photoEvidence: PhotoEvidence[] = [];
   public locations: MiningLocationGIS[] = INITIAL_LOCATIONS;
   public windows: AppWindow[] = INITIAL_WINDOWS;
   public focusedWindowId: WindowId = 'dashboard';
@@ -168,6 +183,9 @@ export class HDOSCentralStore {
       if (storedContractors.length > 0) {
         this.contractors = storedContractors;
       }
+
+      const storedPhotoEvidence = await hdosDB.getAll<PhotoEvidence>('photos');
+      this.photoEvidence = storedPhotoEvidence.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
       await this.loadImportedTemplates();
     } catch (err) {
@@ -540,6 +558,47 @@ export class HDOSCentralStore {
     this.notify();
     hdosEvents.emit('incident:updated', updated);
     return updated;
+  }
+
+  getPhotoEvidence(ownerEntity: EvidenceOwnerEntity, ownerId: string): PhotoEvidence[] {
+    return this.photoEvidence.filter((item) => item.ownerEntity === ownerEntity && item.ownerId === ownerId);
+  }
+
+  countPhotoEvidence(ownerEntity: EvidenceOwnerEntity, ownerId: string): number {
+    return this.getPhotoEvidence(ownerEntity, ownerId).length;
+  }
+
+  async attachPhotoEvidence(
+    ownerEntity: EvidenceOwnerEntity,
+    ownerId: string,
+    evidenceItems: DraftPhotoEvidence[],
+    createdBy: string,
+  ): Promise<PhotoEvidence[]> {
+    if (evidenceItems.length === 0) return [];
+
+    const now = new Date().toISOString();
+    const storedItems = evidenceItems.map<PhotoEvidence>((item, index) => ({
+      ...item,
+      id: `photo_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}`,
+      ownerEntity,
+      ownerId,
+      createdAt: now,
+      createdBy,
+      syncStatus: 'LOCAL_ONLY',
+    }));
+
+    for (const item of storedItems) {
+      await hdosDB.put('photos', item);
+    }
+
+    this.photoEvidence = [...storedItems, ...this.photoEvidence].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    this.notify();
+    hdosEvents.emit('photo:evidence_added', {
+      ownerEntity,
+      ownerId,
+      count: storedItems.length,
+    });
+    return storedItems;
   }
 
   async addDocument(document: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'>): Promise<DocumentItem> {
