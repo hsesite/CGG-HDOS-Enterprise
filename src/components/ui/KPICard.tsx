@@ -23,7 +23,7 @@ export function KPICard({
   status = 'normal',
   onClick,
   className = '',
-}: KPICardProps): JSX.Element {
+}: KPICardProps): React.ReactElement {
   const statusColors = {
     normal: 'border-white/10 hover:border-white/20',
     warning: 'border-yellow-500/30 hover:border-yellow-500/50 bg-yellow-500/5',

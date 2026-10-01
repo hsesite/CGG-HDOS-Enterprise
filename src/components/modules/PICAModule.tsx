@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckSquare,
   Clock,
@@ -19,6 +19,9 @@ export const PICAModule: React.FC = () => {
   const currentUser = hdosAuth.getCurrentUser();
   const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [savingStage, setSavingStage] = useState<'foreman' | 'spvHse' | 'ktt' | null>(null);
 
   const openCount = store.picas.filter((p) => p.status === 'OPEN').length;
   const progressCount = store.picas.filter((p) => p.status === 'PROGRESS').length;
@@ -35,18 +38,44 @@ export const PICAModule: React.FC = () => {
     if (currentStages.foreman || currentStages.spvHse) newStatus = 'PROGRESS';
     if (currentStages.foreman && currentStages.spvHse && currentStages.ktt) newStatus = 'CLOSED';
 
-    const updated = await store.updatePICAStatus(selectedPica.id, {
-      approvalStages: currentStages,
-      status: newStatus,
-    });
+    setSavingStage(stage);
+    setErrorMsg('');
 
-    if (updated) setSelectedPica(updated);
+    try {
+      const updated = await store.updatePICAStatus(selectedPica.id, {
+        approvalStages: currentStages,
+        status: newStatus,
+      });
+
+      if (updated) {
+        setSelectedPica(updated);
+        setSuccessMsg(`PICA ${updated.code} berhasil diperbarui ke status ${updated.status}.`);
+      }
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal memperbarui PICA.');
+    } finally {
+      setSavingStage(null);
+    }
   };
 
   const filteredPicas = store.picas.filter((p) => {
     if (filterStatus === 'ALL') return true;
     return p.status === filterStatus;
   });
+
+  useEffect(() => {
+    if (!selectedPica && filteredPicas.length > 0) {
+      setSelectedPica(filteredPicas[0]);
+      return;
+    }
+
+    if (selectedPica) {
+      const refreshed = store.picas.find((item) => item.id === selectedPica.id) ?? null;
+      if (refreshed) {
+        setSelectedPica(refreshed);
+      }
+    }
+  }, [filteredPicas, selectedPica, store.picas]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -61,6 +90,27 @@ export const PICAModule: React.FC = () => {
             Manajemen tindak lanjut temuan inspeksi, bahaya & investigasi dengan 3-tier signoff (Foreman → SPV HSE → KTT).
           </p>
         </div>
+
+        {successMsg && (
+          <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-300 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {store.lastInitError && (
+          <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
+            <span>Data PICA lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <select
@@ -115,66 +165,74 @@ export const PICAModule: React.FC = () => {
             <span className="text-xs text-neutral-400 font-mono">{filteredPicas.length} Tiket</span>
           </div>
 
-          <div className="divide-y divide-white/5">
-            {filteredPicas.map((pica) => {
-              const isSelected = selectedPica?.id === pica.id;
+          {store.isInitializing && !store.isInitialized ? (
+            <div className="py-12 text-center text-xs text-neutral-400">Memuat register PICA...</div>
+          ) : filteredPicas.length === 0 ? (
+            <div className="py-12 text-center text-xs text-neutral-400">
+              Belum ada tiket PICA untuk filter ini.
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {filteredPicas.map((pica) => {
+                const isSelected = selectedPica?.id === pica.id;
 
-              return (
-                <div
-                  key={pica.id}
-                  onClick={() => setSelectedPica(pica)}
-                  className={`p-3.5 rounded-xl transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-amber-500/15 border border-amber-500/40'
-                      : 'hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-[#FFC107]">{pica.code}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-neutral-300">
-                          Sumber: {pica.source} ({pica.sourceRefCode})
-                        </span>
+                return (
+                  <div
+                    key={pica.id}
+                    onClick={() => setSelectedPica(pica)}
+                    className={`p-3.5 rounded-xl transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500/15 border border-amber-500/40'
+                        : 'hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-[#FFC107]">{pica.code}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-neutral-300">
+                            Sumber: {pica.source} ({pica.sourceRefCode})
+                          </span>
+                        </div>
+                        <div className="text-xs font-semibold text-white mt-1 leading-snug">
+                          {pica.findingDescription}
+                        </div>
                       </div>
-                      <div className="text-xs font-semibold text-white mt-1 leading-snug">
-                        {pica.findingDescription}
-                      </div>
-                    </div>
 
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
-                        pica.status === 'CLOSED'
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : pica.status === 'PROGRESS'
-                          ? 'bg-blue-500/20 text-blue-300'
-                          : pica.status === 'OVERDUE'
-                          ? 'bg-red-500/20 text-red-300'
-                          : 'bg-amber-500/20 text-amber-300'
-                      }`}
-                    >
-                      {pica.status}
-                    </span>
-                  </div>
-
-                  <div className="mt-2.5 flex flex-wrap items-center justify-between text-[11px] text-neutral-400 gap-2">
-                    <div className="flex items-center gap-2">
-                      <span>PIC: <strong className="text-neutral-200">{pica.picName}</strong></span>
-                      <span>·</span>
-                      <span>Dept: {pica.picDepartment}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 font-mono">
-                      <span>Target: {pica.targetDate}</span>
-                      <span className="px-1.5 py-0.2 rounded bg-white/5 text-neutral-300">
-                        Aging: {pica.daysAging} hari
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                          pica.status === 'CLOSED'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : pica.status === 'PROGRESS'
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : pica.status === 'OVERDUE'
+                            ? 'bg-red-500/20 text-red-300'
+                            : 'bg-amber-500/20 text-amber-300'
+                        }`}
+                      >
+                        {pica.status}
                       </span>
                     </div>
+
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between text-[11px] text-neutral-400 gap-2">
+                      <div className="flex items-center gap-2">
+                        <span>PIC: <strong className="text-neutral-200">{pica.picName}</strong></span>
+                        <span>·</span>
+                        <span>Dept: {pica.picDepartment}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 font-mono">
+                        <span>Target: {pica.targetDate}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-white/5 text-neutral-300">
+                          Aging: {pica.daysAging} hari
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Detail & Multi-Tier Verification Sign-off Box */}
@@ -230,9 +288,10 @@ export const PICAModule: React.FC = () => {
                   ) : (
                     <button
                       onClick={() => handleSignoff('foreman')}
+                      disabled={savingStage !== null}
                       className="px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-[11px] cursor-pointer"
                     >
-                      Sign-off
+                      {savingStage === 'foreman' ? 'Menyimpan...' : 'Sign-off'}
                     </button>
                   )}
                 </div>
@@ -250,9 +309,10 @@ export const PICAModule: React.FC = () => {
                   ) : (
                     <button
                       onClick={() => handleSignoff('spvHse')}
+                      disabled={savingStage !== null}
                       className="px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-[11px] cursor-pointer"
                     >
-                      Sign-off
+                      {savingStage === 'spvHse' ? 'Menyimpan...' : 'Sign-off'}
                     </button>
                   )}
                 </div>
@@ -270,9 +330,10 @@ export const PICAModule: React.FC = () => {
                   ) : (
                     <button
                       onClick={() => handleSignoff('ktt')}
+                      disabled={savingStage !== null}
                       className="px-2.5 py-1 rounded-lg bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-[11px] cursor-pointer"
                     >
-                      KTT Close
+                      {savingStage === 'ktt' ? 'Menyimpan...' : 'KTT Close'}
                     </button>
                   )}
                 </div>

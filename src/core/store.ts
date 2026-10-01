@@ -117,27 +117,50 @@ export class HDOSCentralStore {
     pitStatus: 'OPERATIONAL' as 'OPERATIONAL' | 'STANDBY_RAIN' | 'RESTRICTED',
   };
   public liveFeed: Array<{ id: string; time: string; category: string; text: string; level: string }> = [];
+  public isInitializing: boolean = false;
+  public isInitialized: boolean = false;
+  public lastInitError: string | null = null;
 
   private listeners: Set<() => void> = new Set();
   private maxZIndex: number = 20;
 
   async init(): Promise<void> {
+    this.isInitializing = true;
+    this.lastInitError = null;
+    this.notify();
+
     try {
       const storedIns = await hdosDB.getAll<Inspection>('inspection');
-      if (storedIns.length > 0) this.inspections = storedIns;
+      this.inspections = storedIns;
 
       const storedHaz = await hdosDB.getAll<Hazard>('hazard');
-      if (storedHaz.length > 0) this.hazards = storedHaz;
+      this.hazards = storedHaz;
 
       const storedPicas = await hdosDB.getAll<PICA>('pica');
-      if (storedPicas.length > 0) this.picas = storedPicas;
+      this.picas = storedPicas;
 
       const storedInc = await hdosDB.getAll<Incident>('incident');
-      if (storedInc.length > 0) this.incidents = storedInc;
+      this.incidents = storedInc;
+
+      const storedDocs = await hdosDB.getAll<DocumentItem>('repository');
+      if (storedDocs.length > 0) {
+        this.documents = storedDocs;
+      }
     } catch (err) {
       console.warn('[HDOS Store] IndexedDB fallback', err);
+      this.lastInitError = err instanceof Error ? err.message : 'Gagal memuat data lokal';
+    } finally {
+      this.isInitializing = false;
+      this.isInitialized = true;
     }
+
     this.notify();
+    hdosEvents.emit('store:initialized', {
+      inspections: this.inspections.length,
+      hazards: this.hazards.length,
+      incidents: this.incidents.length,
+      picas: this.picas.length,
+    });
   }
 
   subscribe(listener: () => void): () => void {
@@ -147,6 +170,20 @@ export class HDOSCentralStore {
 
   private notify(): void {
     this.listeners.forEach((l) => l());
+  }
+
+  private async enqueueSync(
+    entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository',
+    action: 'CREATE' | 'UPDATE' | 'DELETE',
+    payload: unknown,
+    note?: string,
+  ): Promise<void> {
+    await hdosSync.enqueue({
+      entity,
+      action,
+      payload,
+      note,
+    });
   }
 
   openWindow(id: WindowId): void {
@@ -235,6 +272,7 @@ export class HDOSCentralStore {
       firstFail.picaId = picaCreated.id;
       this.picas.unshift(picaCreated);
       await hdosDB.put('pica', picaCreated);
+      await this.enqueueSync('pica', 'CREATE', picaCreated, `PICA otomatis dari inspeksi ${code}`);
       hdosEvents.emit('pica:created', picaCreated);
     }
 
@@ -248,6 +286,16 @@ export class HDOSCentralStore {
 
     this.inspections.unshift(newInspection);
     await hdosDB.put('inspection', newInspection);
+
+    const location = this.locations.find((item) => item.name === newInspection.location);
+    if (location) {
+      location.activeInspections += 1;
+      if (newInspection.status === 'PICA_TRIGGERED') {
+        location.safetyStatus = 'WARNING';
+      }
+    }
+
+    await this.enqueueSync('inspection', 'CREATE', newInspection, `Inspeksi ${code} tersimpan lokal`);
     this.notify();
     hdosEvents.emit('inspection:created', newInspection);
     return newInspection;
@@ -283,6 +331,7 @@ export class HDOSCentralStore {
       picaId = picaCreated.id;
       this.picas.unshift(picaCreated);
       await hdosDB.put('pica', picaCreated);
+      await this.enqueueSync('pica', 'CREATE', picaCreated, `PICA otomatis dari hazard ${code}`);
       hdosEvents.emit('pica:created', picaCreated);
     }
 
@@ -297,6 +346,7 @@ export class HDOSCentralStore {
 
     this.hazards.unshift(newHazard);
     await hdosDB.put('hazard', newHazard);
+    await this.enqueueSync('hazard', 'CREATE', newHazard, `Hazard ${code} tersimpan lokal`);
 
     const loc = this.locations.find((l) => l.name === hazard.location);
     if (loc) {
@@ -319,9 +369,28 @@ export class HDOSCentralStore {
 
     this.incidents.unshift(newInc);
     await hdosDB.put('incident', newInc);
+    await this.enqueueSync('incident', 'CREATE', newInc, `Insiden ${code} tersimpan lokal`);
     this.notify();
     hdosEvents.emit('incident:created', newInc);
     return newInc;
+  }
+
+  async updateHazard(id: string, updates: Partial<Hazard>): Promise<Hazard | null> {
+    const index = this.hazards.findIndex((hazard) => hazard.id === id);
+    if (index === -1) return null;
+
+    const updated: Hazard = {
+      ...this.hazards[index],
+      ...updates,
+      riskMatrix: updates.riskMatrix ? { ...this.hazards[index].riskMatrix, ...updates.riskMatrix } : this.hazards[index].riskMatrix,
+    };
+
+    this.hazards[index] = updated;
+    await hdosDB.put('hazard', updated);
+    await this.enqueueSync('hazard', 'UPDATE', updated, `Hazard ${updated.code} diperbarui`);
+    this.notify();
+    hdosEvents.emit('hazard:updated', updated);
+    return updated;
   }
 
   async updatePICAStatus(id: string, updates: Partial<PICA>): Promise<PICA | null> {
@@ -329,7 +398,20 @@ export class HDOSCentralStore {
     if (index === -1) return null;
 
     const current = this.picas[index];
-    const updated = { ...current, ...updates };
+    const updated: PICA = {
+      ...current,
+      ...updates,
+      approvalStages: {
+        ...current.approvalStages,
+        ...(updates.approvalStages ?? {}),
+      },
+    };
+
+    const msUntilTarget = new Date(updated.targetDate).getTime() - Date.now();
+    updated.daysAging = Math.max(0, Math.ceil(Math.abs(msUntilTarget) / 86400000));
+    if (updated.status !== 'CLOSED' && msUntilTarget < 0) {
+      updated.status = 'OVERDUE';
+    }
 
     if (updated.approvalStages.foreman && updated.approvalStages.spvHse && updated.approvalStages.ktt) {
       updated.status = 'CLOSED';
@@ -338,9 +420,58 @@ export class HDOSCentralStore {
 
     this.picas[index] = updated;
     await hdosDB.put('pica', updated);
+
+    const linkedHazardIndex = this.hazards.findIndex((hazard) => hazard.picaId === updated.id);
+    if (linkedHazardIndex >= 0 && updated.status === 'CLOSED') {
+      const linkedHazard = { ...this.hazards[linkedHazardIndex], status: 'CLOSED' as const };
+      this.hazards[linkedHazardIndex] = linkedHazard;
+      await hdosDB.put('hazard', linkedHazard);
+      await this.enqueueSync('hazard', 'UPDATE', linkedHazard, `Hazard ${linkedHazard.code} ditutup dari PICA`);
+      hdosEvents.emit('hazard:updated', linkedHazard);
+    }
+
+    await this.enqueueSync('pica', 'UPDATE', updated, `PICA ${updated.code} diperbarui`);
     this.notify();
     hdosEvents.emit('pica:updated', updated);
     return updated;
+  }
+
+  async updateIncident(id: string, updates: Partial<Incident>): Promise<Incident | null> {
+    const index = this.incidents.findIndex((incident) => incident.id === id);
+    if (index === -1) return null;
+
+    const updated: Incident = {
+      ...this.incidents[index],
+      ...updates,
+      timeline: updates.timeline ?? this.incidents[index].timeline,
+      fiveWhyAnalysis: updates.fiveWhyAnalysis ?? this.incidents[index].fiveWhyAnalysis,
+      correctiveActions: updates.correctiveActions ?? this.incidents[index].correctiveActions,
+    };
+
+    this.incidents[index] = updated;
+    await hdosDB.put('incident', updated);
+    await this.enqueueSync('incident', 'UPDATE', updated, `Insiden ${updated.code} diperbarui`);
+    this.notify();
+    hdosEvents.emit('incident:updated', updated);
+    return updated;
+  }
+
+  async addDocument(document: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'>): Promise<DocumentItem> {
+    const count = this.documents.filter((item) => item.category === document.category).length + 1;
+    const categoryCode = document.category.toUpperCase();
+    const newDocument: DocumentItem = {
+      ...document,
+      id: `doc_${Date.now()}`,
+      docNumber: `CGG-HSE-${categoryCode}-${String(count).padStart(3, '0')}`,
+      revision: 1,
+    };
+
+    this.documents = [newDocument, ...this.documents];
+    await hdosDB.put('repository', newDocument);
+    await this.enqueueSync('repository', 'CREATE', newDocument, `Dokumen ${newDocument.docNumber} tersimpan lokal`);
+    this.notify();
+    hdosEvents.emit('repository:created', newDocument);
+    return newDocument;
   }
 }
 

@@ -1,6 +1,7 @@
 import { SyncQueueItem } from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
+import { hseApi } from './api';
 
 export class HDOSSyncEngine {
   private isOnline: boolean = true;
@@ -92,34 +93,68 @@ export class HDOSSyncEngine {
 
   async triggerSync(): Promise<boolean> {
     if (!this.isOnline) {
-      alert('Sistem sedang dalam mode Offline. Harap aktifkan mode Online untuk sinkronisasi.');
+      this.syncLogs.unshift({
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        message: 'Sinkronisasi ditunda: sistem sedang offline',
+        type: 'warning',
+      });
       return false;
     }
     if (this.isSyncing) return false;
+    if (!hseApi.isAuthenticated) {
+      this.syncLogs.unshift({
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        message: 'Sinkronisasi ditunda: sesi login API belum aktif',
+        type: 'warning',
+      });
+      hdosEvents.emit('sync:queue_updated', this.queue);
+      return false;
+    }
 
     this.isSyncing = true;
     hdosEvents.emit('sync:started', { queueCount: this.queue.length });
 
     try {
-      // Simulate real progressive synchronization to Google Sheet & Central Repository
+      const remainingQueue: SyncQueueItem[] = [];
+
       for (const item of this.queue) {
         item.status = 'SYNCING';
         hdosEvents.emit('sync:progress', { item });
-        await new Promise((r) => setTimeout(r, 200));
-        item.status = 'SYNCED';
-        await hdosDB.delete('queue', item.id);
+
+        try {
+          await this.syncQueueItem(item);
+          item.status = 'SYNCED';
+          item.note = 'Sinkronisasi berhasil';
+          await hdosDB.delete('queue', item.id);
+        } catch (err) {
+          item.retryCount += 1;
+          item.status = item.retryCount >= 3 ? 'CONFLICT' : 'PENDING';
+          item.note = err instanceof Error ? err.message : 'Sinkronisasi gagal';
+          remainingQueue.push(item);
+          await hdosDB.put('queue', item);
+          this.syncLogs.unshift({
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            message: `Sinkronisasi ${item.entity} gagal: ${item.note}`,
+            type: 'warning',
+          });
+        }
+
+        hdosEvents.emit('sync:queue_updated', [...remainingQueue]);
       }
 
-      this.queue = [];
+      this.queue = remainingQueue;
       this.lastSyncTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
       this.syncLogs.unshift({
         time: this.lastSyncTime,
-        message: 'Sinkronisasi berhasil ke Google Sheets HDOS Enterprise & Cloud Repository',
-        type: 'success',
+        message:
+          this.queue.length === 0
+            ? 'Sinkronisasi berhasil ke Google Sheets HDOS Enterprise & Cloud Repository'
+            : `Sinkronisasi selesai dengan ${this.queue.length} item masih tertunda`,
+        type: this.queue.length === 0 ? 'success' : 'warning',
       });
       hdosEvents.emit('sync:completed', { time: this.lastSyncTime });
       hdosEvents.emit('sync:queue_updated', this.queue);
-      return true;
+      return this.queue.length === 0;
     } catch (err) {
       console.error('[HDOS Sync] Sync failed:', err);
       this.syncLogs.unshift({
@@ -130,6 +165,35 @@ export class HDOSSyncEngine {
       return false;
     } finally {
       this.isSyncing = false;
+    }
+  }
+
+  private async syncQueueItem(item: SyncQueueItem): Promise<void> {
+    const entityMap = {
+      inspection: 'inspections',
+      hazard: 'hazards',
+      incident: 'incidents',
+      pica: 'picas',
+    } as const;
+
+    if (item.entity !== 'inspection' && item.entity !== 'hazard' && item.entity !== 'incident' && item.entity !== 'pica') {
+      return;
+    }
+
+    const entity = entityMap[item.entity];
+    const payload = item.payload as { id?: string };
+
+    if (item.action === 'CREATE') {
+      await hseApi.create(entity, item.payload);
+      return;
+    }
+
+    if (item.action === 'UPDATE') {
+      if (!payload?.id) {
+        throw new Error('Payload update tidak memiliki id');
+      }
+      await hseApi.update(entity, payload.id, item.payload);
+      return;
     }
   }
 
