@@ -133,10 +133,8 @@ export const AIModule: React.FC = () => {
     try {
       const extension = parsedFilename.toLowerCase().endsWith('.pdf') ? 'PDF' : parsedFilename.toLowerCase().endsWith('.xlsx') ? 'XLSX' : 'DOCX';
       const created = await store.addDocument({
-        docNumber: `CGG-AI-FORM-${String(Date.now()).slice(-6)}`,
         title: parsedForm.title,
         category: parsedForm.category === 'Inspection' ? 'Inspection' : 'Form',
-        revision: 1,
         owner: 'HDOS AI Parser',
         status: 'DRAFT',
         effectiveDate: new Date().toISOString().split('T')[0],
