@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FolderGit2,
   FileText,
@@ -30,6 +30,9 @@ export const RepositoryModule: React.FC = () => {
   const [smkpElement, setSmkpElement] = useState('Elemen IV: Pengendalian Operasional');
   const [summary, setSummary] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
 
@@ -42,29 +45,70 @@ export const RepositoryModule: React.FC = () => {
     return matchCategory && matchSearch;
   });
 
+  useEffect(() => {
+    if (!selectedDoc && filteredDocs.length > 0) {
+      setSelectedDoc(filteredDocs[0]);
+      return;
+    }
+
+    if (selectedDoc) {
+      const refreshed = store.documents.find((item) => item.id === selectedDoc.id) ?? null;
+      if (refreshed) setSelectedDoc(refreshed);
+    }
+  }, [filteredDocs, selectedDoc, store.documents]);
+
   const handleCreateDoc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     setSubmitting(true);
+    setErrorMsg('');
 
-    const newDoc = await store.addDocument({
-      title,
-      category,
-      owner: currentUser.name,
-      status: 'EFFECTIVE',
-      effectiveDate: new Date().toISOString().split('T')[0],
-      fileType: 'PDF',
-      size: '1.2 MB',
-      downloadCount: 0,
-      smkpElement,
-      summary: summary || 'Dokumen resmi Sistem Manajemen Keselamatan Pertambangan (SMKP) CGG.',
-    });
+    try {
+      const newDoc = await store.addDocument({
+        title,
+        category,
+        owner: currentUser.name,
+        status: 'EFFECTIVE',
+        effectiveDate: new Date().toISOString().split('T')[0],
+        fileType: 'PDF',
+        size: '1.2 MB',
+        downloadCount: 0,
+        smkpElement,
+        summary: summary || 'Dokumen resmi Sistem Manajemen Keselamatan Pertambangan (SMKP) CGG.',
+      });
 
-    setSubmitting(false);
-    setSelectedDoc(newDoc);
-    setModalNewDocOpen(false);
-    setTitle('');
-    setSummary('');
+      setSelectedDoc(newDoc);
+      setModalNewDocOpen(false);
+      setTitle('');
+      setSummary('');
+      setSuccessMsg(`Dokumen ${newDoc.docNumber} berhasil didaftarkan dan disimpan lokal.`);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal mendaftarkan dokumen.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!selectedDoc) return;
+
+    setDownloading(true);
+    setErrorMsg('');
+
+    try {
+      const updated = await store.updateDocument(selectedDoc.id, {
+        downloadCount: selectedDoc.downloadCount + 1,
+      });
+
+      if (updated) {
+        setSelectedDoc(updated);
+        setSuccessMsg(`Unduhan dokumen ${updated.docNumber} dicatat ke repository lokal.`);
+      }
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal memproses unduhan dokumen.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -80,6 +124,27 @@ export const RepositoryModule: React.FC = () => {
             Single Source of Truth: Penomoran otomatis (CGG-HSE-SOP-xxx), kontrol revisi, dan audit trail SMKP ESDM.
           </p>
         </div>
+
+        {successMsg && (
+          <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+            <Shield className="w-4 h-4 text-red-300 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {store.lastInitError && (
+          <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+            <Shield className="w-4 h-4 text-amber-300 shrink-0" />
+            <span>Data repository lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
+          </div>
+        )}
 
         <button
           onClick={() => setModalNewDocOpen(true)}
@@ -133,46 +198,54 @@ export const RepositoryModule: React.FC = () => {
             <span className="text-[10px] text-neutral-400 font-mono">Status: Terkendali</span>
           </div>
 
-          <div className="space-y-2">
-            {filteredDocs.map((doc) => {
-              const isSelected = selectedDoc?.id === doc.id;
+          {store.isInitializing && !store.isInitialized ? (
+            <div className="py-12 text-center text-xs text-neutral-400">Memuat repository dokumen...</div>
+          ) : filteredDocs.length === 0 ? (
+            <div className="py-12 text-center text-xs text-neutral-400">
+              Belum ada dokumen yang cocok dengan filter ini. Tambahkan dokumen baru untuk memulai repository.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredDocs.map((doc) => {
+                const isSelected = selectedDoc?.id === doc.id;
 
-              return (
-                <div
-                  key={doc.id}
-                  onClick={() => setSelectedDoc(doc)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-purple-500/15 border-purple-500/40'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 font-mono text-xs">
-                        <span className="font-bold text-[#A855F7]">{doc.docNumber}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-neutral-300">
-                          Rev {doc.revision}
-                        </span>
-                        <span className="text-[10px] text-neutral-400 font-sans">{doc.fileType} · {doc.size}</span>
+                return (
+                  <div
+                    key={doc.id}
+                    onClick={() => setSelectedDoc(doc)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-purple-500/15 border-purple-500/40'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 font-mono text-xs">
+                          <span className="font-bold text-[#A855F7]">{doc.docNumber}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-neutral-300">
+                            Rev {doc.revision}
+                          </span>
+                          <span className="text-[10px] text-neutral-400 font-sans">{doc.fileType} · {doc.size}</span>
+                        </div>
+                        <h4 className="text-xs font-bold text-white leading-snug">{doc.title}</h4>
+                        <p className="text-[11px] text-neutral-400 line-clamp-1">{doc.summary}</p>
                       </div>
-                      <h4 className="text-xs font-bold text-white leading-snug">{doc.title}</h4>
-                      <p className="text-[11px] text-neutral-400 line-clamp-1">{doc.summary}</p>
+
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold text-[10px] shrink-0">
+                        {doc.status}
+                      </span>
                     </div>
 
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold text-[10px] shrink-0">
-                      {doc.status}
-                    </span>
+                    <div className="mt-2.5 flex items-center justify-between text-[10px] text-neutral-400 font-mono border-t border-white/5 pt-2">
+                      <span>{doc.smkpElement}</span>
+                      <span>Efektif: {doc.effectiveDate}</span>
+                    </div>
                   </div>
-
-                  <div className="mt-2.5 flex items-center justify-between text-[10px] text-neutral-400 font-mono border-t border-white/5 pt-2">
-                    <span>{doc.smkpElement}</span>
-                    <span>Efektif: {doc.effectiveDate}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Selected Document Details & Audit Trail */}
@@ -222,11 +295,12 @@ export const RepositoryModule: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => alert(`Mengunduh berkas ${selectedDoc.docNumber} (${selectedDoc.fileType})...`)}
+                  onClick={handleDownload}
+                  disabled={downloading}
                   className="w-full py-2 rounded-xl bg-[#A855F7] hover:bg-purple-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer mt-2"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Unduh Dokumen SMKP ({selectedDoc.fileType})</span>
+                  <span>{downloading ? 'Memproses Unduhan...' : `Unduh Dokumen SMKP (${selectedDoc.fileType})`}</span>
                 </button>
               </div>
             </div>

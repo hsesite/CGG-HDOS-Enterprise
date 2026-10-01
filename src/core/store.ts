@@ -473,6 +473,23 @@ export class HDOSCentralStore {
     hdosEvents.emit('repository:created', newDocument);
     return newDocument;
   }
+
+  async updateDocument(id: string, updates: Partial<DocumentItem>): Promise<DocumentItem | null> {
+    const index = this.documents.findIndex((document) => document.id === id);
+    if (index === -1) return null;
+
+    const updated: DocumentItem = {
+      ...this.documents[index],
+      ...updates,
+    };
+
+    this.documents[index] = updated;
+    await hdosDB.put('repository', updated);
+    await this.enqueueSync('repository', 'UPDATE', updated, `Dokumen ${updated.docNumber} diperbarui lokal`);
+    this.notify();
+    hdosEvents.emit('repository:updated', updated);
+    return updated;
+  }
 }
 
 export const hdosStore = new HDOSCentralStore();

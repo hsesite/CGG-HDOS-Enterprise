@@ -182,6 +182,11 @@ export const SyncModule: React.FC = () => {
                     <div className="text-white font-medium mt-1 truncate max-w-xs">
                       {item.payload?.title || item.payload?.code || item.payload?.findingDescription}
                     </div>
+                    {item.note && (
+                      <div className="text-[10px] text-neutral-500 mt-1 max-w-xs">
+                        {item.note}
+                      </div>
+                    )}
                   </div>
 
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-neutral-300">

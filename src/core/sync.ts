@@ -127,9 +127,13 @@ export class HDOSSyncEngine {
           item.note = 'Sinkronisasi berhasil';
           await hdosDB.delete('queue', item.id);
         } catch (err) {
+          const message = err instanceof Error ? err.message : 'Sinkronisasi gagal';
           item.retryCount += 1;
+          if (message.includes('belum tersedia')) {
+            item.retryCount = 3;
+          }
           item.status = item.retryCount >= 3 ? 'CONFLICT' : 'PENDING';
-          item.note = err instanceof Error ? err.message : 'Sinkronisasi gagal';
+          item.note = message;
           remainingQueue.push(item);
           await hdosDB.put('queue', item);
           this.syncLogs.unshift({
@@ -177,7 +181,7 @@ export class HDOSSyncEngine {
     } as const;
 
     if (item.entity !== 'inspection' && item.entity !== 'hazard' && item.entity !== 'incident' && item.entity !== 'pica') {
-      return;
+      throw new Error(`Sinkronisasi backend belum tersedia untuk entity ${item.entity}`);
     }
 
     const entity = entityMap[item.entity];
