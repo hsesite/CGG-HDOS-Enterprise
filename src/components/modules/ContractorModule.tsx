@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { ContractorPassport } from '../../core/types';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
 
 const getEmptyForm = () => ({
   code: '',
@@ -182,6 +183,8 @@ export const ContractorModule: React.FC = () => {
           <span>Data contractor lokal gagal dimuat penuh: {store.lastInitError}</span>
         </div>
       )}
+
+      <RemoteRefreshControl label="Contractor" />
 
       {creating && (
         <form onSubmit={handleCreate} className="apple-glass-card p-5 rounded-2xl space-y-4">

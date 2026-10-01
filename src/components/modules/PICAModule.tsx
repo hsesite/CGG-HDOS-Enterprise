@@ -13,6 +13,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { PICA } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
 
 export const PICAModule: React.FC = () => {
   const store = useHDOSStore();
@@ -126,6 +127,8 @@ export const PICAModule: React.FC = () => {
           </select>
         </div>
       </div>
+
+      <RemoteRefreshControl label="PICA" />
 
       {/* KPI Aging Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

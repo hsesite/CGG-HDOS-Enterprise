@@ -15,6 +15,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { MiningArea, Hazard } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
 
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
@@ -185,6 +186,8 @@ export const HazardModule: React.FC = () => {
           <span>Data hazard lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
         </div>
       )}
+
+      <RemoteRefreshControl label="Hazard" />
 
       {activeTab === 'report' ? (
         <form onSubmit={handleSubmit} className="space-y-6">

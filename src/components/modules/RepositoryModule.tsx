@@ -14,6 +14,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { DocumentItem } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
 
 export const RepositoryModule: React.FC = () => {
   const store = useHDOSStore();
@@ -145,6 +146,8 @@ export const RepositoryModule: React.FC = () => {
             <span>Data repository lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
           </div>
         )}
+
+        <RemoteRefreshControl label="Repository" />
 
         <button
           onClick={() => setModalNewDocOpen(true)}

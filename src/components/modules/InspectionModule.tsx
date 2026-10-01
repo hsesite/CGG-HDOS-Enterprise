@@ -17,6 +17,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { MiningArea, InspectionItem, Inspection } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
 
 interface TemplateDef {
   id: string;
@@ -253,6 +254,8 @@ export const InspectionModule: React.FC = () => {
           <span>Data lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
         </div>
       )}
+
+      <RemoteRefreshControl label="Inspeksi" />
 
       {activeTab === 'form' ? (
         store.isInitializing && !store.isInitialized ? (

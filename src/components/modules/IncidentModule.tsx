@@ -14,6 +14,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { Incident, MiningArea } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
 
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
@@ -203,6 +204,8 @@ export const IncidentModule: React.FC = () => {
           <span>Data insiden lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
         </div>
       )}
+
+      <RemoteRefreshControl label="Insiden" />
 
       {activeTab === 'list' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
