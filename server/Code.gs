@@ -2,7 +2,7 @@
 // Google Sheets-based REST API untuk HDOS
 // Jangan edit bagian ini kecuali Anda tahu apa yang Anda lakukan
 
-const SHEETS = ['users', 'inspections', 'hazards', 'picas', 'incidents', 'audit_logs'];
+const SHEETS = ['users', 'inspections', 'hazards', 'picas', 'incidents', 'repository', 'contractors', 'audit_logs'];
 const SESSION_TTL = 21600; // 6 jam
 
 // ===== SETUP =====
@@ -33,7 +33,7 @@ function setup() {
   }
   
   // Setup data tabs
-  ['inspections','hazards','picas','incidents','audit_logs'].forEach(name => {
+  ['inspections','hazards','picas','incidents','repository','contractors','audit_logs'].forEach(name => {
     const sheet = ss.getSheetByName(name);
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(['id','code','payload','status','createdAt','updatedAt']);
@@ -121,7 +121,7 @@ function handleRoute_(method, path, params) {
   }
   
   // CRUD routes: /api/{entity}/{id?}
-  const match = path.match(/^\/api\/(inspections|hazards|picas|incidents)(?:\/([^/]+))?$/);
+  const match = path.match(/^\/api\/(inspections|hazards|picas|incidents|repository|contractors)(?:\/([^/]+))?$/);
   if (match) {
     const entity = match[1];
     const id = match[2];

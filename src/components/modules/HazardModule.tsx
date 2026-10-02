@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   Plus,
@@ -13,8 +13,10 @@ import {
   Filter,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { MiningArea, Hazard } from '../../core/types';
+import { MiningArea, Hazard, DraftPhotoEvidence } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
@@ -30,7 +32,13 @@ export const HazardModule: React.FC = () => {
   const [likelihood, setLikelihood] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [draftPhotoEvidence, setDraftPhotoEvidence] = useState<DraftPhotoEvidence[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<Hazard['status']>('OPEN');
+  const [updateMitigation, setUpdateMitigation] = useState('');
+  const [updatingHazard, setUpdatingHazard] = useState(false);
 
   // 5x5 Risk Score Calculation
   const riskScore = severity * likelihood;
@@ -45,45 +53,93 @@ export const HazardModule: React.FC = () => {
     if (!title.trim() || !specificLocation.trim()) return;
 
     setSubmitting(true);
-    const newHaz = await store.addHazard({
-      title,
-      category,
-      location,
-      specificLocation,
-      riskMatrix: {
-        severity,
-        likelihood,
-        score: riskScore,
-        level: riskLevel,
-      },
-      reporter: currentUser.name,
-      reporterRole: currentUser.role,
-      status: riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'PICA_ISSUED' : 'OPEN',
-      actionTaken,
-      aiDetected: false,
-    });
+    setErrorMsg('');
 
-    setSubmitting(false);
-    setSuccessMsg(
-      `Laporan Bahaya ${newHaz.code} berhasil dicatat! ${
-        newHaz.picaId ? 'Karena tingkat risiko TINGGI/KRITIS, PICA otomatis diterbitkan untuk penanganan segera.' : ''
-      }`
-    );
+    try {
+      const newHaz = await store.addHazard({
+        title,
+        category,
+        location,
+        specificLocation,
+        riskMatrix: {
+          severity,
+          likelihood,
+          score: riskScore,
+          level: riskLevel,
+        },
+        reporter: currentUser.name,
+        reporterRole: currentUser.role,
+        status: riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'PICA_ISSUED' : 'OPEN',
+        actionTaken,
+        aiDetected: false,
+      });
 
-    setTitle('');
-    setSpecificLocation('');
-    setActionTaken('');
+      if (draftPhotoEvidence.length > 0) {
+        await store.attachPhotoEvidence('hazard', newHaz.id, draftPhotoEvidence, currentUser.name);
+      }
 
-    setTimeout(() => {
-      setSuccessMsg('');
-      setActiveTab('register');
-    }, 2000);
+      setSuccessMsg(
+        `Laporan Bahaya ${newHaz.code} berhasil dicatat dan disimpan lokal. ${
+          draftPhotoEvidence.length > 0 ? `${draftPhotoEvidence.length} photo evidence ikut tersimpan offline. ` : ''
+        }${
+          newHaz.picaId ? 'Karena tingkat risiko TINGGI/KRITIS, PICA otomatis diterbitkan untuk penanganan segera.' : ''
+        }`
+      );
+
+      setTitle('');
+      setSpecificLocation('');
+      setActionTaken('');
+      setDraftPhotoEvidence([]);
+      setSelectedHazardId(newHaz.id);
+
+      setTimeout(() => {
+        setSuccessMsg('');
+        setActiveTab('register');
+      }, 2000);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal mencatat hazard.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredHazards = store.hazards.filter((h) => {
     if (filterCategory === 'ALL') return true;
     return h.category === filterCategory;
   });
+  const selectedHazard =
+    filteredHazards.find((hazard) => hazard.id === selectedHazardId) ??
+    filteredHazards[0] ??
+    null;
+
+  useEffect(() => {
+    if (!selectedHazard) return;
+    setSelectedHazardId(selectedHazard.id);
+    setUpdateStatus(selectedHazard.status);
+    setUpdateMitigation(selectedHazard.actionTaken ?? '');
+  }, [selectedHazard?.id]);
+
+  const handleUpdateHazard = async () => {
+    if (!selectedHazard) return;
+
+    setUpdatingHazard(true);
+    setErrorMsg('');
+
+    try {
+      const updated = await store.updateHazard(selectedHazard.id, {
+        status: updateStatus,
+        actionTaken: updateMitigation,
+      });
+
+      if (updated) {
+        setSuccessMsg(`Hazard ${updated.code} berhasil diperbarui.`);
+      }
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal memperbarui hazard.');
+    } finally {
+      setUpdatingHazard(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -125,6 +181,22 @@ export const HazardModule: React.FC = () => {
           <span>{successMsg}</span>
         </div>
       )}
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-300 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {store.lastInitError && (
+        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0" />
+          <span>Data hazard lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
+        </div>
+      )}
+
+      <RemoteRefreshControl label="Hazard" />
 
       {activeTab === 'report' ? (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -210,6 +282,17 @@ export const HazardModule: React.FC = () => {
                     className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#FF5252]"
                   />
                 </div>
+
+                <PhotoEvidencePanel
+                  ownerEntity="hazard"
+                  title="Photo Evidence Temuan Lapangan"
+                  helperText="Gunakan foto lapangan untuk mendukung identifikasi bahaya, wheel chock, housekeeping, guard, atau kondisi area."
+                  emptyText="Belum ada foto hazard yang dipilih."
+                  draftItems={draftPhotoEvidence}
+                  onDraftItemsChange={setDraftPhotoEvidence}
+                  onSuccess={setSuccessMsg}
+                  onError={setErrorMsg}
+                />
               </div>
             </div>
 
@@ -303,78 +386,159 @@ export const HazardModule: React.FC = () => {
         </form>
       ) : (
         /* Register Table */
-        <div className="apple-glass-card p-5 rounded-2xl space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
-            <h3 className="text-sm font-semibold text-white">Master Register Hazard Tambang CGG</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-400">Filter Kategori:</span>
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/15 text-xs text-white"
-              >
-                <option value="ALL">Semua Kategori</option>
-                <option value="Unsafe Condition">Unsafe Condition</option>
-                <option value="Unsafe Action">Unsafe Action</option>
-                <option value="Environmental">Environmental</option>
-              </select>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 apple-glass-card p-5 rounded-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+              <h3 className="text-sm font-semibold text-white">Master Register Hazard Tambang CGG</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-neutral-400">Filter Kategori:</span>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/15 text-xs text-white"
+                >
+                  <option value="ALL">Semua Kategori</option>
+                  <option value="Unsafe Condition">Unsafe Condition</option>
+                  <option value="Unsafe Action">Unsafe Action</option>
+                  <option value="Environmental">Environmental</option>
+                </select>
+              </div>
             </div>
+
+            {store.isInitializing && !store.isInitialized ? (
+              <div className="py-12 text-center text-xs text-neutral-400">Memuat register hazard...</div>
+            ) : filteredHazards.length === 0 ? (
+              <div className="py-12 text-center text-xs text-neutral-400">
+                Belum ada hazard yang cocok dengan filter ini. Laporkan hazard baru untuk mengisi register.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-neutral-400 font-medium">
+                      <th className="pb-3 font-semibold">Kode</th>
+                      <th className="pb-3 font-semibold">Deskripsi Temuan</th>
+                      <th className="pb-3 font-semibold">Kategori</th>
+                      <th className="pb-3 font-semibold">Area</th>
+                      <th className="pb-3 font-semibold text-center">Risiko 5x5</th>
+                      <th className="pb-3 font-semibold">Pelapor</th>
+                      <th className="pb-3 font-semibold text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredHazards.map((haz) => (
+                      <tr
+                        key={haz.id}
+                        onClick={() => setSelectedHazardId(haz.id)}
+                        className={`transition-colors cursor-pointer ${
+                          selectedHazardId === haz.id ? 'bg-white/8' : 'hover:bg-white/5'
+                        }`}
+                      >
+                        <td className="py-3 font-mono text-[#FF5252] font-semibold">{haz.code}</td>
+                        <td className="py-3 text-white font-medium max-w-sm">
+                          <div className="truncate">{haz.title}</div>
+                          <div className="text-[10px] text-neutral-400 truncate">{haz.specificLocation}</div>
+                        </td>
+                        <td className="py-3 text-neutral-300">{haz.category}</td>
+                        <td className="py-3 text-neutral-400">{haz.location}</td>
+                        <td className="py-3 text-center">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              haz.riskMatrix.level === 'CRITICAL'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                                : haz.riskMatrix.level === 'HIGH'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                : 'bg-emerald-500/20 text-emerald-300'
+                            }`}
+                          >
+                            {haz.riskMatrix.level} ({haz.riskMatrix.score})
+                          </span>
+                        </td>
+                        <td className="py-3 text-neutral-400">{haz.reporter}</td>
+                        <td className="py-3 text-right">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              haz.status === 'CLOSED'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : haz.status === 'PICA_ISSUED'
+                                ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                : 'bg-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            {haz.status === 'PICA_ISSUED' ? 'PICA Diterbitkan' : haz.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-white/10 text-neutral-400 font-medium">
-                  <th className="pb-3 font-semibold">Kode</th>
-                  <th className="pb-3 font-semibold">Deskripsi Temuan</th>
-                  <th className="pb-3 font-semibold">Kategori</th>
-                  <th className="pb-3 font-semibold">Area</th>
-                  <th className="pb-3 font-semibold text-center">Risiko 5x5</th>
-                  <th className="pb-3 font-semibold">Pelapor</th>
-                  <th className="pb-3 font-semibold text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredHazards.map((haz) => (
-                  <tr key={haz.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 font-mono text-[#FF5252] font-semibold">{haz.code}</td>
-                    <td className="py-3 text-white font-medium max-w-sm">
-                      <div className="truncate">{haz.title}</div>
-                      <div className="text-[10px] text-neutral-400 truncate">{haz.specificLocation}</div>
-                    </td>
-                    <td className="py-3 text-neutral-300">{haz.category}</td>
-                    <td className="py-3 text-neutral-400">{haz.location}</td>
-                    <td className="py-3 text-center">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          haz.riskMatrix.level === 'CRITICAL'
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                            : haz.riskMatrix.level === 'HIGH'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            : 'bg-emerald-500/20 text-emerald-300'
-                        }`}
-                      >
-                        {haz.riskMatrix.level} ({haz.riskMatrix.score})
-                      </span>
-                    </td>
-                    <td className="py-3 text-neutral-400">{haz.reporter}</td>
-                    <td className="py-3 text-right">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                          haz.status === 'CLOSED'
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : haz.status === 'PICA_ISSUED'
-                            ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                            : 'bg-amber-500/20 text-amber-300'
-                        }`}
-                      >
-                        {haz.status === 'PICA_ISSUED' ? 'PICA Diterbitkan' : haz.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="apple-glass-card p-5 rounded-2xl space-y-4">
+            {selectedHazard ? (
+              <>
+                <div className="pb-3 border-b border-white/10">
+                  <div className="font-mono text-xs font-bold text-[#FF5252]">{selectedHazard.code}</div>
+                  <h4 className="text-sm font-semibold text-white mt-1">{selectedHazard.title}</h4>
+                  <div className="text-[11px] text-neutral-400 mt-1">
+                    {selectedHazard.location} · {selectedHazard.specificLocation}
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-neutral-300 mb-1 font-medium">Status Hazard</label>
+                    <select
+                      value={updateStatus}
+                      onChange={(e) => setUpdateStatus(e.target.value as Hazard['status'])}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white"
+                    >
+                      <option value="OPEN">OPEN</option>
+                      <option value="INVESTIGATION">INVESTIGATION</option>
+                      <option value="PICA_ISSUED">PICA_ISSUED</option>
+                      <option value="CLOSED">CLOSED</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-300 mb-1 font-medium">Mitigasi / Tindakan Pengendalian</label>
+                    <textarea
+                      rows={5}
+                      value={updateMitigation}
+                      onChange={(e) => setUpdateMitigation(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white"
+                      placeholder="Catat tindakan sementara, mitigasi permanen, atau update penutupan..."
+                    />
+                  </div>
+
+                  <PhotoEvidencePanel
+                    ownerEntity="hazard"
+                    ownerId={selectedHazard.id}
+                    createdBy={currentUser.name}
+                    title="Evidence Penanganan Hazard"
+                    helperText="Tambah bukti foto perbaikan, isolasi area, barrier, housekeeping, atau verifikasi penutupan hazard."
+                    emptyText="Belum ada evidence foto pada hazard ini."
+                    onSuccess={setSuccessMsg}
+                    onError={setErrorMsg}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleUpdateHazard}
+                    disabled={updatingHazard}
+                    className="w-full py-2.5 rounded-xl bg-[#FF5252] hover:bg-red-600 text-white font-bold text-xs disabled:opacity-50"
+                  >
+                    {updatingHazard ? 'Menyimpan Update...' : 'Simpan Update Hazard'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="py-12 text-center text-xs text-neutral-400">
+                Pilih hazard pada register untuk memperbarui status dan mitigasinya.
+              </div>
+            )}
           </div>
         </div>
       )}

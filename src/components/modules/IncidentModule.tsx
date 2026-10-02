@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ShieldAlert,
   Flame,
@@ -12,8 +12,10 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { Incident, MiningArea } from '../../core/types';
+import { Incident, MiningArea, DraftPhotoEvidence } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
@@ -35,41 +37,128 @@ export const IncidentModule: React.FC = () => {
   const [fiveWhy3, setFiveWhy3] = useState('');
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
+  const [draftPhotoEvidence, setDraftPhotoEvidence] = useState<DraftPhotoEvidence[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [editStatus, setEditStatus] = useState<Incident['status']>('INVESTIGATING');
+  const [editRootCause, setEditRootCause] = useState('');
+  const [editCorrectiveAction, setEditCorrectiveAction] = useState('');
+  const [editTimelineEvent, setEditTimelineEvent] = useState('');
+  const [editSmkpSubmitted, setEditSmkpSubmitted] = useState(false);
+  const [updatingIncident, setUpdatingIncident] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setErrorMsg('');
 
-    const fiveWhyAnalysis = [
-      fiveWhy1 ? `1. Mengapa terjadi? ${fiveWhy1}` : '',
-      fiveWhy2 ? `2. Mengapa hal tersebut terjadi? ${fiveWhy2}` : '',
-      fiveWhy3 ? `3. Mengapa kondisi itu dibiarkan? ${fiveWhy3}` : '',
-    ].filter(Boolean);
+    try {
+      const fiveWhyAnalysis = [
+        fiveWhy1 ? `1. Mengapa terjadi? ${fiveWhy1}` : '',
+        fiveWhy2 ? `2. Mengapa hal tersebut terjadi? ${fiveWhy2}` : '',
+        fiveWhy3 ? `3. Mengapa kondisi itu dibiarkan? ${fiveWhy3}` : '',
+      ].filter(Boolean);
 
-    const newInc = await store.addIncident({
-      title,
-      type,
-      location,
-      date,
-      time,
-      victimsCount,
-      damageCostEst,
-      status: 'INVESTIGATING',
-      reporter: currentUser.name,
-      timeline: [
-        { time: `${time}`, event: `Kejadian ${type} teridentifikasi di ${location}.` },
-        { time: '10 menit pasca kejadian', event: 'First responder & tim safety mengamankan perimeter.' },
-      ],
-      fiveWhyAnalysis,
-      rootCause: rootCause || 'Kurangnya kepatuhan prosedur operasional standar.',
-      correctiveActions: [correctiveAction || 'Briefing ulang SOP kepada regu kerja terkait.'],
-      smkpReportSubmitted: false,
-    });
+      const newInc = await store.addIncident({
+        title,
+        type,
+        location,
+        date,
+        time,
+        victimsCount,
+        damageCostEst,
+        status: 'INVESTIGATING',
+        reporter: currentUser.name,
+        timeline: [
+          { time: `${time}`, event: `Kejadian ${type} teridentifikasi di ${location}.` },
+          { time: '10 menit pasca kejadian', event: 'First responder & tim safety mengamankan perimeter.' },
+        ],
+        fiveWhyAnalysis,
+        rootCause: rootCause || 'Kurangnya kepatuhan prosedur operasional standar.',
+        correctiveActions: [correctiveAction || 'Briefing ulang SOP kepada regu kerja terkait.'],
+        smkpReportSubmitted: false,
+      });
 
-    setSubmitting(false);
-    setSelectedIncident(newInc);
-    setActiveTab('list');
+      if (draftPhotoEvidence.length > 0) {
+        await store.attachPhotoEvidence('incident', newInc.id, draftPhotoEvidence, currentUser.name);
+      }
+
+      setSelectedIncident(newInc);
+      setActiveTab('list');
+      setSuccessMsg(
+        `Insiden ${newInc.code} berhasil disimpan ke penyimpanan lokal${
+          draftPhotoEvidence.length > 0 ? ` dengan ${draftPhotoEvidence.length} photo evidence investigasi.` : '.'
+        }`,
+      );
+      setTitle('');
+      setFiveWhy1('');
+      setFiveWhy2('');
+      setFiveWhy3('');
+      setRootCause('');
+      setCorrectiveAction('');
+      setDraftPhotoEvidence([]);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal menyimpan insiden.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedIncident && store.incidents.length > 0) {
+      setSelectedIncident(store.incidents[0]);
+      return;
+    }
+
+    if (!selectedIncident) return;
+    setEditStatus(selectedIncident.status);
+    setEditRootCause(selectedIncident.rootCause);
+    setEditCorrectiveAction(selectedIncident.correctiveActions.join('\n'));
+    setEditTimelineEvent('');
+    setEditSmkpSubmitted(selectedIncident.smkpReportSubmitted);
+  }, [selectedIncident, store.incidents]);
+
+  const handleUpdateIncident = async () => {
+    if (!selectedIncident) return;
+
+    setUpdatingIncident(true);
+    setErrorMsg('');
+
+    try {
+      const timeline = editTimelineEvent.trim()
+        ? [
+            ...selectedIncident.timeline,
+            {
+              time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+              event: editTimelineEvent.trim(),
+            },
+          ]
+        : selectedIncident.timeline;
+
+      const correctiveActions = editCorrectiveAction
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const updated = await store.updateIncident(selectedIncident.id, {
+        status: editStatus,
+        rootCause: editRootCause,
+        correctiveActions,
+        timeline,
+        smkpReportSubmitted: editSmkpSubmitted,
+      });
+
+      if (updated) {
+        setSelectedIncident(updated);
+        setSuccessMsg(`Investigasi ${updated.code} berhasil diperbarui.`);
+        setEditTimelineEvent('');
+      }
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal memperbarui investigasi insiden.');
+    } finally {
+      setUpdatingIncident(false);
+    }
   };
 
   return (
@@ -106,6 +195,29 @@ export const IncidentModule: React.FC = () => {
         </div>
       </div>
 
+      {successMsg && (
+        <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+          <AlertOctagon className="w-4 h-4 text-red-300 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {store.lastInitError && (
+        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+          <AlertOctagon className="w-4 h-4 text-amber-300 shrink-0" />
+          <span>Data insiden lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
+        </div>
+      )}
+
+      <RemoteRefreshControl label="Insiden" />
+
       {activeTab === 'list' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Incident List */}
@@ -114,33 +226,41 @@ export const IncidentModule: React.FC = () => {
               Daftar Insiden Terlaporkan
             </h3>
 
-            <div className="space-y-2">
-              {store.incidents.map((inc) => (
-                <div
-                  key={inc.id}
-                  onClick={() => setSelectedIncident(inc)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                    selectedIncident?.id === inc.id
-                      ? 'bg-red-500/15 border-red-500/40'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-red-400">{inc.code}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-300 font-semibold">
-                      {inc.type}
-                    </span>
+            {store.isInitializing && !store.isInitialized ? (
+              <div className="py-12 text-center text-xs text-neutral-400">Memuat register insiden...</div>
+            ) : store.incidents.length === 0 ? (
+              <div className="py-12 text-center text-xs text-neutral-400">
+                Belum ada insiden tersimpan. Buat laporan insiden baru untuk memulai investigasi.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {store.incidents.map((inc) => (
+                  <div
+                    key={inc.id}
+                    onClick={() => setSelectedIncident(inc)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      selectedIncident?.id === inc.id
+                        ? 'bg-red-500/15 border-red-500/40'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-red-400">{inc.code}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-300 font-semibold">
+                        {inc.type}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-white mt-1.5 leading-snug line-clamp-2">
+                      {inc.title}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+                      <span>{inc.location}</span>
+                      <span>{inc.date}</span>
+                    </div>
                   </div>
-                  <div className="text-xs font-semibold text-white mt-1.5 leading-snug line-clamp-2">
-                    {inc.title}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
-                    <span>{inc.location}</span>
-                    <span>{inc.date}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Incident Details & 5-Why View */}
@@ -216,6 +336,88 @@ export const IncidentModule: React.FC = () => {
                       ))}
                     </ul>
                   </div>
+                </div>
+
+                <PhotoEvidencePanel
+                  ownerEntity="incident"
+                  ownerId={selectedIncident.id}
+                  createdBy={currentUser.name}
+                  title="Photo Evidence Investigasi"
+                  helperText="Simpan foto area kejadian, kerusakan aset, barrier, atau bukti perbaikan selama investigasi berlangsung."
+                  emptyText="Belum ada photo evidence pada insiden ini."
+                  onSuccess={setSuccessMsg}
+                  onError={setErrorMsg}
+                />
+
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3 text-xs">
+                  <div className="text-xs font-bold uppercase tracking-wider text-neutral-300">
+                    Update Investigasi
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-neutral-300 mb-1 font-medium">Status Investigasi</label>
+                      <select
+                        value={editStatus}
+                        onChange={(e) => setEditStatus(e.target.value as Incident['status'])}
+                        className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white"
+                      >
+                        <option value="REPORTED">REPORTED</option>
+                        <option value="INVESTIGATING">INVESTIGATING</option>
+                        <option value="REVIEWED_KTT">REVIEWED_KTT</option>
+                        <option value="CLOSED">CLOSED</option>
+                      </select>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-neutral-300 mt-6 sm:mt-0">
+                      <input
+                        type="checkbox"
+                        checked={editSmkpSubmitted}
+                        onChange={(e) => setEditSmkpSubmitted(e.target.checked)}
+                      />
+                      Form SMKP sudah dikirim
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-300 mb-1 font-medium">Root Cause</label>
+                    <textarea
+                      rows={2}
+                      value={editRootCause}
+                      onChange={(e) => setEditRootCause(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-300 mb-1 font-medium">Corrective Actions (satu per baris)</label>
+                    <textarea
+                      rows={3}
+                      value={editCorrectiveAction}
+                      onChange={(e) => setEditCorrectiveAction(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-300 mb-1 font-medium">Tambahkan Catatan Timeline</label>
+                    <input
+                      type="text"
+                      value={editTimelineEvent}
+                      onChange={(e) => setEditTimelineEvent(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white"
+                      placeholder="Contoh: Review KTT selesai dan rekomendasi disetujui"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleUpdateIncident}
+                    disabled={updatingIncident}
+                    className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs disabled:opacity-50"
+                  >
+                    {updatingIncident ? 'Menyimpan Update...' : 'Simpan Update Investigasi'}
+                  </button>
                 </div>
               </div>
             ) : (
@@ -346,6 +548,17 @@ export const IncidentModule: React.FC = () => {
               />
             </div>
           </div>
+
+          <PhotoEvidencePanel
+            ownerEntity="incident"
+            title="Photo Evidence Kejadian"
+            helperText="Tambah foto situasi awal, alat terlibat, titik impak, atau bukti housekeeping awal sebelum investigasi ditutup."
+            emptyText="Belum ada foto insiden yang dipilih."
+            draftItems={draftPhotoEvidence}
+            onDraftItemsChange={setDraftPhotoEvidence}
+            onSuccess={setSuccessMsg}
+            onError={setErrorMsg}
+          />
 
           <div className="flex justify-end gap-3 pt-2">
             <button

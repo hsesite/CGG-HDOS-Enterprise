@@ -35,33 +35,33 @@ function getToken(): string | null {
 
 function setToken(token: string | null): void {
   if (typeof window === 'undefined') return;
-  if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
-  else window.sessionStorage.removeItem(TOKEN_KEY);
+  if (token) {
+    window.sessionStorage.setItem(TOKEN_KEY, token);
+  } else {
+    window.sessionStorage.removeItem(TOKEN_KEY);
+  }
 }
 
-/**
- * JSONP request untuk Google Apps Script (mengatasi CORS)
- */
 function requestJsonp<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    const callbackName = `callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const callbackName = `callback_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const script = document.createElement('script');
-    
     const urlObj = new URL(url);
+    const callbackRegistry = window as unknown as Window & Record<string, unknown>;
     urlObj.searchParams.set('callback', callbackName);
-    
-    (window as any)[callbackName] = (data: any) => {
-      delete (window as any)[callbackName];
-      document.body.removeChild(script);
-      resolve(data);
+
+    callbackRegistry[callbackName] = (data: unknown) => {
+      delete callbackRegistry[callbackName];
+      script.remove();
+      resolve(data as T);
     };
-    
+
     script.onerror = () => {
-      delete (window as any)[callbackName];
-      document.body.removeChild(script);
+      delete callbackRegistry[callbackName];
+      script.remove();
       reject(new ApiError(0, 'JSONP request failed'));
     };
-    
+
     script.src = urlObj.toString();
     document.body.appendChild(script);
   });
@@ -69,41 +69,50 @@ function requestJsonp<T>(url: string): Promise<T> {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
-  let response: T;
+  let response: ApiEnvelope<T> | null = null;
+  let status = 0;
 
   if (IS_GOOGLE_APPS_SCRIPT) {
-    // Google Apps Script: Gunakan JSONP untuk mengatasi CORS
     const url = new URL(API_BASE_URL);
     const method = (init.method ?? 'GET').toUpperCase();
-    
+
     url.searchParams.set('path', path);
     url.searchParams.set('method', method);
     if (token) url.searchParams.set('token', token);
-    
-    const body = init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined;
-    if (body) url.searchParams.set('payload', body);
-    
+
+    const payload = init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined;
+    if (payload) url.searchParams.set('payload', payload);
+
     console.log('[API GAS JSONP] Request:', method, path);
-    response = await requestJsonp<T>(url.toString());
+    response = await requestJsonp<ApiEnvelope<T>>(url.toString());
   } else {
-    // Standard Express.js REST API
     const headers = new Headers(init.headers);
     headers.set('content-type', 'application/json');
-    if (token) headers.set('authorization', `Bearer ${token}`);
+    if (token) headers.set('authorization', 'Bearer ' + token);
+
     const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
-    response = (await res.json().catch(() => null)) as T;
+    status = res.status;
+    response = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
+
+    if (!res.ok && !response) {
+      throw new ApiError(res.status, `HTTP ${res.status}`);
+    }
   }
 
-  const body = response as ApiEnvelope<T> | null;
-  if (!body?.success) {
-    throw new ApiError(0, body?.message || 'API request failed');
+  if (!response?.success) {
+    throw new ApiError(status, response?.message || 'API request failed');
   }
-  return body.data;
+
+  return response.data;
 }
 
 export const hseApi = {
-  get baseUrl(): string { return API_BASE_URL; },
-  get isAuthenticated(): boolean { return Boolean(getToken()); },
+  get baseUrl(): string {
+    return API_BASE_URL;
+  },
+  get isAuthenticated(): boolean {
+    return Boolean(getToken());
+  },
 
   async login(email: string, password: string): Promise<ApiUser> {
     const data = await request<{ token: string; user: ApiUser }>('/api/auth/login', {
@@ -115,25 +124,32 @@ export const hseApi = {
   },
 
   async logout(): Promise<void> {
-    try { if (getToken()) await request<null>('/api/auth/logout', { method: 'POST' }); }
-    finally { setToken(null); }
+    try {
+      if (getToken()) {
+        await request<null>('/api/auth/logout', { method: 'POST' });
+      }
+    } finally {
+      setToken(null);
+    }
   },
 
-  me(): Promise<ApiUser> { return request<ApiUser>('/api/me'); },
+  me(): Promise<ApiUser> {
+    return request<ApiUser>('/api/me');
+  },
 
-  list<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents'): Promise<T[]> {
+  list<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors'): Promise<T[]> {
     return request<T[]>(`/api/${entity}`);
   },
 
-  get<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string): Promise<T> {
+  get<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors', id: string): Promise<T> {
     return request<T>(`/api/${entity}/${encodeURIComponent(id)}`);
   },
 
-  create<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', payload: unknown): Promise<T> {
+  create<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors', payload: unknown): Promise<T> {
     return request<T>(`/api/${entity}`, { method: 'POST', body: JSON.stringify(payload) });
   },
 
-  update<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string, payload: unknown): Promise<T> {
+  update<T>(entity: 'inspections' | 'hazards' | 'picas' | 'incidents' | 'repository' | 'contractors', id: string, payload: unknown): Promise<T> {
     return request<T>(`/api/${entity}/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
   },
 };

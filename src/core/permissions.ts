@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { hseApi } from '../api';
 
 export function withPermission(permission: string, component: ReactNode, fallback?: ReactNode): ReactNode {
   if (typeof window === 'undefined') return fallback || null;
@@ -9,11 +8,13 @@ export function withPermission(permission: string, component: ReactNode, fallbac
     const parsed = JSON.parse(user);
     const hasPermission = parsed.roles?.some((role: string) => {
       const roleMap: Record<string, string[]> = {
-        KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update'],
-        'SPV HSE': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create'],
+        KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update', 'repository.read', 'repository.create', 'repository.update', 'contractor.read', 'contractor.create', 'contractor.update'],
+        'Project Manager': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update', 'repository.read', 'repository.create', 'repository.update', 'contractor.read', 'contractor.create', 'contractor.update'],
+        'SPV HSE': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update', 'repository.read', 'repository.create', 'repository.update', 'contractor.read', 'contractor.create', 'contractor.update'],
         'Foreman Safety': ['inspection.read', 'inspection.create', 'hazard.read', 'hazard.create', 'pica.read'],
         'Safety Officer': ['inspection.read', 'inspection.create', 'hazard.read', 'hazard.create'],
-        'Contractor PIC': ['hazard.read', 'hazard.create', 'pica.read'],
+        Paramedis: ['incident.read', 'incident.create', 'incident.update'],
+        'Contractor PIC': ['hazard.read', 'hazard.create', 'pica.read', 'contractor.read', 'contractor.update'],
         Employee: ['hazard.read', 'hazard.create'],
       };
       return roleMap[role]?.includes(permission) || false;
@@ -32,11 +33,13 @@ export function usePermission(permission: string): boolean {
     const parsed = JSON.parse(user);
     return parsed.roles?.some((role: string) => {
       const roleMap: Record<string, string[]> = {
-        KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update'],
-        'SPV HSE': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create'],
+        KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update', 'repository.read', 'repository.create', 'repository.update', 'contractor.read', 'contractor.create', 'contractor.update'],
+        'Project Manager': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update', 'repository.read', 'repository.create', 'repository.update', 'contractor.read', 'contractor.create', 'contractor.update'],
+        'SPV HSE': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update', 'repository.read', 'repository.create', 'repository.update', 'contractor.read', 'contractor.create', 'contractor.update'],
         'Foreman Safety': ['inspection.read', 'inspection.create', 'hazard.read', 'hazard.create', 'pica.read'],
         'Safety Officer': ['inspection.read', 'inspection.create', 'hazard.read', 'hazard.create'],
-        'Contractor PIC': ['hazard.read', 'hazard.create', 'pica.read'],
+        Paramedis: ['incident.read', 'incident.create', 'incident.update'],
+        'Contractor PIC': ['hazard.read', 'hazard.create', 'pica.read', 'contractor.read', 'contractor.update'],
         Employee: ['hazard.read', 'hazard.create'],
       };
       return roleMap[role]?.includes(permission) || false;

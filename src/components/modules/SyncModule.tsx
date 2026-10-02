@@ -14,6 +14,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { hdosSync } from '../../core/sync';
 import { hdosEvents } from '../../core/events';
+import { apiIntegration } from '../../core/api-integration';
 
 export const SyncModule: React.FC = () => {
   const store = useHDOSStore();
@@ -21,6 +22,8 @@ export const SyncModule: React.FC = () => {
   const [syncing, setSyncing] = useState(hdosSync.getIsSyncing());
   const [queue, setQueue] = useState(hdosSync.getQueue());
   const [logs, setLogs] = useState(hdosSync.getSyncLogs());
+  const [refreshNotice, setRefreshNotice] = useState('');
+  const [refreshError, setRefreshError] = useState('');
 
   useEffect(() => {
     const un1 = hdosEvents.on('sync:offline_status_changed', (payload) => {
@@ -55,6 +58,21 @@ export const SyncModule: React.FC = () => {
     await hdosSync.triggerSync();
   };
 
+  const handleRemoteRefresh = async () => {
+    setRefreshNotice('');
+    setRefreshError('');
+    try {
+      const result = await apiIntegration.hydrateRemoteData({ syncQueuedFirst: true, failIfUnauthenticated: true });
+      setRefreshNotice(
+        result.syncedQueueFirst
+          ? 'Queue lokal berhasil disinkronkan sebelum data backend dimuat ulang.'
+          : 'Data backend berhasil dimuat ulang tanpa perubahan queue lokal.'
+      );
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : 'Gagal memuat ulang data backend.');
+    }
+  };
+
   const handleExportInspections = () => {
     hdosSync.exportToGoogleSheetsCSV(store.inspections, 'Inspections');
   };
@@ -65,6 +83,18 @@ export const SyncModule: React.FC = () => {
 
   const handleExportPICA = () => {
     hdosSync.exportToGoogleSheetsCSV(store.picas, 'PICA');
+  };
+
+  const handleExportIncidents = () => {
+    hdosSync.exportToGoogleSheetsCSV(store.incidents, 'Incidents');
+  };
+
+  const handleExportRepository = () => {
+    hdosSync.exportToGoogleSheetsCSV(store.documents, 'Repository');
+  };
+
+  const handleExportContractors = () => {
+    hdosSync.exportToGoogleSheetsCSV(store.contractors, 'Contractors');
   };
 
   return (
@@ -103,8 +133,46 @@ export const SyncModule: React.FC = () => {
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
             <span>{syncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'}</span>
           </button>
+
+          <button
+            onClick={handleRemoteRefresh}
+            disabled={store.isRemoteHydrating}
+            className="px-4 py-1.5 rounded-xl bg-blue-500/80 hover:bg-blue-400 text-white font-bold text-xs flex items-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer disabled:opacity-40"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${store.isRemoteHydrating ? 'animate-spin' : ''}`} />
+            <span>{store.isRemoteHydrating ? 'Memuat Backend...' : 'Tarik Ulang dari Backend'}</span>
+          </button>
         </div>
       </div>
+
+      {(refreshNotice || store.lastRemoteHydratedAt || refreshError || store.lastRemoteHydrationError) && (
+        <div className="apple-glass-card p-4 rounded-2xl space-y-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full border ${
+              store.isRemoteHydrating
+                ? 'bg-blue-500/15 border-blue-500/30 text-blue-300'
+                : store.lastRemoteHydrationError || refreshError
+                  ? 'bg-red-500/15 border-red-500/30 text-red-200'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+            }`}>
+              {store.isRemoteHydrating
+                ? 'Hydration backend aktif'
+                : store.lastRemoteHydrationError || refreshError
+                  ? 'Hydration backend gagal'
+                  : 'Hydration backend siap'}
+            </span>
+            {store.lastRemoteHydratedAt && (
+              <span className="text-neutral-400 font-mono">
+                Pull terakhir: {new Date(store.lastRemoteHydratedAt).toLocaleString('id-ID')}
+              </span>
+            )}
+          </div>
+          {refreshNotice && <div className="text-emerald-300">{refreshNotice}</div>}
+          {(refreshError || store.lastRemoteHydrationError) && (
+            <div className="text-red-200">{refreshError || store.lastRemoteHydrationError}</div>
+          )}
+        </div>
+      )}
 
       {/* Sync Flow & Architecture Graphic */}
       <div className="apple-glass-card p-5 rounded-2xl">
@@ -161,7 +229,7 @@ export const SyncModule: React.FC = () => {
           {queue.length === 0 ? (
             <div className="py-12 text-center text-xs text-neutral-400 space-y-2">
               <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400" />
-              <p>Seluruh entitas inspeksi, bahaya &amp; PICA telah 100% tersinkronisasi ke cloud.</p>
+              <p>Seluruh entitas operasional dan repository yang didukung telah 100% tersinkronisasi ke cloud.</p>
               <p className="text-[11px] text-neutral-500">
                 (Untuk menguji antrean offline, aktifkan tombol mode Offline di atas lalu buat data baru).
               </p>
@@ -182,6 +250,11 @@ export const SyncModule: React.FC = () => {
                     <div className="text-white font-medium mt-1 truncate max-w-xs">
                       {item.payload?.title || item.payload?.code || item.payload?.findingDescription}
                     </div>
+                    {item.note && (
+                      <div className="text-[10px] text-neutral-500 mt-1 max-w-xs">
+                        {item.note}
+                      </div>
+                    )}
                   </div>
 
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-neutral-300">
@@ -235,7 +308,7 @@ export const SyncModule: React.FC = () => {
           <span className="text-xs text-neutral-400">Kompatibel Google Drive &amp; Excel</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
           <button
             onClick={handleExportInspections}
             className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
@@ -267,6 +340,39 @@ export const SyncModule: React.FC = () => {
               <div className="text-[10px] text-neutral-400 mt-0.5">{store.picas.length} baris rekaman</div>
             </div>
             <Download className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={handleExportIncidents}
+            className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
+          >
+            <div>
+              <div className="text-xs font-bold text-white">Ekspor Data Insiden</div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">{store.incidents.length} baris rekaman</div>
+            </div>
+            <Download className="w-4 h-4 text-red-300 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={handleExportRepository}
+            className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
+          >
+            <div>
+              <div className="text-xs font-bold text-white">Ekspor Repository</div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">{store.documents.length} baris rekaman</div>
+            </div>
+            <Download className="w-4 h-4 text-purple-300 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={handleExportContractors}
+            className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
+          >
+            <div>
+              <div className="text-xs font-bold text-white">Ekspor Contractor</div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">{store.contractors.length} baris rekaman</div>
+            </div>
+            <Download className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
           </button>
         </div>
       </div>

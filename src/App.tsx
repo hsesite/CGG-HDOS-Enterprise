@@ -9,6 +9,7 @@ import { IOSMobileSimulator } from './components/mobile/IOSMobileSimulator';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
+import { apiIntegration } from './core/api-integration';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
@@ -35,6 +36,7 @@ import {
   Cpu,
   RefreshCw,
   LogOut,
+  CloudLightning,
 } from 'lucide-react';
 
 export default function App() {
@@ -44,23 +46,33 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
+  async function hydrateRemoteAfterAuth(): Promise<void> {
+    try {
+      await apiIntegration.hydrateRemoteData();
+    } catch (error) {
+      console.warn('Remote hydration skipped:', error);
+    }
+  }
+
   useEffect(() => {
-    bootHDOS().then(() => {
+    bootHDOS().then(async () => {
       setBooted(true);
       const user = getCurrentUser();
       if (user) {
         setIsAuthenticated(true);
         setCurrentUser(user);
+        await hydrateRemoteAfterAuth();
       }
       setCheckingSession(false);
     });
   }, []);
 
-  function handleLoggedIn(): void {
+  async function handleLoggedIn(): Promise<void> {
     const user = getCurrentUser();
     if (user) {
       setIsAuthenticated(true);
       setCurrentUser(user);
+      await hydrateRemoteAfterAuth();
       setCheckingSession(false);
     }
   }
@@ -74,6 +86,14 @@ export default function App() {
       setIsAuthenticated(false);
       setCurrentUser(null);
       AuthState.clear();
+    }
+  }
+
+  async function handleManualRefresh(): Promise<void> {
+    try {
+      await apiIntegration.hydrateRemoteData({ syncQueuedFirst: true, failIfUnauthenticated: true });
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
     }
   }
 
@@ -119,6 +139,37 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-2 text-[11px]">
+            <span
+              className={`px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
+                store.isRemoteHydrating
+                  ? 'bg-blue-500/15 border-blue-500/30 text-blue-300'
+                  : store.lastRemoteHydrationError
+                    ? 'bg-red-500/15 border-red-500/30 text-red-200'
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+              }`}
+            >
+              <CloudLightning className={`w-3.5 h-3.5 ${store.isRemoteHydrating ? 'animate-pulse' : ''}`} />
+              <span>
+                {store.isRemoteHydrating
+                  ? 'Refresh backend berjalan'
+                  : store.lastRemoteHydrationError
+                    ? 'Refresh backend gagal'
+                    : store.lastRemoteHydratedAt
+                      ? `Backend pull ${new Date(store.lastRemoteHydratedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+                      : 'Backend belum di-refresh'}
+              </span>
+            </span>
+            <button
+              onClick={handleManualRefresh}
+              disabled={store.isRemoteHydrating}
+              className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white disabled:opacity-50 flex items-center gap-1.5"
+              title="Refresh backend data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${store.isRemoteHydrating ? 'animate-spin' : ''}`} />
+              <span>Refresh Data</span>
+            </button>
+          </div>
           <div className="text-xs text-neutral-400">
             {currentUser?.displayName} <span className="text-neutral-600">({currentUser?.email})</span>
           </div>

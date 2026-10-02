@@ -13,7 +13,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { hdosAI, BoundingBox } from '../../core/ai';
+import { hdosAI, BoundingBox, AIParsedFormTemplate } from '../../core/ai';
 
 export const AIModule: React.FC = () => {
   const store = useHDOSStore();
@@ -32,7 +32,13 @@ export const AIModule: React.FC = () => {
 
   // Document parser state
   const [parsingDoc, setParsingDoc] = useState(false);
-  const [parsedForm, setParsedForm] = useState<any>(null);
+  const [parsedForm, setParsedForm] = useState<AIParsedFormTemplate | null>(null);
+  const [parsedFilename, setParsedFilename] = useState('');
+  const [publishingHazard, setPublishingHazard] = useState(false);
+  const [publishingTemplate, setPublishingTemplate] = useState(false);
+  const [publishingDocument, setPublishingDocument] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // SMKP Advisor state
   const [query, setQuery] = useState('');
@@ -52,33 +58,99 @@ export const AIModule: React.FC = () => {
 
   const handleConvertToHazard = async () => {
     if (!scanResult) return;
-    await store.addHazard({
-      title: 'AI Temuan: Unit HD Parkir Tanpa Ganjal Ban & Pekerja Blind Spot',
-      category: 'Unsafe Condition',
-      location: 'Pit Jaja KM10',
-      specificLocation: 'Ramp Akses Bench 4 Elevasi +45',
-      riskMatrix: {
-        severity: 4,
-        likelihood: 4,
-        score: 16,
-        level: scanResult.suggestedRiskLevel,
-      },
-      reporter: 'HDOS AI Vision Guard',
-      reporterRole: 'Safety Officer',
-      status: 'PICA_ISSUED',
-      actionTaken: scanResult.suggestedAction,
-      aiDetected: true,
-      aiSuggestions: scanResult.findings,
-    });
-    alert('Temuan AI berhasil dikonversi dan disimpan ke Master Hazard Register serta menerbitkan tiket PICA!');
-    store.openWindow('hazard');
+    setPublishingHazard(true);
+    setErrorMsg('');
+
+    try {
+      const created = await store.addHazard({
+        title: 'AI Temuan: Unit HD Parkir Tanpa Ganjal Ban & Pekerja Blind Spot',
+        category: 'Unsafe Condition',
+        location: 'Pit Jaja KM10',
+        specificLocation: 'Ramp Akses Bench 4 Elevasi +45',
+        riskMatrix: {
+          severity: 4,
+          likelihood: 4,
+          score: 16,
+          level: scanResult.suggestedRiskLevel,
+        },
+        reporter: 'HDOS AI Vision Guard',
+        reporterRole: 'Safety Officer',
+        status: 'PICA_ISSUED',
+        actionTaken: scanResult.suggestedAction,
+        aiDetected: true,
+        aiSuggestions: scanResult.findings,
+      });
+      setSuccessMsg(
+        `Temuan AI berhasil dikonversi menjadi hazard ${created.code}${
+          created.picaId ? ' dan tiket PICA otomatis sudah diterbitkan.' : '.'
+        }`,
+      );
+      store.openWindow('hazard');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal mengonversi temuan AI menjadi hazard.');
+    } finally {
+      setPublishingHazard(false);
+    }
   };
 
   const handleParseDocument = async (filename: string) => {
     setParsingDoc(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    setParsedFilename(filename);
     const form = await hdosAI.parseDocumentToDigitalForm(filename, 'Inspeksi checklist standar');
     setParsedForm(form);
     setParsingDoc(false);
+  };
+
+  const handleCreateInspectionTemplate = async () => {
+    if (!parsedForm || !parsedFilename) return;
+    setPublishingTemplate(true);
+    setErrorMsg('');
+
+    try {
+      const template = await store.importInspectionTemplate({
+        title: parsedForm.title,
+        sourceFilename: parsedFilename,
+        category: parsedForm.category,
+        smkpElement: parsedForm.smkpElement,
+        checklistItems: parsedForm.checklistItems,
+      });
+      setSuccessMsg(`Template inspeksi AI "${template.title}" berhasil disimpan dan siap dipakai di Inspection Runtime.`);
+      store.openWindow('inspection');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal menyimpan template inspeksi hasil AI.');
+    } finally {
+      setPublishingTemplate(false);
+    }
+  };
+
+  const handleCreateRepositoryDocument = async () => {
+    if (!parsedForm || !parsedFilename) return;
+    setPublishingDocument(true);
+    setErrorMsg('');
+
+    try {
+      const extension = parsedFilename.toLowerCase().endsWith('.pdf') ? 'PDF' : parsedFilename.toLowerCase().endsWith('.xlsx') ? 'XLSX' : 'DOCX';
+      const created = await store.addDocument({
+        title: parsedForm.title,
+        category: parsedForm.category === 'Inspection' ? 'Inspection' : 'Form',
+        owner: 'HDOS AI Parser',
+        status: 'DRAFT',
+        effectiveDate: new Date().toISOString().split('T')[0],
+        fileType: extension,
+        size: `${Math.max(parsedForm.checklistItems.length * 64, 128)} KB`,
+        downloadCount: 0,
+        smkpElement: parsedForm.smkpElement,
+        summary: `Hasil parse AI dari ${parsedFilename} dengan ${parsedForm.checklistItems.length} item checklist.`,
+      });
+      setSuccessMsg(`Dokumen hasil parser berhasil didaftarkan ke Repository sebagai ${created.docNumber}.`);
+      store.openWindow('repository');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Gagal membuat draft dokumen repository dari hasil parser.');
+    } finally {
+      setPublishingDocument(false);
+    }
   };
 
   const handleSendQuery = (e: React.FormEvent) => {
@@ -108,6 +180,20 @@ export const AIModule: React.FC = () => {
             Sistem AI beroperasi 100% offline &amp; online untuk deteksi bahaya foto, parsing dokumen form, dan audit advisor SMKP.
           </p>
         </div>
+
+        {successMsg && (
+          <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-300 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
           <button
@@ -250,10 +336,11 @@ export const AIModule: React.FC = () => {
 
                   <button
                     onClick={handleConvertToHazard}
-                    className="w-full py-2.5 rounded-xl bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer mt-2"
+                    disabled={publishingHazard}
+                    className="w-full py-2.5 rounded-xl bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer mt-2 disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Setujui &amp; Terbitkan Tiket Hazard</span>
+                    <span>{publishingHazard ? 'Menerbitkan Hazard...' : 'Setujui &amp; Terbitkan Tiket Hazard'}</span>
                   </button>
                 </div>
               ) : (
@@ -323,18 +410,30 @@ export const AIModule: React.FC = () => {
                   <span className="text-[11px] text-[#00E676] font-mono">{parsedForm.smkpElement}</span>
                 </div>
                 <button
-                  onClick={() => {
-                    store.openWindow('inspection');
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-[#00E676] text-black font-bold text-xs cursor-pointer"
+                  onClick={handleCreateInspectionTemplate}
+                  disabled={publishingTemplate}
+                  className="px-3 py-1.5 rounded-lg bg-[#00E676] text-black font-bold text-xs cursor-pointer disabled:opacity-50"
                 >
-                  Gunakan di Inspection Runtime →
+                  {publishingTemplate ? 'Menyimpan Template...' : 'Tambahkan ke Inspection Runtime →'}
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="text-[11px] text-neutral-300">
+                  Simpan juga hasil parse sebagai dokumen repository agar tetap terdokumentasi dan bisa disinkronkan offline/online.
+                </div>
+                <button
+                  onClick={handleCreateRepositoryDocument}
+                  disabled={publishingDocument}
+                  className="px-3 py-1.5 rounded-lg bg-[#42A5F5] text-black font-bold text-xs cursor-pointer disabled:opacity-50"
+                >
+                  {publishingDocument ? 'Mendaftarkan Dokumen...' : 'Daftarkan ke Repository'}
                 </button>
               </div>
 
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-neutral-300">Daftar Parameter Checkbox yang Berhasil Diekstrak:</div>
-                {parsedForm.checklistItems.map((item: any, idx: number) => (
+                {parsedForm.checklistItems.map((item, idx: number) => (
                   <div key={idx} className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between text-xs">
                     <div className="space-y-0.5">
                       <div className="text-white font-medium">{item.question}</div>

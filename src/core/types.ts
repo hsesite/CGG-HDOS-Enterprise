@@ -39,7 +39,7 @@ export interface Inspection {
   id: string;
   code: string;
   title: string;
-  templateType: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
+  templateType: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE' | 'IMPORTED';
   location: MiningArea;
   inspectorName: string;
   inspectorRole: UserRole;
@@ -155,6 +155,39 @@ export interface ContractorPassport {
   inductionRatePercent: number;
   status: 'ACTIVE' | 'WARNING' | 'SUSPENDED';
   safetyPassportExpiry: string;
+}
+
+export interface ImportedInspectionTemplate {
+  id: string;
+  title: string;
+  sourceFilename: string;
+  category: string;
+  smkpElement: string;
+  createdAt: string;
+  checklistItems: {
+    question: string;
+    standardRef: string;
+    criticality: 'CRITICAL' | 'MAJOR' | 'MINOR';
+  }[];
+}
+
+export type EvidenceOwnerEntity = 'inspection' | 'hazard' | 'pica' | 'incident';
+
+export interface DraftPhotoEvidence {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataUrl: string;
+  caption?: string;
+}
+
+export interface PhotoEvidence extends DraftPhotoEvidence {
+  ownerEntity: EvidenceOwnerEntity;
+  ownerId: string;
+  createdAt: string;
+  createdBy: string;
+  syncStatus: 'LOCAL_ONLY';
 }
 
 export interface MiningLocationGIS {

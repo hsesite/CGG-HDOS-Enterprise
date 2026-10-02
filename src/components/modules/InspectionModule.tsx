@@ -15,15 +15,19 @@ import {
   Filter,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { MiningArea, InspectionItem, Inspection } from '../../core/types';
+import { MiningArea, InspectionItem, Inspection, DraftPhotoEvidence } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { RemoteRefreshControl } from '../ui/RemoteRefreshControl';
+import { PhotoEvidencePanel } from '../ui/PhotoEvidencePanel';
 
 interface TemplateDef {
-  id: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
+  id: string;
   title: string;
   category: string;
   smkpElement: string;
   items: { question: string; standardRef: string }[];
+  source?: 'built_in' | 'imported';
+  sourceFilename?: string;
 }
 
 const TEMPLATES: TemplateDef[] = [
@@ -80,27 +84,43 @@ const TEMPLATES: TemplateDef[] = [
   },
 ];
 
+const buildDefaultAnswers = (itemCount: number): Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }> =>
+  Array.from({ length: itemCount }).reduce<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>((acc, _item, idx) => {
+    acc[idx] = { result: 'PASS', notes: '' };
+    return acc;
+  }, {});
+
 export const InspectionModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const allTemplates: TemplateDef[] = [
+    ...TEMPLATES.map((template) => ({ ...template, source: 'built_in' as const })),
+    ...store.importedInspectionTemplates.map((template) => ({
+      id: template.id,
+      title: template.title,
+      category: `${template.category} · AI Import`,
+      smkpElement: template.smkpElement,
+      items: template.checklistItems.map((item) => ({
+        question: item.question,
+        standardRef: item.standardRef,
+      })),
+      source: 'imported' as const,
+      sourceFilename: template.sourceFilename,
+    })),
+  ];
 
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateDef['id']>('APAR');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('APAR');
   const [location, setLocation] = useState<MiningArea>('Workshop');
-  const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({
-    0: { result: 'PASS', notes: '' },
-    1: { result: 'PASS', notes: '' },
-    2: { result: 'PASS', notes: '' },
-    3: { result: 'PASS', notes: '' },
-    4: { result: 'PASS', notes: '' },
-  });
+  const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>(buildDefaultAnswers(TEMPLATES[0].items.length));
   const [inspectorName, setInspectorName] = useState(currentUser.name);
   const [generalNotes, setGeneralNotes] = useState('');
-  const [photoAttached, setPhotoAttached] = useState(true);
+  const [draftPhotoEvidence, setDraftPhotoEvidence] = useState<DraftPhotoEvidence[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId)!;
+  const currentTemplate = allTemplates.find((t) => t.id === selectedTemplateId) ?? allTemplates[0];
 
   const handleResultChange = (index: number, result: 'PASS' | 'FAIL' | 'NA') => {
     setAnswers((prev) => ({
@@ -127,48 +147,63 @@ export const InspectionModule: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setErrorMessage('');
 
-    const items: InspectionItem[] = currentTemplate.items.map((item, idx) => ({
-      id: `item_${idx}_${Date.now()}`,
-      question: item.question,
-      standardRef: item.standardRef,
-      result: answers[idx]?.result || 'PASS',
-      notes: answers[idx]?.notes || '',
-    }));
+    try {
+      const items: InspectionItem[] = currentTemplate.items.map((item, idx) => ({
+        id: `item_${idx}_${Date.now()}`,
+        question: item.question,
+        standardRef: item.standardRef,
+        result: answers[idx]?.result || 'PASS',
+        notes: answers[idx]?.notes || '',
+      }));
 
-    const passCount = items.filter((i) => i.result === 'PASS').length;
-    const scorePercent = Math.round((passCount / items.length) * 100);
+      const passCount = items.filter((i) => i.result === 'PASS').length;
+      const scorePercent = Math.round((passCount / items.length) * 100);
 
-    const newInspection = await store.addInspection({
-      title: currentTemplate.title,
-      templateType: currentTemplate.id,
-      location,
-      inspectorName,
-      inspectorRole: currentUser.role,
-      date: new Date().toISOString().split('T')[0],
-      status: hasFail ? 'PICA_TRIGGERED' : 'COMPLETED',
-      smkpElement: currentTemplate.smkpElement,
-      scorePercent,
-      items,
-      notes: generalNotes,
-      gpsCoordinates: {
-        lat: -2.9395,
-        lng: 121.9618,
-        utm: '51S 385100 mE 9674800 mN',
-      },
-    });
+      const newInspection = await store.addInspection({
+        title: currentTemplate.title,
+        templateType: currentTemplate.source === 'imported' ? 'IMPORTED' : (currentTemplate.id as Inspection['templateType']),
+        location,
+        inspectorName,
+        inspectorRole: currentUser.role,
+        date: new Date().toISOString().split('T')[0],
+        status: hasFail ? 'PICA_TRIGGERED' : 'COMPLETED',
+        smkpElement: currentTemplate.smkpElement,
+        scorePercent,
+        items,
+        notes: generalNotes,
+        gpsCoordinates: {
+          lat: -2.9395,
+          lng: 121.9618,
+          utm: '51S 385100 mE 9674800 mN',
+        },
+      });
 
-    setSubmitting(false);
-    setSuccessMessage(
-      `Inspeksi ${newInspection.code} berhasil disimpan! ${
-        hasFail ? 'Tindakan koreksi (PICA) otomatis diterbitkan untuk temuan "Tidak".' : 'Seluruh item memenuhi standar.'
-      }`
-    );
+      if (draftPhotoEvidence.length > 0) {
+        await store.attachPhotoEvidence('inspection', newInspection.id, draftPhotoEvidence, currentUser.name);
+      }
 
-    setTimeout(() => {
-      setSuccessMessage('');
-      setActiveTab('history');
-    }, 2000);
+      setSuccessMessage(
+        `Inspeksi ${newInspection.code} berhasil disimpan ke penyimpanan lokal${
+          currentTemplate.source === 'imported' ? ` dari template AI ${currentTemplate.sourceFilename ?? currentTemplate.title}` : ''
+        }${draftPhotoEvidence.length > 0 ? ` dengan ${draftPhotoEvidence.length} photo evidence lokal.` : '.'} ${
+          hasFail ? 'Tindakan koreksi (PICA) otomatis diterbitkan untuk temuan "Tidak".' : 'Seluruh item memenuhi standar.'
+        }`
+      );
+      setGeneralNotes('');
+      setAnswers(buildDefaultAnswers(currentTemplate.items.length));
+      setDraftPhotoEvidence([]);
+
+      setTimeout(() => {
+        setSuccessMessage('');
+        setActiveTab('history');
+      }, 2000);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Gagal menyimpan inspeksi.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -212,24 +247,40 @@ export const InspectionModule: React.FC = () => {
         </div>
       )}
 
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-300 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {store.lastInitError && (
+        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
+          <span>Data lokal sebelumnya gagal dimuat penuh: {store.lastInitError}</span>
+        </div>
+      )}
+
+      <RemoteRefreshControl label="Inspeksi" />
+
       {activeTab === 'form' ? (
+        store.isInitializing && !store.isInitialized ? (
+          <div className="apple-glass-card p-8 rounded-2xl text-center text-neutral-400 text-xs">
+            Memuat data inspeksi dari penyimpanan lokal...
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Template Selection Matrix */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-neutral-300">Pilih Template Formulir Digital:</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {TEMPLATES.map((tmpl) => (
+              {allTemplates.map((tmpl) => (
                 <button
                   key={tmpl.id}
                   type="button"
                   onClick={() => {
                     setSelectedTemplateId(tmpl.id);
-                    // Reset answers
-                    const newAns: any = {};
-                    tmpl.items.forEach((_, idx) => {
-                      newAns[idx] = { result: 'PASS', notes: '' };
-                    });
-                    setAnswers(newAns);
+                    setAnswers(buildDefaultAnswers(tmpl.items.length));
                   }}
                   className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
                     selectedTemplateId === tmpl.id
@@ -237,12 +288,26 @@ export const InspectionModule: React.FC = () => {
                       : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
                   }`}
                 >
-                  <div className="text-[10px] uppercase font-mono text-[#42A5F5] font-semibold">{tmpl.category}</div>
+                  <div className="text-[10px] uppercase font-mono text-[#42A5F5] font-semibold flex items-center justify-between gap-2">
+                    <span>{tmpl.category}</span>
+                    {tmpl.source === 'imported' && (
+                      <span className="px-1.5 py-0.5 rounded bg-fuchsia-500/20 text-fuchsia-300 normal-case tracking-normal">
+                        AI
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs font-bold text-white mt-1 leading-snug">{tmpl.title}</div>
-                  <div className="text-[10px] text-neutral-400 mt-2">{tmpl.items.length} Parameter Uji</div>
+                  <div className="text-[10px] text-neutral-400 mt-2">
+                    {tmpl.items.length} Parameter Uji{tmpl.sourceFilename ? ` • ${tmpl.sourceFilename}` : ''}
+                  </div>
                 </button>
               ))}
             </div>
+            {store.importedInspectionTemplates.length > 0 && (
+              <div className="text-[11px] text-neutral-400">
+                {store.importedInspectionTemplates.length} template hasil AI tersedia dan tetap tersimpan setelah refresh.
+              </div>
+            )}
           </div>
 
           {/* Context & Metadata Card */}
@@ -394,25 +459,16 @@ export const InspectionModule: React.FC = () => {
           </div>
 
           {/* Telemetry Stamp & Photo Attachment */}
-          <div className="apple-glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-neutral-300">
-                <Camera className="w-5 h-5 text-[#42A5F5]" />
-              </div>
-              <div>
-                <div className="font-semibold text-white">Lampiran Foto &amp; Geotag Otomatis</div>
-                <div className="text-[11px] text-neutral-400 font-mono">
-                  GPS: -2.9395, 121.9618 (UTM 51S 385100 mE) · Timestamp Terverifikasi
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-[11px] font-mono">
-                1 Foto Terlampir
-              </span>
-            </div>
-          </div>
+          <PhotoEvidencePanel
+            ownerEntity="inspection"
+            title="Lampiran Foto Evidence & Geotag Lapangan"
+            helperText="Foto inspeksi disimpan lokal di IndexedDB bersama form draft/final agar tetap terbaca setelah refresh dan saat offline."
+            emptyText="Belum ada foto inspeksi yang dipilih."
+            draftItems={draftPhotoEvidence}
+            onDraftItemsChange={setDraftPhotoEvidence}
+            onSuccess={setSuccessMessage}
+            onError={setErrorMessage}
+          />
 
           {/* Submit Action */}
           <div className="flex items-center justify-end gap-3 pt-2">
@@ -426,6 +482,7 @@ export const InspectionModule: React.FC = () => {
             </button>
           </div>
         </form>
+        )
       ) : (
         /* History Table */
         <div className="apple-glass-card p-5 rounded-2xl space-y-4">
@@ -436,48 +493,62 @@ export const InspectionModule: React.FC = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-white/10 text-neutral-400 font-medium">
-                  <th className="pb-3 font-semibold">Kode</th>
-                  <th className="pb-3 font-semibold">Judul Inspeksi</th>
-                  <th className="pb-3 font-semibold">Area</th>
-                  <th className="pb-3 font-semibold">Inspektur</th>
-                  <th className="pb-3 font-semibold">Tanggal</th>
-                  <th className="pb-3 font-semibold text-right">Skor Kepatuhan</th>
-                  <th className="pb-3 font-semibold text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {store.inspections.map((ins) => (
-                  <tr key={ins.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 font-mono text-[#42A5F5] font-semibold">{ins.code}</td>
-                    <td className="py-3 text-white font-medium max-w-xs truncate">{ins.title}</td>
-                    <td className="py-3 text-neutral-300">{ins.location}</td>
-                    <td className="py-3 text-neutral-400">{ins.inspectorName}</td>
-                    <td className="py-3 font-mono text-neutral-400 tabular-nums">{ins.date}</td>
-                    <td className="py-3 text-right font-mono font-bold">
-                      <span className={ins.scorePercent === 100 ? 'text-[#00E676]' : 'text-amber-400'}>
-                        {ins.scorePercent}%
-                      </span>
-                    </td>
-                    <td className="py-3 text-right">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                          ins.status === 'COMPLETED'
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        }`}
-                      >
-                        {ins.status === 'PICA_TRIGGERED' ? 'PICA Auto-Issued' : 'Lulus'}
-                      </span>
-                    </td>
+          {store.isInitializing && !store.isInitialized ? (
+            <div className="py-12 text-center text-xs text-neutral-400">Memuat riwayat inspeksi...</div>
+          ) : store.inspections.length === 0 ? (
+            <div className="py-12 text-center text-xs text-neutral-400">
+              Belum ada inspeksi tersimpan. Buat inspeksi pertama untuk memulai register digital.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-neutral-400 font-medium">
+                    <th className="pb-3 font-semibold">Kode</th>
+                    <th className="pb-3 font-semibold">Judul Inspeksi</th>
+                    <th className="pb-3 font-semibold">Area</th>
+                    <th className="pb-3 font-semibold">Inspektur</th>
+                    <th className="pb-3 font-semibold">Tanggal</th>
+                    <th className="pb-3 font-semibold text-right">Skor Kepatuhan</th>
+                    <th className="pb-3 font-semibold text-right">Evidence</th>
+                    <th className="pb-3 font-semibold text-right">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {store.inspections.map((ins) => (
+                    <tr key={ins.id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-3 font-mono text-[#42A5F5] font-semibold">{ins.code}</td>
+                      <td className="py-3 text-white font-medium max-w-xs truncate">{ins.title}</td>
+                      <td className="py-3 text-neutral-300">{ins.location}</td>
+                      <td className="py-3 text-neutral-400">{ins.inspectorName}</td>
+                      <td className="py-3 font-mono text-neutral-400 tabular-nums">{ins.date}</td>
+                      <td className="py-3 text-right font-mono font-bold">
+                        <span className={ins.scorePercent === 100 ? 'text-[#00E676]' : 'text-amber-400'}>
+                          {ins.scorePercent}%
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-white/5 text-neutral-300">
+                          {store.countPhotoEvidence('inspection', ins.id)} foto
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            ins.status === 'COMPLETED'
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          }`}
+                        >
+                          {ins.status === 'PICA_TRIGGERED' ? 'PICA Auto-Issued' : 'Lulus'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
