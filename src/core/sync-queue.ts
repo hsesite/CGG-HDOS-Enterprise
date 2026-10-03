@@ -1,5 +1,5 @@
 import { hseApi } from './api';
-import type { Inspection, Hazard, PICA, Incident } from './types';
+import type { SyncQueueItem } from './types';
 
 export type SyncQueueItem = {
   id: string;
@@ -59,9 +59,22 @@ class ApiSyncQueue {
     if (this.syncTimer) clearTimeout(this.syncTimer);
   }
 
-  async enqueue(entity: SyncQueueItem['entity'], operation: SyncQueueItem['operation'], payload: unknown): Promise<string> {
-    const id = `${entity}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const item: SyncQueueItem = { id, entity, operation, payload, retryCount: 0, timestamp: Date.now() };
+ async enqueue(
+  entity: SyncQueueItem['entity'],
+  action: SyncQueueItem['action'],
+  payload: unknown
+): Promise<string> {
+  const id = `${entity}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+  const item: SyncQueueItem = {
+    id,
+    entity,
+    action,
+    payload,
+    retryCount: 0,
+    timestamp: new Date().toISOString(),
+    status: 'PENDING',
+  };
     this.queue.set(id, item);
     this.saveQueue();
     console.log(`[HDOS sync] enqueued ${entity} ${operation}`, item);
