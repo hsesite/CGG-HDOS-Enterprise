@@ -101,6 +101,7 @@ export class HDOSCentralStore {
   public incidents: Incident[] = [];
   public picas: PICA[] = [];
   public documents: DocumentItem[] = INITIAL_DOCUMENTS;
+  public formDefinitions: FormDefinition[] = [];
   public contractors: ContractorPassport[] = INITIAL_CONTRACTORS;
   public locations: MiningLocationGIS[] = INITIAL_LOCATIONS;
   public windows: AppWindow[] = INITIAL_WINDOWS;
@@ -139,6 +140,12 @@ export class HDOSCentralStore {
     const storedDocuments = await hdosDB.getAll<DocumentItem>('repository');
     if (storedDocuments.length > 0) {
       this.documents = storedDocuments;
+    }
+    const storedFormDefinitions =
+  await hdosDB.getAll<FormDefinition>('form-definition');
+    
+    if (storedFormDefinitions.length > 0) {
+      this.formDefinitions = storedFormDefinitions;
     }
   } catch (err) {
     console.warn('[HDOS Store] IndexedDB fallback', err);
