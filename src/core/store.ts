@@ -122,23 +122,30 @@ export class HDOSCentralStore {
   private maxZIndex: number = 20;
 
   async init(): Promise<void> {
-    try {
-      const storedIns = await hdosDB.getAll<Inspection>('inspection');
-      if (storedIns.length > 0) this.inspections = storedIns;
+  try {
+    const storedIns = await hdosDB.getAll<Inspection>('inspection');
+    if (storedIns.length > 0) this.inspections = storedIns;
 
-      const storedHaz = await hdosDB.getAll<Hazard>('hazard');
-      if (storedHaz.length > 0) this.hazards = storedHaz;
+    const storedHaz = await hdosDB.getAll<Hazard>('hazard');
+    if (storedHaz.length > 0) this.hazards = storedHaz;
 
-      const storedPicas = await hdosDB.getAll<PICA>('pica');
-      if (storedPicas.length > 0) this.picas = storedPicas;
+    const storedPicas = await hdosDB.getAll<PICA>('pica');
+    if (storedPicas.length > 0) this.picas = storedPicas;
 
-      const storedInc = await hdosDB.getAll<Incident>('incident');
-      if (storedInc.length > 0) this.incidents = storedInc;
-    } catch (err) {
-      console.warn('[HDOS Store] IndexedDB fallback', err);
+    const storedInc = await hdosDB.getAll<Incident>('incident');
+    if (storedInc.length > 0) this.incidents = storedInc;
+
+    // Repository persistence
+    const storedDocuments = await hdosDB.getAll<DocumentItem>('repository');
+    if (storedDocuments.length > 0) {
+      this.documents = storedDocuments;
     }
-    this.notify();
+  } catch (err) {
+    console.warn('[HDOS Store] IndexedDB fallback', err);
   }
+
+  this.notify();
+}
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -200,6 +207,63 @@ export class HDOSCentralStore {
     this.isMobileMode = isMobile;
     this.notify();
   }
+
+  async addDocument(
+  input: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'>
+): Promise<DocumentItem> {
+  const categoryCode: Record<DocumentItem['category'], string> = {
+    SOP: 'SOP',
+    WI: 'WI',
+    Form: 'FORM',
+    Inspection: 'INS',
+    Incident: 'INC',
+    PICA: 'PICA',
+    Contractor: 'CON',
+  };
+
+  const prefix = `CGG-HSE-${categoryCode[input.category]}`;
+
+  // Find the highest existing document number for this category.
+  const existingNumbers = this.documents
+    .filter((doc) => doc.docNumber.startsWith(`${prefix}-`))
+    .map((doc) => {
+      const match = doc.docNumber.match(/-(\d+)$/);
+      return match ? Number(match[1]) : 0;
+    });
+
+  const nextNumber =
+    existingNumbers.length > 0
+      ? Math.max(...existingNumbers) + 1
+      : 1;
+
+  const docNumber = `${prefix}-${String(nextNumber).padStart(3, '0')}`;
+
+  const newDocument: DocumentItem = {
+    id:
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? `doc_${crypto.randomUUID()}`
+        : `doc_${Date.now()}`,
+    docNumber,
+    revision: 1,
+    ...input,
+  };
+
+  // Offline First: persist to IndexedDB before updating the UI state.
+  await hdosDB.put('repository', newDocument);
+
+  this.documents = [newDocument, ...this.documents];
+
+  this.notify();
+
+  hdosEvents.emit('document:created', {
+    documentId: newDocument.id,
+    docNumber: newDocument.docNumber,
+    title: newDocument.title,
+    category: newDocument.category,
+  });
+
+  return newDocument;
+}
 
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
     const count = this.inspections.length + 1;
