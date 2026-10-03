@@ -2,7 +2,7 @@ name: Deploy HDOS to GitHub Pages
 
 on:
   push:
-    branches: [build-29-production-foundation]
+  branches: [main]
   workflow_dispatch:
 
 permissions:
