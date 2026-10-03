@@ -173,12 +173,19 @@ export interface MiningLocationGIS {
 export interface SyncQueueItem {
   id: string;
   action: 'CREATE' | 'UPDATE' | 'DELETE';
-  entity: 'inspection' | 'hazard' | 'incident' | 'pica' | 'repository' | 'contractor';
-  payload: any;
+  entity:
+    | 'inspection'
+    | 'hazard'
+    | 'incident'
+    | 'pica'
+    | 'repository'
+    | 'contractor';
+  payload: unknown;
   timestamp: string;
   status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT';
   retryCount: number;
   note?: string;
+  error?: string;
 }
 
 export interface NotificationItem {
