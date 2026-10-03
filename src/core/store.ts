@@ -1,4 +1,4 @@
-import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport, MiningLocationGIS, AppWindow, WindowId } from './types';
+import type { Inspection, Hazard, PICA, Incident, DocumentItem, ContractorPassport, MiningLocationGIS, AppWindow, WindowId, FormDefinition } from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
 import { hdosSync } from './sync';
