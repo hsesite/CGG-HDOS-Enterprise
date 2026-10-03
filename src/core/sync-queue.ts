@@ -95,9 +95,9 @@ class ApiSyncQueue {
     for (const item of items) {
       try {
         console.log(`[HDOS sync] processing ${item.id}`);
-        if (item.operation === 'CREATE') {
+        if (item.action === 'CREATE') {
           await hseApi.create(item.entity + 's' as 'inspections' | 'hazards' | 'picas' | 'incidents', item.payload);
-        } else if (item.operation === 'UPDATE') {
+        } else if (item.action === 'UPDATE') {
           const [, id] = item.id.split('-');
           await hseApi.update(item.entity + 's' as 'inspections' | 'hazards' | 'picas' | 'incidents', id, item.payload);
         }
