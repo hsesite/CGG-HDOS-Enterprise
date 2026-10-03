@@ -272,6 +272,47 @@ export class HDOSCentralStore {
   return newDocument;
 }
 
+  async addFormDefinition(
+  input: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<FormDefinition> {
+  const now = new Date().toISOString();
+
+  const formDefinition: FormDefinition = {
+    id:
+      typeof crypto !== 'undefined' &&
+      typeof crypto.randomUUID === 'function'
+        ? `form_${crypto.randomUUID()}`
+        : `form_${Date.now()}`,
+    ...input,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await hdosDB.put('form-definition', formDefinition);
+
+  this.formDefinitions = [
+    formDefinition,
+    ...this.formDefinitions,
+  ];
+
+  this.notify();
+
+  hdosEvents.emit('form-definition:created', {
+    formId: formDefinition.id,
+    sourceDocumentId: formDefinition.sourceDocumentId,
+    title: formDefinition.title,
+  });
+
+  return formDefinition;
+}
+  getFormDefinitionByDocumentId(
+  documentId: string
+): FormDefinition | undefined {
+  return this.formDefinitions.find(
+    (form) => form.sourceDocumentId === documentId
+  );
+}
+
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
     const count = this.inspections.length + 1;
     const code = `INS-2026-${String(count).padStart(3, '0')}`;
