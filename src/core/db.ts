@@ -19,12 +19,13 @@
  */
 
 const DB_NAME = 'CGG_HDOS_DB';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 export const STORES = [
   'config',
   'queue',
   'repository',
+  'form-definition',
   'inspection',
   'inspection-draft',
   'hazard',
