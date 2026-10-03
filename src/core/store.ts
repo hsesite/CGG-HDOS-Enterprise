@@ -5,6 +5,28 @@ import { hdosSync } from './sync';
 import { hdosAuth } from './auth';
 import { useState, useEffect } from 'react';
 
+function createEntityId(): string {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+    /[xy]/g,
+    (char) => {
+      const random = Math.random() * 16 | 0;
+      const value =
+        char === 'x'
+          ? random
+          : (random & 0x3) | 0x8;
+
+      return value.toString(16);
+    }
+  );
+}
+
 // Seed Data
 const INITIAL_LOCATIONS: MiningLocationGIS[] = [
   {
@@ -316,7 +338,7 @@ export class HDOSCentralStore {
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
     const count = this.inspections.length + 1;
     const code = `INS-2026-${String(count).padStart(3, '0')}`;
-    const id = `ins_${Date.now()}`;
+    const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
@@ -328,7 +350,7 @@ export class HDOSCentralStore {
       const firstFail = failedItems[0];
 
       picaCreated = {
-        id: `pica_${Date.now()}`,
+        id: createEntityId(),
         code: picaCode,
         source: 'INSPECTION',
         sourceRefCode: code,
@@ -368,7 +390,7 @@ export class HDOSCentralStore {
   async addHazard(hazard: Omit<Hazard, 'id' | 'code' | 'createdAt'>): Promise<Hazard> {
     const count = this.hazards.length + 1;
     const code = `HAZ-2026-${String(count).padStart(3, '0')}`;
-    const id = `haz_${Date.now()}`;
+    const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     let picaId: string | undefined = undefined;
@@ -424,7 +446,7 @@ export class HDOSCentralStore {
   async addIncident(incident: Omit<Incident, 'id' | 'code' | 'createdAt'>): Promise<Incident> {
     const count = this.incidents.length + 1;
     const code = `INC-2026-${String(count).padStart(3, '0')}`;
-    const id = `inc_${Date.now()}`;
+    const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const newInc: Incident = { ...incident, id, code, createdAt: now };
