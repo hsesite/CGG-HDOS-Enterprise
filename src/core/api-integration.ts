@@ -9,6 +9,74 @@ import type {
   Incident,
 } from './types';
 
+function isAuthenticatedAndOnline(): boolean {
+  return (
+    hseApi.isAuthenticated &&
+    hdosSync.getIsOnline()
+  );
+}
+
+async function enqueueCreate(
+  entity:
+    | 'inspection'
+    | 'hazard'
+    | 'pica'
+    | 'incident',
+  payload: unknown
+): Promise<void> {
+  await hdosSync.enqueue({
+    entity,
+    action: 'CREATE',
+    payload,
+  });
+}
+
+async function syncCreatedRecord<T>(
+  entity:
+    | 'inspections'
+    | 'hazards'
+    | 'picas'
+    | 'incidents',
+  queueEntity:
+    | 'inspection'
+    | 'hazard'
+    | 'pica'
+    | 'incident',
+  record: T
+): Promise<void> {
+  if (isAuthenticatedAndOnline()) {
+    try {
+      await hseApi.create(
+        entity,
+        record
+      );
+      return;
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await enqueueCreate(
+          queueEntity,
+          record
+        );
+
+        throw error;
+      }
+
+      console.warn(
+        `[HDOS api] ${queueEntity} cloud create failed, queued for sync`,
+        error
+      );
+    }
+  }
+
+  await enqueueCreate(
+    queueEntity,
+    record
+  );
+}
+
 export class ApiIntegration {
   async createInspection(
     inspection: Omit<
@@ -16,48 +84,56 @@ export class ApiIntegration {
       'id' | 'code' | 'createdAt'
     >
   ): Promise<Inspection> {
+    const picaCountBefore =
+      hdosStore.picas.length;
+
     const created =
       await hdosStore.addInspection(
         inspection
       );
 
-    if (hseApi.isAuthenticated) {
-      try {
-        await hseApi.create(
-          'inspections',
-          created
+    /*
+     * addInspection() may automatically create a PICA
+     * when one or more checklist items fail.
+     *
+     * Capture newly-created PICA records so they do not
+     * remain local-only.
+     */
+    const newPicas =
+      hdosStore.picas.slice(
+        0,
+        hdosStore.picas.length -
+          picaCountBefore
+      );
+
+    try {
+      await syncCreatedRecord(
+        'inspections',
+        'inspection',
+        created
+      );
+
+      for (
+        const pica of newPicas
+      ) {
+        await syncCreatedRecord(
+          'picas',
+          'pica',
+          pica
         );
-      } catch (error) {
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
-          await hdosSync.enqueue({
-            entity: 'inspection',
-            action: 'CREATE',
-            payload: created,
-          });
-
-          throw error;
-        }
-
-        console.warn(
-          '[HDOS api] inspection create failed, queued for sync',
-          error
-        );
-
-        await hdosSync.enqueue({
-          entity: 'inspection',
-          action: 'CREATE',
-          payload: created,
-        });
       }
-    } else {
-      await hdosSync.enqueue({
-        entity: 'inspection',
-        action: 'CREATE',
-        payload: created,
-      });
+    } catch (error) {
+      /*
+       * Local record has already been committed to IndexedDB.
+       * If authentication failed, let the caller handle login
+       * renewal. The record remains safely queued.
+       */
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        throw error;
+      }
     }
 
     return created;
@@ -69,48 +145,48 @@ export class ApiIntegration {
       'id' | 'code' | 'createdAt'
     >
   ): Promise<Hazard> {
+    const picaCountBefore =
+      hdosStore.picas.length;
+
     const created =
       await hdosStore.addHazard(
         hazard
       );
 
-    if (hseApi.isAuthenticated) {
-      try {
-        await hseApi.create(
-          'hazards',
-          created
+    /*
+     * addHazard() automatically creates a PICA for
+     * HIGH / CRITICAL hazards.
+     */
+    const newPicas =
+      hdosStore.picas.slice(
+        0,
+        hdosStore.picas.length -
+          picaCountBefore
+      );
+
+    try {
+      await syncCreatedRecord(
+        'hazards',
+        'hazard',
+        created
+      );
+
+      for (
+        const pica of newPicas
+      ) {
+        await syncCreatedRecord(
+          'picas',
+          'pica',
+          pica
         );
-      } catch (error) {
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
-          await hdosSync.enqueue({
-            entity: 'hazard',
-            action: 'CREATE',
-            payload: created,
-          });
-
-          throw error;
-        }
-
-        console.warn(
-          '[HDOS api] hazard create failed, queued for sync',
-          error
-        );
-
-        await hdosSync.enqueue({
-          entity: 'hazard',
-          action: 'CREATE',
-          payload: created,
-        });
       }
-    } else {
-      await hdosSync.enqueue({
-        entity: 'hazard',
-        action: 'CREATE',
-        payload: created,
-      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        throw error;
+      }
     }
 
     return created;
@@ -130,18 +206,29 @@ export class ApiIntegration {
       return null;
     }
 
-    const cloudPayload = {
+    /*
+     * The queue payload MUST contain the record ID.
+     * This fixes the previous UPDATE queue defect where
+     * the queue item ID was incorrectly parsed as the PICA ID.
+     */
+    const cloudPayload: Partial<PICA> & {
+      id: string;
+    } = {
       ...updates,
       id,
     };
 
-    if (hseApi.isAuthenticated) {
+    if (
+      isAuthenticatedAndOnline()
+    ) {
       try {
         await hseApi.update(
           'picas',
           id,
           updates
         );
+
+        return updated;
       } catch (error) {
         if (
           error instanceof ApiError &&
@@ -157,23 +244,17 @@ export class ApiIntegration {
         }
 
         console.warn(
-          '[HDOS api] pica update failed, queued for sync',
+          '[HDOS api] PICA update failed, queued for sync',
           error
         );
-
-        await hdosSync.enqueue({
-          entity: 'pica',
-          action: 'UPDATE',
-          payload: cloudPayload,
-        });
       }
-    } else {
-      await hdosSync.enqueue({
-        entity: 'pica',
-        action: 'UPDATE',
-        payload: cloudPayload,
-      });
     }
+
+    await hdosSync.enqueue({
+      entity: 'pica',
+      action: 'UPDATE',
+      payload: cloudPayload,
+    });
 
     return updated;
   }
@@ -189,22 +270,25 @@ export class ApiIntegration {
         incident
       );
 
-    if (hseApi.isAuthenticated) {
+    if (
+      isAuthenticatedAndOnline()
+    ) {
       try {
         await hseApi.create(
           'incidents',
           created
         );
+
+        return created;
       } catch (error) {
         if (
           error instanceof ApiError &&
           error.status === 401
         ) {
-          await hdosSync.enqueue({
-            entity: 'incident',
-            action: 'CREATE',
-            payload: created,
-          });
+          await enqueueCreate(
+            'incident',
+            created
+          );
 
           throw error;
         }
@@ -213,20 +297,13 @@ export class ApiIntegration {
           '[HDOS api] incident create failed, queued for sync',
           error
         );
-
-        await hdosSync.enqueue({
-          entity: 'incident',
-          action: 'CREATE',
-          payload: created,
-        });
       }
-    } else {
-      await hdosSync.enqueue({
-        entity: 'incident',
-        action: 'CREATE',
-        payload: created,
-      });
     }
+
+    await enqueueCreate(
+      'incident',
+      created
+    );
 
     return created;
   }
@@ -237,10 +314,8 @@ export class ApiIntegration {
 
   clearSyncQueue(): void {
     /*
-     * Deliberately does not delete the authoritative
-     * IndexedDB queue automatically.
-     *
-     * Queue deletion must remain an explicit operation.
+     * Build v1.0:
+     * Do not silently delete unsynchronized data.
      */
     console.warn(
       '[HDOS api] clearSyncQueue disabled in Build v1.0 to protect queued data.'
