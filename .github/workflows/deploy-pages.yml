@@ -39,7 +39,6 @@ jobs:
         run: bun run build
         env:
           GITHUB_PAGES: 'true'
-          VITE_API_URL: 'https://hdos-backend.onrender.com'
           VITE_GAS_URL: ${{ vars.VITE_GAS_URL }}
       
       - name: Upload artifact
