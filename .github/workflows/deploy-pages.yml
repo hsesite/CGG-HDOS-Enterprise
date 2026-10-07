@@ -39,7 +39,7 @@ jobs:
         run: bun run build
         env:
           GITHUB_PAGES: 'true'
-          VITE_GAS_URL: ${{ vars.VITE_GAS_URL }}
+          VITE_GAS_URL: ${{ secrets.VITE_GAS_URL }}
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
