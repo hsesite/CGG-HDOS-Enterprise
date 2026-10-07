@@ -2,20 +2,35 @@
  * CGG HDOS API Transport Layer
  *
  * Architecture:
+ *
  *   UI / Core Modules
  *          ↓
  *       hseApi
  *          ↓
- *   Transport endpoint
+ *   Google Apps Script Web App
+ *          ↓
+ *   Google Spreadsheet
  *
  * Build v1.0:
- *   - Offline-first data remains in IndexedDB.
- *   - Google Apps Script will become the cloud transport.
- *   - No runtime dependency on Render / Express / PostgreSQL.
+ *   - Offline-first remains in IndexedDB.
+ *   - GAS is the cloud transport.
+ *   - No Render.
+ *   - No Express.
+ *   - No PostgreSQL runtime.
  *
- * IMPORTANT:
- * This file intentionally keeps the existing `hseApi` contract
- * so existing modules do not need to be rewritten at once.
+ * Important:
+ * Google Apps Script Web Apps do not use the same route structure
+ * as the previous Express backend.
+ *
+ * Therefore every request is sent to ONE GAS URL using POST,
+ * with the internal API contract carried in the JSON envelope:
+ *
+ * {
+ *   method,
+ *   path,
+ *   token,
+ *   payload
+ * }
  */
 
 const GAS_API_URL = (
@@ -28,7 +43,21 @@ type ApiEnvelope<T> = {
   success: boolean;
   data: T;
   message: string;
+  status?: number;
   timestamp: string;
+};
+
+type GasRequest = {
+  method:
+    | 'GET'
+    | 'POST'
+    | 'PATCH';
+
+  path: string;
+
+  token: string | null;
+
+  payload?: unknown;
 };
 
 export type ApiUser = {
@@ -48,13 +77,6 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * Returns the configured Google Apps Script endpoint.
- *
- * An empty value is intentional during the transition phase.
- * It prevents the application from silently calling localhost
- * or an obsolete Render backend.
- */
 function getApiBaseUrl(): string {
   return GAS_API_URL;
 }
@@ -64,66 +86,79 @@ function getToken(): string | null {
     return null;
   }
 
-  return window.sessionStorage.getItem(TOKEN_KEY);
+  return window.sessionStorage.getItem(
+    TOKEN_KEY
+  );
 }
 
-function setToken(token: string | null): void {
+function setToken(
+  token: string | null
+): void {
   if (typeof window === 'undefined') {
     return;
   }
 
   if (token) {
-    window.sessionStorage.setItem(TOKEN_KEY, token);
+    window.sessionStorage.setItem(
+      TOKEN_KEY,
+      token
+    );
   } else {
-    window.sessionStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(
+      TOKEN_KEY
+    );
   }
 }
 
 function createTransportError(): ApiError {
   return new ApiError(
     503,
-    'Layanan cloud HDOS belum dikonfigurasi. Data lokal tetap tersedia melalui mode Offline.'
+    'Layanan Google Apps Script HDOS belum dikonfigurasi. Data lokal tetap tersedia melalui mode Offline.'
   );
 }
 
-/**
- * Generic HTTP transport.
- *
- * This function is deliberately isolated so the transport can
- * later be replaced by the Google Apps Script connector without
- * changing the domain modules.
- */
 async function request<T>(
+  method: GasRequest['method'],
   path: string,
-  init: RequestInit = {}
+  payload?: unknown
 ): Promise<T> {
-  const baseUrl = getApiBaseUrl();
+  const baseUrl =
+    getApiBaseUrl();
 
   if (!baseUrl) {
     throw createTransportError();
   }
 
-  const headers = new Headers(init.headers);
-
-  headers.set('content-type', 'application/json');
-
-  const token = getToken();
-
-  if (token) {
-    headers.set(
-      'authorization',
-      `Bearer ${token}`
-    );
-  }
+  const requestBody: GasRequest = {
+    method,
+    path,
+    token: getToken(),
+    payload,
+  };
 
   let response: Response;
 
   try {
     response = await fetch(
-      `${baseUrl}${path}`,
+      baseUrl,
       {
-        ...init,
-        headers,
+        method: 'POST',
+
+        /*
+         * Important for Google Apps Script Web Apps:
+         * keep this a simple request so the browser does not
+         * perform an Authorization/application-json preflight.
+         */
+        headers: {
+          'content-type':
+            'text/plain;charset=utf-8',
+        },
+
+        redirect: 'follow',
+
+        body: JSON.stringify(
+          requestBody
+        ),
       }
     );
   } catch (error) {
@@ -131,23 +166,39 @@ async function request<T>(
       0,
       error instanceof Error
         ? error.message
-        : 'Koneksi ke layanan HDOS gagal.'
+        : 'Koneksi ke Google Apps Script gagal.'
     );
   }
 
-  const body =
-    (await response
-      .json()
-      .catch(() => null)) as
-      | ApiEnvelope<T>
-      | null;
+  const raw =
+    await response
+      .text()
+      .catch(() => '');
+
+  let body:
+    | ApiEnvelope<T>
+    | null = null;
+
+  try {
+    body =
+      raw
+        ? (JSON.parse(raw) as ApiEnvelope<T>)
+        : null;
+  } catch (error) {
+    throw new ApiError(
+      response.status || 502,
+      'Respons Google Apps Script tidak valid.'
+    );
+  }
 
   if (
     !response.ok ||
     !body?.success
   ) {
     throw new ApiError(
-      response.status,
+      body?.status ||
+        response.status ||
+        500,
       body?.message ||
         `API request failed (${response.status})`
     );
@@ -157,30 +208,16 @@ async function request<T>(
 }
 
 export const hseApi = {
-  /**
-   * Exposes the currently configured cloud endpoint.
-   */
   get baseUrl(): string {
     return getApiBaseUrl();
   },
 
-  /**
-   * Authentication state remains session based.
-   *
-   * The actual credential validation will be moved to
-   * Google Apps Script in C-1C.
-   */
   get isAuthenticated(): boolean {
-    return Boolean(getToken());
+    return Boolean(
+      getToken()
+    );
   },
 
-  /**
-   * Login contract is intentionally preserved.
-   *
-   * C-1C will connect this endpoint to the GAS authentication
-   * service. Until then, an unconfigured GAS endpoint returns
-   * a controlled 503 instead of attempting Render/localhost.
-   */
   async login(
     email: string,
     password: string
@@ -190,17 +227,17 @@ export const hseApi = {
         token: string;
         user: ApiUser;
       }>(
+        'POST',
         '/api/auth/login',
         {
-          method: 'POST',
-          body: JSON.stringify({
-            email,
-            password,
-          }),
+          email,
+          password,
         }
       );
 
-    setToken(data.token);
+    setToken(
+      data.token
+    );
 
     return data.user;
   },
@@ -209,10 +246,8 @@ export const hseApi = {
     try {
       if (getToken()) {
         await request<null>(
-          '/api/auth/logout',
-          {
-            method: 'POST',
-          }
+          'POST',
+          '/api/auth/logout'
         );
       }
     } finally {
@@ -222,6 +257,7 @@ export const hseApi = {
 
   me(): Promise<ApiUser> {
     return request<ApiUser>(
+      'GET',
       '/api/me'
     );
   },
@@ -234,6 +270,7 @@ export const hseApi = {
       | 'incidents'
   ): Promise<T[]> {
     return request<T[]>(
+      'GET',
       `/api/${entity}`
     );
   },
@@ -247,6 +284,7 @@ export const hseApi = {
     id: string
   ): Promise<T> {
     return request<T>(
+      'GET',
       `/api/${entity}/${encodeURIComponent(id)}`
     );
   },
@@ -260,11 +298,9 @@ export const hseApi = {
     payload: unknown
   ): Promise<T> {
     return request<T>(
+      'POST',
       `/api/${entity}`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }
+      payload
     );
   },
 
@@ -278,11 +314,9 @@ export const hseApi = {
     payload: unknown
   ): Promise<T> {
     return request<T>(
+      'PATCH',
       `/api/${entity}/${encodeURIComponent(id)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      }
+      payload
     );
   },
 };
