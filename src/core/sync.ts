@@ -32,18 +32,16 @@ function getEntityEndpoint(
 function getRecordId(
   item: SyncQueueItem
 ): string | null {
-  const payload = item.payload;
-
   if (
-    payload &&
-    typeof payload === 'object' &&
-    !Array.isArray(payload)
+    item.payload &&
+    typeof item.payload === 'object' &&
+    !Array.isArray(item.payload)
   ) {
     const id = (
-      payload as Record<string, unknown>
+      item.payload as Record<string, unknown>
     ).id;
 
-    if (typeof id === 'string' && id) {
+    if (typeof id === 'string' && id.trim()) {
       return id;
     }
   }
@@ -55,7 +53,10 @@ function getRetryDelay(
   retryCount: number
 ): number {
   return BASE_RETRY_DELAY_MS *
-    Math.pow(2, Math.max(0, retryCount - 1));
+    Math.pow(
+      2,
+      Math.max(0, retryCount - 1)
+    );
 }
 
 function formatTime(): string {
@@ -79,6 +80,10 @@ export class HDOSSyncEngine {
   private queue: SyncQueueItem[] = [];
 
   private lastSyncTime = '';
+
+  private retryTimer:
+    | ReturnType<typeof setTimeout>
+    | null = null;
 
   private syncLogs: {
     time: string;
@@ -110,12 +115,10 @@ export class HDOSSyncEngine {
   }
 
   async init(): Promise<void> {
-    const items =
+    this.queue =
       await hdosDB.getAll<SyncQueueItem>(
         'queue'
       );
-
-    this.queue = items;
 
     if (this.queue.length > 0) {
       this.syncLogs.unshift({
@@ -128,7 +131,7 @@ export class HDOSSyncEngine {
 
     hdosEvents.emit(
       'sync:queue_updated',
-      this.queue
+      [...this.queue]
     );
 
     if (
@@ -172,6 +175,11 @@ export class HDOSSyncEngine {
   ): void {
     this.isOnline = online;
 
+    if (!online && this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+
     hdosEvents.emit(
       'sync:offline_status_changed',
       { online }
@@ -212,8 +220,7 @@ export class HDOSSyncEngine {
           : `queue_${Date.now()}_${Math.random()
               .toString(36)
               .slice(2, 9)}`,
-      timestamp:
-        new Date().toISOString(),
+      timestamp: new Date().toISOString(),
       status: 'PENDING',
       retryCount: 0,
       ...item,
@@ -250,6 +257,52 @@ export class HDOSSyncEngine {
     return queueItem;
   }
 
+  private scheduleRetry(): void {
+    if (
+      this.retryTimer ||
+      !this.isOnline ||
+      !hseApi.isAuthenticated ||
+      this.queue.length === 0
+    ) {
+      return;
+    }
+
+    const pending = this.queue.filter(
+      (item) =>
+        item.retryCount < MAX_RETRIES
+    );
+
+    if (pending.length === 0) {
+      return;
+    }
+
+    const retryCount = Math.max(
+      ...pending.map(
+        (item) => item.retryCount
+      )
+    );
+
+    const delay =
+      getRetryDelay(
+        retryCount || 1
+      );
+
+    this.retryTimer = setTimeout(
+      () => {
+        this.retryTimer = null;
+        void this.triggerSync();
+      },
+      delay
+    );
+
+    this.syncLogs.unshift({
+      time: formatTime(),
+      message:
+        `Retry sinkronisasi dijadwalkan ${delay} ms lagi.`,
+      type: 'warning',
+    });
+  }
+
   async triggerSync(): Promise<boolean> {
     if (this.isSyncing) {
       return false;
@@ -279,6 +332,11 @@ export class HDOSSyncEngine {
 
     if (this.queue.length === 0) {
       return true;
+    }
+
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
     }
 
     this.isSyncing = true;
@@ -333,7 +391,7 @@ export class HDOSSyncEngine {
 
         hdosEvents.emit(
           'sync:progress',
-          { item }
+          { item: { ...item } }
         );
 
         try {
@@ -391,17 +449,9 @@ export class HDOSSyncEngine {
               },
             }
           );
-
         } catch (error) {
           item.retryCount += 1;
-
-          const status =
-            error instanceof ApiError
-              ? error.status
-              : 0;
-
           item.status = 'CONFLICT';
-
           item.error =
             error instanceof Error
               ? error.message
@@ -412,10 +462,11 @@ export class HDOSSyncEngine {
             item
           );
 
-          /*
-           * Authentication errors should not produce a
-           * rapid retry loop. Keep the item safely queued.
-           */
+          const status =
+            error instanceof ApiError
+              ? error.status
+              : 0;
+
           if (status === 401) {
             this.syncLogs.unshift({
               time: formatTime(),
@@ -427,15 +478,10 @@ export class HDOSSyncEngine {
             continue;
           }
 
-          const delay =
-            getRetryDelay(
-              item.retryCount
-            );
-
           this.syncLogs.unshift({
             time: formatTime(),
             message:
-              `Sync gagal: ${item.entity} — retry ${item.retryCount}/${MAX_RETRIES} dalam ${delay} ms.`,
+              `Sync gagal: ${item.entity} — retry ${item.retryCount}/${MAX_RETRIES}.`,
             type: 'warning',
           });
         }
@@ -468,12 +514,17 @@ export class HDOSSyncEngine {
         [...this.queue]
       );
 
-      return (
-        this.queue.length === 0
-      );
+      if (
+        this.queue.length > 0 &&
+        this.isOnline
+      ) {
+        this.scheduleRetry();
+      }
+
+      return this.queue.length === 0;
     } catch (error) {
       console.error(
-        '[HDOS Sync] Sync failed:',
+        '[HDOS Sync] Sync engine error:',
         error
       );
 
@@ -483,6 +534,8 @@ export class HDOSSyncEngine {
           'Sinkronisasi berhenti karena terjadi kesalahan engine.',
         type: 'warning',
       });
+
+      this.scheduleRetry();
 
       return false;
     } finally {
