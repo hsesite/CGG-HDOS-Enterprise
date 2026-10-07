@@ -1,28 +1,145 @@
-import { SyncQueueItem } from './types';
+import type { SyncQueueItem } from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
+import { hseApi, ApiError } from './api';
+
+const MAX_RETRIES = 5;
+const BASE_RETRY_DELAY_MS = 2000;
+
+type SyncEntityEndpoint =
+  | 'inspections'
+  | 'hazards'
+  | 'picas'
+  | 'incidents';
+
+function getEntityEndpoint(
+  entity: SyncQueueItem['entity']
+): SyncEntityEndpoint | null {
+  switch (entity) {
+    case 'inspection':
+      return 'inspections';
+    case 'hazard':
+      return 'hazards';
+    case 'pica':
+      return 'picas';
+    case 'incident':
+      return 'incidents';
+    default:
+      return null;
+  }
+}
+
+function getRecordId(
+  item: SyncQueueItem
+): string | null {
+  const payload = item.payload;
+
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    !Array.isArray(payload)
+  ) {
+    const id = (
+      payload as Record<string, unknown>
+    ).id;
+
+    if (typeof id === 'string' && id) {
+      return id;
+    }
+  }
+
+  return null;
+}
+
+function getRetryDelay(
+  retryCount: number
+): number {
+  return BASE_RETRY_DELAY_MS *
+    Math.pow(2, Math.max(0, retryCount - 1));
+}
+
+function formatTime(): string {
+  return new Date().toLocaleTimeString(
+    'id-ID',
+    {
+      hour: '2-digit',
+      minute: '2-digit',
+    }
+  );
+}
 
 export class HDOSSyncEngine {
-  private isOnline: boolean = true;
-  private isSyncing: boolean = false;
+  private isOnline =
+    typeof navigator !== 'undefined'
+      ? navigator.onLine
+      : false;
+
+  private isSyncing = false;
+
   private queue: SyncQueueItem[] = [];
-  private lastSyncTime: string = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-  private syncLogs: { time: string; message: string; type: 'info' | 'success' | 'warning' }[] = [
-    { time: '08:00', message: 'Engine boot: IndexedDB CGG_HDOS_DB mounted cleanly', type: 'info' },
-    { time: '08:15', message: 'Initial cloud spreadsheet sync validated (24 records)', type: 'success' },
-  ];
+
+  private lastSyncTime = '';
+
+  private syncLogs: {
+    time: string;
+    message: string;
+    type: 'info' | 'success' | 'warning';
+  }[] = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.isOnline = navigator.onLine;
-      window.addEventListener('online', () => this.setOnlineState(true));
-      window.addEventListener('offline', () => this.setOnlineState(false));
+
+      window.addEventListener(
+        'online',
+        () => this.setOnlineState(true)
+      );
+
+      window.addEventListener(
+        'offline',
+        () => this.setOnlineState(false)
+      );
     }
+
+    this.syncLogs.unshift({
+      time: formatTime(),
+      message:
+        'HDOS Sync Engine aktif — IndexedDB menjadi antrean lokal.',
+      type: 'info',
+    });
   }
 
   async init(): Promise<void> {
-    const items = await hdosDB.getAll<SyncQueueItem>('queue');
+    const items =
+      await hdosDB.getAll<SyncQueueItem>(
+        'queue'
+      );
+
     this.queue = items;
+
+    if (this.queue.length > 0) {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message:
+          `${this.queue.length} item ditemukan di offline queue.`,
+        type: 'warning',
+      });
+    }
+
+    hdosEvents.emit(
+      'sync:queue_updated',
+      this.queue
+    );
+
+    if (
+      this.isOnline &&
+      this.queue.length > 0 &&
+      hseApi.isAuthenticated
+    ) {
+      setTimeout(() => {
+        void this.triggerSync();
+      }, 300);
+    }
   }
 
   getIsOnline(): boolean {
@@ -38,7 +155,7 @@ export class HDOSSyncEngine {
   }
 
   getLastSyncTime(): string {
-    return this.lastSyncTime;
+    return this.lastSyncTime || 'Belum pernah';
   }
 
   getSyncLogs() {
@@ -50,106 +167,390 @@ export class HDOSSyncEngine {
     return this.isOnline;
   }
 
-  private setOnlineState(online: boolean): void {
+  private setOnlineState(
+    online: boolean
+  ): void {
     this.isOnline = online;
-    hdosEvents.emit('sync:offline_status_changed', { online });
+
+    hdosEvents.emit(
+      'sync:offline_status_changed',
+      { online }
+    );
+
     this.syncLogs.unshift({
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      message: online ? 'Koneksi online pulih - Queue siap disinkronisasi' : 'Mode offline aktif - Penyimpanan lokal ke CGG_HDOS_DB',
-      type: online ? 'success' : 'warning',
+      time: formatTime(),
+      message: online
+        ? 'Koneksi online aktif — queue siap diproses.'
+        : 'Mode offline aktif — data tetap disimpan di IndexedDB.',
+      type: online
+        ? 'success'
+        : 'warning',
     });
-    if (online && this.queue.length > 0) {
-      this.triggerSync();
+
+    if (
+      online &&
+      this.queue.length > 0 &&
+      hseApi.isAuthenticated
+    ) {
+      setTimeout(() => {
+        void this.triggerSync();
+      }, 300);
     }
   }
 
-  async enqueue(item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'status' | 'retryCount'>): Promise<SyncQueueItem> {
+  async enqueue(
+    item: Omit<
+      SyncQueueItem,
+      'id' | 'timestamp' | 'status' | 'retryCount'
+    >
+  ): Promise<SyncQueueItem> {
     const queueItem: SyncQueueItem = {
-      id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      timestamp: new Date().toISOString(),
+      id:
+        typeof crypto !== 'undefined' &&
+        typeof crypto.randomUUID === 'function'
+          ? `queue_${crypto.randomUUID()}`
+          : `queue_${Date.now()}_${Math.random()
+              .toString(36)
+              .slice(2, 9)}`,
+      timestamp:
+        new Date().toISOString(),
       status: 'PENDING',
       retryCount: 0,
       ...item,
     };
 
     this.queue.push(queueItem);
-    await hdosDB.put('queue', queueItem);
-    hdosEvents.emit('sync:queue_updated', this.queue);
 
-    if (this.isOnline) {
-      // Auto sync if online
-      setTimeout(() => this.triggerSync(), 300);
-    } else {
-      this.syncLogs.unshift({
-        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-        message: `Tersimpan di offline queue: [${queueItem.entity.toUpperCase()}] ${queueItem.action}`,
-        type: 'warning',
-      });
+    await hdosDB.put(
+      'queue',
+      queueItem
+    );
+
+    hdosEvents.emit(
+      'sync:queue_updated',
+      [...this.queue]
+    );
+
+    this.syncLogs.unshift({
+      time: formatTime(),
+      message:
+        `Queue ditambahkan: [${queueItem.action}] ${queueItem.entity}`,
+      type: 'warning',
+    });
+
+    if (
+      this.isOnline &&
+      hseApi.isAuthenticated
+    ) {
+      setTimeout(() => {
+        void this.triggerSync();
+      }, 100);
     }
 
     return queueItem;
   }
 
   async triggerSync(): Promise<boolean> {
-    if (!this.isOnline) {
-      alert('Sistem sedang dalam mode Offline. Harap aktifkan mode Online untuk sinkronisasi.');
+    if (this.isSyncing) {
       return false;
     }
-    if (this.isSyncing) return false;
 
-    this.isSyncing = true;
-    hdosEvents.emit('sync:started', { queueCount: this.queue.length });
-
-    try {
-      // Simulate real progressive synchronization to Google Sheet & Central Repository
-      for (const item of this.queue) {
-        item.status = 'SYNCING';
-        hdosEvents.emit('sync:progress', { item });
-        await new Promise((r) => setTimeout(r, 200));
-        item.status = 'SYNCED';
-        await hdosDB.delete('queue', item.id);
-      }
-
-      this.queue = [];
-      this.lastSyncTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    if (!this.isOnline) {
       this.syncLogs.unshift({
-        time: this.lastSyncTime,
-        message: 'Sinkronisasi berhasil ke Google Sheets HDOS Enterprise & Cloud Repository',
-        type: 'success',
-      });
-      hdosEvents.emit('sync:completed', { time: this.lastSyncTime });
-      hdosEvents.emit('sync:queue_updated', this.queue);
-      return true;
-    } catch (err) {
-      console.error('[HDOS Sync] Sync failed:', err);
-      this.syncLogs.unshift({
-        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-        message: 'Gagal melakukan sinkronisasi: Konflik jaringan',
+        time: formatTime(),
+        message:
+          'Sinkronisasi ditunda karena sistem sedang offline.',
         type: 'warning',
       });
+
+      return false;
+    }
+
+    if (!hseApi.isAuthenticated) {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message:
+          'Sinkronisasi ditunda — pengguna belum login ke cloud HDOS.',
+        type: 'warning',
+      });
+
+      return false;
+    }
+
+    if (this.queue.length === 0) {
+      return true;
+    }
+
+    this.isSyncing = true;
+
+    hdosEvents.emit(
+      'sync:started',
+      {
+        queueCount: this.queue.length,
+      }
+    );
+
+    let successCount = 0;
+
+    try {
+      for (
+        const item of [...this.queue]
+      ) {
+        if (!this.isOnline) {
+          break;
+        }
+
+        if (
+          item.retryCount >= MAX_RETRIES
+        ) {
+          continue;
+        }
+
+        const endpoint =
+          getEntityEndpoint(
+            item.entity
+          );
+
+        if (!endpoint) {
+          item.status = 'CONFLICT';
+          item.error =
+            `Entity ${item.entity} belum memiliki endpoint cloud.`;
+
+          await hdosDB.put(
+            'queue',
+            item
+          );
+
+          continue;
+        }
+
+        item.status = 'SYNCING';
+
+        await hdosDB.put(
+          'queue',
+          item
+        );
+
+        hdosEvents.emit(
+          'sync:progress',
+          { item }
+        );
+
+        try {
+          if (
+            item.action === 'CREATE'
+          ) {
+            await hseApi.create(
+              endpoint,
+              item.payload
+            );
+          } else if (
+            item.action === 'UPDATE'
+          ) {
+            const recordId =
+              getRecordId(item);
+
+            if (!recordId) {
+              throw new Error(
+                `ID record tidak ditemukan untuk queue item ${item.id}.`
+              );
+            }
+
+            await hseApi.update(
+              endpoint,
+              recordId,
+              item.payload
+            );
+          } else if (
+            item.action === 'DELETE'
+          ) {
+            throw new Error(
+              'DELETE sync belum diaktifkan pada Build v1.0.'
+            );
+          }
+
+          await hdosDB.delete(
+            'queue',
+            item.id
+          );
+
+          this.queue =
+            this.queue.filter(
+              (queued) =>
+                queued.id !== item.id
+            );
+
+          successCount += 1;
+
+          hdosEvents.emit(
+            'sync:progress',
+            {
+              item: {
+                ...item,
+                status: 'SYNCED',
+              },
+            }
+          );
+
+        } catch (error) {
+          item.retryCount += 1;
+
+          const status =
+            error instanceof ApiError
+              ? error.status
+              : 0;
+
+          item.status = 'CONFLICT';
+
+          item.error =
+            error instanceof Error
+              ? error.message
+              : String(error);
+
+          await hdosDB.put(
+            'queue',
+            item
+          );
+
+          /*
+           * Authentication errors should not produce a
+           * rapid retry loop. Keep the item safely queued.
+           */
+          if (status === 401) {
+            this.syncLogs.unshift({
+              time: formatTime(),
+              message:
+                `Sync ${item.entity} tertahan karena sesi cloud tidak valid. Login ulang diperlukan.`,
+              type: 'warning',
+            });
+
+            continue;
+          }
+
+          const delay =
+            getRetryDelay(
+              item.retryCount
+            );
+
+          this.syncLogs.unshift({
+            time: formatTime(),
+            message:
+              `Sync gagal: ${item.entity} — retry ${item.retryCount}/${MAX_RETRIES} dalam ${delay} ms.`,
+            type: 'warning',
+          });
+        }
+      }
+
+      this.lastSyncTime =
+        successCount > 0
+          ? formatTime()
+          : this.lastSyncTime;
+
+      if (successCount > 0) {
+        this.syncLogs.unshift({
+          time: formatTime(),
+          message:
+            `${successCount} record berhasil disinkronkan ke Google Spreadsheet.`,
+          type: 'success',
+        });
+
+        hdosEvents.emit(
+          'sync:completed',
+          {
+            time: this.lastSyncTime,
+            successCount,
+          }
+        );
+      }
+
+      hdosEvents.emit(
+        'sync:queue_updated',
+        [...this.queue]
+      );
+
+      return (
+        this.queue.length === 0
+      );
+    } catch (error) {
+      console.error(
+        '[HDOS Sync] Sync failed:',
+        error
+      );
+
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message:
+          'Sinkronisasi berhenti karena terjadi kesalahan engine.',
+        type: 'warning',
+      });
+
       return false;
     } finally {
       this.isSyncing = false;
+
+      hdosEvents.emit(
+        'sync:queue_updated',
+        [...this.queue]
+      );
     }
   }
 
-  exportToGoogleSheetsCSV(records: any[], entityName: string): void {
-    if (!records || records.length === 0) return;
-    const headers = Object.keys(records[0]).join(',');
-    const rows = records.map((r) =>
-      Object.values(r)
-        .map((val) => `"${String(val ?? '').replace(/"/g, '""')}"`)
-        .join(',')
+  exportToGoogleSheetsCSV(
+    records: any[],
+    entityName: string
+  ): void {
+    if (
+      !records ||
+      records.length === 0
+    ) {
+      return;
+    }
+
+    const headers =
+      Object.keys(
+        records[0]
+      ).join(',');
+
+    const rows =
+      records.map((record) =>
+        Object.values(record)
+          .map(
+            (value) =>
+              `"${String(
+                value ?? ''
+              ).replace(/"/g, '""')}"`
+          )
+          .join(',')
+      );
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [
+        headers,
+        ...rows,
+      ].join('\n');
+
+    const encodedUri =
+      encodeURI(csvContent);
+
+    const link =
+      document.createElement('a');
+
+    link.setAttribute(
+      'href',
+      encodedUri
     );
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `CGG_HDOS_${entityName.toUpperCase()}_${Date.now()}.csv`);
+
+    link.setAttribute(
+      'download',
+      `CGG_HDOS_${entityName.toUpperCase()}_${Date.now()}.csv`
+    );
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 }
 
-export const hdosSync = new HDOSSyncEngine();
+export const hdosSync =
+  new HDOSSyncEngine();
