@@ -13,6 +13,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
+import { createHazardAction } from '../../core/module-actions';
 import { hdosAI, BoundingBox } from '../../core/ai';
 
 export const AIModule: React.FC = () => {
@@ -52,7 +53,7 @@ export const AIModule: React.FC = () => {
 
   const handleConvertToHazard = async () => {
     if (!scanResult) return;
-    await store.addHazard({
+    await createHazardAction({
       title: 'AI Temuan: Unit HD Parkir Tanpa Ganjal Ban & Pekerja Blind Spot',
       category: 'Unsafe Condition',
       location: 'Pit Jaja KM10',
