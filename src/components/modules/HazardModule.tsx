@@ -15,6 +15,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { MiningArea, Hazard } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { createHazardAction } from '../../core/module-actions';
 
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
@@ -45,23 +46,26 @@ export const HazardModule: React.FC = () => {
     if (!title.trim() || !specificLocation.trim()) return;
 
     setSubmitting(true);
-    const newHaz = await store.addHazard({
-      title,
-      category,
-      location,
-      specificLocation,
-      riskMatrix: {
-        severity,
-        likelihood,
-        score: riskScore,
-        level: riskLevel,
-      },
-      reporter: currentUser.name,
-      reporterRole: currentUser.role,
-      status: riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'PICA_ISSUED' : 'OPEN',
-      actionTaken,
-      aiDetected: false,
-    });
+   const newHaz = await createHazardAction({
+  title,
+  category,
+  location,
+  specificLocation,
+  riskMatrix: {
+    severity,
+    likelihood,
+    score: riskScore,
+    level: riskLevel,
+  },
+  reporter: currentUser.name,
+  reporterRole: currentUser.role,
+  status:
+    riskLevel === 'CRITICAL' || riskLevel === 'HIGH'
+      ? 'PICA_ISSUED'
+      : 'OPEN',
+  actionTaken,
+  aiDetected: false,
+});
 
     setSubmitting(false);
     setSuccessMsg(
