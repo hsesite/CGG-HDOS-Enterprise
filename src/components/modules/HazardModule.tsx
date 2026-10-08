@@ -69,9 +69,7 @@ export const HazardModule: React.FC = () => {
 
     setSubmitting(false);
     setSuccessMsg(
-      `Laporan Bahaya ${newHaz.code} berhasil dicatat! ${
-        newHaz.picaId ? 'Karena tingkat risiko TINGGI/KRITIS, PICA otomatis diterbitkan untuk penanganan segera.' : ''
-      }`
+  `Laporan Bahaya ${newHaz.code} berhasil dicatat. PICA ${newHaz.picaId} otomatis diterbitkan dengan target penyelesaian berdasarkan tingkat risiko ${riskLevel}.`
     );
 
     setTitle('');
@@ -287,9 +285,13 @@ export const HazardModule: React.FC = () => {
                     Tingkat Bahaya: <strong className="text-white">{riskLevel}</strong>
                   </div>
                   <div className="text-neutral-400">
-                    {riskLevel === 'CRITICAL' || riskLevel === 'HIGH'
-                      ? '⚠️ Sistem akan otomatis menerbitkan Tiket PICA & notifikasi ke KTT dan SPV HSE.'
-                      : 'Informasi temuan akan disimpan dalam register bahaya shift.'}
+                    {riskLevel === 'CRITICAL'
+                      ? '⚠️ PICA otomatis diterbitkan dengan target penyelesaian maksimal 1×24 jam.'
+                      : riskLevel === 'HIGH'
+                      ? '⚠️ PICA otomatis diterbitkan dengan target penyelesaian maksimal 7 hari.'
+                      : riskLevel === 'MEDIUM'
+                      ? 'PICA otomatis diterbitkan dengan target penyelesaian maksimal 14 hari.'
+                    : 'PICA otomatis diterbitkan dengan target penyelesaian maksimal 30 hari.'}
                   </div>
                 </div>
 
