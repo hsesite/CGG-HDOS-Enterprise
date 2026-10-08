@@ -387,62 +387,208 @@ export class HDOSCentralStore {
     return newInspection;
   }
 
-  async addHazard(hazard: Omit<Hazard, 'id' | 'code' | 'createdAt'>): Promise<Hazard> {
-    const count = this.hazards.length + 1;
-    const code = `HAZ-2026-${String(count).padStart(3, '0')}`;
-    const id = createEntityId();
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  async addHazard(
+    hazard: Omit<
+      Hazard,
+      'id' | 'code' | 'createdAt'
+    >
+  ): Promise<Hazard> {
+    const count =
+      this.hazards.length + 1;
 
-    let picaId: string | undefined = undefined;
+    const year =
+      new Date().getFullYear();
 
-    if (hazard.riskMatrix.level === 'CRITICAL' || hazard.riskMatrix.level === 'HIGH') {
-      const picaCount = this.picas.length + 1;
-      const picaCode = `PICA-2026-${String(picaCount).padStart(3, '0')}`;
-      const picaCreated: PICA = {
-        id: `pica_${Date.now()}`,
-        code: picaCode,
-        source: 'HAZARD',
-        sourceRefCode: code,
-        findingDescription: `Bahaya ${hazard.riskMatrix.level}: ${hazard.title}`,
-        correctiveAction: hazard.actionTaken || 'Mitigasi langsung',
-        preventiveAction: 'Sosialisasi JSA',
-        picDepartment: 'Operations',
-        picName: hazard.reporter,
-        targetDate: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
-        status: 'OPEN',
-        daysAging: 0,
-        approvalStages: { foreman: false, spvHse: false, ktt: false },
-        createdAt: now,
-      };
-      picaId = picaCreated.id;
-      this.picas.unshift(picaCreated);
-      await hdosDB.put('pica', picaCreated);
-      hdosEvents.emit('pica:created', picaCreated);
+    const code =
+      `HAZ-${year}-${String(
+        count
+      ).padStart(3, '0')}`;
+
+    const id =
+      createEntityId();
+
+    const now =
+      new Date()
+        .toISOString()
+        .replace('T', ' ')
+        .substring(0, 19);
+
+    /*
+     * Build v1.0:
+     * Every validated hazard produces a PICA.
+     *
+     * PICA target:
+     * LOW      = 30 days
+     * MEDIUM   = 14 days
+     * HIGH     = 7 days
+     * CRITICAL = 24 hours
+     */
+    const targetDays: Record<
+      Hazard['riskMatrix']['level'],
+      number
+    > = {
+      LOW: 30,
+      MEDIUM: 14,
+      HIGH: 7,
+      CRITICAL: 1,
+    };
+
+    const picaTarget =
+      new Date();
+
+    if (
+      hazard.riskMatrix.level ===
+      'CRITICAL'
+    ) {
+      picaTarget.setTime(
+        picaTarget.getTime() +
+          24 * 60 * 60 * 1000
+      );
+    } else {
+      picaTarget.setDate(
+        picaTarget.getDate() +
+          targetDays[
+            hazard.riskMatrix.level
+          ]
+      );
     }
+
+    const picaId =
+      createEntityId();
+
+    const picaCode =
+      `PICA-${year}-${String(
+        this.picas.length + 1
+      ).padStart(3, '0')}`;
+
+    const picaCreated: PICA = {
+      id: picaId,
+      code: picaCode,
+
+      source: 'HAZARD',
+      sourceRefCode: code,
+
+      findingDescription:
+        `Temuan Hazard ${hazard.riskMatrix.level}: ${hazard.title}`,
+
+      correctiveAction:
+        hazard.actionTaken?.trim()
+          ? hazard.actionTaken
+          : 'Laksanakan tindakan pengendalian sesuai hasil penilaian risiko dan pastikan kondisi aman.',
+
+      preventiveAction:
+        'Lakukan evaluasi penyebab, verifikasi efektivitas pengendalian, dan cegah terulangnya kondisi serupa.',
+
+      picDepartment:
+        'Operations',
+
+      picName:
+        'PIC Belum Ditentukan',
+
+      targetDate:
+        picaTarget
+          .toISOString()
+          .split('T')[0],
+
+      status:
+        'OPEN',
+
+      daysAging:
+        0,
+
+      approvalStages: {
+        foreman: false,
+        spvHse: false,
+        ktt: false,
+      },
+
+      createdAt:
+        now,
+    };
+
+    /*
+     * PICA is created before the Hazard object so the
+     * Hazard can retain the authoritative PICA ID.
+     */
+    this.picas.unshift(
+      picaCreated
+    );
+
+    await hdosDB.put(
+      'pica',
+      picaCreated
+    );
+
+    hdosEvents.emit(
+      'pica:created',
+      picaCreated
+    );
 
     const newHazard: Hazard = {
       ...hazard,
+
       id,
       code,
+
       createdAt: now,
+
+      /*
+       * Every hazard now has a PICA.
+       */
       picaId,
-      status: picaId ? 'PICA_ISSUED' : 'OPEN',
+
+      status:
+        'PICA_ISSUED',
     };
 
-    this.hazards.unshift(newHazard);
-    await hdosDB.put('hazard', newHazard);
+    this.hazards.unshift(
+      newHazard
+    );
 
-    const loc = this.locations.find((l) => l.name === hazard.location);
+    await hdosDB.put(
+      'hazard',
+      newHazard
+    );
+
+    /*
+     * Update location telemetry.
+     */
+    const loc =
+      this.locations.find(
+        (l) =>
+          l.name ===
+          hazard.location
+      );
+
     if (loc) {
       loc.activeHazards += 1;
-      if (hazard.riskMatrix.level === 'CRITICAL') loc.safetyStatus = 'ALERT';
+
+      if (
+        hazard.riskMatrix.level ===
+        'CRITICAL'
+      ) {
+        loc.safetyStatus =
+          'ALERT';
+      } else if (
+        hazard.riskMatrix.level ===
+          'HIGH' &&
+        loc.safetyStatus ===
+          'SAFE'
+      ) {
+        loc.safetyStatus =
+          'WARNING';
+      }
     }
 
     this.notify();
-    hdosEvents.emit('hazard:created', newHazard);
+
+    hdosEvents.emit(
+      'hazard:created',
+      newHazard
+    );
+
     return newHazard;
   }
-
   async addIncident(incident: Omit<Incident, 'id' | 'code' | 'createdAt'>): Promise<Incident> {
     const count = this.incidents.length + 1;
     const code = `INC-2026-${String(count).padStart(3, '0')}`;
