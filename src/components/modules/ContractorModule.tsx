@@ -153,7 +153,7 @@ export const ContractorModule: React.FC = () => {
             <div className="text-2xl font-bold text-white font-mono mt-1">
               {selectedContractor.inductionRatePercent > 0 ? `${selectedContractor.inductionRatePercent}%` : '—'}
             </div>
-            <div className="text-[10px] text-neutral-400 mt-1">100% crew lulus tes</div>
+            <div className="text-[10px] text-neutral-400 mt-1">Data kelulusan belum diinput</div>
           </div>
 
           <div className="p-4 rounded-xl bg-white/5 border border-white/10">
@@ -173,7 +173,7 @@ export const ContractorModule: React.FC = () => {
               <AlertTriangle className="w-4 h-4 text-red-400" />
             </div>
             <div className="text-2xl font-bold text-amber-400 font-mono mt-1">
-              {selectedContractor.activePicaCount}
+              {selectedContractor.activePicaCount > 0 ? selectedContractor.activePicaCount : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">Sedang ditindaklanjuti</div>
           </div>
@@ -187,7 +187,7 @@ export const ContractorModule: React.FC = () => {
               Peralatan &amp; Fleet Terdaftar di Konsesi Pit CGG
             </h4>
             <span className="text-xs font-mono text-neutral-400">
-              Total: {selectedContractor.equipmentCount} Unit Terkomisi
+              Total: {selectedContractor.equipmentCount > 0 ? selectedContractor.equipmentCount : '—'} Unit Terkomisi
             </span>
           </div>
 
