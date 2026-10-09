@@ -86,7 +86,7 @@ function getToken(): string | null {
     return null;
   }
 
-  return window.sessionStorage.getItem(
+  return window.localStorage.getItem(
     TOKEN_KEY
   );
 }
@@ -99,12 +99,12 @@ function setToken(
   }
 
   if (token) {
-    window.sessionStorage.setItem(
+    window.localStorage.setItem(
       TOKEN_KEY,
       token
     );
   } else {
-    window.sessionStorage.removeItem(
+    window.localStorage.removeItem(
       TOKEN_KEY
     );
   }
