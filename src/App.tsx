@@ -22,6 +22,7 @@ import { ContractorModule } from './components/modules/ContractorModule';
 import { MapModule } from './components/modules/MapModule';
 import { AIModule } from './components/modules/AIModule';
 import { SyncModule } from './components/modules/SyncModule';
+import { SettingsModule } from './components/modules/SettingsModule';
 
 // Module Icons
 import {
@@ -36,6 +37,7 @@ import {
   Cpu,
   RefreshCw,
   LogOut,
+  Settings,
 } from 'lucide-react';
 
 export default function App() {
@@ -221,6 +223,10 @@ export default function App() {
         {/* Offline Queue & Sync Window */}
         <WindowWrapper id="sync" title="Offline Queue & Google Sheets Sync Engine" icon={RefreshCw}>
           <SyncModule />
+        </WindowWrapper>
+
+        <WindowWrapper id="settings" title="Pengaturan Sistem & Master Data" icon={Settings}>
+          <SettingsModule />
         </WindowWrapper>
       </main>
 
