@@ -257,6 +257,18 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   }, [store, store.documents, store.formDefinitions, selectedDoc?.id]);
 
   const filteredDocs = store.documents.filter((doc) => {
+    const sessionUser = currentUser;
+    const roles = sessionUser?.roles || [];
+    if (roles.includes('Admin CGG')) return true;
+    const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
+    const parentCompanyCode = String(sessionUser?.parentCompanyCode || '').trim().toUpperCase();
+    if (!companyCode) return false;
+    const docCompany = String(doc.companyCode || '').trim().toUpperCase();
+    const docParent = String(doc.parentCompanyCode || '').trim().toUpperCase();
+    if (roles.includes('Contractor')) return docCompany === companyCode || docParent === companyCode;
+    if (roles.includes('Subkon')) return docCompany === companyCode;
+    return true;
+  }).filter((doc) => {
     const matchCategory = activeCategory === 'ALL' || doc.category === activeCategory;
     const query = searchQuery.toLowerCase();
     const matchSearch =
@@ -369,7 +381,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       const newDoc = await store.addDocument({
         title: title.trim(),
         category,
-        owner: currentUser?.name || 'Pengguna HDOS',
+        owner: currentUser?.displayName || 'Pengguna HDOS',
+        companyCode: currentUser?.companyCode || '',
+        parentCompanyCode: currentUser?.parentCompanyCode || '',
+        ownerUserId: currentUser?.id || '',
         status: 'EFFECTIVE',
         effectiveDate: new Date().toISOString().slice(0, 10),
         fileType,
