@@ -154,7 +154,7 @@ const formatChecklistQuestion = (item: { question: string; section?: string }): 
 
 const inferDocumentLevel = (category: DocumentItem['category'], title: string): DocumentLevel => {
   const value = title.toLocaleLowerCase('id-ID');
-  if (/manual mutu|kebijakan|policy|ruang lingkup perusahaan|kepemilikan aset|bispro|regulasi|tanggung jawab perusahaan/.test(value)) {
+  if (/manual mutu|kebijakan|policy|ruang lingkup perusahaan|kepemilikan aset|bispro|regulasi|tanggung jawab perusahaan/.test(value) || category === 'Kebijakan') {
     return 'Level 1 - Manual Mutu';
   }
   if (/instruksi kerja|\bwi\b|sertifikasi alat|sertifikasi sdm|job desc|job description|matriks kompetensi|matrix kompetensi|legal kontrak|standar kerja/.test(value) || category === 'WI') {
@@ -168,6 +168,12 @@ const inferDocumentLevel = (category: DocumentItem['category'], title: string): 
 
 const inferDocumentType = (category: DocumentItem['category'], title: string): string => {
   const level = inferDocumentLevel(category, title);
+  if (category === 'JSA') return 'Job Safety Analysis (JSA)';
+  if (category === 'IBPR') return 'Identifikasi Bahaya, Penilaian Risiko, dan Pengendalian Risiko (IBPR)';
+  if (category === 'Memo') return 'Memo';
+  if (category === 'Work Permit') return 'Izin Kerja (Work Permit)';
+  if (category === 'Lainnya') return 'Dokumen SMKP lainnya';
+  if (category === 'Kebijakan') return 'Kebijakan';
   if (level === 'Level 1 - Manual Mutu') return 'Manual Mutu / Kebijakan';
   if (level === 'Level 2 - Prosedur') return 'Prosedur / SOP';
   if (level === 'Level 3 - Instruksi Kerja') return 'Instruksi Kerja / WI';
@@ -190,6 +196,7 @@ export const RepositoryModule: React.FC = () => {
   const [summary, setSummary] = useState('');
 const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [registerPreview, setRegisterPreview] = useState<DocumentRegisterPreview | null>(null);
+  const [officialDocumentNumber, setOfficialDocumentNumber] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [registerReadWarning, setRegisterReadWarning] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -209,7 +216,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [reviewCriticalityConfirmed, setReviewCriticalityConfirmed] = useState(false);
   const [, setFormRefreshKey] = useState(0);
 
-  const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
+  const categories = ['ALL', 'SOP', 'JSA', 'WI', 'IBPR', 'Kebijakan', 'Form', 'Memo', 'Work Permit', 'Lainnya', 'Inspection', 'Incident', 'PICA', 'Contractor'];
   const selectedForm = selectedDoc
     ? store.getFormDefinitionByDocumentId(selectedDoc.id)
     : undefined;
@@ -321,14 +328,19 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setPreviewLoading(true);
     try {
       const extracted = await extractDocumentText(file, file.name);
-      const documentTitle = extractDocumentTitle(extracted.text, file.name);
+      const fileTitle = file.name.replace(/\\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ').trim();
+      const extractedTitle = extractDocumentTitle(extracted.text, file.name);
+      const documentTitle = fileTitle.length >= 6 ? fileTitle : extractedTitle;
       setTitle(documentTitle);
       const preview = parseDocumentRegister(extracted.text, file.name, category, documentTitle);
+      setOfficialDocumentNumber(preview.sourceDocumentNumber === REGISTER_MISSING ? '' : preview.sourceDocumentNumber);
       setRegisterPreview(preview);
     } catch (error) {
       // Keep the source file uploadable even when text extraction is unavailable
       // (for example, a scanned PDF without OCR); unavailable register cells use '-'.
-      setRegisterPreview(parseDocumentRegister('', file.name, category, autoTitle));
+      const fallbackPreview = parseDocumentRegister('', file.name, category, autoTitle);
+      setRegisterPreview(fallbackPreview);
+      setOfficialDocumentNumber(fallbackPreview.sourceDocumentNumber === REGISTER_MISSING ? '' : fallbackPreview.sourceDocumentNumber);
       setRegisterReadWarning(`Teks dokumen tidak dapat dibaca otomatis (${getErrorMessage(error)}). Kolom yang tidak terbaca ditampilkan sebagai '-'.`);
     } finally {
       setPreviewLoading(false);
@@ -359,6 +371,11 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       return;
     }
 
+    if (!officialDocumentNumber.trim() || officialDocumentNumber.trim() === REGISTER_MISSING) {
+      setErrorMessage('Nomor dokumen resmi wajib diisi sesuai nomor pada cover/lembar pengesahan, contoh: 001/SOP-HSE-CGG/2025.');
+      return;
+    }
+
     if (duplicateRegisterDocument) {
       setErrorMessage(
         `Dokumen terdeteksi sudah terdaftar dengan nomor ${duplicateRegisterDocument.documentControl?.sourceDocumentNumber && duplicateRegisterDocument.documentControl.sourceDocumentNumber !== REGISTER_MISSING ? duplicateRegisterDocument.documentControl.sourceDocumentNumber : duplicateRegisterDocument.docNumber} dan revisi ${duplicateRegisterDocument.documentControl?.revisionStatus || REGISTER_MISSING}. Unggah dibatalkan. Jika ini revisi baru, pastikan nomor dokumen dan nomor revisi pada file sumber sudah terbaca benar.`
@@ -378,6 +395,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
       const newDoc = await store.addDocument({
         title: title.trim(),
+        docNumber: officialDocumentNumber.trim().replace(/\\s*\\/\\s*/g, '/'),
         category,
         owner: sessionUser?.displayName || currentUser?.name || 'Pengguna HDOS',
         companyCode: sessionUser?.companyCode || '',
@@ -390,7 +408,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         downloadCount: 0,
         smkpElement: smkpElement.trim() || 'Belum ditentukan',
         summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah.',
-        documentControl: registerPreview.documentControl,
+        documentControl: { ...registerPreview.documentControl, sourceDocumentNumber: officialDocumentNumber.trim().replace(/\\s*\\/\\s*/g, '/') },
       });
 
       const storedFile: StoredDocumentFile = {
@@ -425,18 +443,11 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       setRegisterPreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      const formCreated = await handleGenerateForm(newDoc);
-      if (formCreated) {
-        const effectiveDoc = await store.updateDocument(newDoc.id, {
-          status: 'EFFECTIVE',
-          effectiveDate: new Date().toISOString().slice(0, 10),
-          summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah; formulir digital telah diterbitkan.',
-        });
-        setSelectedDoc(effectiveDoc);
-        setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah, formulir digital dibuat dan diterbitkan, serta status dokumen menjadi EFFECTIVE.`);
-      } else {
-        setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah, tetapi formulir otomatis belum dapat dibuat. Periksa pesan kesalahan dan format/isi dokumen.`);
-      }
+      // Repository upload only registers the source document. It must not
+      // automatically create a digital inspection form: SOP/JSA/WI/IBPR etc.
+      // are controlled reference documents, not inspection instances.
+      setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil disimpan ke Central Repository. Tidak ada inspeksi yang dibuat otomatis.`);
+      setOfficialDocumentNumber('');
     } catch (error) {
       console.error('[RepositoryModule] Gagal mengunggah dokumen:', error);
       setErrorMessage(`Dokumen gagal disimpan: ${getErrorMessage(error)}`);
@@ -1138,23 +1149,31 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                     onChange={(event) => setCategory(event.target.value as DocumentItem['category'])}
                     className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white focus:outline-none focus:border-[#A855F7]"
                   >
-                    <option value="SOP" className="bg-neutral-900">SOP (Standar Operasional)</option>
-                    <option value="WI" className="bg-neutral-900">WI (Instruksi Kerja)</option>
-                    <option value="Form" className="bg-neutral-900">Form (Formulir Digital)</option>
-                    <option value="Inspection" className="bg-neutral-900">Inspection</option>
-                    <option value="Incident" className="bg-neutral-900">Incident</option>
-                    <option value="PICA" className="bg-neutral-900">PICA</option>
-                    <option value="Contractor" className="bg-neutral-900">Contractor</option>
+                    <option value="SOP" className="bg-neutral-900">SOP</option>
+                    <option value="JSA" className="bg-neutral-900">JSA</option>
+                    <option value="WI" className="bg-neutral-900">WI (Work Instruction)</option>
+                    <option value="IBPR" className="bg-neutral-900">IBPR / HIRADC</option>
+                    <option value="Kebijakan" className="bg-neutral-900">Kebijakan</option>
+                    <option value="Form" className="bg-neutral-900">Form</option>
+                    <option value="Memo" className="bg-neutral-900">Memo</option>
+                    <option value="Work Permit" className="bg-neutral-900">Work Permit</option>
+                    <option value="Lainnya" className="bg-neutral-900">Lainnya (dokumen SMKP)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-neutral-300 mb-1 font-medium">Nomor Dokumen Otomatis</label>
+                  <label className="block text-neutral-300 mb-1 font-medium">Nomor Dokumen Resmi *</label>
                   <input
                     type="text"
-                    disabled
-                    value={`CGG-HSE-${category.toUpperCase()}-xxx`}
-                    className="w-full px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-neutral-400 font-mono"
+                    required
+                    placeholder="Contoh: 001/SOP-HSE-CGG/2025"
+                    value={officialDocumentNumber}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setOfficialDocumentNumber(value);
+                      setRegisterPreview((current) => current ? { ...current, sourceDocumentNumber: value, documentControl: { ...current.documentControl, sourceDocumentNumber: value } } : current);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white font-mono focus:outline-none focus:border-[#A855F7]"
                   />
                 </div>
               </div>
