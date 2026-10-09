@@ -16,7 +16,6 @@ import { useHDOSStore } from '../../core/store';
 import { DocumentItem, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { hdosDB } from '../../core/db';
-import { hdosAI } from '../../core/ai';
 import { extractDocumentText, extractChecklistItems, } from '../../core/document-parser';
 
 type StoredDocumentFile = {
@@ -311,7 +310,10 @@ export const RepositoryModule: React.FC = () => {
         metadata: {
           criticality: item.criticality,
           standardRef: item.standardRef,
-          source: 'repository-template-generator',
+          source: 'document-text-extraction',
+          sourceType: extracted.sourceType,
+          sourceDocumentName: storedFile.fileName,
+          extractionMethod: 'client-side-text-parser',
         },
       }));
 
@@ -326,7 +328,7 @@ export const RepositoryModule: React.FC = () => {
         status: 'DRAFT',
         version: 1,
         fields,
-        generatedByAI: true,
+        generatedByAI: false,
         aiConfidence: 0.35,
       };
 
