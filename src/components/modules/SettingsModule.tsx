@@ -6,7 +6,19 @@ import { getCurrentUser } from '../../core/auth-utils';
 import { hseApi, type ApiUser } from '../../core/api';
 
 const inputClass = 'w-full rounded-xl border border-white/10 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none focus:border-[#00E676]';
-const emptyArea = { name: '', utm: '', lat: '', lng: '', description: '', zoneType: 'FACILITY' as MiningLocationGIS['zoneType'] };
+const emptyArea = { name: '', utm: '', lat: '', lng: '', description: '', zoneType: 'NURSERY' as MiningLocationGIS['zoneType'] };
+const AREA_CATEGORIES: { value: MiningLocationGIS['zoneType']; label: string }[] = [
+  { value: 'PIT', label: 'Pit' },
+  { value: 'HAUL_ROAD', label: 'Hauling Road' },
+  { value: 'STOCKPILE', label: 'Stockpile' },
+  { value: 'PREPARASI', label: 'Preparasi' },
+  { value: 'NURSERY', label: 'Nursery' },
+  { value: 'JETTY', label: 'Jetty' },
+  { value: 'ETO', label: 'ETO' },
+  { value: 'SAMPLE_HOUSE', label: 'Sample House' },
+];
+const REQUIRES_MANUAL_AREA_NAME: MiningLocationGIS['zoneType'][] = ['PIT', 'HAUL_ROAD', 'STOCKPILE'];
+const getAreaCategoryLabel = (zoneType: MiningLocationGIS['zoneType']) => AREA_CATEGORIES.find((item) => item.value === zoneType)?.label || zoneType;
 
 export const SettingsModule: React.FC = () => {
   const store = useHDOSStore();
@@ -67,7 +79,7 @@ export const SettingsModule: React.FC = () => {
     setBusy(true);
     try {
       await store.addLocation({
-        name: area.name.trim(),
+        name: REQUIRES_MANUAL_AREA_NAME.includes(area.zoneType) ? area.name.trim() : getAreaCategoryLabel(area.zoneType),
         utm: area.utm.trim(),
         lat: area.lat.trim() ? Number(area.lat) : 0,
         lng: area.lng.trim() ? Number(area.lng) : 0,
@@ -117,8 +129,14 @@ export const SettingsModule: React.FC = () => {
       {tab === 'areas' && <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
         <form onSubmit={addArea} className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
           <h3 className="font-semibold text-white">Tambah Area Kerja</h3>
-          <input required className={inputClass} placeholder="Nama area (mis. Pit Utara)" value={area.name} onChange={e=>setArea({...area,name:e.target.value})}/>
-          <select className={inputClass} value={area.zoneType} onChange={e=>setArea({...area,zoneType:e.target.value as MiningLocationGIS['zoneType']})}><option value="PIT">Pit</option><option value="HAUL_ROAD">Haul Road</option><option value="PORT">Port / Jetty</option><option value="FACILITY">Fasilitas</option></select>
+          <label className="block text-xs text-neutral-400">Kategori area
+            <select required className={`${inputClass} mt-1`} value={area.zoneType} onChange={e=>{const zoneType=e.target.value as MiningLocationGIS['zoneType'];setArea({...area,zoneType,name:REQUIRES_MANUAL_AREA_NAME.includes(zoneType)?'':getAreaCategoryLabel(zoneType)});}}>
+              {AREA_CATEGORIES.map(category=><option key={category.value} value={category.value}>{category.label}</option>)}
+            </select>
+          </label>
+          {REQUIRES_MANUAL_AREA_NAME.includes(area.zoneType) && <label className="block text-xs text-neutral-400">Nama area wajib diisi
+            <input required minLength={2} className={`${inputClass} mt-1`} placeholder={area.zoneType==='PIT'?'Contoh: Pit Utara':area.zoneType==='HAUL_ROAD'?'Contoh: Hauling Road KM 12':'Contoh: Stockpile EFO'} value={area.name} onChange={e=>setArea({...area,name:e.target.value})}/>
+          </label>}
           <input className={inputClass} placeholder="Koordinat UTM (opsional)" value={area.utm} onChange={e=>setArea({...area,utm:e.target.value})}/>
           <div className="grid grid-cols-2 gap-3"><input className={inputClass} type="number" step="any" placeholder="Latitude (opsional)" value={area.lat} onChange={e=>setArea({...area,lat:e.target.value})}/><input className={inputClass} type="number" step="any" placeholder="Longitude (opsional)" value={area.lng} onChange={e=>setArea({...area,lng:e.target.value})}/></div>
           <textarea className={inputClass} placeholder="Deskripsi (opsional)" rows={3} value={area.description} onChange={e=>setArea({...area,description:e.target.value})}/>
