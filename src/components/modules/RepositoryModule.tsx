@@ -17,7 +17,7 @@ import { DocumentItem, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
 import { hdosDB } from '../../core/db';
-import { extractDocumentText, extractChecklistItems, } from '../../core/document-parser';
+import { extractDocumentText, extractChecklistItemsFromDocument } from '../../core/document-parser';
 
 type StoredDocumentFile = {
   id: string;
@@ -285,14 +285,8 @@ export const RepositoryModule: React.FC = () => {
 
     try {
       const existingForm = store.getFormDefinitionByDocumentId(doc.id);
-      if (existingForm) {
-        setSuccessMessage(
-          `Formulir untuk ${doc.docNumber} sudah tersedia: ${existingForm.title}.`
-        );
-        return true;
-      }
 
-     
+      
       const db = await hdosDB.init();
       if (!db) {
         throw new Error('IndexedDB tidak tersedia pada browser ini.');
@@ -321,7 +315,11 @@ export const RepositoryModule: React.FC = () => {
           `${doc.docNumber}.${doc.fileType.toLowerCase()}`
       );
 
-      const checklistItems = extractChecklistItems(extracted.text);
+      const checklistItems = await extractChecklistItemsFromDocument(
+        originalBlob,
+        storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`,
+        extracted.text
+      );
 
       if (checklistItems.length === 0) {
         throw new Error(
@@ -330,7 +328,7 @@ export const RepositoryModule: React.FC = () => {
       }
 
       const parsed = {
-        title: `Draft Checklist: ${doc.title}`,
+        title: doc.title,
         category: doc.category,
         smkpElement: doc.smkpElement,
         checklistItems,
@@ -363,7 +361,7 @@ export const RepositoryModule: React.FC = () => {
       const formInput: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'> = {
         sourceDocumentId: doc.id,
         formNumber: `${doc.docNumber}-FORM`,
-        title: parsed.title || `Draft Checklist: ${doc.title}`,
+        title: parsed.title || doc.title,
         category: parsed.category || doc.category,
         department: 'HSE',
         revision: String(doc.revision),
@@ -375,10 +373,25 @@ export const RepositoryModule: React.FC = () => {
         aiConfidence: 0.35,
       };
 
+      if (existingForm) {
+        const repairedForm = await store.updateFormDefinition(existingForm.id, {
+          ...formInput,
+          id: existingForm.id,
+          createdAt: existingForm.createdAt,
+          updatedAt: new Date().toISOString(),
+          version: existingForm.version + 1,
+        });
+        setFormRefreshKey((value) => value + 1);
+        setSuccessMessage(
+          `Formulir ${repairedForm.title} diperbarui dari tabel checklist dokumen sumber: ${fields.length} pertanyaan.`
+        );
+        return true;
+      }
+
       const newForm = await store.addFormDefinition(formInput);
       setFormRefreshKey((value) => value + 1);
       setSuccessMessage(
-        `Formulir "${newForm.title}" langsung dibuat dan berstatus PUBLISHED dengan ${fields.length} pertanyaan, sesuai proses validasi KTT sebelum unggah.`
+        `Formulir "${newForm.title}" langsung dibuat dan berstatus PUBLISHED dengan ${fields.length} pertanyaan dari tabel checklist dokumen sumber.`
       );
       return true;
     } catch (error) {
@@ -389,6 +402,77 @@ export const RepositoryModule: React.FC = () => {
       setGeneratingForm(false);
     }
   };
+
+  // Repair already-published DOCX forms created by the old line-based parser.
+  // It only updates forms when the checklist labels actually differ.
+  useEffect(() => {
+    let cancelled = false;
+    const repairExistingPublishedForms = async () => {
+      const db = await hdosDB.init();
+      if (!db) return;
+      for (const form of store.formDefinitions) {
+        if (cancelled || form.status !== 'PUBLISHED' || !form.sourceDocumentId) continue;
+        const doc = store.documents.find((item) => item.id === form.sourceDocumentId);
+        if (!doc || doc.fileType !== 'DOCX') continue;
+        try {
+          const storedFile = await hdosDB.getById<StoredDocumentFile>(
+            'photos',
+            `${DOCUMENT_FILE_PREFIX}${doc.id}`
+          );
+          if (!storedFile?.blob) continue;
+          const blob = storedFile.blob instanceof Blob
+            ? storedFile.blob
+            : new Blob([storedFile.blob as BlobPart], { type: storedFile.mimeType || 'application/octet-stream' });
+          const extracted = await extractDocumentText(blob, storedFile.fileName || `${doc.docNumber}.docx`);
+          const items = await extractChecklistItemsFromDocument(
+            blob,
+            storedFile.fileName || `${doc.docNumber}.docx`,
+            extracted.text
+          );
+          if (!items.length) continue;
+          const existingLabels = form.fields.map((field) => field.label.trim());
+          const parsedLabels = items.map((item) => item.question.trim());
+          if (existingLabels.length === parsedLabels.length && existingLabels.every((label, index) => label === parsedLabels[index])) continue;
+
+          const fields = items.map((item, index) => ({
+            id: `field_${index + 1}`,
+            order: index + 1,
+            label: item.question,
+            description: `Tingkat kritikalitas: ${item.criticality}. Referensi: ${item.standardRef}`,
+            type: 'RADIO' as const,
+            options: [
+              { value: 'PASS', label: 'Sesuai' },
+              { value: 'FAIL', label: 'Tidak Sesuai' },
+              { value: 'NA', label: 'Tidak Berlaku' },
+            ],
+            validation: { required: true },
+            createsFindingOnNegative: true,
+            negativeValue: 'FAIL',
+            metadata: {
+              criticality: item.criticality,
+              standardRef: item.standardRef,
+              source: 'document-table-extraction',
+              sourceType: extracted.sourceType,
+              sourceDocumentName: storedFile.fileName,
+              extractionMethod: 'docx-table-row-parser',
+            },
+          }));
+          if (!cancelled) {
+            await store.updateFormDefinition(form.id, {
+              fields,
+              title: doc.title,
+              version: form.version + 1,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          console.error('[RepositoryModule] Gagal memperbaiki checklist formulir:', error);
+        }
+      }
+    };
+    void repairExistingPublishedForms();
+    return () => { cancelled = true; };
+  }, [store, store.formDefinitions, store.documents]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
