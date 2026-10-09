@@ -733,6 +733,36 @@ export const RepositoryModule: React.FC = () => {
                   {selectedDoc.summary}
                 </div>
 
+                <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3 space-y-2">
+                  <h3 className="text-xs font-bold text-sky-200">Register SMKP Document Control</h3>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
+                    {([
+                      ['Departemen', selectedDoc.documentControl?.department || '—'],
+                      ['No', selectedDoc.docNumber],
+                      ['Level Dokumen', selectedDoc.documentControl?.documentLevel || inferDocumentLevel(selectedDoc.category, selectedDoc.title)],
+                      ['Jenis Dokumen', selectedDoc.documentControl?.documentType || inferDocumentType(selectedDoc.category, selectedDoc.title)],
+                      ['Dokumen', selectedDoc.title],
+                      ['Nomor', selectedDoc.docNumber],
+                      ['Status Revisi', selectedDoc.documentControl?.revisionStatus ?? String(selectedDoc.revision)],
+                      ['Tanggal Pengesahan', selectedDoc.documentControl?.approvalDate || selectedDoc.effectiveDate || '—'],
+                      ['Keterangan', selectedDoc.documentControl?.remarks || '—'],
+                      ['WEIGHT', selectedDoc.documentControl?.weight || '—'],
+                      ['ACT WEIGHT', selectedDoc.documentControl?.activeWeight || '—'],
+                      ['Filling Soft Copy', selectedDoc.documentControl?.softCopyFiling || '—'],
+                      ['Filling Hard Copy', selectedDoc.documentControl?.hardCopyFiling || '—'],
+                      ['Plan MP', selectedDoc.documentControl?.planDistribution || '—'],
+                      ['Actual Distribusi', selectedDoc.documentControl?.actualDistribution || '—'],
+                      ['Nama MP Terdistribusi', selectedDoc.documentControl?.distributedTo || '—'],
+                      ['User', selectedDoc.documentControl?.user || selectedDoc.owner],
+                    ] as Array<[string, string]>).map(([label, value]) => (
+                      <div key={label} className="min-w-0">
+                        <p className="text-neutral-500">{label}</p>
+                        <p className="text-neutral-100 break-words font-semibold">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-1.5 text-[11px] text-neutral-400 font-mono border-t border-white/10 pt-3">
                   <div className="flex justify-between gap-3">
                     <span>Pemilik Dokumen:</span>
