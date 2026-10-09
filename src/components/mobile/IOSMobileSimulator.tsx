@@ -40,7 +40,7 @@ export const IOSMobileSimulator: React.FC = () => {
       <div className="relative w-full max-w-[420px] h-[860px] max-h-[96vh] rounded-[52px] bg-[#090909] border-[10px] border-[#222226] shadow-[0_0_80px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden">
         {/* iOS Status Bar */}
         <div className="h-11 pt-2 px-7 flex items-center justify-between text-white text-xs font-semibold select-none z-30">
-          <span className="font-mono text-[13px] tracking-tight">09:20</span>
+          <span className="font-mono text-[13px] tracking-tight">DEMO</span>
 
           {/* Dynamic Island (Blueprint §8) */}
           <div
@@ -54,8 +54,8 @@ export const IOSMobileSimulator: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#00E676] animate-pulse" />
                   <div>
-                    <div className="font-bold">GPS Pit Jaja KM10</div>
-                    <div className="text-[9px] text-neutral-400 font-mono">UTM 51S · Elevasi +45m</div>
+                    <div className="font-bold">GPS belum terhubung</div>
+                    <div className="text-[9px] text-neutral-400 font-mono">Lokasi demo tidak digunakan sebagai telemetry</div>
                   </div>
                 </div>
                 <div className="text-right font-mono text-[10px] text-neutral-300">
@@ -67,7 +67,7 @@ export const IOSMobileSimulator: React.FC = () => {
               <>
                 <div className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#00E676]" />
-                  <span className="text-[10px] font-mono text-neutral-300">GPS</span>
+                  <span className="text-[10px] font-mono text-neutral-300">GPS DEMO</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono">
                   {online ? (
