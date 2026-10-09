@@ -8,6 +8,7 @@ import {
   Upload,
   FileText,
   ClipboardList,
+  Trash2,
   X,
   AlertCircle,
   CheckCircle,
@@ -148,24 +149,6 @@ const inferDocumentType = (category: DocumentItem['category'], title: string): s
   return 'Record / Form / Attachment';
 };
 
-const DEFAULT_DOCUMENT_CONTROL: DocumentControlMetadata = {
-  department: REGISTER_MISSING,
-  registerNo: REGISTER_MISSING,
-  documentLevel: 'Level 2 - Prosedur',
-  documentType: 'Prosedur / SOP',
-  revisionStatus: '0',
-  approvalDate: new Date().toISOString().slice(0, 10),
-  remarks: '',
-  weight: '',
-  activeWeight: '',
-  softCopyFiling: 'Ya',
-  hardCopyFiling: '',
-  planDistribution: '',
-  actualDistribution: '',
-  distributedTo: '',
-  user: '',
-};
-
 export const RepositoryModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
@@ -182,23 +165,12 @@ export const RepositoryModule: React.FC = () => {
   const [category, setCategory] = useState<DocumentItem['category']>('SOP');
   const [smkpElement, setSmkpElement] = useState('Elemen IV: Pengendalian Operasional');
   const [summary, setSummary] = useState('');
-  const [department, setDepartment] = useState('HSE');
-  const [revisionStatus, setRevisionStatus] = useState<DocumentControlMetadata['revisionStatus']>('0');
-  const [approvalDate, setApprovalDate] = useState(new Date().toISOString().slice(0, 10));
-  const [remarks, setRemarks] = useState('');
-  const [weight, setWeight] = useState('');
-  const [activeWeight, setActiveWeight] = useState('');
-  const [softCopyFiling, setSoftCopyFiling] = useState('Ya');
-  const [hardCopyFiling, setHardCopyFiling] = useState('');
-  const [planDistribution, setPlanDistribution] = useState('');
-  const [actualDistribution, setActualDistribution] = useState('');
-  const [distributedTo, setDistributedTo] = useState('');
-  const [documentUser, setDocumentUser] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [registerPreview, setRegisterPreview] = useState<DocumentRegisterPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [generatingForm, setGeneratingForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -445,6 +417,30 @@ export const RepositoryModule: React.FC = () => {
       setErrorMessage(getErrorMessage(error));
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (doc: DocumentItem) => {
+    if (!currentUser?.name || doc.owner !== currentUser.name) {
+      setErrorMessage('Penghapusan hanya dapat dilakukan oleh pengguna yang mengunggah dokumen ini.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Hapus dokumen ${doc.docNumber} — ${doc.title}? Formulir digital terkait juga dihapus. Riwayat pemeriksaan yang sudah selesai tetap dipertahankan.`
+    );
+    if (!confirmed) return;
+
+    resetMessages();
+    setDeleting(true);
+    try {
+      await hdosDB.delete('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+      await store.deleteDocument(doc.id);
+      setSelectedDoc(store.documents.find((item) => item.id !== doc.id) || null);
+      setSuccessMessage(`Dokumen ${doc.docNumber} berhasil dihapus oleh pengunggahnya.`);
+    } catch (error) {
+      setErrorMessage(`Dokumen gagal dihapus: ${getErrorMessage(error)}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
