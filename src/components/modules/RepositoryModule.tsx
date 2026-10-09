@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FolderGit2,
   Plus,
@@ -79,6 +79,33 @@ export const RepositoryModule: React.FC = () => {
   const selectedForm = selectedDoc
     ? store.getFormDefinitionByDocumentId(selectedDoc.id)
     : undefined;
+
+  // Repair documents uploaded by the earlier flow: a PUBLISHED form means
+  // the source document should also be EFFECTIVE in Repository.
+  useEffect(() => {
+    let cancelled = false;
+    const reconcilePublishedDocuments = async () => {
+      for (const doc of store.documents) {
+        const form = store.getFormDefinitionByDocumentId(doc.id);
+        if (form?.status === 'PUBLISHED' && doc.status !== 'EFFECTIVE') {
+          try {
+            const updated = await store.updateDocument(doc.id, {
+              status: 'EFFECTIVE',
+              effectiveDate: form.effectiveDate || new Date().toISOString().slice(0, 10),
+              summary: doc.summary === 'Dokumen menunggu pemeriksaan dan persetujuan.'
+                ? 'Telah divalidasi KTT sebelum diunggah; formulir digital telah diterbitkan.'
+                : doc.summary,
+            });
+            if (!cancelled && selectedDoc?.id === updated.id) setSelectedDoc(updated);
+          } catch (error) {
+            console.error('[RepositoryModule] Gagal menyelaraskan status dokumen terbit:', error);
+          }
+        }
+      }
+    };
+    void reconcilePublishedDocuments();
+    return () => { cancelled = true; };
+  }, [store, store.documents, store.formDefinitions, selectedDoc?.id]);
 
   const filteredDocs = store.documents.filter((doc) => {
     const matchCategory = activeCategory === 'ALL' || doc.category === activeCategory;
@@ -165,13 +192,13 @@ export const RepositoryModule: React.FC = () => {
         title: title.trim(),
         category,
         owner: currentUser?.name || 'Pengguna HDOS',
-        status: 'DRAFT',
-        effectiveDate: '',
+        status: 'EFFECTIVE',
+        effectiveDate: new Date().toISOString().slice(0, 10),
         fileType,
         size: formatFileSize(selectedFile.size),
         downloadCount: 0,
         smkpElement: smkpElement.trim() || 'Belum ditentukan',
-        summary: summary.trim() || 'Dokumen menunggu pemeriksaan dan persetujuan.',
+        summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah.',
       });
 
       const storedFile: StoredDocumentFile = {
@@ -193,7 +220,13 @@ export const RepositoryModule: React.FC = () => {
       if (fileInputRef.current) fileInputRef.current.value = '';
       const formCreated = await handleGenerateForm(newDoc);
       if (formCreated) {
-        setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah dan langsung dibuat menjadi formulir digital berstatus PUBLISHED.`);
+        const effectiveDoc = await store.updateDocument(newDoc.id, {
+          status: 'EFFECTIVE',
+          effectiveDate: new Date().toISOString().slice(0, 10),
+          summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah; formulir digital telah diterbitkan.',
+        });
+        setSelectedDoc(effectiveDoc);
+        setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah, formulir digital dibuat dan diterbitkan, serta status dokumen menjadi EFFECTIVE.`);
       } else {
         setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah, tetapi formulir otomatis belum dapat dibuat. Periksa pesan kesalahan dan format/isi dokumen.`);
       }
@@ -555,6 +588,41 @@ export const RepositoryModule: React.FC = () => {
                     <strong className="text-white tabular-nums">{selectedDoc.downloadCount} kali</strong>
                   </div>
                 </div>
+
+                {selectedForm && (
+                  <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Isi Formulir Digital</h3>
+                        <p className="text-[10px] text-neutral-400 mt-1">{selectedForm.formNumber || selectedForm.id} · Revisi {selectedForm.revision || '1'}</p>
+                      </div>
+                      <span className={`rounded px-2 py-1 text-[10px] font-bold ${selectedForm.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200'}`}>{selectedForm.status}</span>
+                    </div>
+                    <p className="text-xs font-semibold text-neutral-100">{selectedForm.title}</p>
+                    {selectedForm.fields.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedForm.fields.map((field, index) => (
+                          <div key={field.id} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
+                            <p className="text-xs font-medium text-white">{index + 1}. {field.label}</p>
+                            {field.description && <p className="text-[10px] text-neutral-400 mt-1">{field.description}</p>}
+                            {field.options && field.options.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {field.options.map((option) => (
+                                  <span key={option.value} className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-neutral-300">{option.label}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-200">Formulir belum memiliki pertanyaan. Form ini perlu dibuat ulang dari dokumen yang teksnya dapat dibaca.</p>
+                    )}
+                    {selectedForm.status === 'PUBLISHED' && (
+                      <p className="text-[10px] text-emerald-300">Berlaku sejak {selectedForm.effectiveDate || selectedDoc.effectiveDate || 'tanggal belum tercatat'}.</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 font-mono flex items-center gap-2">
                   <Shield className="w-4 h-4 text-[#A855F7] shrink-0" />
