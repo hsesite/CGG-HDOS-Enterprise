@@ -1021,63 +1021,6 @@ export const RepositoryModule: React.FC = () => {
                 />
               </div>
 
-              <div className="rounded-xl border border-[#42A5F5]/25 bg-[#42A5F5]/5 p-3 space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-white">SMKP Document Control Register</h4>
-                  <p className="text-[10px] text-neutral-400 mt-1">Level dokumen dan jenis dokumen ditentukan otomatis dari kategori serta judul. Kolom register mengikuti lembar kontrol dokumen yang diberikan.</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="text-neutral-300">Departemen
-                    <input value={department} onChange={(e) => setDepartment(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">Level Dokumen (otomatis)
-                    <input readOnly value={inferredLevel} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/20 border border-white/10 text-sky-200" />
-                  </label>
-                  <label className="text-neutral-300">Jenis Dokumen (otomatis)
-                    <input readOnly value={inferredType} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/20 border border-white/10 text-sky-200" />
-                  </label>
-                  <label className="text-neutral-300">Status Revisi (0–4)
-                    <select value={revisionStatus} onChange={(e) => setRevisionStatus(e.target.value as DocumentControlMetadata['revisionStatus'])} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
-                      {['0','1','2','3','4'].map((v) => <option key={v} value={v} className="bg-neutral-900">{v}</option>)}
-                    </select>
-                  </label>
-                  <label className="text-neutral-300">Tanggal Pengesahan
-                    <input type="date" value={approvalDate} onChange={(e) => setApprovalDate(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">Keterangan
-                    <input value={remarks} onChange={(e) => setRemarks(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">WEIGHT
-                    <input value={weight} onChange={(e) => setWeight(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">ACT WEIGHT
-                    <input value={activeWeight} onChange={(e) => setActiveWeight(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">Dokumen Filling — Soft Copy
-                    <select value={softCopyFiling} onChange={(e) => setSoftCopyFiling(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
-                      <option value="Ya" className="bg-neutral-900">Ya</option><option value="Tidak" className="bg-neutral-900">Tidak</option>
-                    </select>
-                  </label>
-                  <label className="text-neutral-300">Dokumen Filling — Hard Copy
-                    <select value={hardCopyFiling} onChange={(e) => setHardCopyFiling(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
-                      <option value="" className="bg-neutral-900">Belum diisi</option><option value="Ya" className="bg-neutral-900">Ya</option><option value="Tidak" className="bg-neutral-900">Tidak</option>
-                    </select>
-                  </label>
-                  <label className="text-neutral-300">Plan MP
-                    <input value={planDistribution} onChange={(e) => setPlanDistribution(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">Actual Distribusi
-                    <input value={actualDistribution} onChange={(e) => setActualDistribution(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">Nama MP Terdistribusi
-                    <input value={distributedTo} onChange={(e) => setDistributedTo(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                  <label className="text-neutral-300">User
-                    <input value={documentUser} onChange={(e) => setDocumentUser(e.target.value)} placeholder={currentUser?.name || 'Pengguna HDOS'} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
-                  </label>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-neutral-300 mb-1 font-medium">Berkas Dokumen * (PDF, DOCX, XLSX; maks. 15 MB)</label>
                 <input
@@ -1109,6 +1052,53 @@ export const RepositoryModule: React.FC = () => {
                 <p className="mt-1 text-[10px] text-neutral-500">
                   Berkas disimpan di penyimpanan browser pada perangkat ini. Belum otomatis tersinkron ke perangkat lain.
                 </p>
+              </div>
+
+              <div className="rounded-xl border border-[#42A5F5]/25 bg-[#42A5F5]/5 p-3 space-y-3">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Pratinjau Register SMKP — hasil pembacaan otomatis</h4>
+                  <p className="text-[10px] text-neutral-400 mt-1">Kolom tidak ditemukan pada file akan ditandai "-". Tidak perlu mengisi kolom register secara manual.</p>
+                </div>
+                {previewLoading ? (
+                  <div className="flex items-center gap-2 text-sky-200 text-xs"><span className="animate-spin">◌</span> Membaca isi file dan kolom register...</div>
+                ) : registerPreview ? (
+                  <>
+                    {duplicateRegisterDocument && (
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-2.5 text-[11px] text-red-200">
+                        <strong>Dokumen dan revisi kemungkinan sudah terdaftar.</strong>
+                        <p className="mt-1">Terdaftar sebagai {duplicateRegisterDocument.docNumber}, revisi {duplicateRegisterDocument.documentControl?.revisionStatus || '-'}: {duplicateRegisterDocument.title}. Unggahan dengan nomor/revisi yang sama akan ditolak.</p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {([
+                        ['DEPARTEMEN', registerPreview.documentControl.department],
+                        ['NO', registerPreview.documentControl.registerNo],
+                        ['LEVEL DOKUMEN', registerPreview.documentControl.documentLevel],
+                        ['JENIS DOKUMEN', registerPreview.documentControl.documentType],
+                        ['DOKUMEN', title.trim() || '-'],
+                        ['NOMOR', registerPreview.documentControl.sourceDocumentNumber],
+                        ['STATUS REVISI', registerPreview.documentControl.revisionStatus],
+                        ['TANGGAL PENGESAHAN', registerPreview.documentControl.approvalDate],
+                        ['KETERANGAN', registerPreview.documentControl.remarks],
+                        ['WEIGHT', registerPreview.documentControl.weight],
+                        ['ACT WEIGHT', registerPreview.documentControl.activeWeight],
+                        ['DOKUMEN FILLING — SOFT COPY', registerPreview.documentControl.softCopyFiling],
+                        ['DOKUMEN FILLING — HARD COPY', registerPreview.documentControl.hardCopyFiling],
+                        ['PLAN MP', registerPreview.documentControl.planDistribution],
+                        ['ACTUAL DISTRIBUSI', registerPreview.documentControl.actualDistribution],
+                        ['NAMA MP TERDISTRIBUSI', registerPreview.documentControl.distributedTo],
+                        ['USER', registerPreview.documentControl.user],
+                      ] as Array<[string, string]>).map(([label, value]) => (
+                        <div key={label} className="min-w-0 rounded-md border border-white/10 bg-black/20 p-2">
+                          <p className="text-[9px] text-neutral-500">{label}</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-neutral-100 break-words">{value || '-'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-neutral-400">Pilih file untuk membaca otomatis kolom register sebelum dokumen disimpan.</p>
+                )}
               </div>
 
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[10px] text-amber-100 flex gap-2">
