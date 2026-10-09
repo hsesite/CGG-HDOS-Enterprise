@@ -303,37 +303,31 @@ export class HDOSSyncEngine {
     });
   }
   async retryFailedItems(): Promise<number> {
-let resetCount = 0;
+    let resetCount = 0;
 
-```
-for (const item of this.queue) {
-  if (item.retryCount >= MAX_RETRIES) {
-    item.retryCount = 0;
-    item.status = 'PENDING';
-    item.error = undefined;
+    for (const item of this.queue) {
+      if (item.retryCount >= MAX_RETRIES) {
+        item.retryCount = 0;
+        item.status = 'PENDING';
+        item.error = undefined;
 
-    await hdosDB.put('queue', item);
-    resetCount += 1;
+        await hdosDB.put('queue', item);
+        resetCount += 1;
+      }
+    }
+
+    if (resetCount > 0) {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: `${resetCount} item gagal diaktifkan kembali untuk retry manual.`,
+        type: 'info',
+      });
+
+      hdosEvents.emit('sync:queue_updated', [...this.queue]);
+    }
+
+    return resetCount;
   }
-}
-
-if (resetCount > 0) {
-  this.syncLogs.unshift({
-    time: formatTime(),
-    message: `${resetCount} item gagal diaktifkan kembali untuk retry manual.`,
-    type: 'info',
-  });
-
-  hdosEvents.emit(
-    'sync:queue_updated',
-    [...this.queue]
-  );
-}
-
-return resetCount;
-```
-
-}
 
   async triggerSync(): Promise<boolean> {
     if (this.isSyncing) {
