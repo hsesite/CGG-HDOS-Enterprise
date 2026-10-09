@@ -52,7 +52,7 @@ export const InspectionModule: React.FC = () => {
   const [selectedRepositoryFormId, setSelectedRepositoryFormId] = useState<string>('');
   const [repositoryAnswers, setRepositoryAnswers] = useState<Record<string, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({});
 
-  const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId);
+  const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId) || { id: 'APAR' as const, title: '', category: '', smkpElement: '', items: [] };
   const publishedRepositoryForms = store.formDefinitions.filter((form) => form.status === 'PUBLISHED' && form.fields.length > 0);
   const selectedRepositoryForm: FormDefinition | undefined = publishedRepositoryForms.find((form) => form.id === selectedRepositoryFormId);
 
@@ -186,7 +186,7 @@ export const InspectionModule: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTemplate) return;
+    if (TEMPLATES.length === 0) return;
     setSubmitting(true);
 
     const items: InspectionItem[] = currentTemplate.items.map((item, idx) => ({
