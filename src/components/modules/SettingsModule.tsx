@@ -18,6 +18,9 @@ export const SettingsModule: React.FC = () => {
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
   const [accountLoading, setAccountLoading] = useState(false);
   const user = getCurrentUser();
+  if (!user || (!user.roles.includes('KTT') && !user.roles.includes('Project Manager'))) {
+    return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Pengelolaan master data hanya untuk akun dengan role KTT atau Project Manager. Pengaturan akun server tetap dibatasi untuk KTT.</p></div>;
+  }
 
   async function loadAccounts() {
     setAccountLoading(true);
