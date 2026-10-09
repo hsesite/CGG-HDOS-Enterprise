@@ -1128,7 +1128,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[10px] text-amber-100 flex gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Dokumen baru akan berstatus DRAFT. Jangan menganggapnya sebagai dokumen berlaku sebelum ditinjau dan disetujui.</span>
+                <span>Sistem membaca register otomatis, memeriksa nomor dan revisi duplikat, lalu menyimpan dokumen dan membuat formulir digital. Pastikan pratinjau register sesuai isi file sebelum mengunggah.</span>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -1145,7 +1145,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   className="px-5 py-2 rounded-xl bg-[#A855F7] hover:bg-purple-600 disabled:opacity-50 text-white font-bold cursor-pointer shadow-md flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
-                  {submitting ? 'Menyimpan dokumen...' : 'Unggah & Daftarkan sebagai Draft'}
+                  {submitting ? 'Menyimpan dokumen...' : 'Unggah & Buat Formulir Digital'}
                 </button>
               </div>
             </form>
