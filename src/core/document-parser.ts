@@ -9,6 +9,8 @@ export interface ExtractedChecklistItem {
   question: string;
   standardRef: string;
   criticality: 'CRITICAL' | 'MAJOR' | 'MINOR';
+  section?: 'GENERAL' | 'HD_CMT' | 'FUEL_LUBE' | 'WATER_TRUCK';
+  hazardCode?: string;
 }
 
 export interface ExtractedDocumentContent {
@@ -178,29 +180,45 @@ export async function extractChecklistItemsFromDocument(
       const parsed = new DOMParser().parseFromString(result.value || '', 'text/html');
       const tables = Array.from(parsed.querySelectorAll('table'));
       const allRows: ExtractedChecklistItem[] = [];
+      let currentSection: ExtractedChecklistItem['section'] = 'GENERAL';
 
       for (const table of tables) {
+        // Mammoth preserves section titles as paragraphs immediately before tables.
+        let previous = table.previousElementSibling;
+        const nearbyHeadings: string[] = [];
+        for (let step = 0; previous && step < 5; step += 1) {
+          const text = normalizeText(previous.textContent || '');
+          if (text) nearbyHeadings.unshift(text);
+          previous = previous.previousElementSibling;
+        }
+        const context = nearbyHeadings.join(' ').toLocaleLowerCase('id-ID');
+        if (/tambahan khusus heavy dump truck|heavy dump truck/.test(context)) currentSection = 'HD_CMT';
+        else if (/tambahan khusus fuel truck|fuel truck|lube truck/.test(context)) currentSection = 'FUEL_LUBE';
+        else if (/tambahan khusus water truck|water truck/.test(context)) currentSection = 'WATER_TRUCK';
+
         const rows = Array.from(table.querySelectorAll('tr')).map((row) =>
           Array.from(row.querySelectorAll('th, td')).map((cell) =>
             normalizeText(cell.textContent || '')
           )
         );
-        const headerIndex = rows.findIndex((row) => {
+        // The source has two-row merged headers ("Kondisi"/"Hasil" then OK/Not OK).
+        const headerIndex = rows.findIndex((row, index) => {
           const header = row.join(' ').toLocaleLowerCase('id-ID');
-          return /hal yang diperiksa|item yang diperiksa|checklist pemeriksaan/.test(header)
-            && /tingkat risiko|tingkat resiko|kondisi aktual|keterangan/.test(header);
+          const combinedHeader = (header + ' ' + (rows[index + 1] || []).join(' ')).toLocaleLowerCase('id-ID');
+          return /hal[- ]?hal yang diperiksa|hal yang diperiksa|item yang diperiksa|checklist pemeriksaan/.test(combinedHeader)
+            && /kode bahaya|tingkat risiko|tingkat resiko|kondisi|hasil|keterangan/.test(combinedHeader);
         });
         if (headerIndex < 0) continue;
 
         const header = rows[headerIndex].join(' ').toLocaleLowerCase('id-ID');
         const questionIndex = rows[headerIndex].findIndex((cell) =>
-          /hal yang diperiksa|item yang diperiksa|checklist pemeriksaan/i.test(cell)
+          /hal[- ]?hal yang diperiksa|hal yang diperiksa|item yang diperiksa|checklist pemeriksaan/i.test(cell)
         );
         const numberIndex = rows[headerIndex].findIndex((cell) =>
           /^(no\.?|nomor)$/i.test(cell.trim())
         );
-        const riskIndex = rows[headerIndex].findIndex((cell) =>
-          /tingkat risiko|tingkat resiko/i.test(cell)
+        const hazardIndex = rows[headerIndex].findIndex((cell) =>
+          /kode bahaya|tingkat risiko|tingkat resiko/i.test(cell)
         );
         if (questionIndex < 0) continue;
 
@@ -208,21 +226,21 @@ export async function extractChecklistItemsFromDocument(
           const question = row[questionIndex]?.trim() || '';
           const numberCell = numberIndex >= 0 ? row[numberIndex]?.trim() || '' : '';
           if (!question || question.length < 8 || question.length > 1500) continue;
-          if (/^(hal yang diperiksa|item yang diperiksa|checklist pemeriksaan|kondisi aktual|tingkat risiko|tingkat resiko|keterangan)$/i.test(question)) continue;
-          // Skip obvious repeated header rows, but do not require a sequence number:
-          // Word tables often merge or omit the number cell for wrapped statements.
-          if (/^(no\.?|nomor)$/i.test(numberCell) || /hal yang diperiksa|tingkat risiko|kondisi aktual/i.test(question)) continue;
+          if (/^(hal[- ]?hal yang diperiksa|item yang diperiksa|checklist pemeriksaan|kondisi aktual|tingkat risiko|tingkat resiko|kode bahaya|keterangan|hasil)$/i.test(question)) continue;
+          if (/^(no\.?|nomor)$/i.test(numberCell)) continue;
 
-          const riskText = riskIndex >= 0 ? (row[riskIndex] || '') : '';
+          const hazardCode = hazardIndex >= 0 ? (row[hazardIndex] || '').trim() : '';
           const criticality: ExtractedChecklistItem['criticality'] =
-            /^(extreme|e)$/i.test(riskText.trim()) ? 'CRITICAL'
-              : /^(high|h)$/i.test(riskText.trim()) ? 'MAJOR'
-                : /^(moderate|medium|m)$/i.test(riskText.trim()) ? 'MAJOR'
+            /^(extreme|e)$/i.test(hazardCode) ? 'CRITICAL'
+              : /^(high|h|aa)$/i.test(hazardCode) ? 'MAJOR'
+                : /^(moderate|medium|m|a|b)$/i.test(hazardCode) ? 'MINOR'
                   : inferCriticality(question);
           allRows.push({
             question: cleanCandidate(question),
             standardRef: inferStandardRef(question),
             criticality,
+            section: currentSection || 'GENERAL',
+            hazardCode: /^[a-z]{1,3}$/i.test(hazardCode) ? hazardCode : undefined,
           });
         }
       }
@@ -230,8 +248,8 @@ export async function extractChecklistItemsFromDocument(
       if (allRows.length > 0) {
         const seen = new Set<string>();
         return allRows.filter((item) => {
-          const key = item.question.toLocaleLowerCase('id-ID').replace(/\s+/g, ' ').trim();
-          if (!key || seen.has(key)) return false;
+          const key = `${item.section || 'GENERAL'}:${item.question.toLocaleLowerCase('id-ID').replace(/\s+/g, ' ').trim()}`;
+          if (!item.question || seen.has(key)) return false;
           seen.add(key);
           return true;
         });
