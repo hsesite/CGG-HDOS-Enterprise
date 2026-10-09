@@ -46,7 +46,7 @@ export interface Inspection {
   smkpElement: string;
   scorePercent: number;
   items: InspectionItem[];
-  gpsCoordinates: {
+  gpsCoordinates?: {
     lat: number;
     lng: number;
     utm: string;
