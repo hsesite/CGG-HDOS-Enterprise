@@ -182,7 +182,15 @@ export const SyncModule: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-white font-medium mt-1 truncate max-w-xs">
-                      {item.payload?.title || item.payload?.code || item.payload?.findingDescription}
+                      {(() => {
+                        const payload = item.payload && typeof item.payload === 'object' && !Array.isArray(item.payload)
+                          ? item.payload as Record<string, unknown>
+                          : {};
+                        const label = payload.title ?? payload.code ?? payload.findingDescription;
+                        return typeof label === 'string' && label.trim()
+                          ? label
+                          : 'Data antrean';
+                      })()}
                     </div>
                   </div>
 
