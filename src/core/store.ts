@@ -403,21 +403,20 @@ export class HDOSCentralStore {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
-    let picaCreated: PICA | null = null;
 
-    if (failedItems.length > 0) {
+    // Create one PICA for every failed checklist item so no finding is lost.
+    for (const failedItem of failedItems) {
       const picaCount = this.picas.length + 1;
-      const picaCode = `PICA-2026-${String(picaCount).padStart(3, '0')}`;
-      const firstFail = failedItems[0];
-
-      picaCreated = {
-        id: createEntityId(),
+      const picaCode = `PICA-${new Date().getFullYear()}-${String(picaCount).padStart(3, '0')}`;
+      const picaId = createEntityId();
+      const picaCreated: PICA = {
+        id: picaId,
         code: picaCode,
         source: 'INSPECTION',
         sourceRefCode: code,
-        findingDescription: `Temuan: ${firstFail.question}`,
-        correctiveAction: `Penuhi standar ${firstFail.standardRef}`,
-        preventiveAction: 'Re-evaluasi kepatuhan prosedur',
+        findingDescription: `Temuan: ${failedItem.question}${failedItem.notes ? ` — ${failedItem.notes}` : ''}`,
+        correctiveAction: `Penuhi standar ${failedItem.standardRef || 'sesuai dokumen sumber'} dan verifikasi ulang sebelum pekerjaan dilanjutkan.`,
+        preventiveAction: 'Evaluasi akar penyebab dan perbarui pengendalian agar ketidaksesuaian tidak berulang.',
         picDepartment: 'Operations',
         picName: 'PIC Terkait',
         targetDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
@@ -427,7 +426,7 @@ export class HDOSCentralStore {
         createdAt: now,
       };
 
-      firstFail.picaId = picaCreated.id;
+      failedItem.picaId = picaId;
       this.picas.unshift(picaCreated);
       await hdosDB.put('pica', picaCreated);
       hdosEvents.emit('pica:created', picaCreated);
