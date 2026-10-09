@@ -62,7 +62,8 @@ const REGISTER_MISSING = '-';
 const readRegisterValue = (text: string, patterns: RegExp[]): string => {
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    const value = match?.[1]?.replace(/\s+/g, ' ').trim();
+    const captured = match ? match.slice(1).reverse().find((part) => Boolean(part?.trim())) : undefined;
+    const value = captured?.replace(/\s+/g, ' ').trim();
     if (value) return value.replace(/[|;]+$/, '').trim() || REGISTER_MISSING;
   }
   return REGISTER_MISSING;
@@ -168,6 +169,7 @@ export const RepositoryModule: React.FC = () => {
 const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [registerPreview, setRegisterPreview] = useState<DocumentRegisterPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [registerReadWarning, setRegisterReadWarning] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -240,6 +242,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const handleFileChange = async (file: File | null) => {
     resetMessages();
     setRegisterPreview(null);
+    setRegisterReadWarning('');
 
     if (!file) {
       setSelectedFile(null);
@@ -279,8 +282,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       const preview = parseDocumentRegister(extracted.text, file.name, category, autoTitle);
       setRegisterPreview(preview);
     } catch (error) {
-      setRegisterPreview(null);
-      setErrorMessage(`Pembacaan register otomatis gagal: ${getErrorMessage(error)}. Dokumen belum dapat diunggah sampai file bisa dibaca.`);
+      // Keep the source file uploadable even when text extraction is unavailable
+      // (for example, a scanned PDF without OCR); unavailable register cells use '-'.
+      setRegisterPreview(parseDocumentRegister('', file.name, category, autoTitle));
+      setRegisterReadWarning(`Teks dokumen tidak dapat dibaca otomatis (${getErrorMessage(error)}). Kolom yang tidak terbaca ditampilkan sebagai '-'.`);
     } finally {
       setPreviewLoading(false);
     }
@@ -1033,7 +1038,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   type="file"
                   required
                   accept=".pdf,.docx,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  onChange={(event) => handleFileChange(event.target.files?.[0] || null)}
+                  onChange={(event) => void handleFileChange(event.target.files?.[0] || null)}
                   className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-purple-500/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-purple-200 hover:file:bg-purple-500/30"
                 />
                 {selectedFile && (
@@ -1068,6 +1073,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <div className="flex items-center gap-2 text-sky-200 text-xs"><span className="animate-spin">◌</span> Membaca isi file dan kolom register...</div>
                 ) : registerPreview ? (
                   <>
+                    {registerReadWarning && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] text-amber-100">{registerReadWarning}</p>}
                     {duplicateRegisterDocument && (
                       <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-2.5 text-[11px] text-red-200">
                         <strong>Dokumen dan revisi kemungkinan sudah terdaftar.</strong>
@@ -1121,7 +1127,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !selectedFile}
+                  disabled={submitting || !selectedFile || previewLoading || !registerPreview || Boolean(duplicateRegisterDocument)}
                   className="px-5 py-2 rounded-xl bg-[#A855F7] hover:bg-purple-600 disabled:opacity-50 text-white font-bold cursor-pointer shadow-md flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
