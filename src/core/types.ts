@@ -136,9 +136,10 @@ export type DocumentLevel =
 
 export interface DocumentControlMetadata {
   department: string;
-  documentLevel: DocumentLevel;
+  documentLevel: DocumentLevel | '-';
   documentType: string;
-  revisionStatus: '0' | '1' | '2' | '3' | '4';
+  sourceDocumentNumber: string;
+  revisionStatus: string;
   approvalDate: string;
   remarks: string;
   weight: string;
