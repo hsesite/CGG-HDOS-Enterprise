@@ -108,6 +108,16 @@ export const InspectionModule: React.FC = () => {
       const applicableCount = items.filter((item) => item.result !== 'NA').length;
       const scorePercent = applicableCount > 0 ? Math.round((passCount / applicableCount) * 100) : 100;
       const sourceDoc = store.documents.find((doc) => doc.id === selectedRepositoryForm.sourceDocumentId);
+      let gpsCoordinates: Inspection['gpsCoordinates'];
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
+          gpsCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude, utm: '' };
+        } catch {
+          // GPS permission/availability is optional; never substitute fixed demo coordinates.
+          gpsCoordinates = undefined;
+        }
+      }
       const newInspection = await store.addInspection({
         title: selectedRepositoryForm.title,
         templateType: 'WORKSHOP',
@@ -123,11 +133,7 @@ export const InspectionModule: React.FC = () => {
         scorePercent,
         items,
         notes: generalNotes,
-        gpsCoordinates: {
-          lat: -2.9395,
-          lng: 121.9618,
-          utm: '51S 385100 mE 9674800 mN',
-        },
+        ...(gpsCoordinates ? { gpsCoordinates } : {}),
       });
 
       setSuccessMessage(
@@ -297,8 +303,8 @@ export const InspectionModule: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <label className="text-neutral-400">Lokasi pemeriksaan
-                  <select value={location} onChange={(event) => setLocation(event.target.value as MiningArea)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
-                    {store.locations.map((loc) => <option key={loc.id} value={loc.name} className="bg-neutral-900">{loc.name}</option>)}
+                  <select required value={location} onChange={(event) => setLocation(event.target.value as MiningArea)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
+                    <option value="" disabled>Pilih area kerja...</option>{store.locations.map((loc) => <option key={loc.id} value={loc.name} className="bg-neutral-900">{loc.name}</option>)}
                   </select>
                 </label>
                 <label className="text-neutral-400">Inspektur
