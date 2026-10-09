@@ -27,65 +27,7 @@ function createEntityId(): string {
   );
 }
 
-// Seed Data
-const INITIAL_LOCATIONS: MiningLocationGIS[] = [
-  {
-    id: 'loc_pit_jaja',
-    name: 'Pit Jaja KM10',
-    utm: '51S 382900 mE 9672100 mN',
-    lat: -2.9642,
-    lng: 121.9421,
-    description: 'Area penambangan utama pit timur',
-    activeHazards: 0,
-    activeInspections: 0,
-    safetyStatus: 'SAFE',
-    zoneType: 'PIT',
-  },
-  {
-    id: 'loc_siumbatu',
-    name: 'Siumbatu',
-    utm: '51S 391200 mE 9680400 mN',
-    lat: -2.8891,
-    lng: 122.0165,
-    description: 'Pelabuhan jetty pemuatan ore nikel',
-    activeHazards: 0,
-    activeInspections: 0,
-    safetyStatus: 'SAFE',
-    zoneType: 'PORT',
-  },
-  {
-    id: 'loc_workshop',
-    name: 'Workshop',
-    utm: '51S 385100 mE 9674800 mN',
-    lat: -2.9395,
-    lng: 121.9618,
-    description: 'Central Maintenance Workshop',
-    activeHazards: 0,
-    activeInspections: 0,
-    safetyStatus: 'SAFE',
-    zoneType: 'FACILITY',
-  },
-];
-
-const INITIAL_CONTRACTORS: ContractorPassport[] = [
-  {
-    id: 'cont_sls',
-    code: 'SLS',
-    companyName: 'PT Sumber Logistik Sejahtera',
-    picName: 'Hendrik Wijaya',
-    picContact: '+62 811-4456-7890',
-    manpowerCount: 142,
-    equipmentCount: 38,
-    kpiSafetyScore: 94.5,
-    safeHours: 418200,
-    activePicaCount: 0,
-    mcuCompliancePercent: 98.2,
-    inductionRatePercent: 100,
-    status: 'ACTIVE',
-    safetyPassportExpiry: '2027-12-31',
-  },
-];
-
+// Operational master data starts empty. Populate it from Settings after verification.
 const INITIAL_WINDOWS: AppWindow[] = [
   { id: 'dashboard', title: 'HDOS Dashboard', isOpen: true, isMinimized: false, isMaximized: false, zIndex: 10 },
   { id: 'inspection', title: 'Inspection Runtime', isOpen: false, isMinimized: false, isMaximized: false, zIndex: 5 },
@@ -106,20 +48,15 @@ export class HDOSCentralStore {
   public picas: PICA[] = [];
   public documents: DocumentItem[] = [];
   public formDefinitions: FormDefinition[] = [];
-  public contractors: ContractorPassport[] = INITIAL_CONTRACTORS;
-  public locations: MiningLocationGIS[] = INITIAL_LOCATIONS;
+  public contractors: ContractorPassport[] = [];
+  public locations: MiningLocationGIS[] = [];
   public windows: AppWindow[] = INITIAL_WINDOWS;
   public focusedWindowId: WindowId = 'dashboard';
   public isMobileMode: boolean = false;
   public missionControlOpen: boolean = false;
-  public safeHours: number = 1482920;
-  public weather = {
-    temp: 32,
-    humidity: 74,
-    wbgt: 29.4,
-    heatStressLevel: 'MODERATE' as 'NORMAL' | 'MODERATE' | 'HIGH' | 'EXTREME',
-    rainMm: 0,
-    pitStatus: 'OPERATIONAL' as 'OPERATIONAL' | 'STANDBY_RAIN' | 'RESTRICTED',
+  public safeHours: number = 0;
+  public weather: { temp: number | null; humidity: number | null; wbgt: number | null; heatStressLevel: 'NORMAL' | 'MODERATE' | 'HIGH' | 'EXTREME' | null; rainMm: number | null; pitStatus: 'OPERATIONAL' | 'STANDBY_RAIN' | 'RESTRICTED' | null } = {
+    temp: null, humidity: null, wbgt: null, heatStressLevel: null, rainMm: null, pitStatus: null,
   };
   public liveFeed: Array<{ id: string; time: string; category: string; text: string; level: string }> = [];
 
@@ -128,17 +65,23 @@ export class HDOSCentralStore {
 
   async init(): Promise<void> {
   try {
-    const storedIns = await hdosDB.getAll<Inspection>('inspection');
-    if (storedIns.length > 0) this.inspections = storedIns;
+    // One-time cleanup of legacy demo records from this browser. The owner requested a clean start.
+    const cleanupKey = 'cgg_hdos_empty_start_v1';
+    if (localStorage.getItem(cleanupKey) !== 'done') {
+      for (const storeName of ['queue','repository','form-definition','inspection','inspection-draft','hazard','incident','pica','contractor','maps','photos','ai-cache','systemlog'] as const) {
+        const records = await hdosDB.getAll<{ id: string }>(storeName);
+        for (const record of records) await hdosDB.delete(storeName, record.id);
+      }
+      for (const key of ['cgg_hdos_location_master','cgg_hdos_contractor_master','cgg_hdos_safe_hours','cgg_hdos_weather']) localStorage.removeItem(key);
+      localStorage.setItem(cleanupKey, 'done');
+    }
+    this.inspections = await hdosDB.getAll<Inspection>('inspection');
 
-    const storedHaz = await hdosDB.getAll<Hazard>('hazard');
-    if (storedHaz.length > 0) this.hazards = storedHaz;
+    this.hazards = await hdosDB.getAll<Hazard>('hazard');
 
-    const storedPicas = await hdosDB.getAll<PICA>('pica');
-    if (storedPicas.length > 0) this.picas = storedPicas;
+    this.picas = await hdosDB.getAll<PICA>('pica');
 
-    const storedInc = await hdosDB.getAll<Incident>('incident');
-    if (storedInc.length > 0) this.incidents = storedInc;
+    this.incidents = await hdosDB.getAll<Incident>('incident');
 
     // Repository persistence. Remove the known demo seed from older browser databases.
     // Real uploaded documents and their linked forms are preserved.
@@ -149,6 +92,8 @@ export class HDOSCentralStore {
       await hdosDB.delete('photos', 'document-file-doc_1');
     }
     this.documents = storedDocuments.filter((doc) => doc.id !== 'doc_1');
+    this.contractors = await hdosDB.getAll<ContractorPassport>('contractor');
+    this.locations = await hdosDB.getAll<MiningLocationGIS>('maps');
 
     const storedFormDefinitions =
       await hdosDB.getAll<FormDefinition>('form-definition');
@@ -238,6 +183,34 @@ export class HDOSCentralStore {
 
   setMobileMode(isMobile: boolean): void {
     this.isMobileMode = isMobile;
+    this.notify();
+  }
+
+  async addLocation(input: Omit<MiningLocationGIS, 'id' | 'activeHazards' | 'activeInspections' | 'safetyStatus'>): Promise<MiningLocationGIS> {
+    const location: MiningLocationGIS = { ...input, id: createEntityId(), activeHazards: 0, activeInspections: 0, safetyStatus: 'SAFE' };
+    await hdosDB.put('maps', location);
+    this.locations = [...this.locations, location];
+    this.notify();
+    return location;
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    await hdosDB.delete('maps', id);
+    this.locations = this.locations.filter((item) => item.id !== id);
+    this.notify();
+  }
+
+  async addContractor(input: Omit<ContractorPassport, 'id' | 'manpowerCount' | 'equipmentCount' | 'kpiSafetyScore' | 'safeHours' | 'activePicaCount' | 'mcuCompliancePercent' | 'inductionRatePercent'>): Promise<ContractorPassport> {
+    const contractor: ContractorPassport = { ...input, id: createEntityId(), manpowerCount: 0, equipmentCount: 0, kpiSafetyScore: 0, safeHours: 0, activePicaCount: 0, mcuCompliancePercent: 0, inductionRatePercent: 0 };
+    await hdosDB.put('contractor', contractor);
+    this.contractors = [...this.contractors, contractor];
+    this.notify();
+    return contractor;
+  }
+
+  async deleteContractor(id: string): Promise<void> {
+    await hdosDB.delete('contractor', id);
+    this.contractors = this.contractors.filter((item) => item.id !== id);
     this.notify();
   }
 
