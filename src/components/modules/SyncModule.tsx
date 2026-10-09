@@ -14,6 +14,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { hdosSync } from '../../core/sync';
 import { hdosEvents } from '../../core/events';
+import { hseApi } from '../../core/api';
 
 export const SyncModule: React.FC = () => {
   const store = useHDOSStore();
@@ -163,9 +164,19 @@ export const SyncModule: React.FC = () => {
           {queue.length === 0 ? (
             <div className="py-12 text-center text-xs text-neutral-400 space-y-2">
               <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400" />
-              <p>Seluruh entitas inspeksi, bahaya &amp; PICA telah 100% tersinkronisasi ke cloud.</p>
+              <p>Tidak ada item yang sedang menunggu di antrean sinkronisasi.</p>
+              {!hseApi.baseUrl && (
+                <p className="text-[11px] text-amber-300">
+                  Endpoint cloud belum dikonfigurasi. Data lokal belum dapat dianggap tersinkron ke Google Spreadsheet.
+                </p>
+              )}
+              {hseApi.baseUrl && !hseApi.isAuthenticated && (
+                <p className="text-[11px] text-amber-300">
+                  Sesi cloud belum aktif. Antrean kosong tidak membuktikan seluruh data lokal telah tersinkron.
+                </p>
+              )}
               <p className="text-[11px] text-neutral-500">
-                (Untuk menguji antrean offline, aktifkan tombol mode Offline di atas lalu buat data baru).
+                Antrean kosong hanya berarti tidak ada operasi yang menunggu; verifikasi status cloud secara terpisah.
               </p>
             </div>
           ) : (
