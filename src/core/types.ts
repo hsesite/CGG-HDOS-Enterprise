@@ -8,13 +8,7 @@ export type UserRole =
   | 'Contractor PIC'
   | 'Employee';
 
-export type MiningArea =
-  | 'Pit Jaja KM10'
-  | 'Siumbatu'
-  | 'Workshop'
-  | 'Stockpile'
-  | 'Fuel Bay'
-  | 'Haul Road';
+export type MiningArea = string;
 
 export interface UserProfile {
   id: string;
@@ -237,7 +231,8 @@ export type WindowId =
   | 'contractor'
   | 'map'
   | 'ai'
-  | 'sync';
+  | 'sync'
+  | 'settings';
 
 export interface AppWindow {
   id: WindowId;
