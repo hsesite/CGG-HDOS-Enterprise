@@ -825,23 +825,23 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <h3 className="text-xs font-bold text-sky-200">Register SMKP Document Control</h3>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
                     {([
-                      ['Departemen', selectedDoc.documentControl?.department || '—'],
-                      ['No', selectedDoc.docNumber],
+                      ['Departemen', selectedDoc.documentControl?.department || '-'],
+                      ['No', selectedDoc.documentControl?.registerNo || '-'],
                       ['Level Dokumen', selectedDoc.documentControl?.documentLevel || inferDocumentLevel(selectedDoc.category, selectedDoc.title)],
                       ['Jenis Dokumen', selectedDoc.documentControl?.documentType || inferDocumentType(selectedDoc.category, selectedDoc.title)],
-                      ['Dokumen', selectedDoc.title],
-                      ['Nomor', selectedDoc.docNumber],
-                      ['Status Revisi', selectedDoc.documentControl?.revisionStatus ?? String(selectedDoc.revision)],
-                      ['Tanggal Pengesahan', selectedDoc.documentControl?.approvalDate || selectedDoc.effectiveDate || '—'],
-                      ['Keterangan', selectedDoc.documentControl?.remarks || '—'],
-                      ['WEIGHT', selectedDoc.documentControl?.weight || '—'],
-                      ['ACT WEIGHT', selectedDoc.documentControl?.activeWeight || '—'],
-                      ['Filling Soft Copy', selectedDoc.documentControl?.softCopyFiling || '—'],
-                      ['Filling Hard Copy', selectedDoc.documentControl?.hardCopyFiling || '—'],
-                      ['Plan MP', selectedDoc.documentControl?.planDistribution || '—'],
-                      ['Actual Distribusi', selectedDoc.documentControl?.actualDistribution || '—'],
-                      ['Nama MP Terdistribusi', selectedDoc.documentControl?.distributedTo || '—'],
-                      ['User', selectedDoc.documentControl?.user || selectedDoc.owner],
+                      ['Dokumen', selectedDoc.title || '-'],
+                      ['Nomor', selectedDoc.documentControl?.sourceDocumentNumber || '-'],
+                      ['Status Revisi', selectedDoc.documentControl?.revisionStatus || '-'],
+                      ['Tanggal Pengesahan', selectedDoc.documentControl?.approvalDate || '-'],
+                      ['Keterangan', selectedDoc.documentControl?.remarks || '-'],
+                      ['WEIGHT', selectedDoc.documentControl?.weight || '-'],
+                      ['ACT WEIGHT', selectedDoc.documentControl?.activeWeight || '-'],
+                      ['Filling Soft Copy', selectedDoc.documentControl?.softCopyFiling || '-'],
+                      ['Filling Hard Copy', selectedDoc.documentControl?.hardCopyFiling || '-'],
+                      ['Plan MP', selectedDoc.documentControl?.planDistribution || '-'],
+                      ['Actual Distribusi', selectedDoc.documentControl?.actualDistribution || '-'],
+                      ['Nama MP Terdistribusi', selectedDoc.documentControl?.distributedTo || '-'],
+                      ['User', selectedDoc.documentControl?.user || '-'],
                     ] as Array<[string, string]>).map(([label, value]) => (
                       <div key={label} className="min-w-0">
                         <p className="text-neutral-500">{label}</p>
@@ -919,6 +919,18 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <Download className="w-4 h-4" />
                   <span>{downloading ? 'Menyiapkan unduhan...' : `Unduh Dokumen (${selectedDoc.fileType})`}</span>
                 </button>
+
+                {canDeleteSelectedDoc && (
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={() => void handleDeleteDocument(selectedDoc)}
+                    className="w-full py-2 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 text-red-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>{deleting ? 'Menghapus dokumen...' : 'Hapus Dokumen (khusus pengunggah)'}</span>
+                  </button>
+                )}
 
 
 
