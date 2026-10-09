@@ -66,6 +66,8 @@ export type ApiUser = {
   displayName: string;
   roles: string[];
   status?: string;
+  companyCode?: string;
+  parentCompanyCode?: string;
 };
 
 export class ApiError extends Error {
@@ -243,14 +245,8 @@ export const hseApi = {
     return data.user;
   },
 
-  async register(displayName: string, email: string, password: string): Promise<ApiUser> {
-    const data = await request<{ token: string; user: ApiUser }>(
-      'POST',
-      '/api/auth/register',
-      { displayName, email, password }
-    );
-    setToken(data.token);
-    return data.user;
+  async createUser(input: { displayName: string; email: string; password: string; role: 'Admin CGG' | 'Contractor' | 'Subkon'; companyCode?: string; parentCompanyCode?: string }): Promise<ApiUser> {
+    return request<ApiUser>('POST', '/api/users', input);
   },
 
   async loginWithGoogle(credential: string): Promise<ApiUser> {
@@ -267,7 +263,7 @@ export const hseApi = {
     return request<ApiUser[]>('GET', '/api/users');
   },
 
-  async updateUserAccess(id: string, updates: { role?: string; status?: 'ACTIVE' | 'INACTIVE' }): Promise<ApiUser> {
+  async updateUserAccess(id: string, updates: { role?: 'Admin CGG' | 'Contractor' | 'Subkon'; status?: 'ACTIVE' | 'INACTIVE'; companyCode?: string; parentCompanyCode?: string }): Promise<ApiUser> {
     return request<ApiUser>('PATCH', `/api/users/${encodeURIComponent(id)}`, updates);
   },
 
