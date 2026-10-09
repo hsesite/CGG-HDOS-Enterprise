@@ -395,7 +395,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
       const newDoc = await store.addDocument({
         title: title.trim(),
-        docNumber: officialDocumentNumber.trim().replace(/\\s*\\/\\s*/g, '/'),
+        docNumber: officialDocumentNumber.trim().replace(/\s*\/\s*/g, '/'),
         category,
         owner: sessionUser?.displayName || currentUser?.name || 'Pengguna HDOS',
         companyCode: sessionUser?.companyCode || '',
@@ -408,7 +408,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         downloadCount: 0,
         smkpElement: smkpElement.trim() || 'Belum ditentukan',
         summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah.',
-        documentControl: { ...registerPreview.documentControl, sourceDocumentNumber: officialDocumentNumber.trim().replace(/\\s*\\/\\s*/g, '/') },
+        documentControl: { ...registerPreview.documentControl, sourceDocumentNumber: officialDocumentNumber.trim().replace(/\s*\/\s*/g, '/') },
       });
 
       const storedFile: StoredDocumentFile = {
