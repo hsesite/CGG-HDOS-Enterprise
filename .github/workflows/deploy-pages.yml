@@ -40,11 +40,10 @@ jobs:
 
       - name: Build frontend
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-        run: bun run build
-        env:
           GITHUB_PAGES: 'true'
           VITE_GAS_URL: ${{ secrets.VITE_GAS_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+        run: bun run build
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
