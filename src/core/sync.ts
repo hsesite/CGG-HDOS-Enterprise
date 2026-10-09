@@ -418,6 +418,21 @@ export class HDOSSyncEngine {
           continue;
         }
 
+        if (item.action === 'DELETE') {
+          item.status = 'CONFLICT';
+          item.retryCount = MAX_RETRIES;
+          item.error =
+            'Operasi DELETE belum didukung oleh kontrak API cloud. Item ditahan agar tidak mengulang request yang pasti gagal.';
+
+          await hdosDB.put('queue', item);
+          this.syncLogs.unshift({
+            time: formatTime(),
+            message: `Sync DELETE ditahan untuk ${item.entity}; endpoint cloud belum mendukung penghapusan.`,
+            type: 'warning',
+          });
+          continue;
+        }
+
         item.status = 'SYNCING';
 
         await hdosDB.put(
@@ -454,12 +469,6 @@ export class HDOSSyncEngine {
               endpoint,
               recordId,
               item.payload
-            );
-          } else if (
-            item.action === 'DELETE'
-          ) {
-            throw new Error(
-              'DELETE sync belum diaktifkan pada Build v1.0.'
             );
           }
 
