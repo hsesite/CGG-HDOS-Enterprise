@@ -148,7 +148,7 @@ export const DashboardModule: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-neutral-400">
-              Comparing Safe Hours and Active Hazards over the last {timeRange === '7D' ? '7' : timeRange === '14D' ? '14' : '30'} days to visualize operational trends.
+              Tren hanya akan tersedia setelah data aktual dan historis tercatat.
             </p>
           </div>
 
@@ -263,7 +263,7 @@ export const DashboardModule: React.FC = () => {
                             <span className="font-bold text-white text-[12px]">{label} 2026</span>
                           </div>
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-medium">
-                            Pit Jaja KM10
+                            Area belum dipilih
                           </span>
                         </div>
 
@@ -277,7 +277,7 @@ export const DashboardModule: React.FC = () => {
                             <div className="text-[#00E676] font-bold tabular-nums">
                               {Number(safeHoursVal ?? 0).toLocaleString('id-ID')} Jam
                             </div>
-                            <div className="text-[9px] text-neutral-400 font-sans">0 Incident · LTI Free</div>
+                            <div className="text-[9px] text-neutral-400 font-sans">Belum ada data insiden/LTI</div>
                           </div>
                         </div>
 
@@ -293,9 +293,9 @@ export const DashboardModule: React.FC = () => {
                             </div>
                             <div className="text-[9px] font-sans">
                               {Number(hazardsVal ?? 0) <= 2 ? (
-                                <span className="text-emerald-400">Terkendali Baik</span>
+                                <span className="text-neutral-400">Menunggu data</span>
                               ) : (
-                                <span className="text-amber-400">Monitoring Khusus</span>
+                                <span className="text-neutral-400">Menunggu data</span>
                               )}
                             </div>
                           </div>
@@ -304,7 +304,7 @@ export const DashboardModule: React.FC = () => {
                         {/* Tooltip Footer */}
                         <div className="flex items-center justify-between pt-1 text-[10px] text-neutral-400 border-t border-white/5 font-sans">
                           <span>Shift 1 &amp; 2 Terverifikasi</span>
-                          <span className="text-emerald-400 font-mono">100% Safe</span>
+                          <span className="text-neutral-400 font-mono">Belum diverifikasi</span>
                         </div>
                       </div>
                     );
@@ -458,24 +458,24 @@ export const DashboardModule: React.FC = () => {
                 Stasiun Cuaca Pit Jaja KM10
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-medium">
-                {store.weather.pitStatus}
+                {store.weather.pitStatus ?? 'Belum ada data'}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
                 <div className="text-[11px] text-neutral-400">Temperatur Ambien</div>
-                <div className="text-xl font-bold text-white font-mono tabular-nums">{store.weather.temp}°C</div>
-                <div className="text-[10px] text-neutral-400">Kelembapan: {store.weather.humidity}%</div>
+                <div className="text-xl font-bold text-white font-mono tabular-nums">{store.weather.temp == null ? '—' : `${store.weather.temp}°C`}</div>
+                <div className="text-[10px] text-neutral-400">Kelembapan: {store.weather.humidity == null ? '—' : `${store.weather.humidity}%`}</div>
               </div>
               <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
                 <div className="text-[11px] text-amber-300 font-medium">Indeks Panas (WBGT)</div>
-                <div className="text-xl font-bold text-amber-400 font-mono tabular-nums">{store.weather.wbgt}</div>
-                <div className="text-[10px] text-amber-300/80">Kategori: {store.weather.heatStressLevel}</div>
+                <div className="text-xl font-bold text-amber-400 font-mono tabular-nums">{store.weather.wbgt ?? '—'}</div>
+                <div className="text-[10px] text-amber-300/80">Kategori: {store.weather.heatStressLevel ?? 'Belum diisi'}</div>
               </div>
             </div>
             <p className="text-[11px] text-neutral-400 leading-relaxed">
-              Wajib istirahat berkala 10 menit per jam kerja pada area Pit & Haul Road dan sediakan air minum elektrolit di rest shelter.
+              Data cuaca belum terhubung. Terapkan prosedur pengendalian heat stress yang berlaku dan masukkan hasil pengukuran aktual.
             </p>
           </div>
 
