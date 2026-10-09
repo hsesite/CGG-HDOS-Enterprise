@@ -320,6 +320,31 @@ export const RepositoryModule: React.FC = () => {
       setErrorMessage('Format berkas tidak didukung.');
       return;
     }
+    if (previewLoading || !registerPreview) {
+      setErrorMessage('Tunggu sampai pembacaan otomatis semua kolom register selesai sebelum mengunggah.');
+      return;
+    }
+
+    const incomingNumber = registerPreview.sourceDocumentNumber.trim().toLocaleLowerCase('id-ID');
+    const incomingRevision = registerPreview.revisionStatus.trim();
+    const normalizedTitle = title.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+    const duplicate = store.documents.find((doc) => {
+      const existingNumber = (doc.documentControl?.sourceDocumentNumber || REGISTER_MISSING).trim().toLocaleLowerCase('id-ID');
+      const existingRevision = (doc.documentControl?.revisionStatus || REGISTER_MISSING).trim();
+      const sameDocument = incomingNumber !== REGISTER_MISSING && existingNumber !== REGISTER_MISSING
+        ? incomingNumber === existingNumber
+        : doc.title.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID') === normalizedTitle;
+      const sameRevision = incomingRevision !== REGISTER_MISSING && existingRevision !== REGISTER_MISSING
+        ? incomingRevision === existingRevision
+        : true;
+      return sameDocument && sameRevision;
+    });
+    if (duplicate) {
+      setErrorMessage(
+        `Dokumen terdeteksi sudah terdaftar dengan nomor ${duplicate.documentControl?.sourceDocumentNumber && duplicate.documentControl.sourceDocumentNumber !== REGISTER_MISSING ? duplicate.documentControl.sourceDocumentNumber : duplicate.docNumber} dan revisi ${duplicate.documentControl?.revisionStatus || REGISTER_MISSING}. Unggah dibatalkan. Jika ini revisi baru, pastikan nomor dokumen dan nomor revisi pada file sumber sudah terbaca benar.`
+      );
+      return;
+    }
 
     setSubmitting(true);
 
@@ -342,22 +367,7 @@ export const RepositoryModule: React.FC = () => {
         downloadCount: 0,
         smkpElement: smkpElement.trim() || 'Belum ditentukan',
         summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah.',
-        documentControl: {
-          department: department.trim() || 'HSE',
-          documentLevel: inferredLevel,
-          documentType: inferredType,
-          revisionStatus,
-          approvalDate,
-          remarks: remarks.trim(),
-          weight: weight.trim(),
-          activeWeight: activeWeight.trim(),
-          softCopyFiling,
-          hardCopyFiling: hardCopyFiling.trim(),
-          planDistribution: planDistribution.trim(),
-          actualDistribution: actualDistribution.trim(),
-          distributedTo: distributedTo.trim(),
-          user: documentUser.trim() || currentUser?.name || 'Pengguna HDOS',
-        },
+        documentControl: registerPreview.documentControl,
       });
 
       const storedFile: StoredDocumentFile = {
@@ -375,18 +385,7 @@ export const RepositoryModule: React.FC = () => {
       setModalNewDocOpen(false);
       setTitle('');
       setSummary('');
-      setDepartment('HSE');
-      setRevisionStatus('0');
-      setApprovalDate(new Date().toISOString().slice(0, 10));
-      setRemarks('');
-      setWeight('');
-      setActiveWeight('');
-      setSoftCopyFiling('Ya');
-      setHardCopyFiling('');
-      setPlanDistribution('');
-      setActualDistribution('');
-      setDistributedTo('');
-      setDocumentUser('');
+      setRegisterPreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       const formCreated = await handleGenerateForm(newDoc);
