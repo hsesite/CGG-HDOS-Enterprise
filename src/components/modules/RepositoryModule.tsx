@@ -17,6 +17,7 @@ import { useHDOSStore } from '../../core/store';
 import { DocumentItem, FormDefinition, DocumentLevel, DocumentControlMetadata } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
+import type { ApiUser } from '../../core/api';
 import { hdosDB } from '../../core/db';
 import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentPreviewHtml } from '../../core/document-parser';
 
@@ -176,7 +177,7 @@ const inferDocumentType = (category: DocumentItem['category'], title: string): s
 export const RepositoryModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
-  const sessionUser = getSessionUser();
+  const sessionUser = getSessionUser() as ApiUser | null;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
