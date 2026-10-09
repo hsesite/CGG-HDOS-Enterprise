@@ -17,10 +17,8 @@ export const SettingsModule: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
   const [accountLoading, setAccountLoading] = useState(false);
+  const [newAccount, setNewAccount] = useState({displayName:'',email:'',password:'',role:'Contractor' as 'Admin CGG'|'Contractor'|'Subkon',companyCode:'',parentCompanyCode:''});
   const user = getCurrentUser();
-  if (!user || (!user.roles.includes('KTT') && !user.roles.includes('Project Manager'))) {
-    return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Pengelolaan master data hanya untuk akun dengan role KTT atau Project Manager. Pengaturan akun server tetap dibatasi untuk KTT.</p></div>;
-  }
 
   async function loadAccounts() {
     setAccountLoading(true);
@@ -30,6 +28,31 @@ export const SettingsModule: React.FC = () => {
   }
 
   useEffect(() => { if (tab === 'accounts') void loadAccounts(); }, [tab]);
+  
+  if (!user || !user.roles.includes('Admin CGG')) {
+    return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Hanya Admin CGG yang dapat menambahkan akun dan mengatur hak akses kontraktor maupun subkontraktor.</p></div>;
+  }
+
+  async function createAccount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage('');
+    try {
+      await hseApi.createUser({
+        displayName: newAccount.displayName.trim(),
+        email: newAccount.email.trim(),
+        password: newAccount.password,
+        role: newAccount.role,
+        ...(newAccount.role !== 'Admin CGG' ? { companyCode: newAccount.companyCode.trim().toUpperCase() } : {}),
+        ...(newAccount.role === 'Subkon' ? { parentCompanyCode: newAccount.parentCompanyCode.trim().toUpperCase() } : {}),
+      });
+      setNewAccount({displayName:'',email:'',password:'',role:'Contractor',companyCode:'',parentCompanyCode:''});
+      setMessage('Akun berhasil dibuat oleh Admin CGG. Kredensial diberikan langsung kepada pemilik akun.');
+      await loadAccounts();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Akun gagal dibuat.');
+    } finally { setBusy(false); }
+  }
 
   async function updateAccount(id: string, updates: { role?: string; status?: 'ACTIVE' | 'INACTIVE' }) {
     setBusy(true);
@@ -122,9 +145,16 @@ export const SettingsModule: React.FC = () => {
       </div>}
       {tab === 'accounts' && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-3"><Users className="text-[#00E676]"/><div><h3 className="font-semibold text-white">Akun dan hak akses</h3><p className="text-sm text-neutral-400">Sesi saat ini: {user?.displayName || 'Tidak diketahui'}{user?.email ? ` · ${user.email}` : ''}</p></div></div>
-        <div className="flex items-center justify-between gap-3"><p className="text-sm text-neutral-400">Daftar akun dari sheet users. Hanya KTT yang dapat mengubah role atau status akun melalui server.</p><button disabled={accountLoading} onClick={() => void loadAccounts()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{accountLoading ? 'Memuat...' : 'Muat ulang'}</button></div>
-        {accountLoading ? <p className="text-sm text-neutral-400">Memuat akun...</p> : accounts.length === 0 ? <div className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-neutral-400">Tidak ada akun yang dapat ditampilkan. Jika muncul error 403, masuklah dengan akun KTT yang telah diverifikasi. Pastikan endpoint /api/users pada GAS sudah dipasang.</div> : <div className="space-y-3">{accounts.map(account => <div key={account.id} className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 md:grid-cols-[minmax(0,1fr)_180px_130px] md:items-center"><div><div className="font-medium text-white">{account.displayName}</div><div className="text-xs text-neutral-400">{account.email}</div></div><select aria-label={`Role ${account.email}`} disabled={busy} value={account.roles[0] || 'Employee'} onChange={e => void updateAccount(account.id,{role:e.target.value})} className={inputClass}>{['Employee','Contractor PIC','Safety Officer','Paramedis','Foreman Safety','SPV HSE','Project Manager','KTT'].map(role=><option key={role} value={role}>{role}</option>)}</select><button disabled={busy || account.id===user?.id} onClick={() => void updateAccount(account.id,{status:account.status==='ACTIVE'?'INACTIVE':'ACTIVE'})} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${account.status==='ACTIVE'?'border-emerald-400/30 text-emerald-300':'border-red-400/30 text-red-300'}`}>{account.status==='ACTIVE'?'Aktif · Nonaktifkan':'Nonaktif · Aktifkan'}</button></div>)}</div>}
-        <p className="text-xs text-neutral-500">Pendaftaran publik selalu mendapat role Employee. Jangan memberikan role administrator kecuali melalui kontrol KTT.</p>
+        <div className="flex items-center justify-between gap-3"><p className="text-sm text-neutral-400">Hanya Admin CGG yang boleh membuat akun, menetapkan jenis akun, dan mengatur status.</p><button disabled={accountLoading} onClick={() => void loadAccounts()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{accountLoading ? 'Memuat...' : 'Muat ulang'}</button></div>
+        <form onSubmit={createAccount} className="grid gap-3 rounded-xl border border-[#00E676]/20 bg-[#00E676]/5 p-4">
+          <h4 className="font-semibold text-white">Tambah akun baru</h4>
+          <div className="grid gap-3 md:grid-cols-2"><input required minLength={2} className={inputClass} placeholder="Nama karyawan / PIC" value={newAccount.displayName} onChange={e=>setNewAccount({...newAccount,displayName:e.target.value})}/><input required type="email" className={inputClass} placeholder="Email akun" value={newAccount.email} onChange={e=>setNewAccount({...newAccount,email:e.target.value})}/><input required minLength={12} type="password" autoComplete="new-password" className={inputClass} placeholder="Password awal (minimal 12 karakter)" value={newAccount.password} onChange={e=>setNewAccount({...newAccount,password:e.target.value})}/><select className={inputClass} value={newAccount.role} onChange={e=>setNewAccount({...newAccount,role:e.target.value as typeof newAccount.role})}><option value="Admin CGG">Admin CGG</option><option value="Contractor">Kontraktor</option><option value="Subkon">Subkontraktor</option></select></div>
+          {newAccount.role !== 'Admin CGG' && <input required className={inputClass} placeholder={newAccount.role==='Contractor'?'Kode perusahaan kontraktor (unik)':'Kode perusahaan subkon (unik)'} value={newAccount.companyCode} onChange={e=>setNewAccount({...newAccount,companyCode:e.target.value})}/>}
+          {newAccount.role === 'Subkon' && <input required className={inputClass} placeholder="Kode kontraktor induk (parent)" value={newAccount.parentCompanyCode} onChange={e=>setNewAccount({...newAccount,parentCompanyCode:e.target.value})}/>}
+          <button disabled={busy} className="flex items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-50"><Plus size={16}/>Buat akun</button>
+        </form>
+        {accountLoading ? <p className="text-sm text-neutral-400">Memuat akun...</p> : accounts.length === 0 ? <div className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-neutral-400">Belum ada akun yang dapat ditampilkan. Pastikan endpoint GAS terbaru sudah di-deploy.</div> : <div className="space-y-3">{accounts.map(account => <div key={account.id} className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 md:grid-cols-[minmax(0,1fr)_170px_130px] md:items-center"><div><div className="font-medium text-white">{account.displayName}</div><div className="text-xs text-neutral-400">{account.email}</div><div className="mt-1 text-xs text-neutral-500">{account.companyCode || 'Admin CGG'}{account.parentCompanyCode ? ` · Induk: ${account.parentCompanyCode}` : ''}</div></div><select aria-label={`Jenis akun ${account.email}`} disabled={busy} value={(account.roles[0] as 'Admin CGG'|'Contractor'|'Subkon') || 'Subkon'} onChange={e => void updateAccount(account.id,{role:e.target.value as 'Admin CGG'|'Contractor'|'Subkon'})} className={inputClass}>{['Admin CGG','Contractor','Subkon'].map(role=><option key={role} value={role}>{role}</option>)}</select><button disabled={busy || account.id===user?.id} onClick={() => void updateAccount(account.id,{status:account.status==='ACTIVE'?'INACTIVE':'ACTIVE'})} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${account.status==='ACTIVE'?'border-emerald-400/30 text-emerald-300':'border-red-400/30 text-red-300'}`}>{account.status==='ACTIVE'?'Aktif · Nonaktifkan':'Nonaktif · Aktifkan'}</button></div>)}</div>}
+        <p className="text-xs text-neutral-500">Google Sign-In hanya berlaku bagi email yang sudah didaftarkan Admin CGG. Admin CGG memiliki akses lintas kontraktor; kontraktor dibatasi ke perusahaan sendiri dan subkon terdaftar; subkon hanya ke perusahaannya sendiri.</p>
       </section>}
     </div>
   );
