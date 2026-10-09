@@ -386,7 +386,21 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         uploadedAt: new Date().toISOString(),
       };
 
-      await hdosDB.put('photos', storedFile);
+      try {
+        await hdosDB.put('photos', storedFile);
+      } catch (storageError) {
+        // Roll back the repository record if the original binary could not be saved.
+        // This prevents a document appearing available when its file is missing.
+        try {
+          await store.deleteDocument(newDoc.id);
+        } catch (rollbackError) {
+          console.error(
+            '[RepositoryModule] Gagal membatalkan metadata dokumen setelah penyimpanan berkas gagal:',
+            rollbackError
+          );
+        }
+        throw storageError;
+      }
 
       setSelectedDoc(newDoc);
       setModalNewDocOpen(false);
