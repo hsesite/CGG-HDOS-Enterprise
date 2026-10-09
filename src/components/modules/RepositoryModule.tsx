@@ -95,6 +95,7 @@ const parseDocumentRegister = (
   ]);
   const documentControl: DocumentControlMetadata = {
     department: readRegisterValue(normalized, [/(?:departemen|department|dept\.?)\s*[:：]\s*([^\n]+)/i]),
+    registerNo: REGISTER_MISSING,
     documentLevel,
     documentType: explicitDocumentType !== REGISTER_MISSING ? explicitDocumentType : inferDocumentType(category, title || fileName),
     sourceDocumentNumber,
@@ -148,7 +149,8 @@ const inferDocumentType = (category: DocumentItem['category'], title: string): s
 };
 
 const DEFAULT_DOCUMENT_CONTROL: DocumentControlMetadata = {
-  department: 'HSE',
+  department: REGISTER_MISSING,
+  registerNo: REGISTER_MISSING,
   documentLevel: 'Level 2 - Prosedur',
   documentType: 'Prosedur / SOP',
   revisionStatus: '0',
