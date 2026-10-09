@@ -86,24 +86,6 @@ const INITIAL_CONTRACTORS: ContractorPassport[] = [
   },
 ];
 
-const INITIAL_DOCUMENTS: DocumentItem[] = [
-  {
-    id: 'doc_1',
-    docNumber: 'CGG-HSE-SOP-001',
-    title: 'Standar Operasional Prosedur Pengelolaan Keselamatan',
-    category: 'SOP',
-    revision: 3,
-    owner: 'SPV HSE',
-    status: 'EFFECTIVE',
-    effectiveDate: '2026-01-10',
-    fileType: 'PDF',
-    size: '2.4 MB',
-    downloadCount: 184,
-    smkpElement: 'Elemen I: Kebijakan Keselamatan',
-    summary: 'Pedoman implementasi SMKP',
-  },
-];
-
 const INITIAL_WINDOWS: AppWindow[] = [
   { id: 'dashboard', title: 'HDOS Dashboard', isOpen: true, isMinimized: false, isMaximized: false, zIndex: 10 },
   { id: 'inspection', title: 'Inspection Runtime', isOpen: false, isMinimized: false, isMaximized: false, zIndex: 5 },
@@ -122,7 +104,7 @@ export class HDOSCentralStore {
   public hazards: Hazard[] = [];
   public incidents: Incident[] = [];
   public picas: PICA[] = [];
-  public documents: DocumentItem[] = INITIAL_DOCUMENTS;
+  public documents: DocumentItem[] = [];
   public formDefinitions: FormDefinition[] = [];
   public contractors: ContractorPassport[] = INITIAL_CONTRACTORS;
   public locations: MiningLocationGIS[] = INITIAL_LOCATIONS;
@@ -158,17 +140,23 @@ export class HDOSCentralStore {
     const storedInc = await hdosDB.getAll<Incident>('incident');
     if (storedInc.length > 0) this.incidents = storedInc;
 
-    // Repository persistence
+    // Repository persistence. Remove the known demo seed from older browser databases.
+    // Real uploaded documents and their linked forms are preserved.
     const storedDocuments = await hdosDB.getAll<DocumentItem>('repository');
-    if (storedDocuments.length > 0) {
-      this.documents = storedDocuments;
+    const seededDemoDocument = storedDocuments.find((doc) => doc.id === 'doc_1');
+    if (seededDemoDocument) {
+      await hdosDB.delete('repository', seededDemoDocument.id);
+      await hdosDB.delete('photos', 'document-file-doc_1');
     }
+    this.documents = storedDocuments.filter((doc) => doc.id !== 'doc_1');
+
     const storedFormDefinitions =
-  await hdosDB.getAll<FormDefinition>('form-definition');
-    
-    if (storedFormDefinitions.length > 0) {
-      this.formDefinitions = storedFormDefinitions;
+      await hdosDB.getAll<FormDefinition>('form-definition');
+    const seededDemoForms = storedFormDefinitions.filter((form) => form.sourceDocumentId === 'doc_1');
+    for (const form of seededDemoForms) {
+      await hdosDB.delete('form-definition', form.id);
     }
+    this.formDefinitions = storedFormDefinitions.filter((form) => form.sourceDocumentId !== 'doc_1');
   } catch (err) {
     console.warn('[HDOS Store] IndexedDB fallback', err);
   }
