@@ -50,6 +50,18 @@ const getErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui.';
 };
 
+const checklistSectionLabel = (section?: string): string => {
+  switch (section) {
+    case 'HD_CMT': return 'HD/CMT';
+    case 'FUEL_LUBE': return 'Fuel Truck / Lube Truck';
+    case 'WATER_TRUCK': return 'Water Truck';
+    default: return 'Pemeriksaan Umum';
+  }
+};
+
+const formatChecklistQuestion = (item: { question: string; section?: string }): string =>
+  `[${checklistSectionLabel(item.section)}] ${item.question}`;
+
 const inferDocumentLevel = (category: DocumentItem['category'], title: string): DocumentLevel => {
   const value = title.toLocaleLowerCase('id-ID');
   if (/manual mutu|kebijakan|policy|ruang lingkup perusahaan|kepemilikan aset|bispro|regulasi|tanggung jawab perusahaan/.test(value)) {
@@ -418,8 +430,8 @@ export const RepositoryModule: React.FC = () => {
       const fields = parsed.checklistItems.map((item, index) => ({
         id: `field_${index + 1}`,
         order: index + 1,
-        label: item.question,
-        description: `Tingkat kritikalitas: ${item.criticality}. Referensi: ${item.standardRef}`,
+        label: formatChecklistQuestion(item),
+        description: `Bagian: ${checklistSectionLabel(item.section)}. Kode bahaya: ${item.hazardCode || '—'}. Tingkat kritikalitas: ${item.criticality}. Referensi: ${item.standardRef}`,
         type: 'RADIO' as const,
         options: [
           { value: 'PASS', label: 'Sesuai' },
@@ -432,6 +444,8 @@ export const RepositoryModule: React.FC = () => {
         metadata: {
           criticality: item.criticality,
           standardRef: item.standardRef,
+          section: item.section || 'GENERAL',
+          hazardCode: item.hazardCode || '',
           source: 'document-text-extraction',
           sourceType: extracted.sourceType,
           sourceDocumentName: storedFile.fileName,
@@ -510,14 +524,14 @@ export const RepositoryModule: React.FC = () => {
           );
           if (!items.length) continue;
           const existingLabels = form.fields.map((field) => field.label.trim());
-          const parsedLabels = items.map((item) => item.question.trim());
+          const parsedLabels = items.map((item) => formatChecklistQuestion(item).trim());
           if (existingLabels.length === parsedLabels.length && existingLabels.every((label, index) => label === parsedLabels[index])) continue;
 
           const fields = items.map((item, index) => ({
             id: `field_${index + 1}`,
             order: index + 1,
-            label: item.question,
-            description: `Tingkat kritikalitas: ${item.criticality}. Referensi: ${item.standardRef}`,
+            label: formatChecklistQuestion(item),
+            description: `Bagian: ${checklistSectionLabel(item.section)}. Kode bahaya: ${item.hazardCode || '—'}. Tingkat kritikalitas: ${item.criticality}. Referensi: ${item.standardRef}`,
             type: 'RADIO' as const,
             options: [
               { value: 'PASS', label: 'Sesuai' },
@@ -530,6 +544,8 @@ export const RepositoryModule: React.FC = () => {
             metadata: {
               criticality: item.criticality,
               standardRef: item.standardRef,
+              section: item.section || 'GENERAL',
+              hazardCode: item.hazardCode || '',
               source: 'document-table-extraction',
               sourceType: extracted.sourceType,
               sourceDocumentName: storedFile.fileName,
