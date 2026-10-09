@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { hdosSync } from '../../core/sync';
+import { hseApi } from '../../core/api';
 import { DashboardModule } from '../modules/DashboardModule';
 import { InspectionModule } from '../modules/InspectionModule';
 import { HazardModule } from '../modules/HazardModule';
@@ -59,7 +60,7 @@ export const IOSMobileSimulator: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right font-mono text-[10px] text-neutral-300">
-                  <div>{online ? 'Cloud Sync' : 'Offline Mode'}</div>
+                  <div>{!online ? 'Offline Mode' : hseApi.baseUrl && hseApi.isAuthenticated ? 'Cloud Sync' : 'Online lokal'}</div>
                   <div className="text-amber-400">{queueCount} in queue</div>
                 </div>
               </div>
@@ -71,7 +72,7 @@ export const IOSMobileSimulator: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono">
                   {online ? (
-                    <span className="text-emerald-400">Sync</span>
+                    <span className={hseApi.baseUrl && hseApi.isAuthenticated ? 'text-emerald-400' : 'text-amber-400'}>{hseApi.baseUrl && hseApi.isAuthenticated ? 'Sync' : 'Local'}</span>
                   ) : (
                     <span className="text-amber-400 font-bold">{queueCount}Q</span>
                   )}
