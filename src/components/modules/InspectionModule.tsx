@@ -326,7 +326,17 @@ export const InspectionModule: React.FC = () => {
 
       {activeTab === 'form' ? (
         selectedRepositoryForm ? (
-          <form onSubmit={handleRepositoryFormSubmit} className="space-y-6">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-5 bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Form inspeksi ${selectedRepositoryForm.title}`}>
+            <div className="w-full max-w-5xl max-h-[94vh] overflow-hidden rounded-2xl border border-[#42A5F5]/30 bg-[#111418] shadow-2xl flex flex-col">
+              <div className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-white/10 bg-[#171b21]">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-[#42A5F5] font-bold">Inspection · Formulir Digital</p>
+                  <h2 className="text-sm sm:text-base font-bold text-white truncate">{selectedRepositoryForm.title}</h2>
+                  <p className="text-[10px] text-neutral-400">{selectedRepositoryForm.formNumber || selectedRepositoryForm.id} · {selectedRepositoryForm.fields.length} pertanyaan</p>
+                </div>
+                <button type="button" onClick={() => setSelectedRepositoryFormId('')} className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white">Tutup ✕</button>
+              </div>
+              <form onSubmit={handleRepositoryFormSubmit} className="min-h-0 overflow-y-auto p-3 sm:p-5 space-y-4">
             <div className="apple-glass-card p-5 rounded-2xl space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -334,7 +344,7 @@ export const InspectionModule: React.FC = () => {
                   <h3 className="text-base font-bold text-white mt-1">{selectedRepositoryForm.title}</h3>
                   <p className="text-xs text-neutral-400 mt-1">{selectedRepositoryForm.formNumber || selectedRepositoryForm.id} · {selectedRepositoryForm.fields.length} pertanyaan</p>
                 </div>
-                <button type="button" onClick={() => setSelectedRepositoryFormId('')} className="px-3 py-1.5 rounded-lg bg-white/10 text-xs text-white">Kembali</button>
+                <span className="text-[10px] text-emerald-300 font-semibold">PUBLISHED · Siap diperiksa</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <label className="text-neutral-400">Lokasi pemeriksaan
@@ -379,7 +389,9 @@ export const InspectionModule: React.FC = () => {
                 <Save className="inline w-4 h-4 mr-2" />{submitting ? 'Menyimpan pemeriksaan...' : 'Simpan Pemeriksaan & Proses Temuan'}
               </button>
             </div>
-          </form>
+              </form>
+            </div>
+          </div>
         ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="apple-glass-card p-4 rounded-2xl space-y-3">
