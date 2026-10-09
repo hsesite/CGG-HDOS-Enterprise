@@ -216,7 +216,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [reviewCriticalityConfirmed, setReviewCriticalityConfirmed] = useState(false);
   const [, setFormRefreshKey] = useState(0);
 
-  const categories = ['ALL', 'SOP', 'JSA', 'WI', 'IBPR', 'Kebijakan', 'Form', 'Memo', 'Work Permit', 'Lainnya', 'Inspection', 'Incident', 'PICA', 'Contractor'];
+  const categories = ['ALL', 'SOP', 'JSA', 'WI', 'IBPR', 'Kebijakan', 'Form', 'Memo', 'Work Permit', 'Lainnya'];
   const selectedForm = selectedDoc
     ? store.getFormDefinitionByDocumentId(selectedDoc.id)
     : undefined;
