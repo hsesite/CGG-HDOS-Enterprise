@@ -38,12 +38,12 @@ export class HDOSAuthEngine {
   canAccess(moduleName: string): boolean {
     const roles = AuthState.getUser()?.roles || [];
     if (roles.includes('Admin CGG')) return true;
+    if (roles.includes('Contractor')) return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(moduleName);
+    if (roles.includes('Subkon')) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(moduleName);
     const role = this.getCurrentRole();
     if (role === 'Project Manager' || role === 'SPV HSE') return true;
     switch (moduleName) {
       case 'dashboard': return true;
-      case 'repository': return ['Admin CGG', 'Contractor', 'Subkon'].some((value) => roles.includes(value));
-      case 'contractor': return ['Admin CGG', 'Contractor'].some((value) => roles.includes(value));
       case 'inspection': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer'].includes(role);
       case 'hazard': return true;
       case 'pica': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Contractor PIC'].includes(role);
@@ -52,7 +52,7 @@ export class HDOSAuthEngine {
       case 'contractor': return ['KTT', 'Project Manager', 'SPV HSE', 'Contractor PIC'].includes(role);
       case 'map': return true;
       case 'ai': return true;
-      case 'settings': return roles.includes('Admin CGG');
+      case 'settings': return false;
       default: return false;
     }
   }
