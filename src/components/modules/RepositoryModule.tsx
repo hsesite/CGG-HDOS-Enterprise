@@ -328,7 +328,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setPreviewLoading(true);
     try {
       const extracted = await extractDocumentText(file, file.name);
-      const fileTitle = file.name.replace(/\\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ').trim();
+      const fileTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').replace(/^\s*\d+(?:\.\d+)*\s+/, '').replace(/^\s*\d{1,4}\s+SOP\s+HSE\s+CGG\s+\d{4}\s+/i, '').trim();
       const extractedTitle = extractDocumentTitle(extracted.text, file.name);
       const documentTitle = fileTitle.length >= 6 ? fileTitle : extractedTitle;
       setTitle(documentTitle);
