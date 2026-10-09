@@ -39,6 +39,7 @@ const INITIAL_WINDOWS: AppWindow[] = [
   { id: 'map', title: 'Mining GIS Map', isOpen: false, isMinimized: false, isMaximized: false, zIndex: 5 },
   { id: 'ai', title: 'AI Vision & Assistant', isOpen: false, isMinimized: false, isMaximized: false, zIndex: 5 },
   { id: 'sync', title: 'Offline Queue & Sync', isOpen: false, isMinimized: false, isMaximized: false, zIndex: 5 },
+  { id: 'settings', title: 'Pengaturan & Master Data', isOpen: false, isMinimized: false, isMaximized: false, zIndex: 5 },
 ];
 
 export class HDOSCentralStore {
