@@ -181,9 +181,7 @@ export const RepositoryModule: React.FC = () => {
 
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(
-    store.documents[0] || null
-  );
+  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [modalNewDocOpen, setModalNewDocOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<DocumentItem['category']>('SOP');
@@ -257,7 +255,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   }, [store, store.documents, store.formDefinitions, selectedDoc?.id]);
 
   const filteredDocs = store.documents.filter((doc) => {
-    const sessionUser = currentUser;
     const roles = sessionUser?.roles || [];
     if (roles.includes('Admin CGG')) return true;
     const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
@@ -381,10 +378,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       const newDoc = await store.addDocument({
         title: title.trim(),
         category,
-        owner: currentUser?.displayName || 'Pengguna HDOS',
-        companyCode: currentUser?.companyCode || '',
-        parentCompanyCode: currentUser?.parentCompanyCode || '',
-        ownerUserId: currentUser?.id || '',
+        owner: sessionUser?.displayName || currentUser?.name || 'Pengguna HDOS',
+        companyCode: sessionUser?.companyCode || '',
+        parentCompanyCode: sessionUser?.parentCompanyCode || '',
+        ownerUserId: sessionUser?.id || '',
         status: 'EFFECTIVE',
         effectiveDate: new Date().toISOString().slice(0, 10),
         fileType,
