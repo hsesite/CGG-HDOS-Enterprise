@@ -52,8 +52,10 @@ export const SyncModule: React.FC = () => {
   };
 
   const handleTriggerSync = async () => {
+    await hdosSync.retryFailedItems();
     await hdosSync.triggerSync();
   };
+
 
   const handleExportInspections = () => {
     hdosSync.exportToGoogleSheetsCSV(store.inspections, 'Inspections');
