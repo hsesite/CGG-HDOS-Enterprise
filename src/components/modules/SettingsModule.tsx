@@ -54,7 +54,7 @@ export const SettingsModule: React.FC = () => {
     } finally { setBusy(false); }
   }
 
-  async function updateAccount(id: string, updates: { role?: string; status?: 'ACTIVE' | 'INACTIVE' }) {
+  async function updateAccount(id: string, updates: { role?: 'Admin CGG' | 'Contractor' | 'Subkon'; status?: 'ACTIVE' | 'INACTIVE' }) {
     setBusy(true);
     try { await hseApi.updateUserAccess(id, updates); await loadAccounts(); setMessage('Hak akses akun berhasil diperbarui.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Hak akses gagal diperbarui.'); }
