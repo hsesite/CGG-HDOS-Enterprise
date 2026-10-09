@@ -37,7 +37,6 @@ export async function extractDocumentText(
   if (extension === 'pdf') {
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
-      isEvalSupported: false,
     });
     const pdf = await loadingTask.promise;
     const pages: string[] = [];
