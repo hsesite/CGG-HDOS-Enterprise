@@ -42,19 +42,41 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
   useEffect(() => {
-    bootHDOS().then(() => {
-      setBooted(true);
-      const user = getCurrentUser();
-      if (user) {
-        setIsAuthenticated(true);
+    let cancelled = false;
+
+    async function initializeApp(): Promise<void> {
+      setCheckingSession(true);
+      setBootError(null);
+
+      try {
+        await bootHDOS();
+        if (cancelled) return;
+
+        setBooted(true);
+        const user = getCurrentUser();
+        setIsAuthenticated(Boolean(user));
         setCurrentUser(user);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('[HDOS] Application initialization failed:', error);
+        setBootError(
+          error instanceof Error
+            ? error.message
+            : 'Terjadi kesalahan saat menyiapkan aplikasi.'
+        );
+      } finally {
+        if (!cancelled) setCheckingSession(false);
       }
-      setCheckingSession(false);
-    });
-  }, []);
+    }
+
+    void initializeApp();
+    return () => { cancelled = true; };
+  }, [bootAttempt]);
 
   function handleLoggedIn(): void {
     const user = getCurrentUser();
@@ -78,14 +100,32 @@ export default function App() {
   }
 
   if (!booted || checkingSession) {
-    return (
-      <div className="fixed inset-0 bg-[#090909] text-white flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-[#00E676] text-black font-black flex items-center justify-center text-xl shadow-[0_0_30px_#00E676]">
-          C
+    if (bootError && !checkingSession) {
+      return (
+        <div className="fixed inset-0 bg-[#090909] text-white flex flex-col items-center justify-center px-6 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-red-500/15 text-red-400 border border-red-400/30 font-black flex items-center justify-center text-xl">!</div>
+          <div className="space-y-2 max-w-md">
+            <div className="font-bold text-sm tracking-wider">HDOS BELUM SIAP DIGUNAKAN</div>
+            <p className="text-sm text-neutral-300">Inisialisasi penyimpanan atau sesi aplikasi gagal.</p>
+            <p className="text-xs text-neutral-500 break-words">{bootError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBootAttempt((attempt) => attempt + 1)}
+            className="rounded-xl bg-[#00E676] px-4 py-2.5 text-sm font-semibold text-black hover:bg-[#5cffab] focus:outline-none focus:ring-2 focus:ring-[#00E676] focus:ring-offset-2 focus:ring-offset-[#090909]"
+          >
+            Coba lagi
+          </button>
         </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 bg-[#090909] text-white flex flex-col items-center justify-center space-y-4" role="status" aria-live="polite">
+        <div className="w-12 h-12 rounded-2xl bg-[#00E676] text-black font-black flex items-center justify-center text-xl shadow-[0_0_30px_#00E676]">C</div>
         <div className="text-center space-y-1">
           <div className="font-bold text-sm tracking-wider">CGG HDOS ENTERPRISE v3.0</div>
-          <div className="text-xs text-neutral-400 font-mono">Memuat Core Layer &amp; PostgreSQL Connection...</div>
+          <div className="text-xs text-neutral-400 font-mono">Menyiapkan penyimpanan lokal &amp; sesi aplikasi...</div>
         </div>
         <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
           <div className="h-full bg-[#00E676] rounded-full animate-pulse w-3/4" />
