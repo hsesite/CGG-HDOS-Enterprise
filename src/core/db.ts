@@ -163,6 +163,13 @@ class HDOSDatabase {
         `[HDOS DB] Failed to write localStorage fallback for ${storeName}`,
         error
       );
+
+      // Do not report a successful save when localStorage rejected the write
+      // (for example because the browser quota is full).
+      throw new Error(
+        `Penyimpanan lokal gagal untuk "${storeName}". Periksa kapasitas browser dan coba lagi.`,
+        { cause: error }
+      );
     }
   }
 
