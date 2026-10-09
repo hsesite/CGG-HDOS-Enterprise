@@ -68,6 +68,9 @@ export type ApiUser = {
   status?: string;
   companyCode?: string;
   parentCompanyCode?: string;
+  position?: string;
+  department?: string;
+  section?: string;
 };
 
 export class ApiError extends Error {
