@@ -40,6 +40,10 @@ export interface Inspection {
   code: string;
   title: string;
   templateType: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
+  /** Published Repository form that originated this inspection, when applicable. */
+  sourceFormId?: string;
+  sourceFormNumber?: string;
+  sourceDocumentId?: string;
   location: MiningArea;
   inspectorName: string;
   inspectorRole: UserRole;
