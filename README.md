@@ -38,6 +38,14 @@ npm run lint
 
 Perintah `lint` saat ini menjalankan pemeriksaan TypeScript frontend dan konfigurasi TypeScript server. Jika salah satu gagal, catat error aktual sebelum menyatakan build siap.
 
+## Master data dan autentikasi
+
+- Data operasional lokal dimulai kosong; migrasi sekali jalan membersihkan data demo lama dari IndexedDB dan localStorage fallback browser.
+- Area kerja dan kontraktor ditambahkan melalui modul **Pengaturan** dan langsung dibaca modul terkait di browser yang sama.
+- Form inspeksi bawaan yang berisi contoh data dinonaktifkan; formulir inspeksi dipilih dari dokumen Repository yang benar-benar diterbitkan.
+- Login dan akun saat ini menggunakan endpoint GAS. UI daftar akun, Google Sign-In, sesi persisten, dan kontrol akun memerlukan versi GAS yang sesuai serta konfigurasi OAuth. Ikuti [panduan GAS dan Google OAuth](docs/GAS-AUTH-SETUP.md).
+- Pengaturan area/kontraktor saat ini tersimpan di browser (IndexedDB), belum menjadi master data lintas perangkat/cloud sampai endpoint master data GAS disediakan dan diuji.
+
 ## Konfigurasi cloud
 
 1. Deploy Google Apps Script sebagai Web App sesuai kode GAS yang benar-benar digunakan.
