@@ -175,7 +175,15 @@ export class HDOSCentralStore {
 
   openWindow(id: WindowId): void {
     this.maxZIndex += 1;
-    this.windows = this.windows.map((w) => (w.id === id ? { ...w, isOpen: true, isMinimized: false, zIndex: this.maxZIndex } : w));
+
+    // HDOS uses a single active workspace: switching modules closes the
+    // previous module instead of leaving several full-screen windows stacked.
+    this.windows = this.windows.map((w) =>
+      w.id === id
+        ? { ...w, isOpen: true, isMinimized: false, zIndex: this.maxZIndex }
+        : { ...w, isOpen: false, isMinimized: false }
+    );
+
     this.focusedWindowId = id;
     this.missionControlOpen = false;
     this.notify();
@@ -210,8 +218,16 @@ export class HDOSCentralStore {
 
   bringToFront(id: WindowId): void {
     this.maxZIndex += 1;
-    this.windows = this.windows.map((w) => (w.id === id ? { ...w, isMinimized: false, zIndex: this.maxZIndex } : w));
+
+    // Mission Control and window focus use the same single-active-module rule.
+    this.windows = this.windows.map((w) =>
+      w.id === id
+        ? { ...w, isOpen: true, isMinimized: false, zIndex: this.maxZIndex }
+        : { ...w, isOpen: false, isMinimized: false }
+    );
+
     this.focusedWindowId = id;
+    this.missionControlOpen = false;
     this.notify();
   }
 
