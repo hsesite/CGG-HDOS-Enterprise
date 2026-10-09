@@ -6,7 +6,10 @@ export type UserRole =
   | 'Safety Officer'
   | 'Paramedis'
   | 'Contractor PIC'
-  | 'Employee';
+  | 'Employee'
+  | 'Admin CGG'
+  | 'Contractor'
+  | 'Subkon';
 
 export type MiningArea = string;
 
