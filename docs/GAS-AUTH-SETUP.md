@@ -4,7 +4,7 @@ Frontend telah menyediakan formulir daftar, login Google, dan kontrol akun KTT. 
 
 ## Backend script
 
-Gunakan versi backend yang disertakan bersama perubahan ini sebagai dasar untuk deployment GAS. Jangan hanya mengubah frontend. Endpoint yang dibutuhkan:
+Gunakan file GAS pendamping yang diserahkan bersama pekerjaan ini sebagai dasar deployment GAS. File tersebut tidak otomatis mengubah Web App GAS yang saat ini sudah ter-deploy. Jangan hanya mengubah frontend. Endpoint yang dibutuhkan:
 
 - `POST /api/auth/register` — nama, email, password; role awal selalu `Employee`.
 - `POST /api/auth/google` — memverifikasi ID token Google di server dan membuat/mencari akun.
@@ -21,9 +21,11 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 3. Simpan Client ID sebagai GitHub Actions repository secret `VITE_GOOGLE_CLIENT_ID`.
 4. Pada Apps Script, buka **Project Settings → Script Properties**, lalu buat `GOOGLE_CLIENT_ID` dengan nilai Client ID yang sama.
 5. Deploy ulang Apps Script sebagai Web App dengan akses sesuai kebijakan perusahaan, lalu pastikan URL deployment sama dengan `VITE_GAS_URL`.
-6. Jalankan fungsi `setup()` satu kali untuk menambahkan kolom user yang diperlukan. Fungsi ini tidak membuat akun administrator demo.
-7. Buat/pertahankan akun KTT pertama melalui sheet `users` yang dilindungi, dengan role `KTT` dan status `ACTIVE`. Jangan membagikan akses edit sheet kepada seluruh karyawan.
-8. Jalankan ulang GitHub Actions setelah secret Client ID ditambahkan.
+6. Buat backup spreadsheet. Jalankan fungsi `setup()` satu kali untuk menambahkan kolom user yang diperlukan. Fungsi ini tidak membuat akun administrator demo.
+7. Jika ingin membersihkan data operasional di Spreadsheet, set Script Property `CONFIRM_CLEAN_START` ke `DELETE_HDOS_OPERATIONAL_DATA`, lalu jalankan fungsi `clearOperationalDataForCleanStart()` secara manual. Fungsi ini mempertahankan sheet `users` dan `audit_logs`; jangan jalankan sebelum backup.
+8. Setelah selesai, hapus Script Property konfirmasi jika belum otomatis terhapus, lalu verifikasi semua sheet dan akun.
+9. Buat/pertahankan akun KTT pertama melalui sheet `users` yang dilindungi, dengan role `KTT` dan status `ACTIVE`. Jangan membagikan akses edit sheet kepada seluruh karyawan.
+10. Jalankan ulang GitHub Actions setelah secret Client ID ditambahkan.
 
 ## Catatan keamanan dan batas verifikasi
 
