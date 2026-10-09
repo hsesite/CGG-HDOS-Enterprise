@@ -59,6 +59,18 @@ type DocumentRegisterPreview = {
 
 const REGISTER_MISSING = '-';
 
+const extractDocumentTitle = (text: string, fileName: string): string => {
+  const lines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const titleLine = lines.slice(0, 30).find((line) =>
+    line.length >= 6
+    && line.length <= 180
+    && /\b(form|sop|prosedur|instruksi kerja|checklist|pemeriksaan|inspeksi|manual mutu|kebijakan|work instruction|standard operating procedure)\b/i.test(line)
+    && !/^(pt\.?\s|no\.?\s|nomor\s|page\s|halaman\s|departemen\s|jenis kendaraan)/i.test(line)
+    && !/^(hal-hal yang diperiksa|kondisi aktual|tingkat risiko|kode bahaya|keterangan)$/i.test(line)
+  );
+  return titleLine || fileName.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
+};
+
 const readRegisterValue = (text: string, patterns: RegExp[]): string => {
   for (const pattern of patterns) {
     const match = text.match(pattern);
@@ -279,7 +291,9 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setPreviewLoading(true);
     try {
       const extracted = await extractDocumentText(file, file.name);
-      const preview = parseDocumentRegister(extracted.text, file.name, category, autoTitle);
+      const documentTitle = extractDocumentTitle(extracted.text, file.name);
+      setTitle(documentTitle);
+      const preview = parseDocumentRegister(extracted.text, file.name, category, documentTitle);
       setRegisterPreview(preview);
     } catch (error) {
       // Keep the source file uploadable even when text extraction is unavailable
