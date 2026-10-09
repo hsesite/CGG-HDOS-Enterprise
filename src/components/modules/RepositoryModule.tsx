@@ -11,12 +11,9 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  ClipboardCheck,
-  ShieldCheck,
-  Send,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { DocumentItem, FormDefinition, FormApprovalWorkflow } from '../../core/types';
+import { DocumentItem, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
 import { hdosDB } from '../../core/db';
@@ -75,9 +72,6 @@ export const RepositoryModule: React.FC = () => {
   const [generatingForm, setGeneratingForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [reviewContentConfirmed, setReviewContentConfirmed] = useState(false);
-  const [reviewReferencesConfirmed, setReviewReferencesConfirmed] = useState(false);
-  const [reviewCriticalityConfirmed, setReviewCriticalityConfirmed] = useState(false);
   const [, setFormRefreshKey] = useState(0);
 
   const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
@@ -85,8 +79,6 @@ export const RepositoryModule: React.FC = () => {
   const selectedForm = selectedDoc
     ? store.getFormDefinitionByDocumentId(selectedDoc.id)
     : undefined;
-  const hasSessionRole = (role: string) => Boolean(sessionUser?.roles?.includes(role));
-  const approverName = sessionUser?.displayName || sessionUser?.email || currentUser.name;
 
   const filteredDocs = store.documents.filter((doc) => {
     const matchCategory = activeCategory === 'ALL' || doc.category === activeCategory;
@@ -199,9 +191,12 @@ export const RepositoryModule: React.FC = () => {
       setSummary('');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setSuccessMessage(
-        `Dokumen ${newDoc.docNumber} berhasil didaftarkan sebagai DRAFT. Periksa dokumen sebelum menyetujui atau memberlakukannya.`
-      );
+      const formCreated = await handleGenerateForm(newDoc);
+      if (formCreated) {
+        setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah dan langsung dibuat menjadi formulir digital berstatus PUBLISHED.`);
+      } else {
+        setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil diunggah, tetapi formulir otomatis belum dapat dibuat. Periksa pesan kesalahan dan format/isi dokumen.`);
+      }
     } catch (error) {
       console.error('[RepositoryModule] Gagal mengunggah dokumen:', error);
       setErrorMessage(`Dokumen gagal disimpan: ${getErrorMessage(error)}`);
@@ -251,7 +246,7 @@ export const RepositoryModule: React.FC = () => {
     }
   };
 
-  const handleGenerateForm = async (doc: DocumentItem) => {
+  const handleGenerateForm = async (doc: DocumentItem): Promise<boolean> => {
     resetMessages();
     setGeneratingForm(true);
 
@@ -259,9 +254,9 @@ export const RepositoryModule: React.FC = () => {
       const existingForm = store.getFormDefinitionByDocumentId(doc.id);
       if (existingForm) {
         setSuccessMessage(
-          `Draft formulir untuk ${doc.docNumber} sudah tersedia: ${existingForm.title}.`
+          `Formulir untuk ${doc.docNumber} sudah tersedia: ${existingForm.title}.`
         );
-        return;
+        return true;
       }
 
      
@@ -340,7 +335,7 @@ export const RepositoryModule: React.FC = () => {
         department: 'HSE',
         revision: String(doc.revision),
         effectiveDate: '',
-        status: 'DRAFT',
+        status: 'PUBLISHED',
         version: 1,
         fields,
         generatedByAI: false,
@@ -350,135 +345,15 @@ export const RepositoryModule: React.FC = () => {
       const newForm = await store.addFormDefinition(formInput);
       setFormRefreshKey((value) => value + 1);
       setSuccessMessage(
-        `Draft formulir "${newForm.title}" dibuat dengan ${fields.length} pertanyaan. Draft belum dipublikasikan dan wajib ditinjau oleh petugas berwenang.`
+        `Formulir "${newForm.title}" langsung dibuat dan berstatus PUBLISHED dengan ${fields.length} pertanyaan, sesuai proses validasi KTT sebelum unggah.`
       );
+      return true;
     } catch (error) {
       console.error('[RepositoryModule] Gagal membuat draft formulir:', error);
-      setErrorMessage(`Draft formulir gagal dibuat: ${getErrorMessage(error)}`);
+      setErrorMessage(`Formulir otomatis gagal dibuat: ${getErrorMessage(error)}`);
+      return false;
     } finally {
       setGeneratingForm(false);
-    }
-  };
-
-  const handleStartFormReview = async () => {
-    resetMessages();
-    if (!selectedForm) {
-      setErrorMessage('Draft formulir belum tersedia.');
-      return;
-    }
-    if (selectedForm.status !== 'DRAFT') {
-      setErrorMessage('Hanya formulir berstatus DRAFT yang dapat diajukan untuk review.');
-      return;
-    }
-    if (selectedForm.fields.length === 0 || selectedForm.fields.some((field) =>
-      !field.label.trim() ||
-      !field.type ||
-      (['RADIO', 'SELECT', 'MULTI_SELECT', 'CHECKBOX'].includes(field.type) &&
-        (!field.options || field.options.length === 0))
-    )) {
-      setErrorMessage('Validasi struktur gagal: pastikan setiap pertanyaan memiliki label dan pilihan jawaban yang diperlukan.');
-      return;
-    }
-    if (!reviewContentConfirmed || !reviewReferencesConfirmed || !reviewCriticalityConfirmed) {
-      setErrorMessage('Centang ketiga pemeriksaan manusia: isi pertanyaan, referensi standar, dan tingkat kritikalitas.');
-      return;
-    }
-
-    try {
-      const approvalWorkflow: FormApprovalWorkflow = {
-        contentReviewed: true,
-        referencesReviewed: true,
-        criticalityReviewed: true,
-        approvals: {},
-      };
-      await store.updateFormDefinition(selectedForm.id, {
-        status: 'REVIEW',
-        approvalWorkflow,
-      });
-      setFormRefreshKey((value) => value + 1);
-      setSuccessMessage('Validasi awal selesai. Formulir masuk REVIEW dan menunggu persetujuan Foreman Safety.');
-    } catch (error) {
-      setErrorMessage(`Gagal mengajukan review: ${getErrorMessage(error)}`);
-    }
-  };
-
-  const handleApproveForm = async (role: 'Foreman Safety' | 'SPV HSE' | 'KTT') => {
-    resetMessages();
-    if (!selectedForm || selectedForm.status !== 'REVIEW') {
-      setErrorMessage('Formulir harus berada pada status REVIEW sebelum persetujuan.');
-      return;
-    }
-    if (!hasSessionRole(role)) {
-      setErrorMessage(`Persetujuan tahap ini hanya dapat dilakukan oleh pengguna dengan role ${role}.`);
-      return;
-    }
-
-    const workflow = selectedForm.approvalWorkflow;
-    if (!workflow?.contentReviewed || !workflow.referencesReviewed || !workflow.criticalityReviewed) {
-      setErrorMessage('Formulir belum menyelesaikan seluruh validasi awal.');
-      return;
-    }
-    if (role === 'SPV HSE' && !workflow.approvals.foreman) {
-      setErrorMessage('Persetujuan Foreman Safety wajib diselesaikan lebih dahulu.');
-      return;
-    }
-    if (role === 'KTT' && !workflow.approvals.spvHse) {
-      setErrorMessage('Persetujuan SPV HSE wajib diselesaikan lebih dahulu.');
-      return;
-    }
-
-    const record = { role, approvedBy: approverName, approvedAt: new Date().toISOString() };
-    const approvals = {
-      ...workflow.approvals,
-      ...(role === 'Foreman Safety' ? { foreman: record } : {}),
-      ...(role === 'SPV HSE' ? { spvHse: record } : {}),
-      ...(role === 'KTT' ? { ktt: record } : {}),
-    };
-    try {
-      await store.updateFormDefinition(selectedForm.id, {
-        status: role === 'KTT' ? 'APPROVED' : 'REVIEW',
-        approvalWorkflow: { ...workflow, approvals },
-      });
-      setFormRefreshKey((value) => value + 1);
-      setSuccessMessage(
-        role === 'KTT'
-          ? 'Persetujuan KTT tercatat. Formulir berstatus APPROVED dan siap diterbitkan oleh KTT.'
-          : `Persetujuan ${role} tercatat. Tahap berikutnya menunggu ${role === 'Foreman Safety' ? 'SPV HSE' : 'KTT'}.`
-      );
-    } catch (error) {
-      setErrorMessage(`Gagal menyimpan persetujuan: ${getErrorMessage(error)}`);
-    }
-  };
-
-  const handlePublishForm = async () => {
-    resetMessages();
-    if (!selectedForm || selectedForm.status !== 'APPROVED') {
-      setErrorMessage('Formulir hanya dapat diterbitkan setelah seluruh persetujuan selesai.');
-      return;
-    }
-    if (!hasSessionRole('KTT')) {
-      setErrorMessage('Penerbitan final hanya dapat dilakukan oleh pengguna dengan role KTT.');
-      return;
-    }
-    const workflow = selectedForm.approvalWorkflow;
-    if (!workflow?.approvals.foreman || !workflow.approvals.spvHse || !workflow.approvals.ktt) {
-      setErrorMessage('Rantai persetujuan Foreman Safety → SPV HSE → KTT belum lengkap.');
-      return;
-    }
-    try {
-      await store.updateFormDefinition(selectedForm.id, {
-        status: 'PUBLISHED',
-        effectiveDate: new Date().toISOString().slice(0, 10),
-        approvalWorkflow: {
-          ...workflow,
-          publishedBy: approverName,
-          publishedAt: new Date().toISOString(),
-        },
-      });
-      setFormRefreshKey((value) => value + 1);
-      setSuccessMessage('Formulir berhasil diterbitkan dan berstatus PUBLISHED.');
-    } catch (error) {
-      setErrorMessage(`Gagal menerbitkan formulir: ${getErrorMessage(error)}`);
     }
   };
 
@@ -696,97 +571,9 @@ export const RepositoryModule: React.FC = () => {
                   <span>{downloading ? 'Menyiapkan unduhan...' : `Unduh Dokumen (${selectedDoc.fileType})`}</span>
                 </button>
 
-                <button
-                  type="button"
-                  disabled={generatingForm || selectedDoc.status === 'DRAFT' && !selectedDoc.summary}
-                  onClick={() => void handleGenerateForm(selectedDoc)}
-                  className="w-full py-2 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  <span>{generatingForm ? 'Membuat draft checklist...' : 'Buat Draft Checklist Digital'}</span>
-                </button>
 
-                <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-white font-bold">
-                      <ClipboardCheck className="w-4 h-4 text-[#A855F7]" />
-                      <span>Validasi & Penerbitan Form</span>
-                    </div>
-                    <span className={`rounded px-2 py-1 text-[10px] font-bold ${selectedForm?.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200'}`}>
-                      {selectedForm?.status || 'BELUM DIBUAT'}
-                    </span>
-                  </div>
-                  {!selectedForm ? (
-                    <div className="space-y-2">
-                      <p className="text-[11px] text-neutral-300">Draft checklist untuk dokumen ini belum ditemukan. Klik tombol “Buat Draft Checklist Digital” di atas terlebih dahulu.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-[10px] text-neutral-400">
-                        {selectedForm.formNumber} · {selectedForm.fields.length} pertanyaan · Revisi {selectedForm.revision || '1'}
-                      </p>
-                      <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
-                        {selectedForm.fields.map((field) => (
-                          <div key={field.id} className="rounded-lg border border-white/10 p-2">
-                            <p className="text-[11px] text-white">{field.order}. {field.label}</p>
-                            <p className="text-[10px] text-neutral-400 mt-1">{field.description || 'Tidak ada keterangan'}</p>
-                          </div>
-                        ))}
-                      </div>
-                      {selectedForm.status === 'DRAFT' && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-bold text-amber-200">Checklist validasi wajib</p>
-                          <label className="flex items-start gap-2 text-[11px] text-neutral-200">
-                            <input type="checkbox" checked={reviewContentConfirmed} onChange={(event) => setReviewContentConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
-                            Saya telah membandingkan seluruh pertanyaan dengan dokumen sumber.
-                          </label>
-                          <label className="flex items-start gap-2 text-[11px] text-neutral-200">
-                            <input type="checkbox" checked={reviewReferencesConfirmed} onChange={(event) => setReviewReferencesConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
-                            Referensi peraturan/standar telah diverifikasi; tidak hanya mengandalkan hasil ekstraksi.
-                          </label>
-                          <label className="flex items-start gap-2 text-[11px] text-neutral-200">
-                            <input type="checkbox" checked={reviewCriticalityConfirmed} onChange={(event) => setReviewCriticalityConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
-                            Tingkat kritikalitas dan pilihan jawaban telah ditinjau petugas HSE.
-                          </label>
-                          <button type="button" onClick={() => void handleStartFormReview()} className="w-full rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 text-[11px] font-bold text-amber-100 hover:bg-amber-500/30">
-                            Ajukan ke REVIEW
-                          </button>
-                        </div>
-                      )}
-                      {selectedForm.status === 'REVIEW' && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-bold text-amber-200">Persetujuan berjenjang</p>
-                          <div className="space-y-1 text-[10px] text-neutral-300">
-                            <p>{selectedForm.approvalWorkflow?.approvals.foreman ? '✓' : '○'} Foreman Safety {selectedForm.approvalWorkflow?.approvals.foreman ? `— ${selectedForm.approvalWorkflow.approvals.foreman.approvedBy}` : '— menunggu'}</p>
-                            <p>{selectedForm.approvalWorkflow?.approvals.spvHse ? '✓' : '○'} SPV HSE {selectedForm.approvalWorkflow?.approvals.spvHse ? `— ${selectedForm.approvalWorkflow.approvals.spvHse.approvedBy}` : '— menunggu'}</p>
-                            <p>{selectedForm.approvalWorkflow?.approvals.ktt ? '✓' : '○'} KTT {selectedForm.approvalWorkflow?.approvals.ktt ? `— ${selectedForm.approvalWorkflow.approvals.ktt.approvedBy}` : '— menunggu'}</p>
-                          </div>
-                          {!selectedForm.approvalWorkflow?.approvals.foreman && hasSessionRole('Foreman Safety') && <button type="button" onClick={() => void handleApproveForm('Foreman Safety')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai Foreman Safety</button>}
-                          {selectedForm.approvalWorkflow?.approvals.foreman && !selectedForm.approvalWorkflow?.approvals.spvHse && hasSessionRole('SPV HSE') && <button type="button" onClick={() => void handleApproveForm('SPV HSE')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai SPV HSE</button>}
-                          {selectedForm.approvalWorkflow?.approvals.spvHse && !selectedForm.approvalWorkflow?.approvals.ktt && hasSessionRole('KTT') && <button type="button" onClick={() => void handleApproveForm('KTT')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai KTT</button>}
-                          {!hasSessionRole('Foreman Safety') && !hasSessionRole('SPV HSE') && !hasSessionRole('KTT') && <p className="text-[10px] text-neutral-400">Akun ini tidak memiliki role approver. Gunakan akun sesuai tahap persetujuan.</p>}
-                        </div>
-                      )}
-                      {selectedForm.status === 'APPROVED' && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] text-emerald-200">Persetujuan lengkap. Formulir belum diterbitkan.</p>
-                          {hasSessionRole('KTT') ? (
-                            <button type="button" onClick={() => void handlePublishForm()} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-500">
-                              <Send className="inline w-3.5 h-3.5 mr-1" /> Terbitkan Formulir
-                            </button>
-                          ) : <p className="text-[10px] text-neutral-400">Penerbitan final menunggu akun KTT.</p>}
-                        </div>
-                      )}
-                      {selectedForm.status === 'PUBLISHED' && (
-                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-[10px] text-emerald-200 space-y-1">
-                          <p className="font-bold flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Formulir telah diterbitkan.</p>
-                          <p>Diterbitkan oleh: {selectedForm.approvalWorkflow?.publishedBy || 'KTT'}</p>
-                          <p>Tanggal efektif: {selectedForm.effectiveDate || 'Belum ditetapkan'}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+
+
               </div>
             </div>
           ) : (
