@@ -25,7 +25,7 @@ export const IncidentModule: React.FC = () => {
   // New incident form state
   const [title, setTitle] = useState('');
   const [type, setType] = useState<Incident['type']>('Near Miss');
-  const [location, setLocation] = useState<MiningArea>('Pit Jaja KM10');
+  const [location, setLocation] = useState<MiningArea>('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('10:00 WITA');
   const [victimsCount, setVictimsCount] = useState(0);
@@ -265,11 +265,13 @@ export const IncidentModule: React.FC = () => {
             <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1">Area Kejadian</label>
               <select
+                required
                 value={location}
                 onChange={(e) => setLocation(e.target.value as any)}
                 className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs focus:outline-none focus:border-red-500"
               >
-                {store.locations.map((loc) => (
+                <option value="" disabled>Pilih area kerja...</option>
+                      {store.locations.map((loc) => (
                   <option key={loc.id} value={loc.name} className="bg-neutral-900">
                     {loc.name}
                   </option>
