@@ -324,6 +324,28 @@ export class HDOSCentralStore {
     return updated;
   }
 
+  async deleteDocument(documentId: string): Promise<void> {
+    const existing = this.documents.find((doc) => doc.id === documentId);
+    if (!existing) throw new Error('Dokumen tidak ditemukan.');
+
+    // Keep completed inspection records intact; only remove the repository entry
+    // and its generated form definition. Inspection history remains available.
+    const relatedForms = this.formDefinitions.filter((form) => form.sourceDocumentId === documentId);
+    await hdosDB.delete('repository', documentId);
+    for (const form of relatedForms) {
+      await hdosDB.delete('form-definition', form.id);
+    }
+
+    this.documents = this.documents.filter((doc) => doc.id !== documentId);
+    this.formDefinitions = this.formDefinitions.filter((form) => form.sourceDocumentId !== documentId);
+    this.notify();
+    hdosEvents.emit('document:deleted', {
+      documentId,
+      docNumber: existing.docNumber,
+      title: existing.title,
+    });
+  }
+
   async addFormDefinition(
   input: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<FormDefinition> {
