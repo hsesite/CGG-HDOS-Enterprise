@@ -1,6 +1,6 @@
 # Google Apps Script: pendaftaran, Google Sign-In, dan sesi persisten
 
-Frontend telah menyediakan formulir daftar, login Google, dan kontrol akun KTT. Endpoint server wajib diperbarui juga; frontend saja tidak dapat memverifikasi password atau token Google dengan aman.
+Frontend telah menyediakan formulir daftar, login Google, dan kontrol akun Admin CGG. Endpoint server wajib diperbarui juga; frontend saja tidak dapat memverifikasi password atau token Google dengan aman.
 
 ## Backend script
 
@@ -25,13 +25,13 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 6. Buat backup spreadsheet. Jalankan fungsi `setup()` satu kali untuk menambahkan kolom user yang diperlukan. Fungsi ini tidak membuat akun administrator demo.
 7. Jika ingin membersihkan data operasional di Spreadsheet, set Script Property `CONFIRM_CLEAN_START` ke `DELETE_HDOS_OPERATIONAL_DATA`, lalu jalankan fungsi `clearOperationalDataForCleanStart()` secara manual. Fungsi ini mempertahankan sheet `users` dan `audit_logs`; jangan jalankan sebelum backup.
 8. Setelah selesai, hapus Script Property konfirmasi jika belum otomatis terhapus, lalu verifikasi semua sheet dan akun.
-9. Buat/pertahankan akun KTT pertama melalui sheet `users` yang dilindungi, dengan role `KTT` dan status `ACTIVE`. Jangan membagikan akses edit sheet kepada seluruh karyawan.
+9. Untuk akun bootstrap `admin@ptcgg.com`, pastikan baris pada sheet `users` memiliki role persis `Admin CGG` dan status `ACTIVE`. Jika akun lama masih ber-role `KTT`, buat backup lalu ubah hanya sel role menjadi `Admin CGG`; jangan mengubah password/hash atau `googleSub`. Setelah itu logout dan login kembali agar sesi diperbarui. Jangan membagikan akses edit sheet kepada seluruh karyawan.
 10. Jalankan ulang GitHub Actions setelah secret Client ID ditambahkan.
 
 ## Catatan keamanan dan batas verifikasi
 
 - Google Sign-In hanya menerima token ID yang diverifikasi server terhadap Client ID dan email terverifikasi.
-- Pendaftaran publik memberikan role `Employee`; perubahan role administratif hanya lewat endpoint KTT.
+- Pendaftaran publik memberikan role `Employee`; perubahan role administratif hanya lewat endpoint Admin CGG.
 - Sesi persisten tetap dapat dicabut dengan logout atau menonaktifkan akun. Lindungi perangkat bersama dan jangan simpan sesi di komputer publik.
 - Jangan menjalankan `setup()` atau deployment perubahan autentikasi di produksi sebelum membuat salinan spreadsheet dan menguji dengan akun uji.
 - Keberhasilan build frontend tidak berarti deployment GAS telah diperbarui. Uji register, login password, login Google, refresh halaman, logout, penonaktifan akun, dan kontrol role pada deployment nonproduksi terlebih dahulu.
