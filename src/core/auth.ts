@@ -2,7 +2,7 @@ import type { UserRole, UserProfile } from './types';
 import { hdosEvents } from './events';
 import { AuthState } from './auth-state';
 
-const VALID_ROLES: UserRole[] = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+const VALID_ROLES: UserRole[] = ['Admin CGG', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
 
 // Kept as an empty compatibility export for older UI imports. No sample employees are shipped.
 export const USER_PROFILES: Partial<Record<UserRole, UserProfile>> = {};
@@ -37,11 +37,13 @@ export class HDOSAuthEngine {
 
   canAccess(moduleName: string): boolean {
     const roles = AuthState.getUser()?.roles || [];
-    if (roles.includes('KTT')) return true;
+    if (roles.includes('Admin CGG')) return true;
     const role = this.getCurrentRole();
     if (role === 'Project Manager' || role === 'SPV HSE') return true;
     switch (moduleName) {
       case 'dashboard': return true;
+      case 'repository': return ['Admin CGG', 'Contractor', 'Subkon'].some((value) => roles.includes(value));
+      case 'contractor': return ['Admin CGG', 'Contractor'].some((value) => roles.includes(value));
       case 'inspection': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer'].includes(role);
       case 'hazard': return true;
       case 'pica': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Contractor PIC'].includes(role);
@@ -50,7 +52,7 @@ export class HDOSAuthEngine {
       case 'contractor': return ['KTT', 'Project Manager', 'SPV HSE', 'Contractor PIC'].includes(role);
       case 'map': return true;
       case 'ai': return true;
-      case 'settings': return roles.includes('KTT') || roles.includes('Project Manager');
+      case 'settings': return roles.includes('Admin CGG');
       default: return false;
     }
   }
