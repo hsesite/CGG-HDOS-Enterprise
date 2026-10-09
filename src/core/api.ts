@@ -242,6 +242,26 @@ export const hseApi = {
     return data.user;
   },
 
+  async register(displayName: string, email: string, password: string): Promise<ApiUser> {
+    const data = await request<{ token: string; user: ApiUser }>(
+      'POST',
+      '/api/auth/register',
+      { displayName, email, password }
+    );
+    setToken(data.token);
+    return data.user;
+  },
+
+  async loginWithGoogle(credential: string): Promise<ApiUser> {
+    const data = await request<{ token: string; user: ApiUser }>(
+      'POST',
+      '/api/auth/google',
+      { credential }
+    );
+    setToken(data.token);
+    return data.user;
+  },
+
   async logout(): Promise<void> {
     try {
       if (getToken()) {
