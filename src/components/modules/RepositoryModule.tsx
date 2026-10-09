@@ -205,6 +205,9 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [generatingForm, setGeneratingForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [reviewContentConfirmed, setReviewContentConfirmed] = useState(false);
+  const [reviewReferencesConfirmed, setReviewReferencesConfirmed] = useState(false);
+  const [reviewCriticalityConfirmed, setReviewCriticalityConfirmed] = useState(false);
   const [, setFormRefreshKey] = useState(0);
 
   const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
