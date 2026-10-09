@@ -41,48 +41,9 @@ export const DashboardModule: React.FC = () => {
 
   const [timeRange, setTimeRange] = useState<'7D' | '14D' | '30D'>('30D');
 
-  // Generate 30-day historical trend data for Safe Hours and Active Hazards
-  const trendData = useMemo(() => {
-    const data = [];
-    const baseSafeHours = store.safeHours - 44000;
-    const hazardFluctuations = [
-      4, 5, 5, 6, 4, 3, 4, 5, 4, 3, 2, 3, 4, 3, 2, 3, 4, 5, 4, 3, 3, 2, 3, 4, 3, 2, 3, 3, 2, openHazards,
-    ];
-
-    const today = new Date(2026, 8, 24); // 24 Sept 2026
-
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dayLabel = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-
-      // Daily hours progression (~1,450 to 1,550 hours added per day across fleets)
-      const progressFraction = (30 - i) / 30;
-      const hours = Math.round(baseSafeHours + 44000 * progressFraction);
-      const hazards = hazardFluctuations[29 - i] ?? openHazards;
-
-      data.push({
-        date: dayLabel,
-        safeHours: i === 0 ? store.safeHours : hours,
-        activeHazards: i === 0 ? openHazards : hazards,
-      });
-    }
-    return data;
-  }, [store.safeHours, openHazards]);
-
-  // Filter trend data according to selected timeframe
-  const activeTrendData = useMemo(() => {
-    const days = timeRange === '7D' ? 7 : timeRange === '14D' ? 14 : 30;
-    return trendData.slice(trendData.length - days);
-  }, [trendData, timeRange]);
-
-  // Dynamic range safe hours delta
-  const rangeDeltaHours = useMemo(() => {
-    if (activeTrendData.length < 2) return 0;
-    const first = activeTrendData[0].safeHours;
-    const last = activeTrendData[activeTrendData.length - 1].safeHours;
-    return last - first;
-  }, [activeTrendData]);
+  // Historical trends are not synthesized. Show only records with a real source.
+  const activeTrendData = useMemo(() => [], [store.inspections, store.hazards]);
+  const rangeDeltaHours = 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -95,11 +56,11 @@ export const DashboardModule: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-[#00E676]" />
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-mono tabular-nums">
-            {store.safeHours.toLocaleString('id-ID')}
+            {store.safeHours > 0 ? store.safeHours.toLocaleString('id-ID') : '—'}
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs text-[#00E676]">
             <span className="w-2 h-2 rounded-full bg-[#00E676] animate-ping" />
-            <span>0 Fatality · 0 LTI (YTD 2026)</span>
+            <span>{store.inspections.length > 0 ? 'Data inspeksi tersedia' : 'Belum ada data jam kerja / LTI'}</span>
           </div>
         </div>
 
