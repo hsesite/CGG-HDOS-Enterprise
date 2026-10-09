@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import cggLogo from '../logo-cgg.png.jpeg';
 import { bootHDOS } from './core/boot';
 import { useHDOSStore } from './core/store';
 import { MenuBar } from './components/layout/MenuBar';
@@ -152,9 +153,7 @@ export default function App() {
       {/* Top macOS Menu Bar with User & Logout */}
       <div className="relative z-40 h-10 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-lg bg-[#00E676] text-black font-bold text-xs flex items-center justify-center">
-            C
-          </div>
+          <img src={cggLogo} alt="Logo CGG" className="w-7 h-7 rounded-md object-contain bg-white/95 p-0.5" />
           <span className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-400">CGG HDOS v3.0</span>
         </div>
 
