@@ -252,11 +252,13 @@ export const RepositoryModule: React.FC = () => {
     setSuccessMessage('');
   };
 
-  const handleFileChange = (file: File | null) => {
+  const handleFileChange = async (file: File | null) => {
     resetMessages();
+    setRegisterPreview(null);
 
     if (!file) {
       setSelectedFile(null);
+      setPreviewLoading(false);
       return;
     }
 
@@ -283,8 +285,19 @@ export const RepositoryModule: React.FC = () => {
     }
 
     setSelectedFile(file);
-    if (!title.trim()) {
-      setTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' '));
+    const autoTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
+    if (!title.trim()) setTitle(autoTitle);
+
+    setPreviewLoading(true);
+    try {
+      const extracted = await extractDocumentText(file, file.name);
+      const preview = parseDocumentRegister(extracted.text, file.name, category, autoTitle);
+      setRegisterPreview(preview);
+    } catch (error) {
+      setRegisterPreview(null);
+      setErrorMessage(`Pembacaan register otomatis gagal: ${getErrorMessage(error)}. Dokumen belum dapat diunggah sampai file bisa dibaca.`);
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
