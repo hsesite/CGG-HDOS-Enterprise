@@ -22,11 +22,14 @@ import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentP
 
 type StoredDocumentFile = {
   id: string;
-  blob: Blob;
-  fileName: string;
-  mimeType: string;
-  size: number;
-  uploadedAt: string;
+  documentId?: string;
+  blob?: Blob;
+  file?: Blob;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+  uploadedAt?: string;
+  savedAt?: string;
 };
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
@@ -432,12 +435,24 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     try {
       const db = await hdosDB.init();
       if (!db) throw new Error('IndexedDB tidak tersedia pada browser ini.');
-      const storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
-      if (!storedFile?.blob) throw new Error('Berkas asli tidak ditemukan di penyimpanan lokal. Coba unggah ulang dokumen ini.');
-      const blob = storedFile.blob instanceof Blob
-        ? storedFile.blob
-        : new Blob([storedFile.blob as BlobPart], { type: storedFile.mimeType });
+      // Support both the current storage shape (blob) and legacy records (file).
+      // Prefer the exact document-file key; fall back only to a record explicitly linked to this document.
+      let storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+      if (!storedFile || !(storedFile.blob || storedFile.file)) {
+        const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
+        storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+      }
+      const rawFile = storedFile?.blob || storedFile?.file;
+      if (!storedFile || !rawFile) {
+        throw new Error('Berkas asli untuk dokumen ini tidak ditemukan di penyimpanan lokal. Sistem tidak akan mengganti dengan isi formulir digital. Silakan unggah ulang file asli.');
+      }
+      const blob = rawFile instanceof Blob
+        ? rawFile
+        : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
       const fileName = storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+      if (storedFile.documentId && storedFile.documentId !== doc.id) {
+        throw new Error('Identitas file tidak cocok dengan dokumen yang dipilih. Pratinjau dibatalkan demi mencegah file yang salah ditampilkan.');
+      }
       setOriginalFileName(fileName);
       setOriginalFileUrl(URL.createObjectURL(blob));
       if (doc.fileType === 'DOCX' || doc.fileType === 'XLSX') {
@@ -459,18 +474,22 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         throw new Error('IndexedDB tidak tersedia pada browser ini.');
       }
 
-      const storedFile = await hdosDB.getById<StoredDocumentFile>(
+      let storedFile = await hdosDB.getById<StoredDocumentFile>(
         'photos',
         `${DOCUMENT_FILE_PREFIX}${doc.id}`
       );
-
-      if (!storedFile?.blob) {
-        throw new Error('Berkas asli tidak ditemukan di penyimpanan lokal untuk dokumen ini.');
+      if (!storedFile || !(storedFile.blob || storedFile.file)) {
+        const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
+        storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+      }
+      const rawFile = storedFile?.blob || storedFile?.file;
+      if (!storedFile || !rawFile || (storedFile.documentId && storedFile.documentId !== doc.id)) {
+        throw new Error('Berkas asli yang cocok dengan dokumen ini tidak ditemukan. Unduhan dibatalkan agar tidak mengirim file yang salah.');
       }
 
-      const blob = storedFile.blob instanceof Blob
-        ? storedFile.blob
-        : new Blob([storedFile.blob as BlobPart], { type: storedFile.mimeType });
+      const blob = rawFile instanceof Blob
+        ? rawFile
+        : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
 
       const objectUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
