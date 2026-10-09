@@ -164,6 +164,10 @@ export interface DocumentItem {
   downloadCount: number;
   smkpElement: string;
   summary: string;
+  /** Tenant ownership fields; required for contractor/subkon visibility. */
+  companyCode?: string;
+  parentCompanyCode?: string;
+  ownerUserId?: string;
   documentControl?: DocumentControlMetadata;
 }
 
