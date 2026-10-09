@@ -18,7 +18,7 @@ import { DocumentItem, FormDefinition, DocumentLevel, DocumentControlMetadata } 
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
 import { hdosDB } from '../../core/db';
-import { extractDocumentText, extractChecklistItemsFromDocument } from '../../core/document-parser';
+import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentPreviewHtml } from '../../core/document-parser';
 
 type StoredDocumentFile = {
   id: string;
@@ -197,6 +197,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [originalFileUrl, setOriginalFileUrl] = useState('');
   const [originalFileName, setOriginalFileName] = useState('');
   const [originalFileType, setOriginalFileType] = useState<DocumentItem['fileType'] | null>(null);
+  const [originalFileHtml, setOriginalFileHtml] = useState('');
   const [originalFileError, setOriginalFileError] = useState('');
   const [generatingForm, setGeneratingForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -416,6 +417,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setOriginalFileUrl('');
     setOriginalFileName('');
     setOriginalFileType(null);
+    setOriginalFileHtml('');
     setOriginalFileError('');
     setPreviewingOriginal(false);
   };
@@ -425,6 +427,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setPreviewingOriginal(true);
     setOriginalFileUrl('');
     setOriginalFileName('');
+    setOriginalFileHtml('');
     setOriginalFileType(doc.fileType);
     try {
       const db = await hdosDB.init();
@@ -434,8 +437,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       const blob = storedFile.blob instanceof Blob
         ? storedFile.blob
         : new Blob([storedFile.blob as BlobPart], { type: storedFile.mimeType });
-      setOriginalFileName(storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`);
+      const fileName = storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+      setOriginalFileName(fileName);
       setOriginalFileUrl(URL.createObjectURL(blob));
+      if (doc.fileType === 'DOCX' || doc.fileType === 'XLSX') {
+        const html = await renderDocumentPreviewHtml(blob, fileName);
+        setOriginalFileHtml(html);
+      }
     } catch (error) {
       setOriginalFileError(getErrorMessage(error));
     }
@@ -932,41 +940,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   </div>
                 </div>
 
-                {selectedForm && (
-                  <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-bold text-white">Isi Formulir Digital</h3>
-                        <p className="text-[10px] text-neutral-400 mt-1">{selectedForm.formNumber || selectedForm.id} · Revisi {selectedForm.revision || '1'}</p>
-                      </div>
-                      <span className={`rounded px-2 py-1 text-[10px] font-bold ${selectedForm.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200'}`}>{selectedForm.status}</span>
-                    </div>
-                    <p className="text-xs font-semibold text-neutral-100">{selectedForm.title}</p>
-                    {selectedForm.fields.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedForm.fields.map((field, index) => (
-                          <div key={field.id} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
-                            <p className="text-xs font-medium text-white">{index + 1}. {field.label}</p>
-                            {field.description && <p className="text-[10px] text-neutral-400 mt-1">{field.description}</p>}
-                            {field.options && field.options.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                {field.options.map((option) => (
-                                  <span key={option.value} className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-neutral-300">{option.label}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-amber-200">Formulir belum memiliki pertanyaan. Form ini perlu dibuat ulang dari dokumen yang teksnya dapat dibaca.</p>
-                    )}
-                    {selectedForm.status === 'PUBLISHED' && (
-                      <p className="text-[10px] text-emerald-300">Berlaku sejak {selectedForm.effectiveDate || selectedDoc.effectiveDate || 'tanggal belum tercatat'}.</p>
-                    )}
-                  </div>
-                )}
-
                 <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 font-mono flex items-center gap-2">
                   <Shield className="w-4 h-4 text-[#A855F7] shrink-0" />
                   <span>Dokumen berstatus DRAFT/REVIEW harus ditinjau dan disetujui sebelum diberlakukan.</span>
@@ -1037,14 +1010,26 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                 <div className="h-full min-h-48 flex items-center justify-center text-sm text-neutral-300">Memuat file asli dari penyimpanan lokal...</div>
               ) : originalFileType === 'PDF' ? (
                 <iframe title={originalFileName} src={originalFileUrl} className="w-full h-full min-h-[65vh] rounded-lg bg-white" />
-              ) : (
-                <div className="h-full min-h-64 flex flex-col items-center justify-center gap-4 text-center">
-                  <FileText className="w-14 h-14 text-[#A855F7]" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-white">{originalFileType} tersimpan sebagai file asli</p>
-                    <p className="max-w-xl text-xs text-neutral-400">Browser tidak dapat menampilkan DOCX/XLSX secara native di dalam popup ini. File asli tetap tersedia untuk dibuka melalui aplikasi Office atau diunduh tanpa mengubah isinya.</p>
+              ) : originalFileHtml ? (
+                <div className="h-full overflow-auto rounded-lg bg-white text-neutral-900 p-5 sm:p-8">
+                  <style>{`
+                    .original-office-preview { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.55; }
+                    .original-office-preview h1,.original-office-preview h2,.original-office-preview h3 { font-weight: 700; margin: 1em 0 .5em; }
+                    .original-office-preview p { margin: .5em 0; }
+                    .original-office-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+                    .original-office-preview th,.original-office-preview td { border: 1px solid #777; padding: 5px 7px; vertical-align: top; }
+                    .original-office-preview img { max-width: 100%; height: auto; }
+                  `}</style>
+                  <div className="original-office-preview" dangerouslySetInnerHTML={{ __html: originalFileHtml }} />
+                  <div className="mt-6 border-t pt-4 text-center">
+                    <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>
                   </div>
-                  <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>
+                </div>
+              ) : (
+                <div className="h-full min-h-48 flex flex-col items-center justify-center gap-3 text-center">
+                  <FileText className="w-10 h-10 text-[#A855F7]" />
+                  <p className="text-sm text-neutral-300">Menyiapkan pratinjau file...</p>
+                  <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>
                 </div>
               )}
             </div>
