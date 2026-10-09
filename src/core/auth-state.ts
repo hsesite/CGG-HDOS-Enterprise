@@ -3,12 +3,12 @@ import type { ApiUser } from './api';
 
 export class AuthState {
   static saveUser(user: ApiUser): void {
-    sessionStorage.setItem('hdos_current_user', JSON.stringify(user));
+    localStorage.setItem('hdos_current_user', JSON.stringify(user));
   }
 
   static getUser(): ApiUser | null {
     try {
-      const stored = sessionStorage.getItem('hdos_current_user');
+      const stored = localStorage.getItem('hdos_current_user');
       return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
@@ -16,7 +16,7 @@ export class AuthState {
   }
 
   static clear(): void {
-    sessionStorage.removeItem('hdos_current_user');
+    localStorage.removeItem('hdos_current_user');
   }
 
   static hasPermission(permission: string): boolean {
