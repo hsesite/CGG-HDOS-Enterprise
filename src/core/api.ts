@@ -259,6 +259,10 @@ export const hseApi = {
     return data.user;
   },
 
+  async submitGoogleProfile(input: { credential: string; displayName: string; companyCode: string; position: string; department: string; section: string }): Promise<{ pending: boolean; message: string }> {
+    return request<{ pending: boolean; message: string }>('POST', '/api/auth/google/onboard', input);
+  },
+
   async listUsers(): Promise<ApiUser[]> {
     return request<ApiUser[]>('GET', '/api/users');
   },
