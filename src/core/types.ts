@@ -154,7 +154,7 @@ export interface DocumentItem {
   id: string;
   docNumber: string; // e.g. CGG-HSE-SOP-001
   title: string;
-  category: 'SOP' | 'WI' | 'Form' | 'Inspection' | 'Incident' | 'PICA' | 'Contractor';
+  category: 'SOP' | 'JSA' | 'WI' | 'IBPR' | 'Kebijakan' | 'Form' | 'Memo' | 'Work Permit' | 'Lainnya' | 'Inspection' | 'Incident' | 'PICA' | 'Contractor';
   revision: number;
   owner: string;
   status: 'DRAFT' | 'REVIEW' | 'APPROVED' | 'EFFECTIVE';
