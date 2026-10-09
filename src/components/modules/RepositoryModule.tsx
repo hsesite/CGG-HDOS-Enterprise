@@ -17,6 +17,7 @@ import { DocumentItem, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { hdosDB } from '../../core/db';
 import { hdosAI } from '../../core/ai';
+import { extractDocumentText, extractChecklistItems, } from '../../core/document-parser';
 
 type StoredDocumentFile = {
   id: string;
@@ -249,12 +250,49 @@ export const RepositoryModule: React.FC = () => {
         return;
       }
 
-      // Current parser uses filename + supplied summary to choose a template.
-      // It does not yet extract the actual text from PDF/DOCX/XLSX.
-      const parsed = await hdosAI.parseDocumentToDigitalForm(
-        doc.title,
-        `${doc.summary}\nElemen SMKP: ${doc.smkpElement}\nKategori: ${doc.category}`
+     
+      const db = await hdosDB.init();
+      if (!db) {
+        throw new Error('IndexedDB tidak tersedia pada browser ini.');
+      }
+
+      const storedFile = await hdosDB.getById<StoredDocumentFile>(
+        'photos',
+        `${DOCUMENT_FILE_PREFIX}${doc.id}`
       );
+
+      if (!storedFile?.blob) {
+        throw new Error(
+          'Berkas asli tidak ditemukan. Unggah ulang dokumen ini sebelum membuat checklist.'
+        );
+      }
+
+      const originalBlob = storedFile.blob instanceof Blob
+        ? storedFile.blob
+        : new Blob([storedFile.blob as BlobPart], {
+            type: storedFile.mimeType || 'application/octet-stream',
+          });
+
+      const extracted = await extractDocumentText(
+        originalBlob,
+        storedFile.fileName ||
+          `${doc.docNumber}.${doc.fileType.toLowerCase()}`
+      );
+
+      const checklistItems = extractChecklistItems(extracted.text);
+
+      if (checklistItems.length === 0) {
+        throw new Error(
+          `Teks berhasil dibaca (${extracted.sourceType}), tetapi tidak ditemukan kandidat checklist yang jelas. Silakan periksa dokumen atau buat checklist secara manual.`
+        );
+      }
+
+      const parsed = {
+        title: `Draft Checklist: ${doc.title}`,
+        category: doc.category,
+        smkpElement: doc.smkpElement,
+        checklistItems,
+      };
 
       const fields = parsed.checklistItems.map((item, index) => ({
         id: `field_${index + 1}`,
