@@ -13,9 +13,11 @@ import {
   Sparkles,
   Search,
   Filter,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { MiningArea, InspectionItem, Inspection } from '../../core/types';
+import { MiningArea, InspectionItem, Inspection, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 
 interface TemplateDef {
@@ -99,8 +101,12 @@ export const InspectionModule: React.FC = () => {
   const [photoAttached, setPhotoAttached] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [selectedRepositoryFormId, setSelectedRepositoryFormId] = useState<string>('');
+  const [repositoryAnswers, setRepositoryAnswers] = useState<Record<string, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({});
 
   const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId)!;
+  const publishedRepositoryForms = store.formDefinitions.filter((form) => form.status === 'PUBLISHED' && form.fields.length > 0);
+  const selectedRepositoryForm: FormDefinition | undefined = publishedRepositoryForms.find((form) => form.id === selectedRepositoryFormId);
 
   const handleResultChange = (index: number, result: 'PASS' | 'FAIL' | 'NA') => {
     setAnswers((prev) => ({
@@ -123,6 +129,112 @@ export const InspectionModule: React.FC = () => {
   };
 
   const hasFail = Object.values(answers).some((a) => a.result === 'FAIL');
+
+  const handleRepositoryFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRepositoryForm) return;
+
+    const items: InspectionItem[] = selectedRepositoryForm.fields
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((field) => ({
+        id: `field_${field.id}_${Date.now()}`,
+        question: field.label,
+        standardRef: String(field.metadata?.standardRef || field.description || selectedRepositoryForm.formNumber || 'Dokumen sumber'),
+        result: repositoryAnswers[field.id]?.result || 'PASS',
+        notes: repositoryAnswers[field.id]?.notes || '',
+      }));
+
+    const missingFindingNotes = items.some((item) => item.result === 'FAIL' && !item.notes?.trim());
+    if (missingFindingNotes) {
+      setSuccessMessage('');
+      window.alert('Lengkapi catatan untuk setiap item Tidak Sesuai sebelum menyimpan pemeriksaan.');
+      return;
+    }
+
+    setSubmitting(true);
+    setSuccessMessage('');
+    try {
+      const failedCount = items.filter((item) => item.result === 'FAIL').length;
+      const passCount = items.filter((item) => item.result === 'PASS').length;
+      const applicableCount = items.filter((item) => item.result !== 'NA').length;
+      const scorePercent = applicableCount > 0 ? Math.round((passCount / applicableCount) * 100) : 100;
+      const sourceDoc = store.documents.find((doc) => doc.id === selectedRepositoryForm.sourceDocumentId);
+      const newInspection = await store.addInspection({
+        title: selectedRepositoryForm.title,
+        templateType: 'WORKSHOP',
+        sourceFormId: selectedRepositoryForm.id,
+        sourceFormNumber: selectedRepositoryForm.formNumber,
+        sourceDocumentId: selectedRepositoryForm.sourceDocumentId,
+        location,
+        inspectorName,
+        inspectorRole: currentUser.role,
+        date: new Date().toISOString().split('T')[0],
+        status: failedCount > 0 ? 'PICA_TRIGGERED' : 'COMPLETED',
+        smkpElement: sourceDoc?.smkpElement || selectedRepositoryForm.category || 'SMKP Document Control',
+        scorePercent,
+        items,
+        notes: generalNotes,
+        gpsCoordinates: {
+          lat: -2.9395,
+          lng: 121.9618,
+          utm: '51S 385100 mE 9674800 mN',
+        },
+      });
+
+      setSuccessMessage(
+        failedCount > 0
+          ? `Pemeriksaan ${newInspection.code} tersimpan. ${failedCount} temuan dicatat dan PICA dibuat otomatis.`
+          : `Pemeriksaan ${newInspection.code} selesai tanpa temuan dan tersimpan di Riwayat Pemeriksaan.`
+      );
+      setActiveTab('history');
+      setSelectedRepositoryFormId('');
+      setRepositoryAnswers({});
+      setGeneralNotes('');
+    } catch (error) {
+      console.error('[InspectionModule] Gagal menyimpan pemeriksaan formulir Repository:', error);
+      setSuccessMessage('Pemeriksaan gagal disimpan. Silakan coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const downloadInspectionReport = (inspection: Inspection) => {
+    const quote = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Kode Pemeriksaan', inspection.code],
+      ['Judul Formulir', inspection.title],
+      ['Nomor Formulir Sumber', inspection.sourceFormNumber || '-'],
+      ['Tanggal', inspection.date],
+      ['Lokasi', inspection.location],
+      ['Inspektur', inspection.inspectorName],
+      ['Elemen SMKP', inspection.smkpElement],
+      ['Skor Kepatuhan', `${inspection.scorePercent}%`],
+      ['Status', inspection.status],
+      [],
+      ['No', 'Pertanyaan', 'Referensi', 'Hasil', 'Catatan Temuan', 'Kode PICA'],
+      ...inspection.items.map((item, index) => [
+        index + 1,
+        item.question,
+        item.standardRef,
+        item.result,
+        item.notes || '',
+        item.picaId ? (store.picas.find((pica) => pica.id === item.picaId)?.code || item.picaId) : '',
+      ]),
+      [],
+      ['Catatan Umum', inspection.notes || ''],
+    ];
+    const csv = '\uFEFF' + rows.map((row) => row.map(quote).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `Laporan-${inspection.code}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,7 +325,83 @@ export const InspectionModule: React.FC = () => {
       )}
 
       {activeTab === 'form' ? (
+        selectedRepositoryForm ? (
+          <form onSubmit={handleRepositoryFormSubmit} className="space-y-6">
+            <div className="apple-glass-card p-5 rounded-2xl space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-[#42A5F5] font-bold">Dari SMKP Document Control</p>
+                  <h3 className="text-base font-bold text-white mt-1">{selectedRepositoryForm.title}</h3>
+                  <p className="text-xs text-neutral-400 mt-1">{selectedRepositoryForm.formNumber || selectedRepositoryForm.id} · {selectedRepositoryForm.fields.length} pertanyaan</p>
+                </div>
+                <button type="button" onClick={() => setSelectedRepositoryFormId('')} className="px-3 py-1.5 rounded-lg bg-white/10 text-xs text-white">Kembali</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <label className="text-neutral-400">Lokasi pemeriksaan
+                  <select value={location} onChange={(event) => setLocation(event.target.value as MiningArea)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
+                    {store.locations.map((loc) => <option key={loc.id} value={loc.name} className="bg-neutral-900">{loc.name}</option>)}
+                  </select>
+                </label>
+                <label className="text-neutral-400">Inspektur
+                  <input value={inspectorName} onChange={(event) => setInspectorName(event.target.value)} required className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                </label>
+                <div className="text-neutral-400">Status formulir
+                  <p className="mt-1 px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">PUBLISHED · Siap diperiksa</p>
+                </div>
+              </div>
+            </div>
+            <div className="apple-glass-card p-5 rounded-2xl space-y-4">
+              <h3 className="text-sm font-semibold text-white border-b border-white/10 pb-3">Checklist Pemeriksaan</h3>
+              {selectedRepositoryForm.fields.slice().sort((a, b) => a.order - b.order).map((field, index) => {
+                const answer = repositoryAnswers[field.id]?.result || 'PASS';
+                const note = repositoryAnswers[field.id]?.notes || '';
+                return (
+                  <div key={field.id} className={`p-4 rounded-xl border ${answer === 'FAIL' ? 'bg-red-500/10 border-red-500/40' : 'bg-white/5 border-white/10'}`}>
+                    <p className="text-xs font-semibold text-white">{index + 1}. {field.label}</p>
+                    {field.description && <p className="text-[11px] text-neutral-400 mt-1">{field.description}</p>}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {([{value:'PASS',label:'Sesuai'},{value:'FAIL',label:'Tidak Sesuai'},{value:'NA',label:'Tidak Berlaku'}] as const).map((option) => (
+                        <button key={option.value} type="button" onClick={() => setRepositoryAnswers((prev) => ({...prev,[field.id]:{...prev[field.id],result:option.value,notes:prev[field.id]?.notes || ''}}))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${answer === option.value ? (option.value === 'FAIL' ? 'bg-red-500 text-white' : option.value === 'PASS' ? 'bg-emerald-400 text-black' : 'bg-neutral-600 text-white') : 'bg-black/30 text-neutral-400 border border-white/10'}`}>{option.label}</button>
+                      ))}
+                    </div>
+                    {answer === 'FAIL' && (
+                      <label className="block mt-3 text-[11px] text-red-300">Catatan temuan wajib
+                        <input required value={note} onChange={(event) => setRepositoryAnswers((prev) => ({...prev,[field.id]:{...prev[field.id],result:'FAIL',notes:event.target.value}}))} placeholder="Jelaskan ketidaksesuaian yang ditemukan" className="mt-1 w-full px-3 py-2 rounded-lg bg-black/50 border border-red-500/40 text-xs text-white" />
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+              <label className="block text-xs text-neutral-400">Catatan umum pemeriksaan
+                <textarea value={generalNotes} onChange={(event) => setGeneralNotes(event.target.value)} rows={3} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+              </label>
+              <button type="submit" disabled={submitting} className="w-full px-5 py-3 rounded-xl bg-[#42A5F5] text-black font-bold text-xs disabled:opacity-50">
+                <Save className="inline w-4 h-4 mr-2" />{submitting ? 'Menyimpan pemeriksaan...' : 'Simpan Pemeriksaan & Proses Temuan'}
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="apple-glass-card p-4 rounded-2xl space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-white">Formulir dari SMKP Document Control</h3>
+              <p className="text-[11px] text-neutral-400 mt-1">Pilih formulir yang sudah diterbitkan di Repository untuk mulai pemeriksaan.</p>
+            </div>
+            {publishedRepositoryForms.length === 0 ? (
+              <p className="text-xs text-neutral-400 rounded-lg bg-white/5 p-3">Belum ada formulir berstatus PUBLISHED dengan pertanyaan. Unggah dokumen di Document Control terlebih dahulu.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {publishedRepositoryForms.map((form) => (
+                  <button key={form.id} type="button" onClick={() => { setSelectedRepositoryFormId(form.id); setRepositoryAnswers({}); setSuccessMessage(''); }} className="text-left p-3 rounded-xl border border-[#42A5F5]/25 bg-[#42A5F5]/5 hover:bg-[#42A5F5]/10">
+                    <span className="flex items-center gap-2 text-xs font-bold text-white"><FileText className="w-4 h-4 text-[#42A5F5]" />{form.title}</span>
+                    <span className="block text-[10px] text-neutral-400 mt-1">{form.formNumber || form.id} · {form.fields.length} pertanyaan</span>
+                    <span className="block text-[10px] text-emerald-300 mt-1">PUBLISHED · Siap diperiksa</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Template Selection Matrix */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-neutral-300">Pilih Template Formulir Digital:</label>
@@ -426,6 +614,7 @@ export const InspectionModule: React.FC = () => {
             </button>
           </div>
         </form>
+        )
       ) : (
         /* History Table */
         <div className="apple-glass-card p-5 rounded-2xl space-y-4">
@@ -447,6 +636,7 @@ export const InspectionModule: React.FC = () => {
                   <th className="pb-3 font-semibold">Tanggal</th>
                   <th className="pb-3 font-semibold text-right">Skor Kepatuhan</th>
                   <th className="pb-3 font-semibold text-right">Status</th>
+                  <th className="pb-3 font-semibold text-right">Laporan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -472,6 +662,11 @@ export const InspectionModule: React.FC = () => {
                       >
                         {ins.status === 'PICA_TRIGGERED' ? 'PICA Auto-Issued' : 'Lulus'}
                       </span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={() => downloadInspectionReport(ins)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#42A5F5]/15 text-[#42A5F5] hover:bg-[#42A5F5]/25" title="Unduh laporan pemeriksaan">
+                        <Download className="w-3.5 h-3.5" /> CSV
+                      </button>
                     </td>
                   </tr>
                 ))}
