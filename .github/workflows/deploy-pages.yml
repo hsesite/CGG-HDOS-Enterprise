@@ -39,6 +39,8 @@ jobs:
         run: bun run typecheck
 
       - name: Build frontend
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: bun run build
         env:
           GITHUB_PAGES: 'true'
