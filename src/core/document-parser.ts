@@ -161,6 +161,89 @@ const inferStandardRef = (line: string): string => {
 };
 
 /**
+ * Prefer actual numbered inspection rows in DOCX tables over headings,
+ * risk matrices, instructions, and other text that merely looks like a checklist.
+ */
+export async function extractChecklistItemsFromDocument(
+  file: Blob,
+  fileName: string,
+  fallbackText: string
+): Promise<ExtractedChecklistItem[]> {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+
+  if (extension === 'docx') {
+    const buffer = await file.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+    if (typeof DOMParser !== 'undefined') {
+      const parsed = new DOMParser().parseFromString(result.value || '', 'text/html');
+      const tables = Array.from(parsed.querySelectorAll('table'));
+      let bestRows: ExtractedChecklistItem[] = [];
+      let bestScore = 0;
+
+      for (const table of tables) {
+        const rows = Array.from(table.querySelectorAll('tr')).map((row) =>
+          Array.from(row.querySelectorAll('th, td')).map((cell) =>
+            normalizeText(cell.textContent || '')
+          )
+        );
+        const headerIndex = rows.findIndex((row) => {
+          const header = row.join(' ').toLocaleLowerCase('id-ID');
+          return /hal yang diperiksa|item yang diperiksa|checklist pemeriksaan/.test(header)
+            && /tingkat risiko|tingkat resiko|kondisi aktual|keterangan/.test(header);
+        });
+        if (headerIndex < 0) continue;
+
+        const header = rows[headerIndex].join(' ').toLocaleLowerCase('id-ID');
+        const questionIndex = rows[headerIndex].findIndex((cell) =>
+          /hal yang diperiksa|item yang diperiksa|checklist pemeriksaan/i.test(cell)
+        );
+        const numberIndex = rows[headerIndex].findIndex((cell) =>
+          /^(no\.?|nomor)$/i.test(cell.trim())
+        );
+        const extractedRows: ExtractedChecklistItem[] = [];
+
+        for (const row of rows.slice(headerIndex + 1)) {
+          const question = row[questionIndex]?.trim() || '';
+          const numberCell = numberIndex >= 0 ? row[numberIndex]?.trim() || '' : '';
+          if (!question || question.length < 12 || question.length > 500) continue;
+          if (numberIndex >= 0 && !/^\d{1,3}$/.test(numberCell)) continue;
+          if (/^(hal yang diperiksa|kondisi aktual|tingkat risiko|tingkat resiko|keterangan)$/i.test(question)) continue;
+          const riskCell = row.find((cell) => /^(extreme|high|medium|moderate|low|h|m|l|e)$/i.test(cell.trim()));
+          const riskText = riskCell || question;
+          const criticality: ExtractedChecklistItem['criticality'] =
+            /^(extreme|e)$/i.test(riskText) ? 'CRITICAL'
+              : /^(high|h)$/i.test(riskText) ? 'MAJOR'
+                : inferCriticality(riskText);
+          extractedRows.push({
+            question: cleanCandidate(question),
+            standardRef: inferStandardRef(question),
+            criticality,
+          });
+        }
+
+        const score = extractedRows.length * 10 + (header.includes('kondisi aktual') ? 3 : 0) + (numberIndex >= 0 ? 5 : 0);
+        if (score > bestScore) {
+          bestScore = score;
+          bestRows = extractedRows;
+        }
+      }
+
+      if (bestRows.length > 0) {
+        const seen = new Set<string>();
+        return bestRows.filter((item) => {
+          const key = item.question.toLocaleLowerCase('id-ID');
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 100);
+      }
+    }
+  }
+
+  return extractChecklistItems(fallbackText);
+}
+
+/**
  * Extracts checklist candidates from actual document text.
  * This is deterministic parsing, not an AI judgment: all generated items
  * must be reviewed and edited by an authorized person before publication.
