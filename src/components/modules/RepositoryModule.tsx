@@ -88,10 +88,15 @@ const parseDocumentRegister = (
   title: string
 ): DocumentRegisterPreview => {
   const normalized = text.replace(/\u00a0/g, ' ').replace(/\r/g, '\n');
+  // Match the full register label (for example, "No Dok" or "Nomor Dokumen")
+  // before capturing its value. The older expression could mistake the word
+  // "Dok" in the label itself for the document number.
   const sourceDocumentNumber = readRegisterValue(normalized, [
-    /\b(?:no\.?\s*(?:dokumen)?|nomor(?:\s+dokumen)?)\s*[:：.]?\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
-    /\b(document\s*(?:no\.?|number))\s*[:：.]?\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
-  ]);
+    /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
+    /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s+([A-Z0-9][A-Z0-9./_-]{2,})/i,
+    /\bnomor\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
+    /\bno\.?\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
+  ]).replace(/^(?:dok|dokumen|nomor|no|document|number)$/i, REGISTER_MISSING);
   const revisionMatch = normalized.match(/\b(?:rev(?:isi)?\.?|revisi)\s*[:：.]?\s*(?:ke[- ]?)?([0-9]{1,2})\b/i);
   const parsedRevision = revisionMatch && Number(revisionMatch[1]) >= 0 && Number(revisionMatch[1]) <= 4
     ? revisionMatch[1]
