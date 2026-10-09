@@ -26,68 +26,13 @@ interface MapMarker {
 
 export const MapModule: React.FC = () => {
   const store = useHDOSStore();
-  const [selectedLocation, setSelectedLocation] = useState<MiningLocationGIS>(store.locations[0]);
+  const [selectedLocation, setSelectedLocation] = useState<MiningLocationGIS | undefined>(store.locations[0]);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [filterType, setFilterType] = useState<'ALL' | 'HAZARD' | 'INSPECTION' | 'PICA'>('ALL');
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
 
-  // Concrete markers across the mining concession coordinates
-  const markers: MapMarker[] = [
-    {
-      id: 'm1',
-      name: 'Pit Jaja KM10 - Bench 4',
-      type: 'HAZARD',
-      x: 28,
-      y: 62,
-      label: 'HAZ-2026-042',
-      detail: 'Unit HD785 parkir turunan tanpa wheel chock',
-    },
-    {
-      id: 'm2',
-      name: 'Pit Jaja KM10 - Highwall',
-      type: 'INSPECTION',
-      x: 22,
-      y: 55,
-      label: 'INS-2026-080',
-      detail: 'Inspeksi Kestabilan Lereng (Pass 100%)',
-    },
-    {
-      id: 'm3',
-      name: 'Central Workshop - Bay 2',
-      type: 'PICA',
-      x: 52,
-      y: 42,
-      label: 'PICA-2026-099',
-      detail: 'Tarik APAR No. 04 untuk pengisian ulang tekanan',
-    },
-    {
-      id: 'm4',
-      name: 'Fuel Bay - Dispenser B',
-      type: 'HAZARD',
-      x: 48,
-      y: 48,
-      label: 'HAZ-2026-041',
-      detail: 'Ceceran pelumas hidrolik di jalur pompa',
-    },
-    {
-      id: 'm5',
-      name: 'Siumbatu Jetty Loading Port',
-      type: 'CLOSED',
-      x: 85,
-      y: 22,
-      label: 'SAFE-012',
-      detail: 'Conveyor ship loader beroperasi normal tanpa insiden',
-    },
-    {
-      id: 'm6',
-      name: 'Haul Road KM12 Simpang 3',
-      type: 'INSPECTION',
-      x: 60,
-      y: 50,
-      label: 'INS-2026-079',
-      detail: 'Pemeriksaan safety berm & rambu batas kecepatan',
-    },
-  ];
+  // Do not fabricate spatial records; markers appear only when backed by validated source data.
+  const markers: MapMarker[] = [];
 
   const filteredMarkers = markers.filter((m) => {
     if (filterType === 'ALL') return true;
@@ -123,7 +68,7 @@ export const MapModule: React.FC = () => {
           </button>
 
           <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-semibold">
-            ✓ Offline Tile Ready (100%)
+            Map data pending
           </span>
         </div>
       </div>
@@ -353,7 +298,7 @@ export const MapModule: React.FC = () => {
 
             <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
               {store.locations.map((loc) => {
-                const isSelected = selectedLocation.id === loc.id;
+                const isSelected = selectedLocation?.id === loc.id;
 
                 return (
                   <div
