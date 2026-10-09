@@ -24,7 +24,7 @@ export const HazardModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'report' | 'register'>('report');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<Hazard['category']>('Unsafe Condition');
-  const [location, setLocation] = useState<MiningArea>('Pit Jaja KM10');
+  const [location, setLocation] = useState<MiningArea>('');
   const [specificLocation, setSpecificLocation] = useState('');
   const [actionTaken, setActionTaken] = useState('');
   const [severity, setSeverity] = useState<1 | 2 | 3 | 4 | 5>(3);
@@ -173,10 +173,12 @@ export const HazardModule: React.FC = () => {
                       Area Tambang
                     </label>
                     <select
+                      required
                       value={location}
                       onChange={(e) => setLocation(e.target.value as MiningArea)}
                       className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs focus:outline-none focus:border-[#FF5252]"
                     >
+                      <option value="" disabled>Pilih area kerja...</option>
                       {store.locations.map((loc) => (
                         <option key={loc.id} value={loc.name} className="bg-neutral-900">
                           {loc.name}
