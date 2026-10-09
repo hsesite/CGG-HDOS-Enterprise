@@ -78,6 +78,7 @@ export const RepositoryModule: React.FC = () => {
   const [reviewContentConfirmed, setReviewContentConfirmed] = useState(false);
   const [reviewReferencesConfirmed, setReviewReferencesConfirmed] = useState(false);
   const [reviewCriticalityConfirmed, setReviewCriticalityConfirmed] = useState(false);
+  const [, setFormRefreshKey] = useState(0);
 
   const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
 
@@ -347,6 +348,7 @@ export const RepositoryModule: React.FC = () => {
       };
 
       const newForm = await store.addFormDefinition(formInput);
+      setFormRefreshKey((value) => value + 1);
       setSuccessMessage(
         `Draft formulir "${newForm.title}" dibuat dengan ${fields.length} pertanyaan. Draft belum dipublikasikan dan wajib ditinjau oleh petugas berwenang.`
       );
@@ -393,6 +395,7 @@ export const RepositoryModule: React.FC = () => {
         status: 'REVIEW',
         approvalWorkflow,
       });
+      setFormRefreshKey((value) => value + 1);
       setSuccessMessage('Validasi awal selesai. Formulir masuk REVIEW dan menunggu persetujuan Foreman Safety.');
     } catch (error) {
       setErrorMessage(`Gagal mengajukan review: ${getErrorMessage(error)}`);
@@ -436,6 +439,7 @@ export const RepositoryModule: React.FC = () => {
         status: role === 'KTT' ? 'APPROVED' : 'REVIEW',
         approvalWorkflow: { ...workflow, approvals },
       });
+      setFormRefreshKey((value) => value + 1);
       setSuccessMessage(
         role === 'KTT'
           ? 'Persetujuan KTT tercatat. Formulir berstatus APPROVED dan siap diterbitkan oleh KTT.'
@@ -471,6 +475,7 @@ export const RepositoryModule: React.FC = () => {
           publishedAt: new Date().toISOString(),
         },
       });
+      setFormRefreshKey((value) => value + 1);
       setSuccessMessage('Formulir berhasil diterbitkan dan berstatus PUBLISHED.');
     } catch (error) {
       setErrorMessage(`Gagal menerbitkan formulir: ${getErrorMessage(error)}`);
@@ -701,81 +706,87 @@ export const RepositoryModule: React.FC = () => {
                   <span>{generatingForm ? 'Membuat draft checklist...' : 'Buat Draft Checklist Digital'}</span>
                 </button>
 
-                {selectedForm && (
-                  <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-white font-bold">
-                        <ClipboardCheck className="w-4 h-4 text-[#A855F7]" />
-                        <span>Validasi & Penerbitan Form</span>
-                      </div>
-                      <span className={`rounded px-2 py-1 text-[10px] font-bold ${selectedForm.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200'}`}>
-                        {selectedForm.status}
-                      </span>
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-white font-bold">
+                      <ClipboardCheck className="w-4 h-4 text-[#A855F7]" />
+                      <span>Validasi & Penerbitan Form</span>
                     </div>
-                    <p className="text-[10px] text-neutral-400">
-                      {selectedForm.formNumber} · {selectedForm.fields.length} pertanyaan · Revisi {selectedForm.revision || '1'}
-                    </p>
-                    <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
-                      {selectedForm.fields.map((field) => (
-                        <div key={field.id} className="rounded-lg border border-white/10 p-2">
-                          <p className="text-[11px] text-white">{field.order}. {field.label}</p>
-                          <p className="text-[10px] text-neutral-400 mt-1">{field.description || 'Tidak ada keterangan'}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedForm.status === 'DRAFT' && (
-                      <div className="space-y-2">
-                        <p className="text-[11px] font-bold text-amber-200">Checklist validasi wajib</p>
-                        <label className="flex items-start gap-2 text-[11px] text-neutral-200">
-                          <input type="checkbox" checked={reviewContentConfirmed} onChange={(event) => setReviewContentConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
-                          Saya telah membandingkan seluruh pertanyaan dengan dokumen sumber.
-                        </label>
-                        <label className="flex items-start gap-2 text-[11px] text-neutral-200">
-                          <input type="checkbox" checked={reviewReferencesConfirmed} onChange={(event) => setReviewReferencesConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
-                          Referensi peraturan/standar telah diverifikasi; tidak hanya mengandalkan hasil ekstraksi.
-                        </label>
-                        <label className="flex items-start gap-2 text-[11px] text-neutral-200">
-                          <input type="checkbox" checked={reviewCriticalityConfirmed} onChange={(event) => setReviewCriticalityConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
-                          Tingkat kritikalitas dan pilihan jawaban telah ditinjau petugas HSE.
-                        </label>
-                        <button type="button" onClick={() => void handleStartFormReview()} className="w-full rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 text-[11px] font-bold text-amber-100 hover:bg-amber-500/30">
-                          Ajukan ke REVIEW
-                        </button>
-                      </div>
-                    )}
-                    {selectedForm.status === 'REVIEW' && (
-                      <div className="space-y-2">
-                        <p className="text-[11px] font-bold text-amber-200">Persetujuan berjenjang</p>
-                        <div className="space-y-1 text-[10px] text-neutral-300">
-                          <p>{selectedForm.approvalWorkflow?.approvals.foreman ? '✓' : '○'} Foreman Safety {selectedForm.approvalWorkflow?.approvals.foreman ? `— ${selectedForm.approvalWorkflow.approvals.foreman.approvedBy}` : '— menunggu'}</p>
-                          <p>{selectedForm.approvalWorkflow?.approvals.spvHse ? '✓' : '○'} SPV HSE {selectedForm.approvalWorkflow?.approvals.spvHse ? `— ${selectedForm.approvalWorkflow.approvals.spvHse.approvedBy}` : '— menunggu'}</p>
-                          <p>{selectedForm.approvalWorkflow?.approvals.ktt ? '✓' : '○'} KTT {selectedForm.approvalWorkflow?.approvals.ktt ? `— ${selectedForm.approvalWorkflow.approvals.ktt.approvedBy}` : '— menunggu'}</p>
-                        </div>
-                        {!selectedForm.approvalWorkflow?.approvals.foreman && hasSessionRole('Foreman Safety') && <button type="button" onClick={() => void handleApproveForm('Foreman Safety')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai Foreman Safety</button>}
-                        {selectedForm.approvalWorkflow?.approvals.foreman && !selectedForm.approvalWorkflow?.approvals.spvHse && hasSessionRole('SPV HSE') && <button type="button" onClick={() => void handleApproveForm('SPV HSE')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai SPV HSE</button>}
-                        {selectedForm.approvalWorkflow?.approvals.spvHse && !selectedForm.approvalWorkflow?.approvals.ktt && hasSessionRole('KTT') && <button type="button" onClick={() => void handleApproveForm('KTT')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai KTT</button>}
-                        {!hasSessionRole('Foreman Safety') && !hasSessionRole('SPV HSE') && !hasSessionRole('KTT') && <p className="text-[10px] text-neutral-400">Akun ini tidak memiliki role approver. Gunakan akun sesuai tahap persetujuan.</p>}
-                      </div>
-                    )}
-                    {selectedForm.status === 'APPROVED' && (
-                      <div className="space-y-2">
-                        <p className="text-[11px] text-emerald-200">Persetujuan lengkap. Formulir belum diterbitkan.</p>
-                        {hasSessionRole('KTT') ? (
-                          <button type="button" onClick={() => void handlePublishForm()} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-500">
-                            <Send className="inline w-3.5 h-3.5 mr-1" /> Terbitkan Formulir
-                          </button>
-                        ) : <p className="text-[10px] text-neutral-400">Penerbitan final menunggu akun KTT.</p>}
-                      </div>
-                    )}
-                    {selectedForm.status === 'PUBLISHED' && (
-                      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-[10px] text-emerald-200 space-y-1">
-                        <p className="font-bold flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Formulir telah diterbitkan.</p>
-                        <p>Diterbitkan oleh: {selectedForm.approvalWorkflow?.publishedBy || 'KTT'}</p>
-                        <p>Tanggal efektif: {selectedForm.effectiveDate || 'Belum ditetapkan'}</p>
-                      </div>
-                    )}
+                    <span className={`rounded px-2 py-1 text-[10px] font-bold ${selectedForm?.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200'}`}>
+                      {selectedForm?.status || 'BELUM DIBUAT'}
+                    </span>
                   </div>
-                )}
+                  {!selectedForm ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-neutral-300">Draft checklist untuk dokumen ini belum ditemukan. Klik tombol “Buat Draft Checklist Digital” di atas terlebih dahulu.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-neutral-400">
+                        {selectedForm.formNumber} · {selectedForm.fields.length} pertanyaan · Revisi {selectedForm.revision || '1'}
+                      </p>
+                      <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
+                        {selectedForm.fields.map((field) => (
+                          <div key={field.id} className="rounded-lg border border-white/10 p-2">
+                            <p className="text-[11px] text-white">{field.order}. {field.label}</p>
+                            <p className="text-[10px] text-neutral-400 mt-1">{field.description || 'Tidak ada keterangan'}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedForm.status === 'DRAFT' && (
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-bold text-amber-200">Checklist validasi wajib</p>
+                          <label className="flex items-start gap-2 text-[11px] text-neutral-200">
+                            <input type="checkbox" checked={reviewContentConfirmed} onChange={(event) => setReviewContentConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
+                            Saya telah membandingkan seluruh pertanyaan dengan dokumen sumber.
+                          </label>
+                          <label className="flex items-start gap-2 text-[11px] text-neutral-200">
+                            <input type="checkbox" checked={reviewReferencesConfirmed} onChange={(event) => setReviewReferencesConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
+                            Referensi peraturan/standar telah diverifikasi; tidak hanya mengandalkan hasil ekstraksi.
+                          </label>
+                          <label className="flex items-start gap-2 text-[11px] text-neutral-200">
+                            <input type="checkbox" checked={reviewCriticalityConfirmed} onChange={(event) => setReviewCriticalityConfirmed(event.target.checked)} className="mt-0.5 accent-purple-500" />
+                            Tingkat kritikalitas dan pilihan jawaban telah ditinjau petugas HSE.
+                          </label>
+                          <button type="button" onClick={() => void handleStartFormReview()} className="w-full rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 text-[11px] font-bold text-amber-100 hover:bg-amber-500/30">
+                            Ajukan ke REVIEW
+                          </button>
+                        </div>
+                      )}
+                      {selectedForm.status === 'REVIEW' && (
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-bold text-amber-200">Persetujuan berjenjang</p>
+                          <div className="space-y-1 text-[10px] text-neutral-300">
+                            <p>{selectedForm.approvalWorkflow?.approvals.foreman ? '✓' : '○'} Foreman Safety {selectedForm.approvalWorkflow?.approvals.foreman ? `— ${selectedForm.approvalWorkflow.approvals.foreman.approvedBy}` : '— menunggu'}</p>
+                            <p>{selectedForm.approvalWorkflow?.approvals.spvHse ? '✓' : '○'} SPV HSE {selectedForm.approvalWorkflow?.approvals.spvHse ? `— ${selectedForm.approvalWorkflow.approvals.spvHse.approvedBy}` : '— menunggu'}</p>
+                            <p>{selectedForm.approvalWorkflow?.approvals.ktt ? '✓' : '○'} KTT {selectedForm.approvalWorkflow?.approvals.ktt ? `— ${selectedForm.approvalWorkflow.approvals.ktt.approvedBy}` : '— menunggu'}</p>
+                          </div>
+                          {!selectedForm.approvalWorkflow?.approvals.foreman && hasSessionRole('Foreman Safety') && <button type="button" onClick={() => void handleApproveForm('Foreman Safety')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai Foreman Safety</button>}
+                          {selectedForm.approvalWorkflow?.approvals.foreman && !selectedForm.approvalWorkflow?.approvals.spvHse && hasSessionRole('SPV HSE') && <button type="button" onClick={() => void handleApproveForm('SPV HSE')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai SPV HSE</button>}
+                          {selectedForm.approvalWorkflow?.approvals.spvHse && !selectedForm.approvalWorkflow?.approvals.ktt && hasSessionRole('KTT') && <button type="button" onClick={() => void handleApproveForm('KTT')} className="w-full rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold hover:bg-white/15">Setujui sebagai KTT</button>}
+                          {!hasSessionRole('Foreman Safety') && !hasSessionRole('SPV HSE') && !hasSessionRole('KTT') && <p className="text-[10px] text-neutral-400">Akun ini tidak memiliki role approver. Gunakan akun sesuai tahap persetujuan.</p>}
+                        </div>
+                      )}
+                      {selectedForm.status === 'APPROVED' && (
+                        <div className="space-y-2">
+                          <p className="text-[11px] text-emerald-200">Persetujuan lengkap. Formulir belum diterbitkan.</p>
+                          {hasSessionRole('KTT') ? (
+                            <button type="button" onClick={() => void handlePublishForm()} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-500">
+                              <Send className="inline w-3.5 h-3.5 mr-1" /> Terbitkan Formulir
+                            </button>
+                          ) : <p className="text-[10px] text-neutral-400">Penerbitan final menunggu akun KTT.</p>}
+                        </div>
+                      )}
+                      {selectedForm.status === 'PUBLISHED' && (
+                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-[10px] text-emerald-200 space-y-1">
+                          <p className="font-bold flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Formulir telah diterbitkan.</p>
+                          <p>Diterbitkan oleh: {selectedForm.approvalWorkflow?.publishedBy || 'KTT'}</p>
+                          <p>Tanggal efektif: {selectedForm.effectiveDate || 'Belum ditetapkan'}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
