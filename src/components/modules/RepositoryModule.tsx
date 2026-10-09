@@ -193,6 +193,11 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [previewingOriginal, setPreviewingOriginal] = useState(false);
+  const [originalFileUrl, setOriginalFileUrl] = useState('');
+  const [originalFileName, setOriginalFileName] = useState('');
+  const [originalFileType, setOriginalFileType] = useState<DocumentItem['fileType'] | null>(null);
+  const [originalFileError, setOriginalFileError] = useState('');
   const [generatingForm, setGeneratingForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -403,6 +408,36 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       setErrorMessage(`Dokumen gagal disimpan: ${getErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const closeOriginalPreview = () => {
+    if (originalFileUrl) URL.revokeObjectURL(originalFileUrl);
+    setOriginalFileUrl('');
+    setOriginalFileName('');
+    setOriginalFileType(null);
+    setOriginalFileError('');
+    setPreviewingOriginal(false);
+  };
+
+  const handlePreviewOriginal = async (doc: DocumentItem) => {
+    setOriginalFileError('');
+    setPreviewingOriginal(true);
+    setOriginalFileUrl('');
+    setOriginalFileName('');
+    setOriginalFileType(doc.fileType);
+    try {
+      const db = await hdosDB.init();
+      if (!db) throw new Error('IndexedDB tidak tersedia pada browser ini.');
+      const storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+      if (!storedFile?.blob) throw new Error('Berkas asli tidak ditemukan di penyimpanan lokal. Coba unggah ulang dokumen ini.');
+      const blob = storedFile.blob instanceof Blob
+        ? storedFile.blob
+        : new Blob([storedFile.blob as BlobPart], { type: storedFile.mimeType });
+      setOriginalFileName(storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`);
+      setOriginalFileUrl(URL.createObjectURL(blob));
+    } catch (error) {
+      setOriginalFileError(getErrorMessage(error));
     }
   };
 
@@ -939,8 +974,17 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
                 <button
                   type="button"
+                  onClick={() => void handlePreviewOriginal(selectedDoc)}
+                  className="w-full py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Lihat File Asli (Popup)</span>
+                </button>
+
+                <button
+                  type="button"
                   disabled={downloading}
-                  onClick={() => void handleDownloadDoc(selectedDoc)}
+                  onClick={() => void handleDownloadDoc(selectedDoc)
                   className="w-full py-2 rounded-xl bg-[#A855F7] hover:bg-purple-600 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
@@ -971,6 +1015,42 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
           )}
         </div>
       </div>
+
+      {previewingOriginal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-5 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Pratinjau file asli">
+          <div className="w-full max-w-6xl h-[94vh] overflow-hidden rounded-2xl border border-white/15 bg-[#111418] shadow-2xl flex flex-col">
+            <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10 bg-[#171b21]">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-[#A855F7] font-bold">SMKP Document Control · File asli</p>
+                <h3 className="text-sm font-bold text-white truncate">{originalFileName || selectedDoc?.title || 'Memuat file...'}</h3>
+                <p className="text-[10px] text-neutral-400">Berkas sumber yang diunggah, bukan formulir hasil ekstraksi</p>
+              </div>
+              <button type="button" onClick={closeOriginalPreview} className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white">Tutup ✕</button>
+            </div>
+            <div className="min-h-0 flex-1 p-2 sm:p-4 overflow-auto">
+              {originalFileError ? (
+                <div className="h-full min-h-48 flex flex-col items-center justify-center gap-3 text-center">
+                  <AlertCircle className="w-8 h-8 text-amber-300" />
+                  <p className="text-sm text-amber-100">{originalFileError}</p>
+                </div>
+              ) : !originalFileUrl ? (
+                <div className="h-full min-h-48 flex items-center justify-center text-sm text-neutral-300">Memuat file asli dari penyimpanan lokal...</div>
+              ) : originalFileType === 'PDF' ? (
+                <iframe title={originalFileName} src={originalFileUrl} className="w-full h-full min-h-[65vh] rounded-lg bg-white" />
+              ) : (
+                <div className="h-full min-h-64 flex flex-col items-center justify-center gap-4 text-center">
+                  <FileText className="w-14 h-14 text-[#A855F7]" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-white">{originalFileType} tersimpan sebagai file asli</p>
+                    <p className="max-w-xl text-xs text-neutral-400">Browser tidak dapat menampilkan DOCX/XLSX secara native di dalam popup ini. File asli tetap tersedia untuk dibuka melalui aplikasi Office atau diunduh tanpa mengubah isinya.</p>
+                  </div>
+                  <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalNewDocOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
