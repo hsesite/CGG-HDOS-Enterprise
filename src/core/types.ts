@@ -198,7 +198,7 @@ export interface MiningLocationGIS {
   activeHazards: number;
   activeInspections: number;
   safetyStatus: 'SAFE' | 'WARNING' | 'ALERT';
-  zoneType: 'PIT' | 'HAUL_ROAD' | 'PORT' | 'FACILITY';
+  zoneType: 'PIT' | 'HAUL_ROAD' | 'STOCKPILE' | 'PREPARASI' | 'NURSERY' | 'JETTY' | 'ETO' | 'SAMPLE_HOUSE' | 'PORT' | 'FACILITY';
 }
 
 export interface SyncQueueItem {
