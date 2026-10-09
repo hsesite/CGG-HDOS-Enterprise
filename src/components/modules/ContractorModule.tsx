@@ -16,7 +16,21 @@ import { ContractorPassport } from '../../core/types';
 
 export const ContractorModule: React.FC = () => {
   const store = useHDOSStore();
-  const [selectedContractor, setSelectedContractor] = useState<ContractorPassport>(store.contractors[0]);
+  const [selectedContractor, setSelectedContractor] = useState<ContractorPassport | undefined>(store.contractors[0]);
+
+  if (store.contractors.length === 0 || !selectedContractor) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-4">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-white"><HardHat className="h-5 w-5 text-amber-400"/>Contractor Passport</h2>
+        <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
+          <Building2 className="mx-auto mb-3 h-8 w-8 text-neutral-500"/>
+          <p className="font-semibold text-white">Belum ada data kontraktor</p>
+          <p className="mt-2 text-sm text-neutral-400">Tambahkan kontraktor melalui modul Pengaturan. Manpower, jam kerja, MCU, dan KPI akan tetap kosong sampai data aktual dimasukkan.</p>
+          <button onClick={() => store.openWindow('settings')} className="mt-4 rounded-xl bg-[#00E676] px-4 py-2 text-sm font-semibold text-black">Buka Pengaturan</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
