@@ -113,12 +113,6 @@ class HDOSDatabase {
         resolve(null);
       };
 
-      request.onabort = () => {
-        console.error('[HDOS DB] IndexedDB open aborted');
-        this.db = null;
-        this.initPromise = null;
-        resolve(null);
-      };
     });
 
     return this.initPromise;
