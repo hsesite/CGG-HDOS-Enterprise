@@ -105,19 +105,19 @@ export const MenuBar: React.FC = () => {
           <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse" />
           <span className="text-neutral-400">Safe Hours:</span>
           <span className="font-semibold text-[#00E676] tabular-nums">
-            {store.safeHours.toLocaleString('id-ID')} Jam
+            {store.safeHours > 0 ? `${store.safeHours.toLocaleString('id-ID')} Jam` : '—'}
           </span>
           <span className="text-neutral-400">LTI-Free</span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px]">
           <Sun className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-neutral-300 font-mono tabular-nums">{store.weather.temp}°C</span>
+          <span className="text-neutral-300 font-mono tabular-nums">{store.weather.temp == null ? '—' : `${store.weather.temp}°C`}</span>
           <span className="text-neutral-500">·</span>
           <span className="text-neutral-400">WBGT</span>
-          <span className="text-amber-400 font-mono tabular-nums">{store.weather.wbgt}</span>
+          <span className="text-amber-400 font-mono tabular-nums">{store.weather.wbgt ?? '—'}</span>
           <span className="text-neutral-500">·</span>
-          <span className="text-emerald-400 font-medium">Pit Normal</span>
+          <span className="text-neutral-400 font-medium">Status belum diinput</span>
         </div>
       </div>
 
