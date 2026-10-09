@@ -294,6 +294,36 @@ export class HDOSCentralStore {
   return newDocument;
 }
 
+  async updateDocument(
+    documentId: string,
+    updates: Partial<Omit<DocumentItem, 'id' | 'docNumber'>>
+  ): Promise<DocumentItem> {
+    const existing = this.documents.find((doc) => doc.id === documentId);
+    if (!existing) {
+      throw new Error('Dokumen tidak ditemukan.');
+    }
+
+    const updated: DocumentItem = {
+      ...existing,
+      ...updates,
+      id: existing.id,
+      docNumber: existing.docNumber,
+    };
+
+    await hdosDB.put('repository', updated);
+    this.documents = this.documents.map((doc) =>
+      doc.id === documentId ? updated : doc
+    );
+    this.notify();
+    hdosEvents.emit('document:updated', {
+      documentId: updated.id,
+      docNumber: updated.docNumber,
+      title: updated.title,
+      status: updated.status,
+    });
+    return updated;
+  }
+
   async addFormDefinition(
   input: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<FormDefinition> {
