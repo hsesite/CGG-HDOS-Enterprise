@@ -65,6 +65,7 @@ export type ApiUser = {
   email: string;
   displayName: string;
   roles: string[];
+  status?: string;
 };
 
 export class ApiError extends Error {
@@ -260,6 +261,14 @@ export const hseApi = {
     );
     setToken(data.token);
     return data.user;
+  },
+
+  async listUsers(): Promise<ApiUser[]> {
+    return request<ApiUser[]>('GET', '/api/users');
+  },
+
+  async updateUserAccess(id: string, updates: { role?: string; status?: 'ACTIVE' | 'INACTIVE' }): Promise<ApiUser> {
+    return request<ApiUser>('PATCH', `/api/users/${encodeURIComponent(id)}`, updates);
   },
 
   async logout(): Promise<void> {
