@@ -128,6 +128,29 @@ export interface PICA {
   createdAt: string;
 }
 
+export type DocumentLevel =
+  | 'Level 1 - Manual Mutu'
+  | 'Level 2 - Prosedur'
+  | 'Level 3 - Instruksi Kerja'
+  | 'Level 4 - Record, Form, Attachment';
+
+export interface DocumentControlMetadata {
+  department: string;
+  documentLevel: DocumentLevel;
+  documentType: string;
+  revisionStatus: '0' | '1' | '2' | '3' | '4';
+  approvalDate: string;
+  remarks: string;
+  weight: string;
+  activeWeight: string;
+  softCopyFiling: string;
+  hardCopyFiling: string;
+  planDistribution: string;
+  actualDistribution: string;
+  distributedTo: string;
+  user: string;
+}
+
 export interface DocumentItem {
   id: string;
   docNumber: string; // e.g. CGG-HSE-SOP-001
@@ -142,6 +165,7 @@ export interface DocumentItem {
   downloadCount: number;
   smkpElement: string;
   summary: string;
+  documentControl?: DocumentControlMetadata;
 }
 
 export interface ContractorPassport {
