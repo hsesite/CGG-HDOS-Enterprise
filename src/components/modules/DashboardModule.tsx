@@ -455,7 +455,7 @@ export const DashboardModule: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-neutral-400" />
-                Stasiun Cuaca Pit Jaja KM10
+                Stasiun Cuaca — Belum Dikonfigurasi
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-medium">
                 {store.weather.pitStatus ?? 'Belum ada data'}
