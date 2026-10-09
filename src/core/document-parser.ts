@@ -302,3 +302,26 @@ export function extractChecklistItems(
     criticality: inferCriticality(question),
   }));
 }
+
+/** Render original office documents for an in-app preview; source files remain unchanged. */
+export async function renderDocumentPreviewHtml(file: Blob, fileName: string): Promise<string> {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  const buffer = await file.arrayBuffer();
+
+  if (extension === 'docx') {
+    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+    if (!result.value.trim()) throw new Error('Isi DOCX tidak dapat ditampilkan.');
+    return result.value;
+  }
+
+  if (extension === 'xlsx') {
+    const workbook = XLSX.read(buffer, { type: 'array', cellText: true });
+    return workbook.SheetNames.map((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      return `<section><h2>${sheetName.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char))}</h2>${XLSX.utils.sheet_to_html(sheet)}</section>`;
+    }).join('<hr />');
+  }
+
+  throw new Error('Pratinjau langsung hanya mendukung DOCX dan XLSX. PDF dibuka menggunakan penampil PDF.');
+}
+
