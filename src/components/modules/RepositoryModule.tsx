@@ -13,7 +13,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { DocumentItem, FormDefinition } from '../../core/types';
+import { DocumentItem, FormDefinition, DocumentLevel, DocumentControlMetadata } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
 import { hdosDB } from '../../core/db';
@@ -50,6 +50,45 @@ const getErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui.';
 };
 
+const inferDocumentLevel = (category: DocumentItem['category'], title: string): DocumentLevel => {
+  const value = title.toLocaleLowerCase('id-ID');
+  if (/manual mutu|kebijakan|policy|ruang lingkup perusahaan|kepemilikan aset|bispro|regulasi|tanggung jawab perusahaan/.test(value)) {
+    return 'Level 1 - Manual Mutu';
+  }
+  if (/instruksi kerja|\bwi\b|sertifikasi alat|sertifikasi sdm|job desc|job description|matriks kompetensi|matrix kompetensi|legal kontrak|standar kerja/.test(value) || category === 'WI') {
+    return 'Level 3 - Instruksi Kerja';
+  }
+  if (/checklist|check list|rekaman|record|attachment|formulir|\bform\b|inspeksi|inspection|incident|insiden|pica|mom|minutes of meeting/.test(value) || ['Form', 'Inspection', 'Incident', 'PICA'].includes(category)) {
+    return 'Level 4 - Record, Form, Attachment';
+  }
+  return 'Level 2 - Prosedur';
+};
+
+const inferDocumentType = (category: DocumentItem['category'], title: string): string => {
+  const level = inferDocumentLevel(category, title);
+  if (level === 'Level 1 - Manual Mutu') return 'Manual Mutu / Kebijakan';
+  if (level === 'Level 2 - Prosedur') return 'Prosedur / SOP';
+  if (level === 'Level 3 - Instruksi Kerja') return 'Instruksi Kerja / WI';
+  return 'Record / Form / Attachment';
+};
+
+const DEFAULT_DOCUMENT_CONTROL: DocumentControlMetadata = {
+  department: 'HSE',
+  documentLevel: 'Level 2 - Prosedur',
+  documentType: 'Prosedur / SOP',
+  revisionStatus: '0',
+  approvalDate: new Date().toISOString().slice(0, 10),
+  remarks: '',
+  weight: '',
+  activeWeight: '',
+  softCopyFiling: 'Ya',
+  hardCopyFiling: '',
+  planDistribution: '',
+  actualDistribution: '',
+  distributedTo: '',
+  user: '',
+};
+
 export const RepositoryModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
@@ -66,6 +105,18 @@ export const RepositoryModule: React.FC = () => {
   const [category, setCategory] = useState<DocumentItem['category']>('SOP');
   const [smkpElement, setSmkpElement] = useState('Elemen IV: Pengendalian Operasional');
   const [summary, setSummary] = useState('');
+  const [department, setDepartment] = useState('HSE');
+  const [revisionStatus, setRevisionStatus] = useState<DocumentControlMetadata['revisionStatus']>('0');
+  const [approvalDate, setApprovalDate] = useState(new Date().toISOString().slice(0, 10));
+  const [remarks, setRemarks] = useState('');
+  const [weight, setWeight] = useState('');
+  const [activeWeight, setActiveWeight] = useState('');
+  const [softCopyFiling, setSoftCopyFiling] = useState('Ya');
+  const [hardCopyFiling, setHardCopyFiling] = useState('');
+  const [planDistribution, setPlanDistribution] = useState('');
+  const [actualDistribution, setActualDistribution] = useState('');
+  const [distributedTo, setDistributedTo] = useState('');
+  const [documentUser, setDocumentUser] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -75,6 +126,8 @@ export const RepositoryModule: React.FC = () => {
   const [, setFormRefreshKey] = useState(0);
 
   const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
+  const inferredLevel = inferDocumentLevel(category, title);
+  const inferredType = inferDocumentType(category, title);
 
   const selectedForm = selectedDoc
     ? store.getFormDefinitionByDocumentId(selectedDoc.id)
@@ -199,6 +252,22 @@ export const RepositoryModule: React.FC = () => {
         downloadCount: 0,
         smkpElement: smkpElement.trim() || 'Belum ditentukan',
         summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah.',
+        documentControl: {
+          department: department.trim() || 'HSE',
+          documentLevel: inferredLevel,
+          documentType: inferredType,
+          revisionStatus,
+          approvalDate,
+          remarks: remarks.trim(),
+          weight: weight.trim(),
+          activeWeight: activeWeight.trim(),
+          softCopyFiling,
+          hardCopyFiling: hardCopyFiling.trim(),
+          planDistribution: planDistribution.trim(),
+          actualDistribution: actualDistribution.trim(),
+          distributedTo: distributedTo.trim(),
+          user: documentUser.trim() || currentUser?.name || 'Pengguna HDOS',
+        },
       });
 
       const storedFile: StoredDocumentFile = {
@@ -216,6 +285,18 @@ export const RepositoryModule: React.FC = () => {
       setModalNewDocOpen(false);
       setTitle('');
       setSummary('');
+      setDepartment('HSE');
+      setRevisionStatus('0');
+      setApprovalDate(new Date().toISOString().slice(0, 10));
+      setRemarks('');
+      setWeight('');
+      setActiveWeight('');
+      setSoftCopyFiling('Ya');
+      setHardCopyFiling('');
+      setPlanDistribution('');
+      setActualDistribution('');
+      setDistributedTo('');
+      setDocumentUser('');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       const formCreated = await handleGenerateForm(newDoc);
@@ -813,6 +894,63 @@ export const RepositoryModule: React.FC = () => {
                   onChange={(event) => setSummary(event.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white focus:outline-none focus:border-[#A855F7]"
                 />
+              </div>
+
+              <div className="rounded-xl border border-[#42A5F5]/25 bg-[#42A5F5]/5 p-3 space-y-3">
+                <div>
+                  <h4 className="text-xs font-bold text-white">SMKP Document Control Register</h4>
+                  <p className="text-[10px] text-neutral-400 mt-1">Level dokumen dan jenis dokumen ditentukan otomatis dari kategori serta judul. Kolom register mengikuti lembar kontrol dokumen yang diberikan.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="text-neutral-300">Departemen
+                    <input value={department} onChange={(e) => setDepartment(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">Level Dokumen (otomatis)
+                    <input readOnly value={inferredLevel} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/20 border border-white/10 text-sky-200" />
+                  </label>
+                  <label className="text-neutral-300">Jenis Dokumen (otomatis)
+                    <input readOnly value={inferredType} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/20 border border-white/10 text-sky-200" />
+                  </label>
+                  <label className="text-neutral-300">Status Revisi (0–4)
+                    <select value={revisionStatus} onChange={(e) => setRevisionStatus(e.target.value as DocumentControlMetadata['revisionStatus'])} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
+                      {['0','1','2','3','4'].map((v) => <option key={v} value={v} className="bg-neutral-900">{v}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-neutral-300">Tanggal Pengesahan
+                    <input type="date" value={approvalDate} onChange={(e) => setApprovalDate(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">Keterangan
+                    <input value={remarks} onChange={(e) => setRemarks(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">WEIGHT
+                    <input value={weight} onChange={(e) => setWeight(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">ACT WEIGHT
+                    <input value={activeWeight} onChange={(e) => setActiveWeight(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">Dokumen Filling — Soft Copy
+                    <select value={softCopyFiling} onChange={(e) => setSoftCopyFiling(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
+                      <option value="Ya" className="bg-neutral-900">Ya</option><option value="Tidak" className="bg-neutral-900">Tidak</option>
+                    </select>
+                  </label>
+                  <label className="text-neutral-300">Dokumen Filling — Hard Copy
+                    <select value={hardCopyFiling} onChange={(e) => setHardCopyFiling(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white">
+                      <option value="" className="bg-neutral-900">Belum diisi</option><option value="Ya" className="bg-neutral-900">Ya</option><option value="Tidak" className="bg-neutral-900">Tidak</option>
+                    </select>
+                  </label>
+                  <label className="text-neutral-300">Plan MP
+                    <input value={planDistribution} onChange={(e) => setPlanDistribution(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">Actual Distribusi
+                    <input value={actualDistribution} onChange={(e) => setActualDistribution(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">Nama MP Terdistribusi
+                    <input value={distributedTo} onChange={(e) => setDistributedTo(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-300">User
+                    <input value={documentUser} onChange={(e) => setDocumentUser(e.target.value)} placeholder={currentUser?.name || 'Pengguna HDOS'} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                </div>
               </div>
 
               <div>
