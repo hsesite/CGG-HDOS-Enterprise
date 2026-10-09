@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { renderAsync as renderDocxAsync } from 'docx-preview';
 import {
   FolderGit2,
   Plus,
@@ -202,9 +201,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [originalFileName, setOriginalFileName] = useState('');
   const [originalFileType, setOriginalFileType] = useState<DocumentItem['fileType'] | null>(null);
   const [originalFileHtml, setOriginalFileHtml] = useState('');
-  const [originalDocxBlob, setOriginalDocxBlob] = useState<Blob | null>(null);
-  const docxPreviewRef = useRef<HTMLDivElement>(null);
-  const docxStylesRef = useRef<HTMLDivElement>(null);
   const [originalFileError, setOriginalFileError] = useState('');
   const [generatingForm, setGeneratingForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -425,7 +421,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setOriginalFileName('');
     setOriginalFileType(null);
     setOriginalFileHtml('');
-    setOriginalDocxBlob(null);
     setOriginalFileError('');
     setPreviewingOriginal(false);
   };
@@ -436,7 +431,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setOriginalFileUrl('');
     setOriginalFileName('');
     setOriginalFileHtml('');
-    setOriginalDocxBlob(null);
     setOriginalFileType(doc.fileType);
     try {
       const db = await hdosDB.init();
@@ -461,11 +455,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       }
       setOriginalFileName(fileName);
       setOriginalFileUrl(URL.createObjectURL(blob));
-      if (doc.fileType === 'DOCX') {
-        // Render the DOCX package itself so page breaks, tables, headers,
-        // footers, and embedded images are retained as closely as the browser allows.
-        setOriginalDocxBlob(blob);
-      } else if (doc.fileType === 'XLSX') {
+      if (doc.fileType === 'XLSX') {
         const html = await renderDocumentPreviewHtml(blob, fileName);
         setOriginalFileHtml(html);
       }
@@ -473,35 +463,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       setOriginalFileError(getErrorMessage(error));
     }
   };
-
-  useEffect(() => {
-    if (!previewingOriginal || originalFileType !== 'DOCX' || !originalDocxBlob || !docxPreviewRef.current || !docxStylesRef.current) return;
-    let cancelled = false;
-    const render = async () => {
-      const container = docxPreviewRef.current;
-      const styles = docxStylesRef.current;
-      if (!container || !styles) return;
-      container.innerHTML = '';
-      styles.innerHTML = '';
-      try {
-        await renderDocxAsync(originalDocxBlob, container, styles, {
-          className: 'hdos-docx-preview',
-          inWrapper: true,
-          ignoreWidth: false,
-          ignoreHeight: false,
-          breakPages: true,
-          renderHeaders: true,
-          renderFooters: true,
-          renderFootnotes: true,
-          renderEndnotes: true,
-        });
-      } catch (error) {
-        if (!cancelled) setOriginalFileError(`Pratinjau DOCX gagal dirender: ${getErrorMessage(error)}. File asli tetap dapat diunduh.`);
-      }
-    };
-    void render();
-    return () => { cancelled = true; };
-  }, [previewingOriginal, originalFileType, originalDocxBlob]);
 
   const handleDownloadDoc = async (doc: DocumentItem) => {
     resetMessages();
@@ -1068,13 +1029,18 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                 <div className="h-full min-h-48 flex items-center justify-center text-sm text-neutral-300">Memuat file asli dari penyimpanan lokal...</div>
               ) : originalFileType === 'PDF' ? (
                 <iframe title={originalFileName} src={originalFileUrl} className="w-full h-full min-h-[65vh] rounded-lg bg-white" />
-              ) : originalFileType === 'DOCX' && originalDocxBlob ? (
-                <div className="h-full overflow-auto rounded-lg bg-[#e8e8e8] p-2 sm:p-4">
-                  <div ref={docxStylesRef} />
-                  <div ref={docxPreviewRef} className="hdos-docx-preview-host mx-auto" />
-                  <div className="py-4 text-center">
-                    <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli (.DOCX)</a>
+              ) : originalFileType === 'DOCX' ? (
+                <div className="h-full min-h-64 flex flex-col items-center justify-center gap-4 text-center px-5">
+                  <FileText className="w-14 h-14 text-[#A855F7]" />
+                  <div className="space-y-2 max-w-xl">
+                    <p className="text-base font-bold text-white">Buka dokumen asli di Microsoft Word</p>
+                    <p className="text-sm text-neutral-300">Pratinjau DOCX di browser dinonaktifkan agar isi dan tata letak tidak ditampilkan dalam bentuk hasil render yang berbeda. Unduh berkas asli di bawah, lalu buka berkas tersebut dengan Microsoft Word.</p>
+                    <p className="text-xs text-neutral-400">Nama file: {originalFileName}</p>
                   </div>
+                  <a href={originalFileUrl} download={originalFileName} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-sm font-bold">
+                    <Download className="w-4 h-4" />
+                    Unduh File Asli untuk Microsoft Word
+                  </a>
                 </div>
               ) : originalFileHtml ? (
                 <div className="h-full overflow-auto rounded-lg bg-white text-neutral-900 p-5 sm:p-8">
