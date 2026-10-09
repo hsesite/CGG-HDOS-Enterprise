@@ -10,6 +10,7 @@ import {
   HardHat,
   Cpu,
   RefreshCw,
+  Settings,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { WindowId } from '../../core/types';
@@ -40,6 +41,7 @@ export const Dock: React.FC = () => {
     { id: 'contractor', label: 'Contractor Passport', icon: HardHat, accentColor: '#F59E0B' },
     { id: 'ai', label: 'AI Vision & SMKP Copilot', icon: Cpu, accentColor: '#EC4899' },
     { id: 'sync', label: 'Offline Sync & Sheets', icon: RefreshCw, accentColor: '#10B981' },
+    { id: 'settings', label: 'Pengaturan Sistem', icon: Settings, accentColor: '#E5E7EB' },
   ];
 
   const handleItemClick = (id: WindowId) => {
