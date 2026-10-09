@@ -396,14 +396,24 @@ export class HDOSSyncEngine {
           );
 
         if (!endpoint) {
+          // Unsupported entities must not be retried automatically forever.
+          // Keep the item visible for diagnosis; enabling it requires an API route.
           item.status = 'CONFLICT';
+          item.retryCount = MAX_RETRIES;
           item.error =
-            `Entity ${item.entity} belum memiliki endpoint cloud.`;
+            `Entity ${item.entity} belum memiliki endpoint cloud. Item ditahan sampai endpoint tersedia.`;
 
           await hdosDB.put(
             'queue',
             item
           );
+
+          this.syncLogs.unshift({
+            time: formatTime(),
+            message:
+              `Sync ditahan: entity ${item.entity} belum didukung API cloud.`,
+            type: 'warning',
+          });
 
           continue;
         }
