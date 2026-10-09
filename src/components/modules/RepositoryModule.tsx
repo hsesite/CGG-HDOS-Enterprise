@@ -50,6 +50,69 @@ const getErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui.';
 };
 
+type DocumentRegisterPreview = {
+  sourceDocumentNumber: string;
+  revisionStatus: string;
+  documentControl: DocumentControlMetadata;
+};
+
+const REGISTER_MISSING = '-';
+
+const readRegisterValue = (text: string, patterns: RegExp[]): string => {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = match?.[1]?.replace(/\s+/g, ' ').trim();
+    if (value) return value.replace(/[|;]+$/, '').trim() || REGISTER_MISSING;
+  }
+  return REGISTER_MISSING;
+};
+
+const parseDocumentRegister = (
+  text: string,
+  fileName: string,
+  category: DocumentItem['category'],
+  title: string
+): DocumentRegisterPreview => {
+  const normalized = text.replace(/\u00a0/g, ' ').replace(/\r/g, '\n');
+  const sourceDocumentNumber = readRegisterValue(normalized, [
+    /\b(?:no\.?\s*(?:dokumen)?|nomor(?:\s+dokumen)?)\s*[:：.]?\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
+    /\b(document\s*(?:no\.?|number))\s*[:：.]?\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
+  ]);
+  const revisionMatch = normalized.match(/\b(?:rev(?:isi)?\.?|revisi)\s*[:：.]?\s*(?:ke[- ]?)?([0-9]{1,2})\b/i);
+  const parsedRevision = revisionMatch && Number(revisionMatch[1]) >= 0 && Number(revisionMatch[1]) <= 4
+    ? revisionMatch[1]
+    : REGISTER_MISSING;
+  const levelMatch = normalized.match(/\b(Level\s*[1-4])\s*[-:–]?\s*([^\n|]*)/i);
+  const inferredLevel = inferDocumentLevel(category, title || fileName.replace(/\.[^.]+$/, ''));
+  const documentLevel = levelMatch
+    ? (levelMatch[1].toLowerCase().replace(/\s+/g, ' ') === 'level 1' ? 'Level 1 - Manual Mutu'
+      : levelMatch[1].toLowerCase().replace(/\s+/g, ' ') === 'level 2' ? 'Level 2 - Prosedur'
+        : levelMatch[1].toLowerCase().replace(/\s+/g, ' ') === 'level 3' ? 'Level 3 - Instruksi Kerja'
+          : 'Level 4 - Record, Form, Attachment')
+    : inferredLevel;
+  const explicitDocumentType = readRegisterValue(normalized, [
+    /(?:jenis\s+dokumen|document\s+type)\s*[:：]\s*([^\n]+)/i,
+  ]);
+  const documentControl: DocumentControlMetadata = {
+    department: readRegisterValue(normalized, [/(?:departemen|department|dept\.?)\s*[:：]\s*([^\n]+)/i]),
+    documentLevel,
+    documentType: explicitDocumentType !== REGISTER_MISSING ? explicitDocumentType : inferDocumentType(category, title || fileName),
+    sourceDocumentNumber,
+    revisionStatus: parsedRevision,
+    approvalDate: readRegisterValue(normalized, [/(?:tanggal\s+pengesahan|tanggal\s+persetujuan|approval\s+date|effective\s+date)\s*[:：]\s*([^\n]+)/i]),
+    remarks: readRegisterValue(normalized, [/(?:keterangan|remarks)\s*[:：]\s*([^\n]+)/i]),
+    weight: readRegisterValue(normalized, [/\bWEIGHT\s*[:：]?\s*([^\n]+)/i]),
+    activeWeight: readRegisterValue(normalized, [/\bACT\s*WEIGHT\s*[:：]?\s*([^\n]+)/i]),
+    softCopyFiling: readRegisterValue(normalized, [/(?:SOFT\s*COPY|FILING\s*SOFT\s*COPY)\s*[:：]?\s*([^\n]+)/i]),
+    hardCopyFiling: readRegisterValue(normalized, [/(?:HARD\s*COPY|FILING\s*HARD\s*COPY)\s*[:：]?\s*([^\n]+)/i]),
+    planDistribution: readRegisterValue(normalized, [/\bPLAN\s*MP\s*[:：]?\s*([^\n]+)/i]),
+    actualDistribution: readRegisterValue(normalized, [/\bACTUAL\s*DISTRIBUSI\s*[:：]?\s*([^\n]+)/i]),
+    distributedTo: readRegisterValue(normalized, [/(?:NAMA\s*MP\s*TERDISTRIBUSI|DISTRIBUTED\s*TO)\s*[:：]?\s*([^\n]+)/i]),
+    user: readRegisterValue(normalized, [/\bUSER\s*[:：]\s*([^\n]+)/i]),
+  };
+  return { sourceDocumentNumber, revisionStatus: parsedRevision, documentControl };
+};
+
 const checklistSectionLabel = (section?: string): string => {
   switch (section) {
     case 'HD_CMT': return 'HD/CMT';
@@ -130,6 +193,8 @@ export const RepositoryModule: React.FC = () => {
   const [distributedTo, setDistributedTo] = useState('');
   const [documentUser, setDocumentUser] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [registerPreview, setRegisterPreview] = useState<DocumentRegisterPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [generatingForm, setGeneratingForm] = useState(false);
