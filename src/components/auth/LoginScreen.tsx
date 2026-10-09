@@ -1,17 +1,18 @@
 import { useState } from 'react';
+import type { ReactElement, FormEvent } from 'react';
 import { loginUser } from '../../core/auth-utils';
 import { AuthState } from '../../core/auth-state';
 import type { UserRole } from '../../core/types';
 
 const ROLE_PRIORITY: UserRole[] = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
 
-export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): JSX.Element {
+export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactElement {
   const [email, setEmail] = useState('admin@ptcgg.com');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
     setPending(true);
