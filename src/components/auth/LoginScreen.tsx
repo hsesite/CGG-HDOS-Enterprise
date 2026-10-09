@@ -21,8 +21,6 @@ declare global {
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 
 export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactElement {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -53,17 +51,10 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
     setNotice('');
     setPending(true);
     try {
-      if (mode === 'register') {
-        if (displayName.trim().length < 2) throw new Error('Nama karyawan minimal 2 karakter.');
-        if (password.length < 12) throw new Error('Password minimal 12 karakter.');
-        const user = await hseApi.register(displayName.trim(), email.trim(), password);
-        await completeLogin(user);
-      } else {
-        const user = await loginUser(email.trim(), password);
-        await completeLogin(user);
-      }
+      const user = await loginUser(email.trim(), password);
+      await completeLogin(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Permintaan autentikasi gagal.');
+      setError(err instanceof Error ? err.message : 'Login gagal.');
     } finally {
       setPending(false);
     }
@@ -111,28 +102,21 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
             <img src={cggLogo} alt="Logo CGG" className="h-full w-full object-contain" />
           </div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[#00E676]">CGG HDOS</p>
-          <h1 className="mt-3 text-2xl font-bold">{mode === 'login' ? 'Masuk ke HDOS' : 'Daftar Akun Karyawan'}</h1>
+          <h1 className="mt-3 text-2xl font-bold">Masuk ke HDOS</h1>
           <p className="mt-2 text-sm text-neutral-400">Gunakan akun perusahaan atau akun Google yang terverifikasi.</p>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 rounded-xl border border-white/10 bg-neutral-950 p-1">
-          <button type="button" onClick={() => {setMode('login');setError('');setNotice('');}} className={`rounded-lg px-3 py-2 text-sm font-medium ${mode==='login'?'bg-[#00E676] text-black':'text-neutral-400 hover:text-white'}`}>Masuk</button>
-          <button type="button" onClick={() => {setMode('register');setError('');setNotice('');}} className={`rounded-lg px-3 py-2 text-sm font-medium ${mode==='register'?'bg-[#00E676] text-black':'text-neutral-400 hover:text-white'}`}>Daftar</button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'register' && <label className="block"><span className="mb-2 block text-xs uppercase tracking-[0.15em] text-neutral-400">Nama karyawan</span><input required minLength={2} value={displayName} onChange={e=>setDisplayName(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-[#00E676] focus:ring-2 focus:ring-[#00E676]/30" placeholder="Nama lengkap" autoComplete="name"/></label>}
           <label className="block"><span className="mb-2 block text-xs uppercase tracking-[0.15em] text-neutral-400">Email</span><input required type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-[#00E676] focus:ring-2 focus:ring-[#00E676]/30" placeholder="nama@perusahaan.com" autoComplete="email"/></label>
-          <label className="block"><span className="mb-2 block text-xs uppercase tracking-[0.15em] text-neutral-400">Password</span><input required minLength={mode==='register'?12:1} type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-[#00E676] focus:ring-2 focus:ring-[#00E676]/30" placeholder={mode==='register'?'Minimal 12 karakter':'Masukkan password'} autoComplete={mode==='register'?'new-password':'current-password'}/></label>
+          <label className="block"><span className="mb-2 block text-xs uppercase tracking-[0.15em] text-neutral-400">Password</span><input required  type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-[#00E676] focus:ring-2 focus:ring-[#00E676]/30" placeholder="Masukkan password" autoComplete="current-password"/></label>
           {error && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div>}
           {notice && <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">{notice}</div>}
-          <button type="submit" disabled={pending} className="w-full rounded-2xl bg-[#00E676] px-4 py-3 font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70">{pending?'Memproses...':mode==='login'?'Masuk ke HDOS':'Buat Akun'}</button>
+          <button type="submit" disabled={pending} className="w-full rounded-2xl bg-[#00E676] px-4 py-3 font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70">{pending?'Memproses...':'Masuk ke HDOS'}</button>
         </form>
 
         <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-widest text-neutral-600"><div className="h-px flex-1 bg-white/10"/><span>atau</span><div className="h-px flex-1 bg-white/10"/></div>
         <button type="button" disabled={pending} onClick={handleGoogleLogin} className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-200 disabled:opacity-60"><svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 3.05 13.22l7.98 6.19C12.92 13.72 18.01 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6C44.42 37.94 46.98 31.7 46.98 24.55z"/><path fill="#FBBC05" d="M10.03 28.59A14.4 14.4 0 0 1 9.25 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.52 2.58 10.78l7.45-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.44-4.89 2.3-8.18 2.3-5.99 0-11.08-4.22-12.97-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Masuk dengan Google</button>
         {!GOOGLE_CLIENT_ID && <p className="mt-3 text-center text-xs text-neutral-500">Google Sign-In menunggu konfigurasi OAuth administrator.</p>}
-        {mode==='register' && <p className="mt-4 text-xs leading-relaxed text-neutral-500">Pendaftaran publik harus diberi role awal terbatas oleh server. Hak akses administrator tidak dapat dipilih sendiri saat mendaftar.</p>}
       </div>
     </div>
   );
