@@ -136,6 +136,7 @@ export type DocumentLevel =
 
 export interface DocumentControlMetadata {
   department: string;
+  registerNo: string;
   documentLevel: DocumentLevel | '-';
   documentType: string;
   sourceDocumentNumber: string;
