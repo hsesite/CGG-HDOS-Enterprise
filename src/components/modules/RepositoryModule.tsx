@@ -92,11 +92,14 @@ const parseDocumentRegister = (
   // before capturing its value. The older expression could mistake the word
   // "Dok" in the label itself for the document number.
   const sourceDocumentNumber = readRegisterValue(normalized, [
+    // Common cover-page numbering: "No. 012/Form-CGG/2025".
+    /\b(?:no\.?|nomor)\s+([0-9]{1,4}\s*\/\s*[A-Z][A-Z0-9-]*(?:\s*\/\s*[A-Z0-9-]+)+)/i,
+    // Register labels such as "No Dok: CGG-HSE-SOP-001".
     /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
     /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s+([A-Z0-9][A-Z0-9./_-]{2,})/i,
     /\bnomor\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
     /\bno\.?\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
-  ]).replace(/^(?:dok|dokumen|nomor|no|document|number)$/i, REGISTER_MISSING);
+  ]).replace(/^(?:dok|dokumen|nomor|no|document|number)$/i, REGISTER_MISSING).replace(/\s*\/\s*/g, '/');
   const revisionMatch = normalized.match(/\b(?:rev(?:isi)?\.?|revisi)\s*[:：.]?\s*(?:ke[- ]?)?([0-9]{1,2})\b/i);
   const parsedRevision = revisionMatch && Number(revisionMatch[1]) >= 0 && Number(revisionMatch[1]) <= 4
     ? revisionMatch[1]
