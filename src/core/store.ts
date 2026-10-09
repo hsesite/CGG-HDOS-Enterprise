@@ -327,6 +327,37 @@ export class HDOSCentralStore {
 
   return formDefinition;
 }
+  async updateFormDefinition(
+    formId: string,
+    updates: Partial<Omit<FormDefinition, 'id' | 'createdAt'>>
+  ): Promise<FormDefinition> {
+    const existing = this.formDefinitions.find((form) => form.id === formId);
+    if (!existing) {
+      throw new Error('Formulir tidak ditemukan.');
+    }
+
+    const updated: FormDefinition = {
+      ...existing,
+      ...updates,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await hdosDB.put('form-definition', updated);
+    this.formDefinitions = this.formDefinitions.map((form) =>
+      form.id === formId ? updated : form
+    );
+    this.notify();
+    hdosEvents.emit('form-definition:updated', {
+      formId: updated.id,
+      sourceDocumentId: updated.sourceDocumentId,
+      title: updated.title,
+      status: updated.status,
+    });
+    return updated;
+  }
+
   getFormDefinitionByDocumentId(
   documentId: string
 ): FormDefinition | undefined {
