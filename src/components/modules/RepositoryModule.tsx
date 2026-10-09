@@ -984,7 +984,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                 <button
                   type="button"
                   disabled={downloading}
-                  onClick={() => void handleDownloadDoc(selectedDoc)
+                  onClick={() => void handleDownloadDoc(selectedDoc)}
                   className="w-full py-2 rounded-xl bg-[#A855F7] hover:bg-purple-600 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
