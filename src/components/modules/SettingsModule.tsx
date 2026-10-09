@@ -66,11 +66,24 @@ export const SettingsModule: React.FC = () => {
     } finally { setBusy(false); }
   }
 
-  async function updateAccount(id: string, updates: { role?: 'Admin CGG' | 'Contractor' | 'Subkon'; status?: 'ACTIVE' | 'INACTIVE' }) {
+  async function updateAccount(id: string, updates: { role?: 'Admin CGG' | 'Contractor' | 'Subkon'; status?: 'ACTIVE' | 'INACTIVE'; companyCode?: string; parentCompanyCode?: string }) {
     setBusy(true);
     try { await hseApi.updateUserAccess(id, updates); await loadAccounts(); setMessage('Hak akses akun berhasil diperbarui.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Hak akses gagal diperbarui.'); }
     finally { setBusy(false); }
+  }
+
+  async function approveGoogleAccount(event: React.FormEvent<HTMLFormElement>, account: ApiUser) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const role = String(form.get('role') || 'Contractor') as 'Contractor' | 'Subkon';
+    const companyCode = String(form.get('companyCode') || '').trim().toUpperCase();
+    const parentCompanyCode = String(form.get('parentCompanyCode') || '').trim().toUpperCase();
+    if (!companyCode || (role === 'Subkon' && !parentCompanyCode)) {
+      setMessage('Kode perusahaan wajib diisi; akun Subkon juga wajib memiliki kode Contractor induk.');
+      return;
+    }
+    await updateAccount(account.id, { role, status: 'ACTIVE', companyCode, parentCompanyCode: role === 'Subkon' ? parentCompanyCode : '' });
   }
 
   async function addArea(event: React.FormEvent<HTMLFormElement>) {
@@ -171,7 +184,20 @@ export const SettingsModule: React.FC = () => {
           {newAccount.role === 'Subkon' && <input required className={inputClass} placeholder="Kode kontraktor induk (parent)" value={newAccount.parentCompanyCode} onChange={e=>setNewAccount({...newAccount,parentCompanyCode:e.target.value})}/>}
           <button disabled={busy} className="flex items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-50"><Plus size={16}/>Buat akun</button>
         </form>
-        {accountLoading ? <p className="text-sm text-neutral-400">Memuat akun...</p> : accounts.length === 0 ? <div className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-neutral-400">Belum ada akun yang dapat ditampilkan. Pastikan endpoint GAS terbaru sudah di-deploy.</div> : <div className="space-y-3">{accounts.map(account => <div key={account.id} className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 md:grid-cols-[minmax(0,1fr)_170px_130px] md:items-center"><div><div className="font-medium text-white">{account.displayName}</div><div className="text-xs text-neutral-400">{account.email}</div><div className="mt-1 text-xs text-neutral-500">{account.companyCode || 'Admin CGG'}{account.parentCompanyCode ? ` · Induk: ${account.parentCompanyCode}` : ''}</div></div><span className="inline-flex w-fit rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-neutral-200">{account.roles[0] || 'Subkon'}</span><button disabled={busy || account.id===user?.id} onClick={() => void updateAccount(account.id,{status:account.status==='ACTIVE'?'INACTIVE':'ACTIVE'})} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${account.status==='ACTIVE'?'border-emerald-400/30 text-emerald-300':'border-red-400/30 text-red-300'}`}>{account.status==='ACTIVE'?'Aktif · Nonaktifkan':'Nonaktif · Aktifkan'}</button></div>)}</div>}
+        {accountLoading ? <p className="text-sm text-neutral-400">Memuat akun...</p> : accounts.length === 0 ? <div className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-neutral-400">Belum ada akun yang dapat ditampilkan. Pastikan endpoint GAS terbaru sudah di-deploy.</div> : <div className="space-y-3">{accounts.map(account => <div key={account.id} className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_170px_130px] md:items-center">
+            <div><div className="font-medium text-white">{account.displayName}</div><div className="text-xs text-neutral-400">{account.email}</div><div className="mt-1 text-xs text-neutral-500">{account.companyCode || 'Perusahaan belum ditentukan'}{account.parentCompanyCode ? ` · Induk: ${account.parentCompanyCode}` : ''}</div><div className="mt-1 text-xs text-neutral-500">{[account.position, account.department, account.section].filter(Boolean).join(' · ')}</div></div>
+            <span className="inline-flex w-fit rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-neutral-200">{account.roles[0] || 'Pending Approval'} · {account.status || 'INACTIVE'}</span>
+            {account.status === 'PENDING' ? <span className="text-xs text-amber-300">Menunggu verifikasi</span> : <button disabled={busy || account.id===user?.id} onClick={() => void updateAccount(account.id,{status:account.status==='ACTIVE'?'INACTIVE':'ACTIVE'})} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${account.status==='ACTIVE'?'border-emerald-400/30 text-emerald-300':'border-red-400/30 text-red-300'}`}>{account.status==='ACTIVE'?'Aktif · Nonaktifkan':'Nonaktif · Aktifkan'}</button>}
+          </div>
+          {account.status === 'PENDING' && <form onSubmit={event=>void approveGoogleAccount(event,account)} className="grid gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 md:grid-cols-2">
+            <p className="text-xs text-amber-200 md:col-span-2">Periksa data pendaftar sebelum memberikan akses. Perusahaan yang diketik pengguna belum diverifikasi otomatis.</p>
+            <select name="role" className={inputClass} defaultValue="Contractor"><option value="Contractor">Kontraktor</option><option value="Subkon">Subkontraktor</option></select>
+            <input name="companyCode" required className={inputClass} defaultValue={account.companyCode || ''} placeholder="Kode perusahaan, contoh SLS"/>
+            <input name="parentCompanyCode" className={inputClass} defaultValue="" placeholder="Kode Contractor induk (wajib untuk Subkon)"/>
+            <button disabled={busy} className="rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-semibold text-black disabled:opacity-50 md:col-span-2">Verifikasi & Aktifkan Akun</button>
+          </form>}
+        </div>)}</div>}
         <p className="text-xs text-neutral-500">Google Sign-In hanya berlaku bagi email yang sudah didaftarkan Admin CGG. Admin CGG memiliki akses lintas kontraktor; kontraktor dibatasi ke perusahaan sendiri dan subkon terdaftar; subkon hanya ke perusahaannya sendiri.</p>
       </section>}
     </div>
