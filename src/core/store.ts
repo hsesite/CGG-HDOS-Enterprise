@@ -218,34 +218,27 @@ export class HDOSCentralStore {
   }
 
   async addDocument(
-  input: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'>
+  input: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'> & { docNumber?: string; revision?: number }
 ): Promise<DocumentItem> {
-  const categoryCode: Record<DocumentItem['category'], string> = {
-    SOP: 'SOP',
-    WI: 'WI',
-    Form: 'FORM',
-    Inspection: 'INS',
-    Incident: 'INC',
-    PICA: 'PICA',
-    Contractor: 'CON',
+  const categoryCode: Partial<Record<DocumentItem['category'], string>> = {
+    SOP: 'SOP', JSA: 'JSA', WI: 'WI', IBPR: 'IBPR', Kebijakan: 'KEBIJAKAN',
+    Form: 'FORM', Memo: 'MEMO', 'Work Permit': 'WP', Lainnya: 'DOC',
+    Inspection: 'INS', Incident: 'INC', PICA: 'PICA', Contractor: 'CON',
   };
 
-  const prefix = `CGG-HSE-${categoryCode[input.category]}`;
+  const prefix = `CGG-HSE-${categoryCode[input.category] || 'DOC'}`;
 
-  // Find the highest existing document number for this category.
+  // Generate an internal fallback only when the user has not supplied the
+  // official number printed on the controlled source document.
   const existingNumbers = this.documents
     .filter((doc) => doc.docNumber.startsWith(`${prefix}-`))
     .map((doc) => {
       const match = doc.docNumber.match(/-(\d+)$/);
       return match ? Number(match[1]) : 0;
     });
-
-  const nextNumber =
-    existingNumbers.length > 0
-      ? Math.max(...existingNumbers) + 1
-      : 1;
-
-  const docNumber = `${prefix}-${String(nextNumber).padStart(3, '0')}`;
+  const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+  const generatedNumber = `${prefix}-${String(nextNumber).padStart(3, '0')}`;
+  const docNumber = input.docNumber?.trim() || generatedNumber;
 
   const newDocument: DocumentItem = {
     id:
