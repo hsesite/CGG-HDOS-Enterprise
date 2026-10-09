@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapPin, Building2, Users, ShieldCheck, Trash2, Plus, Settings2 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import type { MiningLocationGIS, ContractorPassport } from '../../core/types';
 import { getCurrentUser } from '../../core/auth-utils';
+import { hseApi, type ApiUser } from '../../core/api';
 
 const inputClass = 'w-full rounded-xl border border-white/10 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none focus:border-[#00E676]';
 const emptyArea = { name: '', utm: '', lat: '', lng: '', description: '', zoneType: 'FACILITY' as MiningLocationGIS['zoneType'] };
@@ -14,7 +15,25 @@ export const SettingsModule: React.FC = () => {
   const [contractor, setContractor] = useState({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE' as ContractorPassport['status'], safetyPassportExpiry: '' });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [accounts, setAccounts] = useState<ApiUser[]>([]);
+  const [accountLoading, setAccountLoading] = useState(false);
   const user = getCurrentUser();
+
+  async function loadAccounts() {
+    setAccountLoading(true);
+    try { setAccounts(await hseApi.listUsers()); setMessage(''); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Daftar akun tidak dapat dimuat. Akses pengelolaan akun dibatasi untuk KTT.'); }
+    finally { setAccountLoading(false); }
+  }
+
+  useEffect(() => { if (tab === 'accounts') void loadAccounts(); }, [tab]);
+
+  async function updateAccount(id: string, updates: { role?: string; status?: 'ACTIVE' | 'INACTIVE' }) {
+    setBusy(true);
+    try { await hseApi.updateUserAccess(id, updates); await loadAccounts(); setMessage('Hak akses akun berhasil diperbarui.'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Hak akses gagal diperbarui.'); }
+    finally { setBusy(false); }
+  }
 
   async function addArea(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -100,8 +119,9 @@ export const SettingsModule: React.FC = () => {
       </div>}
       {tab === 'accounts' && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-3"><Users className="text-[#00E676]"/><div><h3 className="font-semibold text-white">Akun dan hak akses</h3><p className="text-sm text-neutral-400">Sesi saat ini: {user?.displayName || 'Tidak diketahui'}{user?.email ? ` · ${user.email}` : ''}</p></div></div>
-        <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-amber-100">Pendaftaran akun baru, login Google, pengaturan role, dan aktivasi/nonaktif akun harus divalidasi oleh Google Apps Script di sisi server. Panel ini tidak mengubah hak akses server; fitur tersebut baru aktif setelah endpoint autentikasi dan konfigurasi Google OAuth dipasang.</div>
-        <p className="text-sm text-neutral-400">Akun yang terdaftar nantinya akan dikelola di sheet users. Jangan memberi role administrator dari formulir pendaftaran publik.</p>
+        <div className="flex items-center justify-between gap-3"><p className="text-sm text-neutral-400">Daftar akun dari sheet users. Hanya KTT yang dapat mengubah role atau status akun melalui server.</p><button disabled={accountLoading} onClick={() => void loadAccounts()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{accountLoading ? 'Memuat...' : 'Muat ulang'}</button></div>
+        {accountLoading ? <p className="text-sm text-neutral-400">Memuat akun...</p> : accounts.length === 0 ? <div className="rounded-xl border border-dashed border-white/15 p-5 text-sm text-neutral-400">Tidak ada akun yang dapat ditampilkan. Jika muncul error 403, masuklah dengan akun KTT yang telah diverifikasi. Pastikan endpoint /api/users pada GAS sudah dipasang.</div> : <div className="space-y-3">{accounts.map(account => <div key={account.id} className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 md:grid-cols-[minmax(0,1fr)_180px_130px] md:items-center"><div><div className="font-medium text-white">{account.displayName}</div><div className="text-xs text-neutral-400">{account.email}</div></div><select aria-label={`Role ${account.email}`} disabled={busy} value={account.roles[0] || 'Employee'} onChange={e => void updateAccount(account.id,{role:e.target.value})} className={inputClass}>{['Employee','Contractor PIC','Safety Officer','Paramedis','Foreman Safety','SPV HSE','Project Manager','KTT'].map(role=><option key={role} value={role}>{role}</option>)}</select><button disabled={busy || account.id===user?.id} onClick={() => void updateAccount(account.id,{status:account.status==='ACTIVE'?'INACTIVE':'ACTIVE'})} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${account.status==='ACTIVE'?'border-emerald-400/30 text-emerald-300':'border-red-400/30 text-red-300'}`}>{account.status==='ACTIVE'?'Aktif · Nonaktifkan':'Nonaktif · Aktifkan'}</button></div>)}</div>}
+        <p className="text-xs text-neutral-500">Pendaftaran publik selalu mendapat role Employee. Jangan memberikan role administrator kecuali melalui kontrol KTT.</p>
       </section>}
     </div>
   );
