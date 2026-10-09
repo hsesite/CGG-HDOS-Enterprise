@@ -140,7 +140,7 @@ export const ContractorModule: React.FC = () => {
               <FileCheck className="w-4 h-4 text-[#00E676]" />
             </div>
             <div className="text-2xl font-bold text-white font-mono mt-1">
-              {selectedContractor.mcuCompliancePercent}%
+              {selectedContractor.mcuCompliancePercent > 0 ? `${selectedContractor.mcuCompliancePercent}%` : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">Fit to work certified</div>
           </div>
@@ -151,7 +151,7 @@ export const ContractorModule: React.FC = () => {
               <Award className="w-4 h-4 text-blue-400" />
             </div>
             <div className="text-2xl font-bold text-white font-mono mt-1">
-              {selectedContractor.inductionRatePercent}%
+              {selectedContractor.inductionRatePercent > 0 ? `${selectedContractor.inductionRatePercent}%` : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">100% crew lulus tes</div>
           </div>
@@ -162,7 +162,7 @@ export const ContractorModule: React.FC = () => {
               <ShieldCheck className="w-4 h-4 text-amber-400" />
             </div>
             <div className="text-xl font-bold text-white font-mono mt-1 truncate">
-              {selectedContractor.safeHours.toLocaleString('id-ID')}
+              {selectedContractor.safeHours > 0 ? selectedContractor.safeHours.toLocaleString('id-ID') : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">LTI-Free Hours</div>
           </div>
