@@ -14,7 +14,10 @@ export const WindowWrapper: React.FC<WindowWrapperProps> = ({ id, title, childre
   const store = useHDOSStore();
   const win = store.windows.find((w) => w.id === id);
 
-  if (!win || !win.isOpen || win.isMinimized) {
+  // Render only the focused workspace. This is a final UI-level guard:
+  // even if stale window state marks another module as open, it must not
+  // remain layered beneath the module the user just selected.
+  if (!win || !win.isOpen || win.isMinimized || store.focusedWindowId !== id) {
     return null;
   }
 
