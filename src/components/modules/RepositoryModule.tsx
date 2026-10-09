@@ -205,12 +205,23 @@ export const RepositoryModule: React.FC = () => {
   const [, setFormRefreshKey] = useState(0);
 
   const categories = ['ALL', 'SOP', 'WI', 'Form', 'Inspection', 'Incident', 'PICA', 'Contractor'];
-  const inferredLevel = inferDocumentLevel(category, title);
-  const inferredType = inferDocumentType(category, title);
-
   const selectedForm = selectedDoc
     ? store.getFormDefinitionByDocumentId(selectedDoc.id)
     : undefined;
+  const duplicateRegisterDocument = registerPreview ? store.documents.find((doc) => {
+    const incomingNumber = registerPreview.sourceDocumentNumber.trim().toLocaleLowerCase('id-ID');
+    const existingNumber = (doc.documentControl?.sourceDocumentNumber || REGISTER_MISSING).trim().toLocaleLowerCase('id-ID');
+    const incomingRevision = registerPreview.revisionStatus.trim();
+    const existingRevision = (doc.documentControl?.revisionStatus || REGISTER_MISSING).trim();
+    const sameDocument = incomingNumber !== REGISTER_MISSING && existingNumber !== REGISTER_MISSING
+      ? incomingNumber === existingNumber
+      : doc.title.trim().replace(/\\s+/g, ' ').toLocaleLowerCase('id-ID') === title.trim().replace(/\\s+/g, ' ').toLocaleLowerCase('id-ID');
+    const sameRevision = incomingRevision !== REGISTER_MISSING && existingRevision !== REGISTER_MISSING
+      ? incomingRevision === existingRevision
+      : true;
+    return sameDocument && sameRevision;
+  }) : undefined;
+  const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
   // the source document should also be EFFECTIVE in Repository.
@@ -327,23 +338,9 @@ export const RepositoryModule: React.FC = () => {
       return;
     }
 
-    const incomingNumber = registerPreview.sourceDocumentNumber.trim().toLocaleLowerCase('id-ID');
-    const incomingRevision = registerPreview.revisionStatus.trim();
-    const normalizedTitle = title.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
-    const duplicate = store.documents.find((doc) => {
-      const existingNumber = (doc.documentControl?.sourceDocumentNumber || REGISTER_MISSING).trim().toLocaleLowerCase('id-ID');
-      const existingRevision = (doc.documentControl?.revisionStatus || REGISTER_MISSING).trim();
-      const sameDocument = incomingNumber !== REGISTER_MISSING && existingNumber !== REGISTER_MISSING
-        ? incomingNumber === existingNumber
-        : doc.title.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID') === normalizedTitle;
-      const sameRevision = incomingRevision !== REGISTER_MISSING && existingRevision !== REGISTER_MISSING
-        ? incomingRevision === existingRevision
-        : true;
-      return sameDocument && sameRevision;
-    });
-    if (duplicate) {
+    if (duplicateRegisterDocument) {
       setErrorMessage(
-        `Dokumen terdeteksi sudah terdaftar dengan nomor ${duplicate.documentControl?.sourceDocumentNumber && duplicate.documentControl.sourceDocumentNumber !== REGISTER_MISSING ? duplicate.documentControl.sourceDocumentNumber : duplicate.docNumber} dan revisi ${duplicate.documentControl?.revisionStatus || REGISTER_MISSING}. Unggah dibatalkan. Jika ini revisi baru, pastikan nomor dokumen dan nomor revisi pada file sumber sudah terbaca benar.`
+        `Dokumen terdeteksi sudah terdaftar dengan nomor ${duplicateRegisterDocument.documentControl?.sourceDocumentNumber && duplicateRegisterDocument.documentControl.sourceDocumentNumber !== REGISTER_MISSING ? duplicateRegisterDocument.documentControl.sourceDocumentNumber : duplicateRegisterDocument.docNumber} dan revisi ${duplicateRegisterDocument.documentControl?.revisionStatus || REGISTER_MISSING}. Unggah dibatalkan. Jika ini revisi baru, pastikan nomor dokumen dan nomor revisi pada file sumber sudah terbaca benar.`
       );
       return;
     }
