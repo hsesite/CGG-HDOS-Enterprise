@@ -376,8 +376,6 @@ export const RepositoryModule: React.FC = () => {
       if (existingForm) {
         const repairedForm = await store.updateFormDefinition(existingForm.id, {
           ...formInput,
-          id: existingForm.id,
-          createdAt: existingForm.createdAt,
           updatedAt: new Date().toISOString(),
           version: existingForm.version + 1,
         });
