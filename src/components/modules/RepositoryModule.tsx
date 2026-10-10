@@ -242,6 +242,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   useEffect(() => {
     let cancelled = false;
     const reconcilePublishedDocuments = async () => {
+      if (isBasicReadOnlyAccount) return;
       for (const doc of store.documents) {
         const form = store.getFormDefinitionByDocumentId(doc.id);
         if (form?.status === 'PUBLISHED' && doc.status !== 'EFFECTIVE') {
@@ -262,7 +263,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     };
     void reconcilePublishedDocuments();
     return () => { cancelled = true; };
-  }, [store, store.documents, store.formDefinitions, selectedDoc?.id]);
+  }, [store, store.documents, store.formDefinitions, selectedDoc?.id, isBasicReadOnlyAccount]);
 
   const filteredDocs = store.documents.filter((doc) => {
     const roles = sessionUser?.roles || [];
@@ -709,6 +710,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   useEffect(() => {
     let cancelled = false;
     const repairExistingPublishedForms = async () => {
+      if (isBasicReadOnlyAccount) return;
       const db = await hdosDB.init();
       if (!db) return;
       for (const form of store.formDefinitions) {
@@ -775,7 +777,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     };
     void repairExistingPublishedForms();
     return () => { cancelled = true; };
-  }, [store, store.formDefinitions, store.documents]);
+  }, [store, store.formDefinitions, store.documents, isBasicReadOnlyAccount]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
