@@ -345,6 +345,7 @@ export class HDOSCentralStore {
   async addFormDefinition(
   input: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<FormDefinition> {
+  this.assertMutationAllowed('document');
   const now = new Date().toISOString();
 
   const formDefinition: FormDefinition = {
