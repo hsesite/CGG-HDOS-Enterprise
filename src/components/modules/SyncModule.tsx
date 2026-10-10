@@ -15,9 +15,12 @@ import { useHDOSStore } from '../../core/store';
 import { hdosSync } from '../../core/sync';
 import { hdosEvents } from '../../core/events';
 import { hseApi } from '../../core/api';
+import { getCurrentUser } from '../../core/auth-utils';
 
 export const SyncModule: React.FC = () => {
   const store = useHDOSStore();
+  const currentUser = getCurrentUser();
+  const canExport = String(currentUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(currentUser?.roles.includes('Admin CGG'));
   const [online, setOnline] = useState(hdosSync.getIsOnline());
   const [syncing, setSyncing] = useState(hdosSync.getIsSyncing());
   const [queue, setQueue] = useState(hdosSync.getQueue());
@@ -256,7 +259,7 @@ export const SyncModule: React.FC = () => {
           <span className="text-xs text-neutral-400">Kompatibel Google Drive &amp; Excel</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {canExport ? <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={handleExportInspections}
             className="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center justify-between cursor-pointer group"
@@ -289,7 +292,7 @@ export const SyncModule: React.FC = () => {
             </div>
             <Download className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
           </button>
-        </div>
+        </div> : <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-xs text-neutral-400">Fitur unduh/ekspor hanya tersedia untuk akun internal CGG. Akun kontraktor dan subkon dapat melihat data sesuai cakupan perusahaan.</p>}
       </div>
     </div>
   );
