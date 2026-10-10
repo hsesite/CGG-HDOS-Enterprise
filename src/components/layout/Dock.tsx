@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { WindowId } from '../../core/types';
+import { getCurrentUser } from '../../core/auth-utils';
+import { canAccessModule } from '../../core/access-policy';
 
 interface DockItem {
   id: WindowId;
@@ -42,7 +44,7 @@ export const Dock: React.FC = () => {
     { id: 'ai', label: 'AI Vision & SMKP Copilot', icon: Cpu, accentColor: '#EC4899' },
     { id: 'sync', label: 'Offline Sync & Sheets', icon: RefreshCw, accentColor: '#10B981' },
     { id: 'settings', label: 'Pengaturan Sistem', icon: Settings, accentColor: '#E5E7EB' },
-  ];
+  ].filter((item) => canAccessModule(getCurrentUser(), item.id));
 
   const handleItemClick = (id: WindowId) => {
     const window = store.windows.find((w) => w.id === id);
