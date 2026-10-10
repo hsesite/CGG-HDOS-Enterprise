@@ -19,6 +19,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { MiningArea, InspectionItem, Inspection, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { getCurrentUser } from '../../core/auth-utils';
 
 interface TemplateDef {
   id: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
@@ -33,6 +34,8 @@ const TEMPLATES: TemplateDef[] = [];
 export const InspectionModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const sessionUser = getCurrentUser();
+  const canDownloadReports = String(sessionUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(sessionUser?.roles.includes('Admin CGG'));
   const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
   const [activeTab, setActiveTab] = useState<'form' | 'history'>(() => isControlViewer ? 'history' : 'form');
@@ -636,9 +639,9 @@ export const InspectionModule: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 text-right">
-                      <button type="button" onClick={() => downloadInspectionReport(ins)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#42A5F5]/15 text-[#42A5F5] hover:bg-[#42A5F5]/25" title="Unduh laporan pemeriksaan">
+                      {canDownloadReports && <button type="button" onClick={() => downloadInspectionReport(ins)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#42A5F5]/15 text-[#42A5F5] hover:bg-[#42A5F5]/25" title="Unduh laporan pemeriksaan">
                         <Download className="w-3.5 h-3.5" /> CSV
-                      </button>
+                      </button>}
                     </td>
                   </tr>
                 ))}
