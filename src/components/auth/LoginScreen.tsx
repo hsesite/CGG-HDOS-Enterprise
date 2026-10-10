@@ -129,7 +129,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
           if (err instanceof ApiError && err.status === 403 && err.message.toLowerCase().includes('belum didaftarkan')) {
             setGoogleCredential(credential);
             setGoogleProfile((profile) => ({ ...profile, displayName: profile.displayName || '' }));
-            setNotice('Akun Google terverifikasi. Lengkapi profil perusahaan untuk mengajukan akses HDOS.');
+            setNotice('Akun Google terverifikasi. Lengkapi profil untuk membuat akun umum HDOS dengan akses terbatas.');
           } else {
             setError(err instanceof Error ? err.message : 'Login Google gagal.');
           }
@@ -168,7 +168,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
 
         {googleCredential && (
           <form onSubmit={handleGoogleProfileSubmit} className="mt-5 space-y-3 rounded-2xl border border-[#00E676]/20 bg-[#00E676]/5 p-4">
-            <div><h2 className="font-semibold text-white">Lengkapi Profil Pengguna</h2><p className="mt-1 text-xs leading-relaxed text-neutral-400">Sistem akan mencocokkan perusahaan dan domain email dengan master HDOS. Perusahaan dengan provisioning otomatis aktif dapat langsung diarahkan; lainnya menunggu verifikasi Admin CGG.</p></div>
+            <div><h2 className="font-semibold text-white">Lengkapi Profil Pengguna</h2><p className="mt-1 text-xs leading-relaxed text-neutral-400">Pilih perusahaan yang sudah terdaftar. Akun umum akan langsung aktif dengan akses terbatas; jabatan yang Anda isi tidak otomatis memberi hak Admin atau hak kontrol.</p></div>
             <label className="block text-xs text-neutral-300">Nama Lengkap<input required minLength={2} autoComplete="name" className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none focus:border-[#00E676]" placeholder="Nama lengkap sesuai identitas" value={googleProfile.displayName} onChange={e=>setGoogleProfile({...googleProfile,displayName:e.target.value})}/></label>
             <label className="block text-xs text-neutral-300">Perusahaan<select required className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none focus:border-[#00E676]" value={googleProfile.companyCode} onChange={e=>setGoogleProfile({...googleProfile,companyCode:e.target.value})}><option value="">Pilih perusahaan terdaftar</option>{companies.map(company=><option key={company.code} value={company.code}>{company.name} ({company.code})</option>)}</select>{companies.length===0 && <span className="mt-1 block text-xs text-amber-300">Daftar perusahaan belum tersedia dari server. Admin perlu menyiapkan master perusahaan di GAS.</span>}</label>
             <label className="block text-xs text-neutral-300">Jabatan<input required list="hdos-position-options" className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none focus:border-[#00E676]" placeholder="Pilih atau tulis jabatan" value={googleProfile.position} onChange={e=>setGoogleProfile({...googleProfile,position:e.target.value})}/><datalist id="hdos-position-options"><option value="KTT"/><option value="Kepala Teknik Tambang"/><option value="Project Manager"/><option value="SPV HSE"/><option value="Foreman Safety"/><option value="Safety Officer"/><option value="Supervisor"/><option value="Operator"/><option value="Admin"/><option value="Lainnya"/></datalist></label>
