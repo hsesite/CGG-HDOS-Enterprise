@@ -151,10 +151,6 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
         await completeLogin(user);
         return;
       }
-      setNotice(result.message || 'Akun berhasil dibuat. Silakan masuk.');
-      setRegistrationIntent(false);
-      setGoogleCredential('');
-      setGoogleProfile({ displayName: '', companyCode: '', position: '', department: '', section: '' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Pendaftaran profil gagal dikirim.');
     } finally {
