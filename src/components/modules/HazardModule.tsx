@@ -20,8 +20,9 @@ import { createHazardAction } from '../../core/module-actions';
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
-  const [activeTab, setActiveTab] = useState<'report' | 'register'>('report');
+  const [activeTab, setActiveTab] = useState<'report' | 'register'>(() => isControlViewer ? 'register' : 'report');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<Hazard['category']>('Unsafe Condition');
   const [location, setLocation] = useState<MiningArea>('');
@@ -102,14 +103,14 @@ export const HazardModule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
-          <button
+          {!isControlViewer && <button
             onClick={() => setActiveTab('report')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               activeTab === 'report' ? 'bg-[#FF5252] text-white font-semibold shadow-sm' : 'text-neutral-300 hover:text-white'
             }`}
           >
             Lapor Temuan Bahaya
-          </button>
+          </button>}
           <button
             onClick={() => setActiveTab('register')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
