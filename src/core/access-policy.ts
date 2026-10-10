@@ -60,7 +60,7 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
 }
 
 export function canDownloadDocuments(user: ApiUser | null | undefined): boolean {
-  return Boolean(user && (isCggAdmin(user) || user.companyCode?.trim().toUpperCase() === 'CGG'));
+  return Boolean(user && (isCggAdmin(user) || (user.companyCode?.trim().toUpperCase() === 'CGG' && user.roleVerified === true)));
 }
 
 export function canManagePersonnel(user: ApiUser | null | undefined): boolean {
