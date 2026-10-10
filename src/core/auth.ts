@@ -2,7 +2,7 @@ import type { UserRole, UserProfile } from './types';
 import { hdosEvents } from './events';
 import { AuthState } from './auth-state';
 
-const VALID_ROLES: UserRole[] = ['Admin CGG', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+const VALID_ROLES: UserRole[] = ['Admin CGG', 'Company Admin', 'Contractor', 'Subkon', 'PJO', 'KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
 
 // Kept as an empty compatibility export for older UI imports. No sample employees are shipped.
 export const USER_PROFILES: Partial<Record<UserRole, UserProfile>> = {};
@@ -37,19 +37,24 @@ export class HDOSAuthEngine {
 
   canAccess(moduleName: string): boolean {
     const roles = AuthState.getUser()?.roles || [];
+    const role = this.getCurrentRole();
     if (roles.includes('Admin CGG')) return true;
+    if (roles.includes('Company Admin')) return true;
+    if (['PJO', 'SPV HSE', 'Foreman Safety'].some((value) => roles.includes(value))) {
+      return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai'].includes(moduleName);
+    }
     if (roles.includes('Contractor')) return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(moduleName);
     if (roles.includes('Subkon')) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(moduleName);
-    const role = this.getCurrentRole();
-    if (role === 'Project Manager' || role === 'SPV HSE') return true;
+    if (roles.includes('Employee')) return ['dashboard', 'repository', 'inspection', 'hazard'].includes(moduleName);
+    if (role === 'Project Manager') return true;
     switch (moduleName) {
       case 'dashboard': return true;
-      case 'inspection': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer'].includes(role);
+      case 'inspection': return ['KTT', 'Project Manager', 'Safety Officer'].includes(role);
       case 'hazard': return true;
-      case 'pica': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Contractor PIC'].includes(role);
-      case 'incident': return ['KTT', 'Project Manager', 'SPV HSE', 'Paramedis', 'Safety Officer'].includes(role);
-      case 'repository': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety'].includes(role);
-      case 'contractor': return ['KTT', 'Project Manager', 'SPV HSE', 'Contractor PIC'].includes(role);
+      case 'pica': return ['KTT', 'Project Manager', 'Contractor PIC'].includes(role);
+      case 'incident': return ['KTT', 'Project Manager', 'Paramedis', 'Safety Officer'].includes(role);
+      case 'repository': return ['KTT', 'Project Manager'].includes(role);
+      case 'contractor': return ['KTT', 'Project Manager', 'Contractor PIC'].includes(role);
       case 'map': return true;
       case 'ai': return true;
       case 'settings': return false;
@@ -59,7 +64,7 @@ export class HDOSAuthEngine {
 
   canApprovePICA(): boolean {
     const role = this.getCurrentRole();
-    return ['KTT', 'SPV HSE', 'Foreman Safety'].includes(role);
+    return ['KTT', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
   }
 
   init(): void {
