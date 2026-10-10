@@ -22,7 +22,7 @@ const getAreaCategoryLabel = (zoneType: MiningLocationGIS['zoneType']) => AREA_C
 
 export const SettingsModule: React.FC = () => {
   const store = useHDOSStore();
-  const [tab, setTab] = useState<'areas' | 'contractors' | 'accounts'>('areas');
+  const [tab, setTab] = useState<'areas' | 'contractors' | 'accounts'>(() => getCurrentUser()?.roles.includes('Company Admin') ? 'accounts' : 'areas');
   const [area, setArea] = useState(emptyArea);
   const [contractor, setContractor] = useState({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE' as ContractorPassport['status'], safetyPassportExpiry: '', companyRole: 'Contractor' as 'Contractor' | 'Subkon', parentCompanyCode: '', emailDomains: '', autoProvision: false });
   const [companyMaster, setCompanyMaster] = useState<Array<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }>>([]);
@@ -32,12 +32,14 @@ export const SettingsModule: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
   const [accountLoading, setAccountLoading] = useState(false);
-  const [newAccount, setNewAccount] = useState({displayName:'',email:'',password:'',role:'Contractor' as 'Admin CGG'|'Contractor'|'Subkon',companyCode:'',parentCompanyCode:''});
+  const [newAccount, setNewAccount] = useState({displayName:'',email:'',password:'',role:(getCurrentUser()?.roles.includes('Company Admin') ? 'Employee' : 'Company Admin') as 'Company Admin'|'PJO'|'SPV HSE'|'Foreman Safety'|'Safety Officer'|'Paramedis'|'Contractor PIC'|'Employee',companyCode:getCurrentUser()?.companyCode || ''});
   const user = getCurrentUser();
+  const isCGGAdmin = Boolean(user?.roles.includes('Admin CGG'));
+  const isCompanyAdmin = Boolean(user?.roles.includes('Company Admin'));
 
   async function loadAccounts() {
     setAccountLoading(true);
-    try { setAccounts(await hseApi.listUsers()); setMessage(''); }
+    try { const [userList, companyList] = await Promise.all([hseApi.listUsers(), hseApi.listCompanies()]); setAccounts(userList); setCompanyMaster(companyList); setMessage(''); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Daftar akun tidak dapat dimuat. Akses pengelolaan akun dibatasi untuk KTT.'); }
     finally { setAccountLoading(false); }
   }
@@ -51,8 +53,8 @@ export const SettingsModule: React.FC = () => {
 
   useEffect(() => { if (tab === 'accounts') void loadAccounts(); if (tab === 'contractors') void loadCompanyMaster(); }, [tab]);
   
-  if (!user || !user.roles.includes('Admin CGG')) {
-    return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Hanya Admin CGG yang dapat menambahkan akun dan mengatur hak akses kontraktor maupun subkontraktor.</p></div>;
+  if (!user || (!isCGGAdmin && !isCompanyAdmin)) {
+    return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Hanya Admin CGG atau Admin Perusahaan yang ditunjuk dapat mengelola akun sesuai cakupannya.</p></div>;
   }
 
   async function createAccount(event: React.FormEvent<HTMLFormElement>) {
@@ -60,15 +62,8 @@ export const SettingsModule: React.FC = () => {
     setBusy(true);
     setMessage('');
     try {
-      await hseApi.createUser({
-        displayName: newAccount.displayName.trim(),
-        email: newAccount.email.trim(),
-        password: newAccount.password,
-        role: newAccount.role,
-        ...(newAccount.role !== 'Admin CGG' ? { companyCode: newAccount.companyCode.trim().toUpperCase() } : {}),
-        ...(newAccount.role === 'Subkon' ? { parentCompanyCode: newAccount.parentCompanyCode.trim().toUpperCase() } : {}),
-      });
-      setNewAccount({displayName:'',email:'',password:'',role:'Contractor',companyCode:'',parentCompanyCode:''});
+      await hseApi.createUser({ displayName: newAccount.displayName.trim(), email: newAccount.email.trim(), password: newAccount.password, role: newAccount.role, companyCode: newAccount.companyCode.trim().toUpperCase(), position: newAccount.role });
+      setNewAccount({displayName:'',email:'',password:'',role:isCompanyAdmin?'Employee':'Company Admin',companyCode:user.companyCode || ''});
       setMessage('Akun berhasil dibuat oleh Admin CGG. Kredensial diberikan langsung kepada pemilik akun.');
       await loadAccounts();
     } catch (error) {
@@ -157,7 +152,7 @@ export const SettingsModule: React.FC = () => {
         <div><h2 className="text-xl font-bold text-white">Pengaturan Sistem</h2><p className="mt-1 text-sm text-neutral-400">Master data untuk area kerja dan kontraktor. Area kerja dan data operasional lokal memakai IndexedDB; master perusahaan disimpan di server HDOS agar menjadi sumber pilihan pendaftaran bersama.</p></div>
       </header>
       <div className="flex flex-wrap gap-2">
-        {([{id:'areas',label:'Area Kerja',icon:MapPin},{id:'contractors',label:'Kontraktor',icon:Building2},{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const).map(item => {
+        {(isCGGAdmin ? ([{id:'areas',label:'Area Kerja',icon:MapPin},{id:'contractors',label:'Perusahaan',icon:Building2},{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const) : ([{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const)).map(item => {
           const Icon = item.icon;
           return <button key={item.id} onClick={() => {setTab(item.id);setMessage('');}} className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm ${tab===item.id?'border-[#00E676]/50 bg-[#00E676]/10 text-[#00E676]':'border-white/10 bg-white/5 text-neutral-300 hover:bg-white/10'}`}><Icon size={16}/>{item.label}</button>;
         })}
@@ -205,7 +200,7 @@ export const SettingsModule: React.FC = () => {
       </div>}
       {tab === 'accounts' && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-3"><Users className="text-[#00E676]"/><div><h3 className="font-semibold text-white">Akun dan hak akses</h3><p className="text-sm text-neutral-400">Sesi saat ini: {user?.displayName || 'Tidak diketahui'}{user?.email ? ` · ${user.email}` : ''}</p></div></div>
-        <div className="flex items-center justify-between gap-3"><p className="text-sm text-neutral-400">Hanya Admin CGG yang boleh membuat akun, menetapkan jenis akun, dan mengatur status.</p><button disabled={accountLoading} onClick={() => void loadAccounts()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{accountLoading ? 'Memuat...' : 'Muat ulang'}</button></div>
+        <div className="flex items-center justify-between gap-3"><p className="text-sm text-neutral-400">Admin CGG menunjuk Admin Perusahaan. Admin Perusahaan mengelola akun pekerja dan jabatan di perusahaan dalam cakupannya.</p><button disabled={accountLoading} onClick={() => void loadAccounts()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{accountLoading ? 'Memuat...' : 'Muat ulang'}</button></div>
         <form onSubmit={createAccount} className="grid gap-3 rounded-xl border border-[#00E676]/20 bg-[#00E676]/5 p-4">
           <h4 className="font-semibold text-white">Tambah akun baru</h4>
           <div className="grid gap-3 md:grid-cols-2"><input required minLength={2} className={inputClass} placeholder="Nama karyawan / PIC" value={newAccount.displayName} onChange={e=>setNewAccount({...newAccount,displayName:e.target.value})}/><input required type="email" className={inputClass} placeholder="Email akun" value={newAccount.email} onChange={e=>setNewAccount({...newAccount,email:e.target.value})}/><input required minLength={12} type="password" autoComplete="new-password" className={inputClass} placeholder="Password awal (minimal 12 karakter)" value={newAccount.password} onChange={e=>setNewAccount({...newAccount,password:e.target.value})}/><select className={inputClass} value={newAccount.role} onChange={e=>setNewAccount({...newAccount,role:e.target.value as typeof newAccount.role})}><option value="Admin CGG">Admin CGG</option><option value="Contractor">Kontraktor</option><option value="Subkon">Subkontraktor</option></select></div>
@@ -227,7 +222,7 @@ export const SettingsModule: React.FC = () => {
             <button disabled={busy} className="rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-semibold text-black disabled:opacity-50 md:col-span-2">Verifikasi & Aktifkan Akun</button>
           </form>}
         </div>)}</div>}
-        <p className="text-xs text-neutral-500">Google Sign-In hanya berlaku bagi email yang sudah didaftarkan Admin CGG. Admin CGG memiliki akses lintas kontraktor; kontraktor dibatasi ke perusahaan sendiri dan subkon terdaftar; subkon hanya ke perusahaannya sendiri.</p>
+        <p className="text-xs text-neutral-500">Admin CGG menunjuk Admin Perusahaan. Admin Perusahaan hanya mengelola akun di perusahaannya dan Subkon yang terdaftar di bawah Contractor tersebut. Akun umum mendaftar sendiri dengan akses terbatas.</p>
       </section>}
     </div>
   );
