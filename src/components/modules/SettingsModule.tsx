@@ -154,7 +154,7 @@ export const SettingsModule: React.FC = () => {
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex items-start gap-3 border-b border-white/10 pb-5">
         <div className="rounded-xl border border-[#00E676]/20 bg-[#00E676]/10 p-3"><Settings2 className="h-6 w-6 text-[#00E676]" /></div>
-        <div><h2 className="text-xl font-bold text-white">Pengaturan Sistem</h2><p className="mt-1 text-sm text-neutral-400">Master data untuk area kerja dan kontraktor. Data awal kosong dan perubahan disimpan ke IndexedDB pada browser ini.</p></div>
+        <div><h2 className="text-xl font-bold text-white">Pengaturan Sistem</h2><p className="mt-1 text-sm text-neutral-400">Master data untuk area kerja dan kontraktor. Area kerja dan data operasional lokal memakai IndexedDB; master perusahaan disimpan di server HDOS agar menjadi sumber pilihan pendaftaran bersama.</p></div>
       </header>
       <div className="flex flex-wrap gap-2">
         {([{id:'areas',label:'Area Kerja',icon:MapPin},{id:'contractors',label:'Kontraktor',icon:Building2},{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const).map(item => {
@@ -186,7 +186,7 @@ export const SettingsModule: React.FC = () => {
       {tab === 'contractors' && <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
         <form onSubmit={addContractor} className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
           <h3 className="font-semibold text-white">{editingCompanyCode ? `Edit Perusahaan ${editingCompanyCode}` : 'Tambah Perusahaan'}</h3>
-          <input required className={inputClass} placeholder="Kode kontraktor" value={contractor.code} onChange={e=>setContractor({...contractor,code:e.target.value})}/>
+          <input required disabled={Boolean(editingCompanyCode)} className={inputClass+" disabled:opacity-60"} placeholder="Kode perusahaan (unik)" value={contractor.code} onChange={e=>setContractor({...contractor,code:e.target.value.toUpperCase()})}/>
           <select className={inputClass} value={contractor.companyRole} onChange={e=>setContractor({...contractor,companyRole:e.target.value as 'Contractor'|'Subkon',parentCompanyCode:''})}><option value="Contractor">Kontraktor CGG</option><option value="Subkon">Subkontraktor</option></select>
           {contractor.companyRole === 'Subkon' && <select required className={inputClass} value={contractor.parentCompanyCode} onChange={e=>setContractor({...contractor,parentCompanyCode:e.target.value})}><option value="">Pilih kontraktor induk</option>{companyMaster.filter(item=>item.role==='Contractor' && item.status==='ACTIVE').map(item=><option key={item.code} value={item.code}>{item.name} ({item.code})</option>)}</select>}
           <input required className={inputClass} placeholder="Nama perusahaan" value={contractor.companyName} onChange={e=>setContractor({...contractor,companyName:e.target.value})}/>
