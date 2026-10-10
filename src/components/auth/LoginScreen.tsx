@@ -28,6 +28,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
   const [pending, setPending] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const [googleCredential, setGoogleCredential] = useState('');
+  const [registrationIntent, setRegistrationIntent] = useState(false);
   const [googleProfile, setGoogleProfile] = useState({ displayName: '', companyCode: '', position: '', department: '', section: '' });
   const [companies, setCompanies] = useState<Array<{ code: string; name: string; role: string; parentCompanyCode?: string }>>([]);
 
@@ -96,7 +97,8 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
         await completeLogin(user);
         return;
       }
-      setNotice(result.message || 'Profil terkirim dan menunggu persetujuan Admin CGG.');
+      setNotice(result.message || 'Pendaftaran profil berhasil diproses.');
+      setRegistrationIntent(false);
       setGoogleCredential('');
       setGoogleProfile({ displayName: '', companyCode: '', position: '', department: '', section: '' });
     } catch (err) {
@@ -123,6 +125,13 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
       callback: async ({ credential }) => {
         setPending(true);
         try {
+          if (registrationIntent) {
+            setGoogleCredential(credential);
+            setGoogleProfile((profile) => ({ ...profile, displayName: profile.displayName || '' }));
+            setNotice('Verifikasi Google berhasil. Lengkapi profil untuk mendaftar sebagai akun umum HDOS dengan akses terbatas.');
+            setRegistrationIntent(false);
+            return;
+          }
           const user = await hseApi.loginWithGoogle(credential);
           await completeLogin(user);
         } catch (err) {
@@ -177,6 +186,9 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
             <button type="submit" disabled={pending} className="w-full rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-60">{pending?'Mengirim profil...':'Kirim Profil untuk Verifikasi'}</button>
           </form>
         )}
+
+        <button type="button" disabled={pending} onClick={() => { setRegistrationIntent(true); handleGoogleLogin(); }} className="mt-4 w-full rounded-2xl border border-[#00E676]/50 bg-[#00E676]/10 px-4 py-3 text-sm font-semibold text-[#00E676] transition hover:bg-[#00E676]/15 disabled:opacity-60">Daftar Akun Baru</button>
+        <p className="mt-2 text-center text-xs text-neutral-500">Pengguna baru mendaftar melalui verifikasi Google dan memilih perusahaan terdaftar.</p>
 
         <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-widest text-neutral-600"><div className="h-px flex-1 bg-white/10"/><span>atau</span><div className="h-px flex-1 bg-white/10"/></div>
         <button type="button" disabled={pending} onClick={handleGoogleLogin} className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-200 disabled:opacity-60"><svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 3.05 13.22l7.98 6.19C12.92 13.72 18.01 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6C44.42 37.94 46.98 31.7 46.98 24.55z"/><path fill="#FBBC05" d="M10.03 28.59A14.4 14.4 0 0 1 9.25 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.52 2.58 10.78l7.45-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.44-4.89 2.3-8.18 2.3-5.99 0-11.08-4.22-12.97-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Masuk dengan Google</button>
