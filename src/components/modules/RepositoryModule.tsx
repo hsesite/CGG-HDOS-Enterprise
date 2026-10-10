@@ -234,6 +234,8 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     return sameDocument && sameRevision;
   }) : undefined;
   const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
+  const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
+  const isCompanyScopedAccount = Boolean(sessionUser?.companyCode);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
   // the source document should also be EFFECTIVE in Repository.
@@ -265,6 +267,11 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const filteredDocs = store.documents.filter((doc) => {
     const roles = sessionUser?.roles || [];
     if (roles.includes('Admin CGG')) return true;
+    if (!companyCode) return !isCompanyScopedAccount && !isBasicReadOnlyAccount;
+    if (doc.companyCode && doc.companyCode !== companyCode && !(doc.parentCompanyCode === companyCode)) {
+      if (!(roles.includes('Contractor') && doc.parentCompanyCode === companyCode)) return false;
+    }
+    if (isBasicReadOnlyAccount) return !doc.companyCode || doc.companyCode === companyCode || (parentCompanyCode && doc.companyCode === parentCompanyCode);
     const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
     const parentCompanyCode = String(sessionUser?.parentCompanyCode || '').trim().toUpperCase();
     if (!companyCode) return false;
@@ -784,7 +791,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
           </p>
         </div>
 
-        <button
+        {!isBasicReadOnlyAccount && <button
           type="button"
           onClick={() => {
             resetMessages();
@@ -794,7 +801,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         >
           <Plus className="w-4 h-4" />
           <span>Tambah Dokumen Baru</span>
-        </button>
+        </button>}
       </div>
 
       {(errorMessage || successMessage) && (
@@ -1005,16 +1012,16 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <span>Dokumen berstatus DRAFT/REVIEW harus ditinjau dan disetujui sebelum diberlakukan.</span>
                 </div>
 
-                <button
+                {!isBasicReadOnlyAccount && <button
                   type="button"
                   onClick={() => void handlePreviewOriginal(selectedDoc)}
                   className="w-full py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   <span>Lihat File Asli (Popup)</span>
-                </button>
+                </button>}
 
-                <button
+                {!isBasicReadOnlyAccount && <button
                   type="button"
                   disabled={downloading}
                   onClick={() => void handleDownloadDoc(selectedDoc)}
@@ -1022,9 +1029,9 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                 >
                   <Download className="w-4 h-4" />
                   <span>{downloading ? 'Menyiapkan unduhan...' : `Unduh Dokumen (${selectedDoc.fileType})`}</span>
-                </button>
+                </button>}
 
-                {canDeleteSelectedDoc && (
+                {!isBasicReadOnlyAccount && canDeleteSelectedDoc && (
                   <button
                     type="button"
                     disabled={deleting}
@@ -1075,13 +1082,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <FileText className="w-14 h-14 text-[#A855F7]" />
                   <div className="space-y-2 max-w-xl">
                     <p className="text-base font-bold text-white">Buka dokumen asli di Microsoft Word</p>
-                    <p className="text-sm text-neutral-300">Pratinjau DOCX di browser dinonaktifkan agar isi dan tata letak tidak ditampilkan dalam bentuk hasil render yang berbeda. Unduh berkas asli di bawah, lalu buka berkas tersebut dengan Microsoft Word.</p>
+                    <p className="text-sm text-neutral-300">Pratinjau DOCX di browser dinonaktifkan agar isi dan tata letak tidak ditampilkan dalam bentuk hasil render yang berbeda. {isBasicReadOnlyAccount ? 'Akun umum dapat melihat metadata dokumen, tetapi tidak memiliki izin mengunduh berkas.' : 'Unduh berkas asli di bawah, lalu buka berkas tersebut dengan Microsoft Word.'}</p>
                     <p className="text-xs text-neutral-400">Nama file: {originalFileName}</p>
                   </div>
-                  <a href={originalFileUrl} download={originalFileName} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-sm font-bold">
+                  {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-sm font-bold">
                     <Download className="w-4 h-4" />
                     Unduh File Asli untuk Microsoft Word
-                  </a>
+                  </a>}
                 </div>
               ) : originalFileHtml ? (
                 <div className="h-full overflow-auto rounded-lg bg-white text-neutral-900 p-5 sm:p-8">
@@ -1095,14 +1102,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   `}</style>
                   <div className="original-office-preview" dangerouslySetInnerHTML={{ __html: originalFileHtml }} />
                   <div className="mt-6 border-t pt-4 text-center">
-                    <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>
+                    {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>}
                   </div>
                 </div>
               ) : (
                 <div className="h-full min-h-48 flex flex-col items-center justify-center gap-3 text-center">
                   <FileText className="w-10 h-10 text-[#A855F7]" />
                   <p className="text-sm text-neutral-300">Menyiapkan pratinjau file...</p>
-                  <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>
+                  {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>}
                 </div>
               )}
             </div>
