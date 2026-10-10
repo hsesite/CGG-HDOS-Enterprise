@@ -250,7 +250,7 @@ export const hseApi = {
     return data.user;
   },
 
-  async createUser(input: { displayName: string; email: string; password: string; role: 'Company Admin' | 'Contractor' | 'Subkon' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; companyCode?: string; parentCompanyCode?: string; position?: string; department?: string; section?: string }): Promise<ApiUser> {
+  async createUser(input: { displayName: string; email: string; password: string; role: 'Company Admin' | 'Contractor' | 'Subkon' | 'KTT' | 'Project Manager' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; companyCode?: string; parentCompanyCode?: string; position?: string; department?: string; section?: string }): Promise<ApiUser> {
     return request<ApiUser>('POST', '/api/users', input);
   },
 
