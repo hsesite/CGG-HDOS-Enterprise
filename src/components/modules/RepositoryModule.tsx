@@ -1016,7 +1016,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <span>Dokumen berstatus DRAFT/REVIEW harus ditinjau dan disetujui sebelum diberlakukan.</span>
                 </div>
 
-                {!isBasicReadOnlyAccount && <button
+                {<button
                   type="button"
                   onClick={() => void handlePreviewOriginal(selectedDoc)}
                   className="w-full py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
