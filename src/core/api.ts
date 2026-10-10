@@ -270,6 +270,14 @@ export const hseApi = {
     return request<Array<{ code: string; name: string; role: string; parentCompanyCode?: string }>>('GET', '/api/public/companies');
   },
 
+  async listCompanies(): Promise<Array<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }>> {
+    return request<Array<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }>>('GET', '/api/companies');
+  },
+
+  async upsertCompany(input: { code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains?: string; autoProvision?: boolean; status: 'ACTIVE' | 'INACTIVE' }): Promise<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }> {
+    return request('POST', '/api/companies', input);
+  },
+
   async listUsers(): Promise<ApiUser[]> {
     return request<ApiUser[]>('GET', '/api/users');
   },
