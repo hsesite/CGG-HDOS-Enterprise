@@ -1,6 +1,6 @@
 # Google Apps Script: pendaftaran, Google Sign-In, dan sesi persisten
 
-Frontend menyediakan login Google dan formulir profil pertama kali. Pengajuan profil Google dibuat berstatus `PENDING`; akses data baru diberikan setelah Admin CGG memverifikasi perusahaan dan menetapkan role/scope. Endpoint server wajib diperbarui juga; frontend saja tidak dapat memverifikasi token Google dengan aman.
+Frontend menyediakan login Google dan pendaftaran profil pertama kali. Pendaftaran baru harus langsung membuat akun `ACTIVE` dengan role awal `Employee`, membuat sesi login, lalu mengarahkan pengguna ke HDOS tanpa antrean persetujuan admin. Jabatan yang diketik hanya metadata profil dan tidak otomatis memberi role KTT/SPV/Foreman/PM atau Admin. Endpoint GAS wajib mendukung aturan ini; perubahan frontend saja tidak cukup.
 
 ## Backend script
 
@@ -8,7 +8,7 @@ Gunakan file GAS pendamping yang diserahkan bersama pekerjaan ini sebagai dasar 
 
 - Pendaftaran mandiri dinonaktifkan. `POST /api/users` hanya dapat dipanggil oleh akun `Admin CGG` untuk membuat akun.
 - `POST /api/auth/google` — memverifikasi ID token Google dan membuat sesi untuk akun yang sudah aktif.
-- `POST /api/auth/google/onboard` — memverifikasi ID token Google lalu menyimpan nama lengkap, kode perusahaan, jabatan, departemen, dan bagian sebagai pengajuan akun `Pending Approval` dengan status `PENDING`.
+- `POST /api/auth/google/onboard` — memverifikasi ID token Google, menyimpan nama lengkap, kode perusahaan, jabatan, departemen, dan bagian, membuat akun `ACTIVE` ber-role awal `Employee`, lalu mengembalikan `{ pending: false }`. Frontend kemudian login melalui `/api/auth/google`.
 - `GET /api/users` — daftar akun, hanya `Admin CGG`.
 - `POST /api/users` — buat akun `Admin CGG`, `Contractor`, atau `Subkon`, hanya `Admin CGG`.
 - `PATCH /api/users/:id` — ubah status/relasi akun, hanya `Admin CGG`.
@@ -34,7 +34,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 ## Catatan keamanan dan batas verifikasi
 
 - Google Sign-In hanya menerima token ID yang diverifikasi server terhadap Client ID dan email terverifikasi.
-- Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` terbatas jika perusahaan dipilih dari master aktif. Jabatan yang diketik pengguna tidak menentukan role aplikasi.
+- Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` aktif. Untuk perusahaan kontraktor/subkon, kode harus ada di master aktif. Untuk `CGG`, domain email harus sesuai Script Property `CGG_EMAIL_DOMAINS` (default `ptcgg.com`). Jabatan yang diketik tidak menentukan role aplikasi; Admin CGG menetapkan role KTT/SPV/Foreman/Project Manager secara terpisah.
 - Admin CGG menetapkan Company Admin dari Pengaturan. Company Admin membuat akun jabatan sesuai perusahaan; backend membatasi daftar akun dan operasi data berdasarkan `companyCode`/`parentCompanyCode`.
 - Sesi persisten tetap dapat dicabut dengan logout atau menonaktifkan akun. Lindungi perangkat bersama dan jangan simpan sesi di komputer publik.
 - Jangan menjalankan `setup()` atau deployment perubahan autentikasi di produksi sebelum membuat salinan spreadsheet dan menguji dengan akun uji.
@@ -45,7 +45,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 - **Admin CGG**: mengelola master perusahaan dan menunjuk **Company Admin** untuk perusahaan yang terdaftar. Pendaftaran umum tidak dapat membuat atau memperoleh role Admin.
 - **Company Admin**: mengelola akun dan data pada perusahaan sendiri. Jika perusahaan induknya Contractor, cakupan dapat mencakup Subkon yang terdaftar di bawahnya. Company Admin tidak dapat menunjuk Company Admin lain.
 - **PJO, SPV HSE, Foreman Safety**: dapat melihat seluruh modul dalam cakupan perusahaan, tetapi tidak dapat membuat, menghapus, atau mengedit data. Mereka hanya dapat menutup PICA.
-- **Employee (akun umum)**: pendaftaran mandiri dengan memilih perusahaan aktif. Akun langsung aktif, dapat mengakses Dashboard, Inspeksi, Hazard, dan Repository/SMKP baca-saja tanpa tombol unduh. Akun ini tidak dapat mengubah role sendiri.
+- **Employee kontraktor/subkon**: pendaftaran mandiri dengan memilih perusahaan aktif. Akun langsung aktif dan hanya dapat melihat data dalam cakupan perusahaan; tombol unduh/ekspor disembunyikan. **Employee CGG** juga langsung aktif, dapat melihat data dan menggunakan tombol unduh/ekspor karena company code `CGG`; jabatan KTT/SPV HSE/Foreman Safety/Project Manager tetap harus ditetapkan sebagai role oleh Admin CGG bila memerlukan hak kontrol. Akun tidak dapat mengubah role sendiri.
 - **Contractor/Subkon**: role kompatibilitas untuk akun lama; akses data tetap dibatasi oleh kode perusahaan dan relasi induk dari master perusahaan.
 - Data lama tanpa metadata kepemilikan akan tersembunyi dari akun Contractor/Subkon sampai metadata tersebut diverifikasi dan dilengkapi. Ini mencegah kebocoran lintas perusahaan.
 - Endpoint Repository/berkas masih perlu integrasi cloud tersendiri. Dokumen yang hanya tersimpan di IndexedDB satu browser belum dapat dibagikan aman lintas perangkat atau dijadikan sumber dokumen kontraktor/subkon lintas perusahaan.
@@ -72,3 +72,12 @@ Contoh konfigurasi (ganti domain dengan domain resmi yang benar-benar telah dive
 Pendaftaran umum tidak memerlukan domain perusahaan. Pengguna hanya dapat memilih perusahaan aktif dari master dan akan mendapat role `Employee` dengan akses terbatas. Domain email tidak digunakan untuk memberikan hak admin. Role Company Admin hanya dapat ditetapkan oleh Admin CGG.
 
 Endpoint publik `GET /api/public/companies` menyediakan pilihan perusahaan aktif untuk formulir Google Sign-In. Setelah mengubah GAS, deploy sebagai versi baru. Isi master perusahaan hanya dengan kode dan domain yang telah diverifikasi.
+
+
+## Pendaftaran langsung CGG dan kontrol unduhan
+
+- Tambahkan Script Property `CGG_EMAIL_DOMAINS` dengan domain email resmi CGG, misalnya `ptcgg.com` (tanpa `@`; beberapa domain dipisahkan koma atau titik koma). Jika tidak diisi, script memakai `ptcgg.com` sebagai default.
+- Akun yang memilih `CGG` hanya diterima jika email Google terverifikasi memakai domain yang diizinkan. Akun langsung berstatus `ACTIVE`, tetapi role awal tetap `Employee`.
+- Posisi `KTT`, `SPV HSE`, `Foreman Safety`, dan `Project Manager` disimpan sebagai metadata profil. Admin CGG perlu menetapkan role aplikasi secara eksplisit untuk memberikan kewenangan persetujuan/kontrol. Jangan mengubah role otomatis hanya berdasarkan teks jabatan.
+- Frontend hanya menampilkan unduh/ekspor untuk `companyCode=CGG` atau `Admin CGG`. Akun kontraktor/subkon tetap dapat membuka pratinjau file tetapi tidak melihat tombol unduh/ekspor.
+- Setelah mengganti `Code.gs`, simpan perubahan dan deploy Apps Script sebagai **New version**. Perubahan file di Library atau GitHub tidak memperbarui deployment GAS secara otomatis.
