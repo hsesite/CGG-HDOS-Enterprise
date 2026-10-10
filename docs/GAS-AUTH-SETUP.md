@@ -52,9 +52,9 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 
 ## Otomatisasi onboarding berdasarkan master perusahaan
 
-Versi GAS onboarding terbaru memakai sheet `companies` sebagai master perusahaan. Fungsi `setup()` akan membuat sheet dan header jika belum ada; buat backup Spreadsheet terlebih dahulu sebelum menjalankan setup di produksi.
+Versi GAS onboarding terbaru memakai sheet `companies` sebagai master perusahaan. Setelah script GAS terbaru dipasang dan di-deploy, Admin CGG dapat menambah dan memperbarui master ini langsung melalui **Pengaturan → Kontraktor** di HDOS; perubahan dikirim ke server Spreadsheet, bukan hanya IndexedDB browser. Fungsi `setup()` membuat sheet dan header jika belum ada; buat backup Spreadsheet terlebih dahulu sebelum menjalankan setup di produksi.
 
-Kolom sheet `companies`:
+Kolom sheet `companies` (dikelola dari Pengaturan HDOS; sheet juga dapat diaudit langsung oleh Admin):
 - `companyCode`: kode unik, misalnya SLS atau VIP.
 - `companyName`: nama resmi yang tampil pada pilihan perusahaan.
 - `role`: `Contractor` atau `Subkon` untuk provisioning otomatis.
@@ -63,7 +63,7 @@ Kolom sheet `companies`:
 - `autoProvision`: `TRUE` untuk mengaktifkan pembuatan akun otomatis setelah domain cocok.
 - `status`: `ACTIVE` agar perusahaan tampil pada daftar pendaftaran.
 
-Contoh konfigurasi (ganti domain dengan domain resmi yang benar-benar telah diverifikasi):
+Contoh konfigurasi (ganti domain dengan domain resmi yang benar-benar telah diverifikasi; pengisian dilakukan dari formulir Tambah Perusahaan di Pengaturan HDOS):
 - SLS | PT Sentosa Laju Sejahtera | Contractor | [kosong] | [domain resmi SLS] | TRUE | ACTIVE
 - VIP | PT Vendoura Inti Perkasa | Contractor | [domain resmi VIP] | TRUE | ACTIVE
 - Kode Subkon | Nama Subkon | Subkon | SLS | [domain resmi Subkon] | TRUE | ACTIVE
