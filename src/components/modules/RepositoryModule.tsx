@@ -234,6 +234,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     return sameDocument && sameRevision;
   }) : undefined;
   const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
+  const isCGGAccount = String(sessionUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(sessionUser?.roles?.includes('Admin CGG'));
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
   const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isReadOnlyAccount = isBasicReadOnlyAccount || isControlReadOnlyAccount;
@@ -1024,7 +1025,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <span>Lihat File Asli (Popup)</span>
                 </button>}
 
-                {!isBasicReadOnlyAccount && <button
+                {(!isBasicReadOnlyAccount || isCGGAccount) && <button
                   type="button"
                   disabled={downloading}
                   onClick={() => void handleDownloadDoc(selectedDoc)}
