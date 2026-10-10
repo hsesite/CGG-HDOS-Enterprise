@@ -43,6 +43,22 @@ const INITIAL_WINDOWS: AppWindow[] = [
 ];
 
 export class HDOSCentralStore {
+  private assertMutationAllowed(action: 'location' | 'contractor' | 'document' | 'inspection' | 'hazard' | 'incident' | 'pica', updates?: Partial<PICA>): void {
+    const role = hdosAuth.getCurrentRole();
+    if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)) {
+      const isPicaClose = action === 'pica'
+        && updates?.status === 'CLOSED'
+        && updates.approvalStages?.foreman === true
+        && updates.approvalStages?.spvHse === true
+        && updates.approvalStages?.ktt === true;
+      if (!isPicaClose) throw new Error('Akun PJO/SPV/Foreman hanya dapat melihat data dan menutup PICA.');
+      return;
+    }
+    if (role === 'Employee' && !['inspection', 'hazard'].includes(action)) {
+      throw new Error('Akun umum hanya dapat membuat Inspeksi dan Hazard; SMKP bersifat baca-saja.');
+    }
+  }
+
   public inspections: Inspection[] = [];
   public hazards: Hazard[] = [];
   public incidents: Incident[] = [];
@@ -190,6 +206,7 @@ export class HDOSCentralStore {
   }
 
   async addLocation(input: Omit<MiningLocationGIS, 'id' | 'activeHazards' | 'activeInspections' | 'safetyStatus'>): Promise<MiningLocationGIS> {
+    this.assertMutationAllowed('location');
     const location: MiningLocationGIS = { ...input, id: createEntityId(), activeHazards: 0, activeInspections: 0, safetyStatus: 'SAFE' };
     await hdosDB.put('maps', location);
     this.locations = [...this.locations, location];
@@ -198,12 +215,14 @@ export class HDOSCentralStore {
   }
 
   async deleteLocation(id: string): Promise<void> {
+    this.assertMutationAllowed('location');
     await hdosDB.delete('maps', id);
     this.locations = this.locations.filter((item) => item.id !== id);
     this.notify();
   }
 
   async addContractor(input: Omit<ContractorPassport, 'id' | 'manpowerCount' | 'equipmentCount' | 'kpiSafetyScore' | 'safeHours' | 'activePicaCount' | 'mcuCompliancePercent' | 'inductionRatePercent'>): Promise<ContractorPassport> {
+    this.assertMutationAllowed('contractor');
     const contractor: ContractorPassport = { ...input, id: createEntityId(), manpowerCount: 0, equipmentCount: 0, kpiSafetyScore: 0, safeHours: 0, activePicaCount: 0, mcuCompliancePercent: 0, inductionRatePercent: 0 };
     await hdosDB.put('contractor', contractor);
     this.contractors = [...this.contractors, contractor];
@@ -212,6 +231,7 @@ export class HDOSCentralStore {
   }
 
   async deleteContractor(id: string): Promise<void> {
+    this.assertMutationAllowed('contractor');
     await hdosDB.delete('contractor', id);
     this.contractors = this.contractors.filter((item) => item.id !== id);
     this.notify();
@@ -220,6 +240,7 @@ export class HDOSCentralStore {
   async addDocument(
   input: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'> & { docNumber?: string; revision?: number }
 ): Promise<DocumentItem> {
+   this.assertMutationAllowed('document');
   const categoryCode: Partial<Record<DocumentItem['category'], string>> = {
     SOP: 'SOP', JSA: 'JSA', WI: 'WI', IBPR: 'IBPR', Kebijakan: 'KEBIJAKAN',
     Form: 'FORM', Memo: 'MEMO', 'Work Permit': 'WP', Lainnya: 'DOC',
@@ -271,6 +292,7 @@ export class HDOSCentralStore {
     documentId: string,
     updates: Partial<Omit<DocumentItem, 'id' | 'docNumber'>>
   ): Promise<DocumentItem> {
+    this.assertMutationAllowed('document');
     const existing = this.documents.find((doc) => doc.id === documentId);
     if (!existing) {
       throw new Error('Dokumen tidak ditemukan.');
@@ -298,6 +320,7 @@ export class HDOSCentralStore {
   }
 
   async deleteDocument(documentId: string): Promise<void> {
+    this.assertMutationAllowed('document');
     const existing = this.documents.find((doc) => doc.id === documentId);
     if (!existing) throw new Error('Dokumen tidak ditemukan.');
 
@@ -392,6 +415,7 @@ export class HDOSCentralStore {
 }
 
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
+    this.assertMutationAllowed('inspection');
     const count = this.inspections.length + 1;
     const code = `INS-2026-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
@@ -448,6 +472,7 @@ export class HDOSCentralStore {
       'id' | 'code' | 'createdAt'
     >
   ): Promise<Hazard> {
+    this.assertMutationAllowed('hazard');
     const count =
       this.hazards.length + 1;
 
@@ -645,6 +670,7 @@ export class HDOSCentralStore {
     return newHazard;
   }
   async addIncident(incident: Omit<Incident, 'id' | 'code' | 'createdAt'>): Promise<Incident> {
+    this.assertMutationAllowed('incident');
     const count = this.incidents.length + 1;
     const code = `INC-2026-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
@@ -660,6 +686,7 @@ export class HDOSCentralStore {
   }
 
   async updatePICAStatus(id: string, updates: Partial<PICA>): Promise<PICA | null> {
+    this.assertMutationAllowed('pica', updates);
     const index = this.picas.findIndex((p) => p.id === id);
     if (index === -1) return null;
 
