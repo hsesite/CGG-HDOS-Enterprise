@@ -81,3 +81,28 @@ Endpoint publik `GET /api/public/companies` menyediakan pilihan perusahaan aktif
 - Posisi `KTT`, `SPV HSE`, `Foreman Safety`, dan `Project Manager` disimpan sebagai metadata profil. Admin CGG perlu menetapkan role aplikasi secara eksplisit untuk memberikan kewenangan persetujuan/kontrol. Jangan mengubah role otomatis hanya berdasarkan teks jabatan.
 - Frontend hanya menampilkan unduh/ekspor untuk `companyCode=CGG` atau `Admin CGG`. Akun kontraktor/subkon tetap dapat membuka pratinjau file tetapi tidak melihat tombol unduh/ekspor.
 - Setelah mengganti `Code.gs`, simpan perubahan dan deploy Apps Script sebagai **New version**. Perubahan file di Library atau GitHub tidak memperbarui deployment GAS secara otomatis.
+
+
+## Kebijakan verifikasi jabatan tinggi dan akses modul (HDOS)
+
+Frontend memakai field `roleVerified` dari respons pengguna. Untuk memastikan kebijakan ini benar-benar aman, deployment GAS yang aktif wajib mengimplementasikan kontrak berikut sebelum fitur dipakai di produksi:
+
+- `GET /api/me` dan `GET /api/users` harus mengembalikan `roleVerified: true|false` dari data tersimpan server. Field yang kosong/null dianggap **belum diverifikasi**.
+- `PATCH /api/users/:id` menerima `roleVerified` hanya dari **Admin CGG**. Pengguna tidak boleh mengubah field ini lewat onboarding, profil, atau payload akun sendiri.
+- `POST /api/users` tetap hanya untuk Admin CGG / kewenangan pengelolaan akun yang sudah ditetapkan. Admin CGG dapat menetapkan role KTT, Project Manager, SPV HSE, Foreman Safety, dan PJO; pembuatan akun tidak otomatis menandai role terverifikasi.
+- Jabatan tinggi yang belum terverifikasi hanya mendapat 4 modul Crew: **Dashboard, Repository, Inspeksi, dan Hazard**. Setelah diverifikasi oleh Admin CGG, akses modul mengikuti matriks role yang ditetapkan.
+- Jika verifikasi dicabut, akses tambahan harus langsung ditutup pada request berikutnya.
+- Akun perusahaan kontraktor/Subkon tetap tidak boleh mengunduh/mengekspor dokumen. Akun CGG dan Admin CGG boleh mengunduh sesuai kewenangan. Kontrol ini harus ditegakkan di endpoint/penyimpanan file, bukan hanya menyembunyikan tombol frontend.
+- Semua perubahan role, verifikasi, status akun, dan cakupan perusahaan harus dicatat di audit log dengan aktor dan waktu.
+
+### Uji penerimaan wajib
+
+1. Akun Foreman Safety/SPV HSE/KTT/Project Manager/PJO dengan `roleVerified=false` atau field kosong hanya dapat membuka Dashboard, Repository, Inspeksi, dan Hazard.
+2. Akun tersebut tidak dapat membuka modul tambahan lewat URL langsung, shortcut, state lama, atau request API.
+3. Setelah Admin CGG mengubah `roleVerified=true`, modul yang sesuai role dapat dibuka.
+4. Setelah verifikasi dicabut, akses tambahan langsung ditolak.
+5. Kontraktor dan Subkon dapat melihat dokumen dalam cakupan perusahaan tetapi tidak dapat mengunduh file dengan menebak URL atau memanggil endpoint langsung.
+6. Akun CGG dapat mengunduh dokumen sesuai kewenangannya.
+7. Pendaftaran profil tetap langsung aktif dan masuk; posisi yang diketik tidak memberikan role atau status verifikasi dengan sendirinya.
+
+**Status integrasi:** kode GAS deployment aktif tidak berada di repository ini. Perubahan frontend tidak memperbarui deployment GAS secara otomatis. Jangan tandai fitur ini siap produksi sebelum endpoint GAS menerapkan dan lulus uji di atas.
