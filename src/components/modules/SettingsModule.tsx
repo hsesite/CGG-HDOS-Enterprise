@@ -27,6 +27,7 @@ export const SettingsModule: React.FC = () => {
   const [contractor, setContractor] = useState({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE' as ContractorPassport['status'], safetyPassportExpiry: '', companyRole: 'Contractor' as 'Contractor' | 'Subkon', parentCompanyCode: '', emailDomains: '', autoProvision: false });
   const [companyMaster, setCompanyMaster] = useState<Array<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }>>([]);
   const [companyLoading, setCompanyLoading] = useState(false);
+  const [editingCompanyCode, setEditingCompanyCode] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
@@ -123,7 +124,7 @@ export const SettingsModule: React.FC = () => {
       const code = contractor.code.trim().toUpperCase();
       const companyName = contractor.companyName.trim();
       const parentCompanyCode = contractor.companyRole === 'Subkon' ? contractor.parentCompanyCode.trim().toUpperCase() : '';
-      if (companyMaster.some((item) => item.code === code)) throw new Error('Kode perusahaan sudah terdaftar. Gunakan kode yang berbeda atau perbarui master perusahaan.');
+      if (companyMaster.some((item) => item.code === code) && editingCompanyCode !== code) throw new Error('Kode perusahaan sudah terdaftar. Pilih Edit pada perusahaan tersebut untuk memperbarui datanya.');
       if (contractor.companyRole === 'Subkon' && (!parentCompanyCode || !companyMaster.some((item) => item.code === parentCompanyCode && item.role === 'Contractor' && item.status === 'ACTIVE'))) throw new Error('Pilih Contractor induk yang sudah terdaftar dan aktif.');
       if (contractor.autoProvision && !contractor.emailDomains.trim()) throw new Error('Domain email resmi wajib diisi jika aktivasi otomatis diaktifkan.');
       await hseApi.upsertCompany({
@@ -132,7 +133,7 @@ export const SettingsModule: React.FC = () => {
         autoProvision: contractor.autoProvision,
         status: contractor.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
       });
-      if (contractor.companyRole === 'Contractor') {
+      if (contractor.companyRole === 'Contractor' && !editingCompanyCode) {
         await store.addContractor({
           code, companyName, picName: contractor.picName.trim(),
           picContact: contractor.picContact.trim(),
@@ -141,8 +142,9 @@ export const SettingsModule: React.FC = () => {
         });
       }
       setContractor({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE', safetyPassportExpiry: '', companyRole: 'Contractor', parentCompanyCode: '', emailDomains: '', autoProvision: false });
+      setEditingCompanyCode('');
       await loadCompanyMaster();
-      setMessage('Master perusahaan tersimpan di server HDOS. Perusahaan aktif akan tersedia pada formulir pendaftaran Google.');
+      setMessage(editingCompanyCode ? 'Master perusahaan berhasil diperbarui di server HDOS.' : 'Master perusahaan tersimpan di server HDOS. Perusahaan aktif akan tersedia pada formulir pendaftaran Google.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Perusahaan gagal disimpan.');
     } finally { setBusy(false); }
@@ -183,7 +185,7 @@ export const SettingsModule: React.FC = () => {
       </div>}
       {tab === 'contractors' && <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
         <form onSubmit={addContractor} className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <h3 className="font-semibold text-white">Tambah Perusahaan</h3>
+          <h3 className="font-semibold text-white">{editingCompanyCode ? `Edit Perusahaan ${editingCompanyCode}` : 'Tambah Perusahaan'}</h3>
           <input required className={inputClass} placeholder="Kode kontraktor" value={contractor.code} onChange={e=>setContractor({...contractor,code:e.target.value})}/>
           <select className={inputClass} value={contractor.companyRole} onChange={e=>setContractor({...contractor,companyRole:e.target.value as 'Contractor'|'Subkon',parentCompanyCode:''})}><option value="Contractor">Kontraktor CGG</option><option value="Subkon">Subkontraktor</option></select>
           {contractor.companyRole === 'Subkon' && <select required className={inputClass} value={contractor.parentCompanyCode} onChange={e=>setContractor({...contractor,parentCompanyCode:e.target.value})}><option value="">Pilih kontraktor induk</option>{companyMaster.filter(item=>item.role==='Contractor' && item.status==='ACTIVE').map(item=><option key={item.code} value={item.code}>{item.name} ({item.code})</option>)}</select>}
@@ -195,10 +197,10 @@ export const SettingsModule: React.FC = () => {
 
           <label className="block text-xs text-neutral-400">Masa berlaku paspor safety (opsional)<input className={`${inputClass} mt-1`} type="date" value={contractor.safetyPassportExpiry} onChange={e=>setContractor({...contractor,safetyPassportExpiry:e.target.value})}/></label>
           <select className={inputClass} value={contractor.status} onChange={e=>setContractor({...contractor,status:e.target.value as ContractorPassport['status']})}><option value="ACTIVE">Aktif</option><option value="WARNING">Peringatan</option><option value="SUSPENDED">Ditangguhkan</option></select>
-          <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-60"><Plus size={16}/>Simpan Kontraktor</button>
+          <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-60"><Plus size={16}/>{editingCompanyCode ? 'Simpan Perubahan' : 'Simpan Perusahaan'}</button>
         </form>
         <section className="space-y-3"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-white">Master Perusahaan ({companyMaster.length})</h3><button type="button" disabled={companyLoading} onClick={()=>void loadCompanyMaster()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white">{companyLoading?'Memuat...':'Muat ulang'}</button></div>
-          {companyLoading ? <p className="text-sm text-neutral-400">Memuat master perusahaan dari server...</p> : companyMaster.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Master perusahaan server masih kosong. Tambahkan kontraktor atau subkon dari formulir ini.</div> : companyMaster.map(item=><div key={item.code} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-medium text-white">{item.name}</div><div className="mt-1 text-xs text-neutral-400">{item.code} · {item.role==='Contractor'?'Kontraktor':'Subkontraktor'}{item.parentCompanyCode ? ` · Induk: ${item.parentCompanyCode}` : ''}</div><div className="mt-1 text-xs text-neutral-500">Domain: {item.emailDomains || 'Belum diatur'} · Aktivasi otomatis: {item.autoProvision?'Aktif':'Nonaktif'}</div></div><span className={`rounded-lg border px-2 py-1 text-xs ${item.status==='ACTIVE'?'border-emerald-400/20 text-emerald-300':'border-amber-400/20 text-amber-300'}`}>{item.status}</span></div></div>)}
+          {companyLoading ? <p className="text-sm text-neutral-400">Memuat master perusahaan dari server...</p> : companyMaster.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Master perusahaan server masih kosong. Tambahkan kontraktor atau subkon dari formulir ini.</div> : companyMaster.map(item=><div key={item.code} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-medium text-white">{item.name}</div><div className="mt-1 text-xs text-neutral-400">{item.code} · {item.role==='Contractor'?'Kontraktor':'Subkontraktor'}{item.parentCompanyCode ? ` · Induk: ${item.parentCompanyCode}` : ''}</div><div className="mt-1 text-xs text-neutral-500">Domain: {item.emailDomains || 'Belum diatur'} · Aktivasi otomatis: {item.autoProvision?'Aktif':'Nonaktif'}</div></div><div className="flex shrink-0 flex-col items-end gap-2"><span className={`rounded-lg border px-2 py-1 text-xs ${item.status==='ACTIVE'?'border-emerald-400/20 text-emerald-300':'border-amber-400/20 text-amber-300'}`}>{item.status}</span><button type="button" onClick={()=>{setEditingCompanyCode(item.code);setContractor({code:item.code,companyName:item.name,picName:'',picContact:'',status:item.status==='ACTIVE'?'ACTIVE':'SUSPENDED',safetyPassportExpiry:'',companyRole:item.role,parentCompanyCode:item.parentCompanyCode||'',emailDomains:item.emailDomains||'',autoProvision:item.autoProvision});setMessage('Edit master perusahaan lalu simpan perubahan.');}} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white">Edit</button></div></div></div>)}
         </section>
       </div>}
       {tab === 'accounts' && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
