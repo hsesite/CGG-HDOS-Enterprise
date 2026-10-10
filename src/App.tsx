@@ -23,6 +23,7 @@ import { MapModule } from './components/modules/MapModule';
 import { AIModule } from './components/modules/AIModule';
 import { SyncModule } from './components/modules/SyncModule';
 import { SettingsModule } from './components/modules/SettingsModule';
+import { RoleVerificationPanel } from './components/modules/RoleVerificationPanel';
 
 // Module Icons
 import {
@@ -227,6 +228,7 @@ export default function App() {
 
         <WindowWrapper id="settings" title="Pengaturan Sistem & Master Data" icon={Settings}>
           <SettingsModule />
+          <RoleVerificationPanel />
         </WindowWrapper>
       </main>
 
