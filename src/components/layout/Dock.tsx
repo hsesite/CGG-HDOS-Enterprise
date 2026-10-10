@@ -32,7 +32,7 @@ export const Dock: React.FC = () => {
   const openHazardCount = store.hazards.filter((h) => h.status === 'OPEN' || h.status === 'PICA_ISSUED').length;
   const openPicaCount = store.picas.filter((p) => p.status === 'OPEN' || p.status === 'PROGRESS').length;
 
-  const dockItems: DockItem[] = [
+  const allDockItems: DockItem[] = [
     { id: 'dashboard', label: 'Dashboard Operasi', icon: LayoutDashboard, accentColor: '#00E676' },
     { id: 'inspection', label: 'Runtime Inspeksi', icon: ClipboardCheck, accentColor: '#42A5F5' },
     { id: 'hazard', label: 'Manajemen Bahaya (Hazard)', icon: AlertTriangle, accentColor: '#FF5252', badge: openHazardCount },
@@ -44,7 +44,8 @@ export const Dock: React.FC = () => {
     { id: 'ai', label: 'AI Vision & SMKP Copilot', icon: Cpu, accentColor: '#EC4899' },
     { id: 'sync', label: 'Offline Sync & Sheets', icon: RefreshCw, accentColor: '#10B981' },
     { id: 'settings', label: 'Pengaturan Sistem', icon: Settings, accentColor: '#E5E7EB' },
-  ].filter((item) => canAccessModule(getCurrentUser(), item.id));
+  ];
+  const dockItems = allDockItems.filter((item) => canAccessModule(getCurrentUser(), item.id));
 
   const handleItemClick = (id: WindowId) => {
     const window = store.windows.find((w) => w.id === id);
