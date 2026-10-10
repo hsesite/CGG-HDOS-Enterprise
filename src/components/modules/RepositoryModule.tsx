@@ -236,6 +236,8 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
   const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
+  const isReadOnlyAccount = isBasicReadOnlyAccount || isControlReadOnlyAccount;
+  const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isCompanyScopedAccount = Boolean(sessionUser?.companyCode);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
@@ -243,7 +245,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   useEffect(() => {
     let cancelled = false;
     const reconcilePublishedDocuments = async () => {
-      if (isBasicReadOnlyAccount) return;
+      if (isReadOnlyAccount) return;
       for (const doc of store.documents) {
         const form = store.getFormDefinitionByDocumentId(doc.id);
         if (form?.status === 'PUBLISHED' && doc.status !== 'EFFECTIVE') {
@@ -264,7 +266,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     };
     void reconcilePublishedDocuments();
     return () => { cancelled = true; };
-  }, [store, store.documents, store.formDefinitions, selectedDoc?.id, isBasicReadOnlyAccount]);
+  }, [store, store.documents, store.formDefinitions, selectedDoc?.id, isReadOnlyAccount]);
 
   const filteredDocs = store.documents.filter((doc) => {
     const roles = sessionUser?.roles || [];
@@ -778,7 +780,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     };
     void repairExistingPublishedForms();
     return () => { cancelled = true; };
-  }, [store, store.formDefinitions, store.documents, isBasicReadOnlyAccount]);
+  }, [store, store.formDefinitions, store.documents, isReadOnlyAccount]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -793,7 +795,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
           </p>
         </div>
 
-        {!isBasicReadOnlyAccount && !isControlReadOnlyAccount && <button
+        {!isReadOnlyAccount && <button
           type="button"
           onClick={() => {
             resetMessages();
@@ -1033,7 +1035,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <span>{downloading ? 'Menyiapkan unduhan...' : `Unduh Dokumen (${selectedDoc.fileType})`}</span>
                 </button>}
 
-                {!isBasicReadOnlyAccount && !isControlReadOnlyAccount && canDeleteSelectedDoc && (
+                {!isReadOnlyAccount && canDeleteSelectedDoc && (
                   <button
                     type="button"
                     disabled={deleting}
