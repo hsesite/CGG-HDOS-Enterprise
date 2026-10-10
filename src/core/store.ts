@@ -379,6 +379,7 @@ export class HDOSCentralStore {
     formId: string,
     updates: Partial<Omit<FormDefinition, 'id' | 'createdAt'>>
   ): Promise<FormDefinition> {
+    this.assertMutationAllowed('document');
     const existing = this.formDefinitions.find((form) => form.id === formId);
     if (!existing) {
       throw new Error('Formulir tidak ditemukan.');
