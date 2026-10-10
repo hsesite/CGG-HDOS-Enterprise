@@ -1,0 +1,32 @@
+name: Validate HDOS Pull Requests
+# Keep this check separate from the production Pages deployment.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Typecheck frontend
+        run: bun run typecheck
+      - name: Build frontend
+        env:
+          GITHUB_PAGES: 'true'
+        run: bun run build

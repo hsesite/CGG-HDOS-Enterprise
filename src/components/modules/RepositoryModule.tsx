@@ -17,6 +17,7 @@ import { useHDOSStore } from '../../core/store';
 import { DocumentItem, FormDefinition, DocumentLevel, DocumentControlMetadata } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
+import { canDownloadDocuments } from '../../core/access-policy';
 import type { ApiUser } from '../../core/api';
 import { hdosDB } from '../../core/db';
 import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentPreviewHtml } from '../../core/document-parser';
@@ -234,7 +235,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     return sameDocument && sameRevision;
   }) : undefined;
   const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
-  const isCGGAccount = String(sessionUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(sessionUser?.roles?.includes('Admin CGG'));
+  const isCGGAccount = canDownloadDocuments(sessionUser);
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
   const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isReadOnlyAccount = isBasicReadOnlyAccount || isControlReadOnlyAccount;
@@ -1086,10 +1087,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <FileText className="w-14 h-14 text-[#A855F7]" />
                   <div className="space-y-2 max-w-xl">
                     <p className="text-base font-bold text-white">Buka dokumen asli di Microsoft Word</p>
-                    <p className="text-sm text-neutral-300">Pratinjau DOCX di browser dinonaktifkan agar isi dan tata letak tidak ditampilkan dalam bentuk hasil render yang berbeda. {isBasicReadOnlyAccount ? 'Akun umum dapat melihat metadata dokumen, tetapi tidak memiliki izin mengunduh berkas.' : 'Unduh berkas asli di bawah, lalu buka berkas tersebut dengan Microsoft Word.'}</p>
+                    <p className="text-sm text-neutral-300">Pratinjau DOCX di browser dinonaktifkan agar isi dan tata letak tidak ditampilkan dalam bentuk hasil render yang berbeda. {!isCGGAccount ? 'Akun kontraktor hanya dapat melihat metadata dan pratinjau dokumen, tanpa izin mengunduh berkas.' : 'Unduh berkas asli di bawah, lalu buka berkas tersebut dengan Microsoft Word.'}</p>
                     <p className="text-xs text-neutral-400">Nama file: {originalFileName}</p>
                   </div>
-                  {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-sm font-bold">
+                  {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-sm font-bold">
                     <Download className="w-4 h-4" />
                     Unduh File Asli untuk Microsoft Word
                   </a>}
@@ -1106,14 +1107,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   `}</style>
                   <div className="original-office-preview" dangerouslySetInnerHTML={{ __html: originalFileHtml }} />
                   <div className="mt-6 border-t pt-4 text-center">
-                    {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>}
+                    {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>}
                   </div>
                 </div>
               ) : (
                 <div className="h-full min-h-48 flex flex-col items-center justify-center gap-3 text-center">
                   <FileText className="w-10 h-10 text-[#A855F7]" />
                   <p className="text-sm text-neutral-300">Menyiapkan pratinjau file...</p>
-                  {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>}
+                  {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>}
                 </div>
               )}
             </div>

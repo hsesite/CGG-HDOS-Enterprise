@@ -10,6 +10,7 @@ import { IOSMobileSimulator } from './components/mobile/IOSMobileSimulator';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
+import { hseApi } from './core/api';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
@@ -23,6 +24,7 @@ import { MapModule } from './components/modules/MapModule';
 import { AIModule } from './components/modules/AIModule';
 import { SyncModule } from './components/modules/SyncModule';
 import { SettingsModule } from './components/modules/SettingsModule';
+import { RoleVerificationPanel } from './components/modules/RoleVerificationPanel';
 
 // Module Icons
 import {
@@ -58,6 +60,16 @@ export default function App() {
 
       try {
         await bootHDOS();
+        if (cancelled) return;
+
+        // Refresh server-owned role verification and company scope on every app boot.
+        if (hseApi.isAuthenticated) {
+          try {
+            AuthState.saveUser(await hseApi.me());
+          } catch (sessionRefreshError) {
+            console.warn('[HDOS] Could not refresh server session profile; using cached profile.', sessionRefreshError);
+          }
+        }
         if (cancelled) return;
 
         setBooted(true);
@@ -227,6 +239,7 @@ export default function App() {
 
         <WindowWrapper id="settings" title="Pengaturan Sistem & Master Data" icon={Settings}>
           <SettingsModule />
+          <RoleVerificationPanel />
         </WindowWrapper>
       </main>
 

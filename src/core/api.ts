@@ -71,6 +71,8 @@ export type ApiUser = {
   position?: string;
   department?: string;
   section?: string;
+  /** Set only by an authorized verifier on the server. */
+  roleVerified?: boolean;
 };
 
 export class ApiError extends Error {
@@ -248,7 +250,7 @@ export const hseApi = {
     return data.user;
   },
 
-  async createUser(input: { displayName: string; email: string; password: string; role: 'Company Admin' | 'Contractor' | 'Subkon' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; companyCode?: string; parentCompanyCode?: string; position?: string; department?: string; section?: string }): Promise<ApiUser> {
+  async createUser(input: { displayName: string; email: string; password: string; role: 'Company Admin' | 'Contractor' | 'Subkon' | 'KTT' | 'Project Manager' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; companyCode?: string; parentCompanyCode?: string; position?: string; department?: string; section?: string }): Promise<ApiUser> {
     return request<ApiUser>('POST', '/api/users', input);
   },
 
@@ -284,7 +286,7 @@ export const hseApi = {
     return request<ApiUser[]>('GET', '/api/users');
   },
 
-  async updateUserAccess(id: string, updates: { role?: 'Admin CGG' | 'Company Admin' | 'Contractor' | 'Subkon' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; status?: 'ACTIVE' | 'INACTIVE'; companyCode?: string; parentCompanyCode?: string }): Promise<ApiUser> {
+  async updateUserAccess(id: string, updates: { role?: 'Admin CGG' | 'Company Admin' | 'Contractor' | 'Subkon' | 'KTT' | 'Project Manager' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; status?: 'ACTIVE' | 'INACTIVE'; companyCode?: string; parentCompanyCode?: string; roleVerified?: boolean }): Promise<ApiUser> {
     return request<ApiUser>('PATCH', `/api/users/${encodeURIComponent(id)}`, updates);
   },
 
