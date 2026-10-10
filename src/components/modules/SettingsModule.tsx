@@ -24,7 +24,9 @@ export const SettingsModule: React.FC = () => {
   const store = useHDOSStore();
   const [tab, setTab] = useState<'areas' | 'contractors' | 'accounts'>('areas');
   const [area, setArea] = useState(emptyArea);
-  const [contractor, setContractor] = useState({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE' as ContractorPassport['status'], safetyPassportExpiry: '' });
+  const [contractor, setContractor] = useState({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE' as ContractorPassport['status'], safetyPassportExpiry: '', companyRole: 'Contractor' as 'Contractor' | 'Subkon', parentCompanyCode: '', emailDomains: '', autoProvision: false });
+  const [companyMaster, setCompanyMaster] = useState<Array<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }>>([]);
+  const [companyLoading, setCompanyLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
@@ -39,7 +41,14 @@ export const SettingsModule: React.FC = () => {
     finally { setAccountLoading(false); }
   }
 
-  useEffect(() => { if (tab === 'accounts') void loadAccounts(); }, [tab]);
+  async function loadCompanyMaster() {
+    setCompanyLoading(true);
+    try { setCompanyMaster(await hseApi.listCompanies()); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Master perusahaan tidak dapat dimuat. Pastikan GAS terbaru sudah dipasang.'); }
+    finally { setCompanyLoading(false); }
+  }
+
+  useEffect(() => { if (tab === 'accounts') void loadAccounts(); if (tab === 'contractors') void loadCompanyMaster(); }, [tab]);
   
   if (!user || !user.roles.includes('Admin CGG')) {
     return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Hanya Admin CGG yang dapat menambahkan akun dan mengatur hak akses kontraktor maupun subkontraktor.</p></div>;
@@ -111,18 +120,31 @@ export const SettingsModule: React.FC = () => {
     setMessage('');
     setBusy(true);
     try {
-      await store.addContractor({
-        code: contractor.code.trim().toUpperCase(),
-        companyName: contractor.companyName.trim(),
-        picName: contractor.picName.trim(),
-        picContact: contractor.picContact.trim(),
-        status: contractor.status,
-        safetyPassportExpiry: contractor.safetyPassportExpiry,
+      const code = contractor.code.trim().toUpperCase();
+      const companyName = contractor.companyName.trim();
+      const parentCompanyCode = contractor.companyRole === 'Subkon' ? contractor.parentCompanyCode.trim().toUpperCase() : '';
+      if (companyMaster.some((item) => item.code === code)) throw new Error('Kode perusahaan sudah terdaftar. Gunakan kode yang berbeda atau perbarui master perusahaan.');
+      if (contractor.companyRole === 'Subkon' && (!parentCompanyCode || !companyMaster.some((item) => item.code === parentCompanyCode && item.role === 'Contractor' && item.status === 'ACTIVE'))) throw new Error('Pilih Contractor induk yang sudah terdaftar dan aktif.');
+      if (contractor.autoProvision && !contractor.emailDomains.trim()) throw new Error('Domain email resmi wajib diisi jika aktivasi otomatis diaktifkan.');
+      await hseApi.upsertCompany({
+        code, name: companyName, role: contractor.companyRole,
+        parentCompanyCode, emailDomains: contractor.emailDomains.trim().toLowerCase(),
+        autoProvision: contractor.autoProvision,
+        status: contractor.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
       });
-      setContractor({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE', safetyPassportExpiry: '' });
-      setMessage('Kontraktor ditambahkan. Modul Contractor membaca master data yang sama.');
+      if (contractor.companyRole === 'Contractor') {
+        await store.addContractor({
+          code, companyName, picName: contractor.picName.trim(),
+          picContact: contractor.picContact.trim(),
+          status: contractor.status,
+          safetyPassportExpiry: contractor.safetyPassportExpiry,
+        });
+      }
+      setContractor({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE', safetyPassportExpiry: '', companyRole: 'Contractor', parentCompanyCode: '', emailDomains: '', autoProvision: false });
+      await loadCompanyMaster();
+      setMessage('Master perusahaan tersimpan di server HDOS. Perusahaan aktif akan tersedia pada formulir pendaftaran Google.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Kontraktor gagal disimpan.');
+      setMessage(error instanceof Error ? error.message : 'Perusahaan gagal disimpan.');
     } finally { setBusy(false); }
   }
 
@@ -161,17 +183,22 @@ export const SettingsModule: React.FC = () => {
       </div>}
       {tab === 'contractors' && <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
         <form onSubmit={addContractor} className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <h3 className="font-semibold text-white">Tambah Kontraktor</h3>
+          <h3 className="font-semibold text-white">Tambah Perusahaan</h3>
           <input required className={inputClass} placeholder="Kode kontraktor" value={contractor.code} onChange={e=>setContractor({...contractor,code:e.target.value})}/>
+          <select className={inputClass} value={contractor.companyRole} onChange={e=>setContractor({...contractor,companyRole:e.target.value as 'Contractor'|'Subkon',parentCompanyCode:''})}><option value="Contractor">Kontraktor CGG</option><option value="Subkon">Subkontraktor</option></select>
+          {contractor.companyRole === 'Subkon' && <select required className={inputClass} value={contractor.parentCompanyCode} onChange={e=>setContractor({...contractor,parentCompanyCode:e.target.value})}><option value="">Pilih kontraktor induk</option>{companyMaster.filter(item=>item.role==='Contractor' && item.status==='ACTIVE').map(item=><option key={item.code} value={item.code}>{item.name} ({item.code})</option>)}</select>}
           <input required className={inputClass} placeholder="Nama perusahaan" value={contractor.companyName} onChange={e=>setContractor({...contractor,companyName:e.target.value})}/>
           <input className={inputClass} placeholder="Nama PIC (opsional)" value={contractor.picName} onChange={e=>setContractor({...contractor,picName:e.target.value})}/>
           <input className={inputClass} placeholder="Kontak PIC (opsional)" value={contractor.picContact} onChange={e=>setContractor({...contractor,picContact:e.target.value})}/>
+          <label className="block text-xs text-neutral-400">Domain email resmi perusahaan (pisahkan koma jika lebih dari satu)<input className={inputClass+" mt-1"} placeholder="Contoh: sls.co.id" value={contractor.emailDomains} onChange={e=>setContractor({...contractor,emailDomains:e.target.value})}/></label>
+          <label className="flex items-center gap-2 text-sm text-neutral-300"><input type="checkbox" checked={contractor.autoProvision} onChange={e=>setContractor({...contractor,autoProvision:e.target.checked})}/>Aktivasi otomatis untuk domain resmi yang terverifikasi</label>
+
           <label className="block text-xs text-neutral-400">Masa berlaku paspor safety (opsional)<input className={`${inputClass} mt-1`} type="date" value={contractor.safetyPassportExpiry} onChange={e=>setContractor({...contractor,safetyPassportExpiry:e.target.value})}/></label>
           <select className={inputClass} value={contractor.status} onChange={e=>setContractor({...contractor,status:e.target.value as ContractorPassport['status']})}><option value="ACTIVE">Aktif</option><option value="WARNING">Peringatan</option><option value="SUSPENDED">Ditangguhkan</option></select>
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-60"><Plus size={16}/>Simpan Kontraktor</button>
         </form>
-        <section className="space-y-3"><h3 className="font-semibold text-white">Kontraktor Terdaftar ({store.contractors.length})</h3>
-          {store.contractors.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Belum ada kontraktor. Tambahkan data perusahaan terlebih dahulu.</div> : store.contractors.map(item=><div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4"><div><div className="font-medium text-white">{item.companyName}</div><div className="mt-1 text-xs text-neutral-400">{item.code} · PIC: {item.picName || 'Belum diisi'}</div><div className="mt-1 text-xs text-neutral-500">Manpower, jam kerja, dan KPI tetap 0 sampai data riil dimasukkan.</div></div><button aria-label={`Hapus kontraktor ${item.companyName}`} onClick={async()=>{if(confirm(`Hapus kontraktor ${item.companyName}?`)){await store.deleteContractor(item.id);setMessage('Kontraktor dihapus dari master data lokal.');}}} className="rounded-lg p-2 text-neutral-400 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16}/></button></div>)}
+        <section className="space-y-3"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-white">Master Perusahaan ({companyMaster.length})</h3><button type="button" disabled={companyLoading} onClick={()=>void loadCompanyMaster()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white">{companyLoading?'Memuat...':'Muat ulang'}</button></div>
+          {companyLoading ? <p className="text-sm text-neutral-400">Memuat master perusahaan dari server...</p> : companyMaster.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Master perusahaan server masih kosong. Tambahkan kontraktor atau subkon dari formulir ini.</div> : companyMaster.map(item=><div key={item.code} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-medium text-white">{item.name}</div><div className="mt-1 text-xs text-neutral-400">{item.code} · {item.role==='Contractor'?'Kontraktor':'Subkontraktor'}{item.parentCompanyCode?\` · Induk: ${item.parentCompanyCode}\`:''}</div><div className="mt-1 text-xs text-neutral-500">Domain: {item.emailDomains || 'Belum diatur'} · Aktivasi otomatis: {item.autoProvision?'Aktif':'Nonaktif'}</div></div><span className={\`rounded-lg border px-2 py-1 text-xs ${item.status==='ACTIVE'?'border-emerald-400/20 text-emerald-300':'border-amber-400/20 text-amber-300'}\`}>{item.status}</span></div></div>)}
         </section>
       </div>}
       {tab === 'accounts' && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
