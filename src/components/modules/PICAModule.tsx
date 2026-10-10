@@ -17,6 +17,7 @@ import { hdosAuth } from '../../core/auth';
 export const PICAModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
   const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
@@ -211,6 +212,13 @@ export const PICAModule: React.FC = () => {
                 </div>
               </div>
 
+              {/* PJO/SPV/Foreman receive a read-only control view with only a PICA close action. */}
+              {isControlViewer ? (
+                <div className="pt-3 border-t border-white/10 space-y-3">
+                  <p className="text-xs text-neutral-300">Mode kontrol baca-saja. Detail temuan dan tindakan tidak dapat diedit.</p>
+                  {selectedPica.status !== 'CLOSED' ? <button onClick={async () => { const stages = { foreman: true, spvHse: true, ktt: true }; const updated = await store.updatePICAStatus(selectedPica.id, { approvalStages: stages, status: 'CLOSED', completionDate: new Date().toISOString().slice(0, 10) }); if (updated) setSelectedPica(updated); }} className="w-full rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-bold text-black">Tutup PICA</button> : <span className="text-xs font-semibold text-emerald-300">PICA sudah ditutup</span>}
+                </div>
+              ) : (
               {/* 3-Tier Multi-Role Signoff Workflow */}
               <div className="pt-3 border-t border-white/10 space-y-2">
                 <div className="text-xs font-bold text-white uppercase tracking-wider mb-2">
@@ -277,6 +285,7 @@ export const PICAModule: React.FC = () => {
                   )}
                 </div>
               </div>
+              )}
             </div>
           ) : (
             <div className="apple-glass-card p-8 rounded-2xl text-center text-neutral-400 text-xs">
