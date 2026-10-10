@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useHDOSStore } from '../../core/store';
 import { X, Layers, AppWindow as WindowIcon } from 'lucide-react';
 import { WindowId } from '../../core/types';
+import { getCurrentUser } from '../../core/auth-utils';
+import { canAccessModule } from '../../core/access-policy';
 
 export const MissionControl: React.FC = () => {
   const store = useHDOSStore();
@@ -23,7 +25,7 @@ export const MissionControl: React.FC = () => {
 
   if (!store.missionControlOpen) return null;
 
-  const openWindows = store.windows.filter((w) => w.isOpen);
+  const openWindows = store.windows.filter((w) => w.isOpen && canAccessModule(getCurrentUser(), w.id));
 
   const handleSelectWindow = (id: WindowId) => {
     store.bringToFront(id);
