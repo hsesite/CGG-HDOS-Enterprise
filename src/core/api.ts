@@ -262,8 +262,10 @@ export const hseApi = {
     return data.user;
   },
 
-  async submitGoogleProfile(input: { credential: string; displayName: string; companyCode: string; position: string; department: string; section: string }): Promise<{ pending: boolean; message: string }> {
-    return request<{ pending: boolean; message: string }>('POST', '/api/auth/google/onboard', input);
+  async submitGoogleProfile(input: { credential: string; displayName: string; companyCode: string; position: string; department: string; section: string }): Promise<{ pending?: boolean; message?: string; token?: string; user?: ApiUser }> {
+    const result = await request<{ pending?: boolean; message?: string; token?: string; user?: ApiUser }>('POST', '/api/auth/google/onboard', input);
+    if (result.token) setToken(result.token);
+    return result;
   },
 
   async listPublicCompanies(): Promise<Array<{ code: string; name: string; role: string; parentCompanyCode?: string }>> {
