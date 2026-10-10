@@ -1025,7 +1025,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <span>Lihat File Asli (Popup)</span>
                 </button>}
 
-                {(!isBasicReadOnlyAccount || isCGGAccount) && <button
+                {isCGGAccount && <button
                   type="button"
                   disabled={downloading}
                   onClick={() => void handleDownloadDoc(selectedDoc)}
