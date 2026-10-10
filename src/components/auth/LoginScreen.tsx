@@ -89,6 +89,13 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
         department: googleProfile.department.trim(),
         section: googleProfile.section.trim(),
       });
+      if (!result.pending) {
+        const user = await hseApi.loginWithGoogle(googleCredential);
+        setGoogleCredential('');
+        setGoogleProfile({ displayName: '', companyCode: '', position: '', department: '', section: '' });
+        await completeLogin(user);
+        return;
+      }
       setNotice(result.message || 'Profil terkirim dan menunggu persetujuan Admin CGG.');
       setGoogleCredential('');
       setGoogleProfile({ displayName: '', companyCode: '', position: '', department: '', section: '' });
