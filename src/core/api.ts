@@ -266,6 +266,10 @@ export const hseApi = {
     return request<{ pending: boolean; message: string }>('POST', '/api/auth/google/onboard', input);
   },
 
+  async listPublicCompanies(): Promise<Array<{ code: string; name: string; role: string; parentCompanyCode?: string }>> {
+    return request<Array<{ code: string; name: string; role: string; parentCompanyCode?: string }>>('GET', '/api/public/companies');
+  },
+
   async listUsers(): Promise<ApiUser[]> {
     return request<ApiUser[]>('GET', '/api/users');
   },
