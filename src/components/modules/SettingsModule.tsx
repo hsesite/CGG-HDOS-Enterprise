@@ -63,7 +63,7 @@ export const SettingsModule: React.FC = () => {
     setMessage('');
     try {
       await hseApi.createUser({ displayName: newAccount.displayName.trim(), email: newAccount.email.trim(), password: newAccount.password, role: newAccount.role, companyCode: newAccount.companyCode.trim().toUpperCase(), position: newAccount.role });
-      setNewAccount({displayName:'',email:'',password:'',role:isCompanyAdmin?'Employee':'Company Admin',companyCode:user.companyCode || ''});
+      setNewAccount({displayName:'',email:'',password:'',role:isCompanyAdmin?'Employee':'Company Admin',companyCode:user?.companyCode || ''});
       setMessage(isCGGAdmin ? 'Admin Perusahaan berhasil ditunjuk. Berikan kredensial awal kepada pemilik akun secara aman.' : 'Akun pekerja berhasil dibuat dalam cakupan perusahaan Anda. Berikan kredensial awal kepada pemilik akun secara aman.');
       await loadAccounts();
     } catch (error) {
