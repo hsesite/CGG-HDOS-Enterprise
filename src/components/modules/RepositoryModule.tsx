@@ -235,6 +235,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   }) : undefined;
   const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
+  const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isCompanyScopedAccount = Boolean(sessionUser?.companyCode);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
@@ -792,7 +793,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
           </p>
         </div>
 
-        {!isBasicReadOnlyAccount && <button
+        {!isBasicReadOnlyAccount && !isControlReadOnlyAccount && <button
           type="button"
           onClick={() => {
             resetMessages();
@@ -1032,7 +1033,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   <span>{downloading ? 'Menyiapkan unduhan...' : `Unduh Dokumen (${selectedDoc.fileType})`}</span>
                 </button>}
 
-                {!isBasicReadOnlyAccount && canDeleteSelectedDoc && (
+                {!isBasicReadOnlyAccount && !isControlReadOnlyAccount && canDeleteSelectedDoc && (
                   <button
                     type="button"
                     disabled={deleting}
