@@ -237,7 +237,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
   const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isReadOnlyAccount = isBasicReadOnlyAccount || isControlReadOnlyAccount;
-  const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isCompanyScopedAccount = Boolean(sessionUser?.companyCode);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
