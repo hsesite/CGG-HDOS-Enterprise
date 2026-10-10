@@ -8,6 +8,8 @@ export type UserRole =
   | 'Contractor PIC'
   | 'Employee'
   | 'Admin CGG'
+  | 'Company Admin'
+  | 'PJO'
   | 'Contractor'
   | 'Subkon';
 
