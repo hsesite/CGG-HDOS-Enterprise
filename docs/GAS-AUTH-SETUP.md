@@ -48,3 +48,26 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 - Email Google harus terlebih dahulu didaftarkan Admin CGG. Google Sign-In tidak lagi membuat akun baru secara otomatis.
 - Data lama tanpa metadata kepemilikan akan tersembunyi dari akun Contractor/Subkon sampai metadata tersebut diverifikasi dan dilengkapi. Ini mencegah kebocoran lintas perusahaan.
 - Endpoint Repository/berkas masih perlu integrasi cloud tersendiri. Dokumen yang hanya tersimpan di IndexedDB satu browser belum dapat dibagikan aman lintas perangkat atau dijadikan sumber dokumen kontraktor/subkon lintas perusahaan.
+
+
+## Otomatisasi onboarding berdasarkan master perusahaan
+
+Versi GAS onboarding terbaru memakai sheet `companies` sebagai master perusahaan. Fungsi `setup()` akan membuat sheet dan header jika belum ada; buat backup Spreadsheet terlebih dahulu sebelum menjalankan setup di produksi.
+
+Kolom sheet `companies`:
+- `companyCode`: kode unik, misalnya SLS atau VIP.
+- `companyName`: nama resmi yang tampil pada pilihan perusahaan.
+- `role`: `Contractor` atau `Subkon` untuk provisioning otomatis.
+- `parentCompanyCode`: wajib diisi untuk Subkon dan harus menunjuk ke perusahaan Contractor induk yang aktif.
+- `emailDomains`: domain email perusahaan yang sudah diverifikasi, pisahkan beberapa domain dengan koma atau titik koma.
+- `autoProvision`: `TRUE` untuk mengaktifkan pembuatan akun otomatis setelah domain cocok.
+- `status`: `ACTIVE` agar perusahaan tampil pada daftar pendaftaran.
+
+Contoh konfigurasi (ganti domain dengan domain resmi yang benar-benar telah diverifikasi):
+- SLS | PT Sentosa Laju Sejahtera | Contractor | [kosong] | [domain resmi SLS] | TRUE | ACTIVE
+- VIP | PT Vendoura Inti Perkasa | Contractor | [domain resmi VIP] | TRUE | ACTIVE
+- Kode Subkon | Nama Subkon | Subkon | SLS | [domain resmi Subkon] | TRUE | ACTIVE
+
+Jangan memasukkan domain publik seperti `gmail.com`, `yahoo.com`, atau `outlook.com` ke daftar domain yang diizinkan. Pengguna dari perusahaan terdaftar dengan domain resmi yang cocok dapat otomatis dibuatkan akun aktif dan diarahkan ke scope perusahaan. Jika domain tidak cocok, provisioning otomatis mati, atau perusahaan belum terdaftar, pendaftaran tidak diberi akses otomatis (atau ditolak jika kode perusahaan tidak ada/aktif). Role Admin CGG tidak pernah dapat diberikan melalui pendaftaran publik.
+
+Endpoint publik `GET /api/public/companies` menyediakan pilihan perusahaan aktif untuk formulir Google Sign-In. Setelah mengubah GAS, deploy sebagai versi baru. Isi master perusahaan hanya dengan kode dan domain yang telah diverifikasi.
