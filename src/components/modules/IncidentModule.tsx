@@ -18,6 +18,7 @@ import { hdosAuth } from '../../core/auth';
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('list');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
@@ -95,14 +96,14 @@ export const IncidentModule: React.FC = () => {
           >
             Register Insiden ({store.incidents.length})
           </button>
-          <button
+          {!isControlViewer && <button
             onClick={() => setActiveTab('report')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               activeTab === 'report' ? 'bg-red-500 text-white font-semibold shadow-sm' : 'text-neutral-300 hover:text-white'
             }`}
           >
             + Lapor Insiden Baru
-          </button>
+          </button>}
         </div>
       </div>
 
