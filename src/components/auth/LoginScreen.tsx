@@ -137,6 +137,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
         credential: googleCredential,
         displayName: googleProfile.displayName.trim(),
         companyCode: googleProfile.companyCode.trim().toUpperCase(),
+        position: '',
         department: googleProfile.department.trim(),
         section: googleProfile.section.trim(),
       });
