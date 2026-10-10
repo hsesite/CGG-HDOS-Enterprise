@@ -1,4 +1,5 @@
 name: Validate HDOS Pull Requests
+# Keep this check separate from the production Pages deployment.
 
 on:
   pull_request:
