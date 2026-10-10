@@ -1114,7 +1114,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                 <div className="h-full min-h-48 flex flex-col items-center justify-center gap-3 text-center">
                   <FileText className="w-10 h-10 text-[#A855F7]" />
                   <p className="text-sm text-neutral-300">Menyiapkan pratinjau file...</p>
-                  {!isBasicReadOnlyAccount && <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>}
+                  {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>}
                 </div>
               )}
             </div>
