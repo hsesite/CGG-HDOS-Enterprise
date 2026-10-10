@@ -12,7 +12,11 @@ export class HDOSAuthEngine {
 
   getCurrentUser(): UserProfile {
     const user = AuthState.getUser();
-    const role = (user?.roles.find((value): value is UserRole => VALID_ROLES.includes(value as UserRole)) || this.selectedRole || 'Employee');
+    const assignedRole = (user?.roles.find((value): value is UserRole => VALID_ROLES.includes(value as UserRole)) || this.selectedRole || 'Employee');
+    const verificationRoles = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'];
+    const hasUnverifiedSeniorRole = Boolean(user?.roles.some((value) => verificationRoles.includes(value)) && user?.roleVerified !== true);
+    // Until verification, behave as Crew in module-level controls as well as navigation.
+    const role: UserRole = hasUnverifiedSeniorRole ? 'Employee' : assignedRole;
     return {
       id: user?.id || '',
       name: user?.displayName || '',
