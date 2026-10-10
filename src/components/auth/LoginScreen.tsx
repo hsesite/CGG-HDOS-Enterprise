@@ -108,7 +108,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
     }
   }
 
-  function handleGoogleLogin(): void {
+  function handleGoogleLogin(forRegistration = false): void {
     setError('');
     setNotice('');
     if (!GOOGLE_CLIENT_ID) {
@@ -125,7 +125,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
       callback: async ({ credential }) => {
         setPending(true);
         try {
-          if (registrationIntent) {
+          if (forRegistration) {
             setGoogleCredential(credential);
             setGoogleProfile((profile) => ({ ...profile, displayName: profile.displayName || '' }));
             setNotice('Verifikasi Google berhasil. Lengkapi profil untuk mendaftar sebagai akun umum HDOS dengan akses terbatas.');
@@ -187,7 +187,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
           </form>
         )}
 
-        <button type="button" disabled={pending} onClick={() => { setRegistrationIntent(true); handleGoogleLogin(); }} className="mt-4 w-full rounded-2xl border border-[#00E676]/50 bg-[#00E676]/10 px-4 py-3 text-sm font-semibold text-[#00E676] transition hover:bg-[#00E676]/15 disabled:opacity-60">Daftar Akun Baru</button>
+        <button type="button" disabled={pending} onClick={() => handleGoogleLogin(true)} className="mt-4 w-full rounded-2xl border border-[#00E676]/50 bg-[#00E676]/10 px-4 py-3 text-sm font-semibold text-[#00E676] transition hover:bg-[#00E676]/15 disabled:opacity-60">Daftar Akun Baru</button>
         <p className="mt-2 text-center text-xs text-neutral-500">Pengguna baru mendaftar melalui verifikasi Google dan memilih perusahaan terdaftar.</p>
 
         <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-widest text-neutral-600"><div className="h-px flex-1 bg-white/10"/><span>atau</span><div className="h-px flex-1 bg-white/10"/></div>
