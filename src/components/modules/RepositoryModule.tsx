@@ -267,19 +267,18 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const filteredDocs = store.documents.filter((doc) => {
     const roles = sessionUser?.roles || [];
     if (roles.includes('Admin CGG')) return true;
-    if (!companyCode) return !isCompanyScopedAccount && !isBasicReadOnlyAccount;
-    if (doc.companyCode && doc.companyCode !== companyCode && !(doc.parentCompanyCode === companyCode)) {
-      if (!(roles.includes('Contractor') && doc.parentCompanyCode === companyCode)) return false;
-    }
-    if (isBasicReadOnlyAccount) return !doc.companyCode || doc.companyCode === companyCode || (parentCompanyCode && doc.companyCode === parentCompanyCode);
     const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
     const parentCompanyCode = String(sessionUser?.parentCompanyCode || '').trim().toUpperCase();
     if (!companyCode) return false;
     const docCompany = String(doc.companyCode || '').trim().toUpperCase();
     const docParent = String(doc.parentCompanyCode || '').trim().toUpperCase();
-    if (roles.includes('Contractor')) return docCompany === companyCode || docParent === companyCode;
-    if (roles.includes('Subkon')) return docCompany === companyCode;
-    return true;
+    const isGlobalDocument = !docCompany && !docParent;
+    if (isBasicReadOnlyAccount) {
+      if (isGlobalDocument || docCompany === companyCode) return true;
+      return !parentCompanyCode && docParent === companyCode;
+    }
+    if (parentCompanyCode) return docCompany === companyCode;
+    return isGlobalDocument || docCompany === companyCode || docParent === companyCode;
   }).filter((doc) => {
     const matchCategory = activeCategory === 'ALL' || doc.category === activeCategory;
     const query = searchQuery.toLowerCase();
