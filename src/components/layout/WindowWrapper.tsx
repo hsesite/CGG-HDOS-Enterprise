@@ -2,6 +2,8 @@ import React from 'react';
 import { Minus, Square, X, Maximize2 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { WindowId } from '../../core/types';
+import { getCurrentUser } from '../../core/auth-utils';
+import { canAccessModule } from '../../core/access-policy';
 
 interface WindowWrapperProps {
   id: WindowId;
@@ -13,6 +15,9 @@ interface WindowWrapperProps {
 export const WindowWrapper: React.FC<WindowWrapperProps> = ({ id, title, children, icon: Icon }) => {
   const store = useHDOSStore();
   const win = store.windows.find((w) => w.id === id);
+
+  // Final UI-level authorization guard: stale window state cannot bypass role policy.
+  if (!canAccessModule(getCurrentUser(), id)) return null;
 
   // Render only the focused workspace. This is a final UI-level guard:
   // even if stale window state marks another module as open, it must not
