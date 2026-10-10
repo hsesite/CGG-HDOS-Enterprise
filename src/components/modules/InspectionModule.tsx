@@ -33,8 +33,9 @@ const TEMPLATES: TemplateDef[] = [];
 export const InspectionModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
-  const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>(() => isControlViewer ? 'history' : 'form');
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateDef['id']>('APAR');
   const [location, setLocation] = useState<MiningArea>('');
   const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({
@@ -253,14 +254,14 @@ export const InspectionModule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
-          <button
+          {!isControlViewer && <button
             onClick={() => setActiveTab('form')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               activeTab === 'form' ? 'bg-[#42A5F5] text-black font-semibold shadow-sm' : 'text-neutral-300 hover:text-white'
             }`}
           >
             Form Input Aktif
-          </button>
+          </button>}
           <button
             onClick={() => setActiveTab('history')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
