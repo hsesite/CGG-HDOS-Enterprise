@@ -90,7 +90,7 @@ export const SettingsModule: React.FC = () => {
     if (!position) { setMessage('Pilih jabatan terlebih dahulu.'); return; }
     const companyCode = (account.companyCode || user?.companyCode || 'CGG').trim().toUpperCase();
     const needsVerification = ['KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
-    await updateAccount(account.id, { role, position, companyCode, status: 'ACTIVE', roleVerified: needsVerification });
+    await updateAccount(account.id, { role, position, ...(isCGGAdmin ? { companyCode } : {}), status: 'ACTIVE', roleVerified: needsVerification });
   }
 
   async function approveGoogleAccount(event: React.FormEvent<HTMLFormElement>, account: ApiUser) {
@@ -226,10 +226,10 @@ export const SettingsModule: React.FC = () => {
             <span className="inline-flex w-fit rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-neutral-200">{account.roles[0] || 'Pending Approval'} · {account.status || 'INACTIVE'}</span>
             {account.status === 'PENDING' ? <span className="text-xs text-amber-300">Menunggu verifikasi</span> : <button disabled={busy || account.id===user?.id} onClick={() => void updateAccount(account.id,{status:account.status==='ACTIVE'?'INACTIVE':'ACTIVE'})} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${account.status==='ACTIVE'?'border-emerald-400/30 text-emerald-300':'border-red-400/30 text-red-300'}`}>{account.status==='ACTIVE'?'Aktif · Nonaktifkan':'Nonaktif · Aktifkan'}</button>}
           </div>
-          {isCGGAdmin && account.roles[0] !== 'Company Admin' && account.roles[0] !== 'Admin CGG' && <form onSubmit={event=>void assignRegisteredAccount(event,account)} className="grid gap-2 rounded-xl border border-[#00E676]/20 bg-[#00E676]/5 p-3 md:grid-cols-3">
+          {(isCGGAdmin || isCompanyAdmin) && account.roles[0] !== 'Company Admin' && account.roles[0] !== 'Admin CGG' && <form onSubmit={event=>void assignRegisteredAccount(event,account)} className="grid gap-2 rounded-xl border border-[#00E676]/20 bg-[#00E676]/5 p-3 md:grid-cols-3">
             <p className="text-xs text-neutral-300 md:col-span-3">Akun yang sudah mendaftar dengan email ini tidak perlu dibuat ulang. Tetapkan jabatan di sini untuk memperbarui hak akses pada akun yang sama.</p>
             <select name="position" required className={inputClass} defaultValue={account.position || ''}><option value="">Pilih jabatan</option><option value="KTT">KTT</option><option value="Project Manager">Project Manager</option><option value="Superintendent">Superintendent</option><option value="Supervisor">Supervisor</option><option value="Foreman">Foreman</option></select>
-            <select name="role" required className={inputClass} defaultValue={account.roles[0] === 'Employee' ? 'Foreman Safety' : account.roles[0]}><option value="KTT">KTT</option><option value="Project Manager">Project Manager</option><option value="PJO">Superintendent</option><option value="SPV HSE">Supervisor</option><option value="Foreman Safety">Foreman</option><option value="Employee">Akses dasar (Crew)</option></select>
+            <select name="role" required className={inputClass} defaultValue={account.roles[0] === 'Employee' ? (isCGGAdmin ? 'Foreman Safety' : 'SPV HSE') : account.roles[0]}>{isCGGAdmin && <><option value="KTT">KTT</option><option value="Project Manager">Project Manager</option></>}<option value="PJO">Superintendent</option><option value="SPV HSE">Supervisor</option><option value="Foreman Safety">Foreman</option><option value="Employee">Akses dasar (Crew)</option></select>
             <button disabled={busy} className="rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-semibold text-black disabled:opacity-50">Tetapkan Akses</button>
           </form>}
           {isCGGAdmin && account.status === 'PENDING' && <form onSubmit={event=>void approveGoogleAccount(event,account)} className="grid gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 md:grid-cols-2">
