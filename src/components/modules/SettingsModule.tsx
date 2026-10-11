@@ -39,9 +39,24 @@ export const SettingsModule: React.FC = () => {
 
   async function loadAccounts() {
     setAccountLoading(true);
-    try { const [userList, companyList] = await Promise.all([hseApi.listUsers(), hseApi.listCompanies()]); setAccounts(userList); setCompanyMaster(companyList); setMessage(''); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Daftar akun tidak dapat dimuat. Akses pengelolaan akun dibatasi untuk KTT.'); }
-    finally { setAccountLoading(false); }
+    setMessage('');
+    try {
+      // Load users independently: an empty/unavailable company master must not hide existing accounts.
+      const userList = await hseApi.listUsers();
+      setAccounts(userList);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Daftar akun gagal dimuat: ${error.message}` : 'Daftar akun tidak dapat dimuat.');
+    }
+    try {
+      const companyList = await hseApi.listCompanies();
+      setCompanyMaster(companyList);
+    } catch (error) {
+      // Keep account management usable when contractor master data is unavailable.
+      setCompanyMaster([]);
+      setMessage(current => current || (error instanceof Error ? `Master perusahaan belum tersedia: ${error.message}` : 'Master perusahaan belum tersedia. Daftar akun tetap dapat dikelola.'));
+    } finally {
+      setAccountLoading(false);
+    }
   }
 
   async function loadCompanyMaster() {
