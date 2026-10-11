@@ -1,6 +1,6 @@
 import type { ApiUser } from './api';
 
-export const CREW_BASE_MODULES = ['dashboard', 'repository', 'inspection', 'hazard'] as const;
+export const CREW_BASE_MODULES = ['dashboard', 'inspection', 'hazard', 'repository'] as const;
 
 export const ROLES_REQUIRING_VERIFICATION = [
   'KTT',
