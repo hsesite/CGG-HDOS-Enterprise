@@ -290,6 +290,18 @@ export const hseApi = {
     return request<ApiUser>('PATCH', `/api/users/${encodeURIComponent(id)}`, updates);
   },
 
+  async listRepository(): Promise<Array<Record<string, unknown>>> {
+    return request<Array<Record<string, unknown>>>('GET', '/api/repository');
+  },
+
+  async uploadRepositoryDocument(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>('POST', '/api/repository', input);
+  },
+
+  async downloadRepositoryFile(id: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
+    return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`);
+  },
+
   async logout(): Promise<void> {
     try {
       if (getToken()) {
