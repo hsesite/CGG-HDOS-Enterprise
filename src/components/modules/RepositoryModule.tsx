@@ -572,7 +572,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         blob = base64ToBlob(remote.base64, remote.mimeType);
         fileName = remote.fileName || fileName;
       }
-      if (storedFile.documentId && storedFile.documentId !== doc.id) {
+      if (storedFile && storedFile.documentId && storedFile.documentId !== doc.id) {
         throw new Error('Identitas file tidak cocok dengan dokumen yang dipilih. Pratinjau dibatalkan demi mencegah file yang salah ditampilkan.');
       }
       setOriginalFileName(fileName);
