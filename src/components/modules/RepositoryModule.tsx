@@ -18,7 +18,7 @@ import { DocumentItem, FormDefinition, DocumentLevel, DocumentControlMetadata } 
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
 import { canDownloadDocuments } from '../../core/access-policy';
-import type { ApiUser } from '../../core/api';
+import { hseApi, type ApiUser } from '../../core/api';
 import { hdosDB } from '../../core/db';
 import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentPreviewHtml } from '../../core/document-parser';
 
@@ -34,7 +34,18 @@ type StoredDocumentFile = {
   savedAt?: string;
 };
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024;
+const fileToBase64 = (file: Blob): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Berkas gagal dibaca untuk sinkronisasi pusat.'));
+  reader.onload = () => {
+    const result = String(reader.result || '');
+    const comma = result.indexOf(',');
+    resolve(comma >= 0 ? result.slice(comma + 1) : result);
+  };
+  reader.readAsDataURL(file);
+});
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const DOCUMENT_FILE_PREFIX = 'document-file-';
 
 const getFileType = (fileName: string): DocumentItem['fileType'] | null => {
@@ -241,6 +252,48 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const isReadOnlyAccount = isBasicReadOnlyAccount || isControlReadOnlyAccount;
   const isCompanyScopedAccount = Boolean(sessionUser?.companyCode);
 
+  // Central Repository: all users read the same metadata from GAS/Drive.
+  useEffect(() => {
+    let cancelled = false;
+    const syncCentralRepository = async () => {
+      if (!hseApi.baseUrl || !sessionUser) return;
+      try {
+        let remote = await hseApi.listRepository();
+        const canMigrateLocal = sessionUser.roles?.some(role => ['Admin CGG', 'Company Admin'].includes(role)) === true;
+        // One-time safe migration: copy local metadata/files to central storage only when ID is absent.
+        if (canMigrateLocal) {
+          const remoteIds = new Set(remote.map(item => String(item.id || '')));
+          const localDocs = [...store.documents];
+          for (const doc of localDocs) {
+            if (remoteIds.has(doc.id)) continue;
+            const stored = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+            const blob = stored?.blob || stored?.file;
+            if (!blob) continue;
+            const fileBase64 = await fileToBase64(blob);
+            await hseApi.uploadRepositoryDocument({
+              ...doc,
+              fileName: stored?.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`,
+              mimeType: stored?.mimeType || blob.type || 'application/octet-stream',
+              fileBase64,
+            });
+            remoteIds.add(doc.id);
+          }
+          remote = await hseApi.listRepository();
+        }
+        if (!cancelled && remote.length) {
+          store.setCentralRepositoryDocuments(remote as unknown as DocumentItem[]);
+        } else if (!cancelled && remote.length === 0 && !canMigrateLocal) {
+          store.setCentralRepositoryDocuments([]);
+        }
+      } catch (error) {
+        console.error('[RepositoryModule] Sinkronisasi repository pusat gagal:', error);
+        if (!cancelled) setErrorMessage(`Repository pusat belum dapat dimuat: ${getErrorMessage(error)}`);
+      }
+    };
+    void syncCentralRepository();
+    return () => { cancelled = true; };
+  }, [sessionUser?.id, sessionUser?.roles?.join(','), hseApi.baseUrl]);
+
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
   // the source document should also be EFFECTIVE in Repository.
   useEffect(() => {
@@ -433,6 +486,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
       try {
         await hdosDB.put('photos', storedFile);
+        if (hseApi.baseUrl && sessionUser) {
+          await hseApi.uploadRepositoryDocument({
+            ...newDoc,
+            fileName: selectedFile.name,
+            mimeType: selectedFile.type || 'application/octet-stream',
+            fileBase64: await fileToBase64(selectedFile),
+          });
+        }
       } catch (storageError) {
         // Roll back the repository record if the original binary could not be saved.
         // This prevents a document appearing available when its file is missing.
