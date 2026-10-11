@@ -128,6 +128,11 @@ export class HDOSCentralStore {
   this.notify();
 }
 
+  setCentralRepositoryDocuments(documents: DocumentItem[]): void {
+    this.documents = documents;
+    this.notify();
+  }
+
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
