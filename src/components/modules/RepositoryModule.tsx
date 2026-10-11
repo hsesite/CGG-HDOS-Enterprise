@@ -34,6 +34,13 @@ type StoredDocumentFile = {
   savedAt?: string;
 };
 
+const base64ToBlob = (base64: string, mimeType: string): Blob => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType || 'application/octet-stream' });
+};
+
 const fileToBase64 = (file: Blob): Promise<string> => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onerror = () => reject(new Error('Berkas gagal dibaca untuk sinkronisasi pusat.'));
@@ -556,13 +563,15 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
       }
       const rawFile = storedFile?.blob || storedFile?.file;
-      if (!storedFile || !rawFile) {
-        throw new Error('Berkas asli untuk dokumen ini tidak ditemukan di penyimpanan lokal. Sistem tidak akan mengganti dengan isi formulir digital. Silakan unggah ulang file asli.');
+      let blob: Blob;
+      let fileName = storedFile?.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+      if (storedFile && rawFile) {
+        blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
+      } else {
+        const remote = await hseApi.downloadRepositoryFile(doc.id);
+        blob = base64ToBlob(remote.base64, remote.mimeType);
+        fileName = remote.fileName || fileName;
       }
-      const blob = rawFile instanceof Blob
-        ? rawFile
-        : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
-      const fileName = storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
       if (storedFile.documentId && storedFile.documentId !== doc.id) {
         throw new Error('Identitas file tidak cocok dengan dokumen yang dipilih. Pratinjau dibatalkan demi mencegah file yang salah ditampilkan.');
       }
@@ -596,18 +605,20 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
       }
       const rawFile = storedFile?.blob || storedFile?.file;
-      if (!storedFile || !rawFile || (storedFile.documentId && storedFile.documentId !== doc.id)) {
-        throw new Error('Berkas asli yang cocok dengan dokumen ini tidak ditemukan. Unduhan dibatalkan agar tidak mengirim file yang salah.');
+      let blob: Blob;
+      let fileName = storedFile?.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+      if (storedFile && rawFile && (!storedFile.documentId || storedFile.documentId === doc.id)) {
+        blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
+      } else {
+        const remote = await hseApi.downloadRepositoryFile(doc.id);
+        blob = base64ToBlob(remote.base64, remote.mimeType);
+        fileName = remote.fileName || fileName;
       }
-
-      const blob = rawFile instanceof Blob
-        ? rawFile
-        : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
 
       const objectUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
-      anchor.download = storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+      anchor.download = fileName;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
