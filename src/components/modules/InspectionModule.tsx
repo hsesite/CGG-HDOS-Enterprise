@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ClipboardCheck,
   Plus,
@@ -57,6 +57,32 @@ export const InspectionModule: React.FC = () => {
   const [repositoryAnswers, setRepositoryAnswers] = useState<Record<string, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({});
 
   const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId) || { id: 'APAR' as const, title: '', category: '', smkpElement: '', items: [] };
+  useEffect(() => {
+    let cancelled = false;
+    const loadCentralForms = async () => {
+      if (!hseApi.baseUrl) return;
+      try {
+        const rows = await hseApi.listPublishedForms();
+        if (cancelled || !Array.isArray(rows)) return;
+        const forms = rows
+          .map((row) => (row && typeof row === 'object' ? row : null))
+          .filter((row): row is Record<string, unknown> => Boolean(row))
+          .map((row) => {
+            const raw = (row.payload && typeof row.payload === 'object')
+              ? { ...(row.payload as Record<string, unknown>), ...row }
+              : row;
+            return raw as unknown as FormDefinition;
+          })
+          .filter((form) => form.status === 'PUBLISHED' && Array.isArray(form.fields) && form.fields.length > 0);
+        await store.mergePublishedFormDefinitions(forms);
+      } catch (error) {
+        console.warn('[InspectionModule] Form pusat belum dapat dimuat:', error);
+      }
+    };
+    void loadCentralForms();
+    return () => { cancelled = true; };
+  }, [store, hseApi.baseUrl]);
+
   const publishedRepositoryForms = store.formDefinitions.filter((form) => form.status === 'PUBLISHED' && form.fields.length > 0);
   const selectedRepositoryForm: FormDefinition | undefined = publishedRepositoryForms.find((form) => form.id === selectedRepositoryFormId);
 
