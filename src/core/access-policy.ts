@@ -39,7 +39,7 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
   const roles = user.roles || [];
   if (roles.includes('Company Admin')) return true;
   if (['PJO', 'SPV HSE', 'Foreman Safety'].some((role) => roles.includes(role))) {
-    return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai'].includes(module);
+    return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai', 'sync'].includes(module);
   }
   if (roles.includes('Contractor')) {
     return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(module);
