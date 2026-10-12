@@ -119,6 +119,9 @@ const parseDocumentRegister = (
     // "No Dokumen : 047/Form-HSE-CGG/2026".
     /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s*[\s:：=|]{0,24}([0-9]{1,4}\s*\/\s*[A-Z][A-Z0-9-]*(?:\s*\/\s*[A-Z0-9-]+)+)/i,
     // Common cover-page numbering: "No. 012/Form-CGG/2025".
+    // Fallback: detect the formal number anywhere in extracted DOCX/PDF/XLSX text.
+    // This handles files where Word splits the "No Dokumen" label and value into separate cells.
+    /\b([0-9]{1,4}\s*\/\s*[A-Z][A-Z0-9-]*(?:\s*\/\s*[A-Z0-9-]+)+)\b/i,
     /\b(?:no\.?|nomor)\s+([0-9]{1,4}\s*\/\s*[A-Z][A-Z0-9-]*(?:\s*\/\s*[A-Z0-9-]+)+)/i,
     // Register labels such as "No Dok: CGG-HSE-SOP-001".
     /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s*[:：=|]\s*([A-Z0-9][A-Z0-9./_-]{2,})/i,
@@ -391,7 +394,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setErrorMessage('Ukuran berkas melebihi batas 15 MB.');
+      setErrorMessage('Ukuran berkas melebihi batas 10 MB agar dapat disinkronkan ke penyimpanan pusat.');
       return;
     }
 
