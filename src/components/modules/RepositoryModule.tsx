@@ -258,7 +258,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       : true;
     return sameDocument && sameRevision;
   }) : undefined;
-  const canDeleteSelectedDoc = Boolean(currentUser?.name && selectedDoc && selectedDoc.owner === currentUser.name);
+  const canDeleteSelectedDoc = Boolean(selectedDoc && sessionUser?.roles?.some((role) => ['Admin CGG', 'Company Admin'].includes(role)));
   const isCGGAccount = canDownloadDocuments(sessionUser);
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
   const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
@@ -656,12 +656,9 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleDeleteDocument = async (doc: DocumentItem) => {
     const roles = sessionUser?.roles || [];
-    const canDelete = Boolean(
-      currentUser?.name &&
-      (doc.owner === currentUser.name || roles.includes('Admin CGG') || roles.includes('Company Admin'))
-    );
+    const canDelete = roles.includes('Admin CGG') || roles.includes('Company Admin');
     if (!canDelete) {
-      setErrorMessage('Penghapusan hanya dapat dilakukan oleh pengunggah, Admin Perusahaan, atau Admin CGG.');
+      setErrorMessage('Penghapusan dokumen hanya dapat dilakukan oleh Admin CGG atau Admin Perusahaan.');
       return;
     }
     const confirmed = window.confirm(
