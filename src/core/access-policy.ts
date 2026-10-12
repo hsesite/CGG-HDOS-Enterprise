@@ -1,10 +1,13 @@
 import type { ApiUser } from './api';
 
-export const CREW_BASE_MODULES = ['dashboard', 'inspection', 'hazard', 'repository'] as const;
+export const CREW_BASE_MODULES = ['dashboard', 'inspection', 'hazard', 'repository', 'sync'] as const;
 
 export const ROLES_REQUIRING_VERIFICATION = [
   'KTT',
   'Project Manager',
+  'Superintendent',
+  'Supervisor',
+  'Foreman',
   'SPV HSE',
   'Foreman Safety',
   'PJO',
@@ -44,7 +47,10 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
   if (roles.includes('Subkon')) {
     return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(module);
   }
-  if (roles.includes('Employee')) return (CREW_BASE_MODULES as readonly string[]).includes(module);
+  if (roles.includes('Employee') || ['Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager'].some((role) => roles.includes(role))) {
+    if (module === 'sync') return true;
+    if (roles.includes('Employee')) return (CREW_BASE_MODULES as readonly string[]).includes(module);
+  }
 
   switch (module) {
     case 'dashboard': case 'hazard': case 'map': return true;
@@ -54,7 +60,8 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
     case 'repository': return ['KTT', 'Project Manager'].some((role) => roles.includes(role));
     case 'contractor': return ['KTT', 'Project Manager', 'Contractor PIC'].some((role) => roles.includes(role));
     case 'ai': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'].some((role) => roles.includes(role));
-    case 'sync': case 'settings': return false;
+    case 'sync': return true;
+    case 'settings': return false;
     default: return false;
   }
 }
