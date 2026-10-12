@@ -302,6 +302,10 @@ export const hseApi = {
     return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`);
   },
 
+  async deleteRepositoryDocument(id: string): Promise<{ id: string; deleted: boolean }> {
+    return request<{ id: string; deleted: boolean }>('DELETE', `/api/repository/${encodeURIComponent(id)}`);
+  },
+
   async listPublishedForms(): Promise<Array<Record<string, unknown>>> {
     return request<Array<Record<string, unknown>>>('GET', '/api/forms');
   },
