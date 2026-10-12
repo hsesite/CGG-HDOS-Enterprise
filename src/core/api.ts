@@ -51,7 +51,8 @@ type GasRequest = {
   method:
     | 'GET'
     | 'POST'
-    | 'PATCH';
+    | 'PATCH'
+    | 'DELETE';
 
   path: string;
 
