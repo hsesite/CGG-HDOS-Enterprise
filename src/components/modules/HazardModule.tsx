@@ -20,7 +20,6 @@ import { createHazardAction } from '../../core/module-actions';
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
-  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
   const [activeTab, setActiveTab] = useState<'report' | 'register'>('report');
   const [title, setTitle] = useState('');
