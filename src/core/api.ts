@@ -302,6 +302,14 @@ export const hseApi = {
     return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`);
   },
 
+  async listPublishedForms(): Promise<Array<Record<string, unknown>>> {
+    return request<Array<Record<string, unknown>>>('GET', '/api/forms');
+  },
+
+  async publishFormDefinition(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>('POST', '/api/forms', input);
+  },
+
   async logout(): Promise<void> {
     try {
       if (getToken()) {
