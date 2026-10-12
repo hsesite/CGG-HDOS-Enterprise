@@ -147,6 +147,32 @@ export class HDOSCentralStore {
     this.notify();
   }
 
+  async mergeCloudOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', records: Array<Record<string, unknown>>): Promise<void> {
+    const rows = records.filter((record) => record && typeof record.id === 'string' && record.id.trim());
+    if (entity === 'inspections') {
+      const remote = rows as unknown as Inspection[];
+      const ids = new Set(remote.map((record) => record.id));
+      this.inspections = [...remote, ...this.inspections.filter((record) => !ids.has(record.id))];
+      for (const record of remote) await hdosDB.put('inspection', record);
+    } else if (entity === 'hazards') {
+      const remote = rows as unknown as Hazard[];
+      const ids = new Set(remote.map((record) => record.id));
+      this.hazards = [...remote, ...this.hazards.filter((record) => !ids.has(record.id))];
+      for (const record of remote) await hdosDB.put('hazard', record);
+    } else if (entity === 'picas') {
+      const remote = rows as unknown as PICA[];
+      const ids = new Set(remote.map((record) => record.id));
+      this.picas = [...remote, ...this.picas.filter((record) => !ids.has(record.id))];
+      for (const record of remote) await hdosDB.put('pica', record);
+    } else {
+      const remote = rows as unknown as Incident[];
+      const ids = new Set(remote.map((record) => record.id));
+      this.incidents = [...remote, ...this.incidents.filter((record) => !ids.has(record.id))];
+      for (const record of remote) await hdosDB.put('incident', record);
+    }
+    this.notify();
+  }
+
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
