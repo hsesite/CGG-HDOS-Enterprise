@@ -1,6 +1,6 @@
 import type { ApiUser } from './api';
 
-export const CREW_BASE_MODULES = ['dashboard', 'inspection', 'hazard', 'repository', 'sync'] as const;
+export const CREW_BASE_MODULES = ['dashboard', 'inspection', 'hazard', 'incident', 'pica', 'repository', 'sync'] as const;
 
 export const ROLES_REQUIRING_VERIFICATION = [
   'KTT',
@@ -49,7 +49,7 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
   }
   if (roles.includes('Employee') || ['Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager'].some((role) => roles.includes(role))) {
     if (module === 'sync') return true;
-    if (roles.includes('Employee')) return (CREW_BASE_MODULES as readonly string[]).includes(module);
+    if (roles.includes('Employee') || roles.includes('Crew')) return (CREW_BASE_MODULES as readonly string[]).includes(module);
   }
 
   switch (module) {
