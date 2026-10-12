@@ -421,6 +421,33 @@ export class HDOSCentralStore {
   );
 }
 
+  async mergePublishedFormDefinitions(forms: FormDefinition[]): Promise<void> {
+    if (!Array.isArray(forms) || forms.length === 0) return;
+    const published = forms.filter((form) =>
+      form && form.status === 'PUBLISHED' && Array.isArray(form.fields) && form.fields.length > 0
+    );
+    for (const remote of published) {
+      const local = this.formDefinitions.find((form) =>
+        form.id === remote.id || form.sourceDocumentId === remote.sourceDocumentId
+      );
+      const merged: FormDefinition = {
+        ...(local || {}),
+        ...remote,
+        id: remote.id || local?.id || createEntityId(),
+        createdAt: remote.createdAt || local?.createdAt || new Date().toISOString(),
+        updatedAt: remote.updatedAt || local?.updatedAt || new Date().toISOString(),
+      } as FormDefinition;
+      await hdosDB.put('form-definition', merged);
+      this.formDefinitions = [
+        merged,
+        ...this.formDefinitions.filter((form) =>
+          form.id !== merged.id && form.sourceDocumentId !== merged.sourceDocumentId
+        ),
+      ];
+    }
+    this.notify();
+  }
+
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
     this.assertMutationAllowed('inspection');
     const count = this.inspections.length + 1;
