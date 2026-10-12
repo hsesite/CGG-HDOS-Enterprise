@@ -45,17 +45,24 @@ const INITIAL_WINDOWS: AppWindow[] = [
 export class HDOSCentralStore {
   private assertMutationAllowed(action: 'location' | 'contractor' | 'document' | 'inspection' | 'hazard' | 'incident' | 'pica', updates?: Partial<PICA>): void {
     const role = hdosAuth.getCurrentRole();
-    if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)) {
-      const isPicaClose = action === 'pica'
-        && updates?.status === 'CLOSED'
-        && updates.approvalStages?.foreman === true
-        && updates.approvalStages?.spvHse === true
-        && updates.approvalStages?.ktt === true;
-      if (!isPicaClose) throw new Error('Akun PJO/SPV/Foreman hanya dapat melihat data dan menutup PICA.');
-      return;
+    const isPicaClose = action === 'pica'
+      && updates?.status === 'CLOSED'
+      && updates.approvalStages?.foreman === true
+      && updates.approvalStages?.spvHse === true
+      && updates.approvalStages?.ktt === true;
+    // Reporting is permitted for every operational role. Only repository/admin
+    // mutations remain restricted; PICA can only be closed through its signoff flow.
+    if (action === 'pica') {
+      if (isPicaClose) return;
+      if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)) {
+        throw new Error('PICA hanya dapat ditutup setelah semua tahap persetujuan lengkap.');
+      }
     }
-    if (role === 'Employee' && !['inspection', 'hazard'].includes(action)) {
-      throw new Error('Akun umum hanya dapat membuat Inspeksi dan Hazard; SMKP bersifat baca-saja.');
+    if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role) && !['inspection', 'hazard', 'incident', 'pica'].includes(action)) {
+      throw new Error('Akun ini hanya dapat membuat laporan operasional dan melakukan penutupan PICA yang disetujui.');
+    }
+    if (role === 'Employee' && !['inspection', 'hazard', 'incident'].includes(action)) {
+      throw new Error('Akun umum hanya dapat membuat laporan Inspeksi, Hazard, dan Insiden.');
     }
   }
 
