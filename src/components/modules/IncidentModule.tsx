@@ -19,7 +19,6 @@ import { createIncidentAction } from '../../core/module-actions';
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
-  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
