@@ -19,6 +19,7 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { MiningArea, InspectionItem, Inspection, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { hseApi } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
 
 interface TemplateDef {
