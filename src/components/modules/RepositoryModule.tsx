@@ -696,14 +696,30 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         throw new Error('IndexedDB tidak tersedia pada browser ini.');
       }
 
-      const storedFile = await hdosDB.getById<StoredDocumentFile>(
+      let storedFile = await hdosDB.getById<StoredDocumentFile>(
         'photos',
         `${DOCUMENT_FILE_PREFIX}${doc.id}`
       );
 
+      // Existing Repository files may only exist in Drive (uploaded from another
+      // browser). Fetch the canonical cloud binary before giving up on form generation.
+      if (!storedFile?.blob && hseApi.baseUrl && sessionUser) {
+        const remote = await hseApi.downloadRepositoryFile(doc.id);
+        const blob = base64ToBlob(remote.base64, remote.mimeType);
+        storedFile = {
+          id: `${DOCUMENT_FILE_PREFIX}${doc.id}`,
+          blob,
+          fileName: remote.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`,
+          mimeType: remote.mimeType || 'application/octet-stream',
+          size: blob.size,
+          uploadedAt: new Date().toISOString(),
+        };
+        await hdosDB.put('photos', storedFile);
+      }
+
       if (!storedFile?.blob) {
         throw new Error(
-          'Berkas asli tidak ditemukan. Unggah ulang dokumen ini sebelum membuat checklist.'
+          'Berkas asli tidak ditemukan di penyimpanan lokal maupun Drive pusat. Periksa tautan berkas dokumen ini.'
         );
       }
 
@@ -822,8 +838,6 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         try {
           const db = await hdosDB.init();
           if (!db) return;
-          const storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
-          if (!storedFile?.blob) continue;
           const created = await handleGenerateForm(doc);
           if (created) {
             setSuccessMessage((current) => current || `Form inspeksi "${doc.title}" berhasil dibuat dan tersedia di modul Inspeksi.`);
