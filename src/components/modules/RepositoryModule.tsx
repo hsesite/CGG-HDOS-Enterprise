@@ -115,6 +115,9 @@ const parseDocumentRegister = (
   // before capturing its value. The older expression could mistake the word
   // "Dok" in the label itself for the document number.
   const sourceDocumentNumber = readRegisterValue(normalized, [
+    // Number in official headers/tables, including Word tables split across cells/newlines:
+    // "No Dokumen : 047/Form-HSE-CGG/2026".
+    /\b(?:nomor\s+dokumen|no\.?\s*dok(?:umen)?|document\s*(?:no\.?|number|id))\s*[\s:：=|]{0,24}([0-9]{1,4}\s*\/\s*[A-Z][A-Z0-9-]*(?:\s*\/\s*[A-Z0-9-]+)+)/i,
     // Common cover-page numbering: "No. 012/Form-CGG/2025".
     /\b(?:no\.?|nomor)\s+([0-9]{1,4}\s*\/\s*[A-Z][A-Z0-9-]*(?:\s*\/\s*[A-Z0-9-]+)+)/i,
     // Register labels such as "No Dok: CGG-HSE-SOP-001".
@@ -299,7 +302,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     };
     void syncCentralRepository();
     return () => { cancelled = true; };
-  }, [sessionUser?.id, sessionUser?.roles?.join(','), hseApi.baseUrl]);
+  }, [sessionUser?.id, sessionUser?.roles?.join(','), hseApi.baseUrl, store.documents.length]);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
   // the source document should also be EFFECTIVE in Repository.
