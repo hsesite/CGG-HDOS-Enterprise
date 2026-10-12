@@ -226,8 +226,18 @@ export const PICAModule: React.FC = () => {
               {/* PJO/SPV/Foreman receive a read-only control view with only a PICA close action. */}
               {isControlViewer ? (
                 <div className="pt-3 border-t border-white/10 space-y-3">
-                  <p className="text-xs text-neutral-300">Mode kontrol baca-saja. Detail temuan dan tindakan tidak dapat diedit.</p>
-                  {selectedPica.status !== 'CLOSED' ? <button onClick={async () => { const stages = { foreman: true, spvHse: true, ktt: true }; const updated = await store.updatePICAStatus(selectedPica.id, { approvalStages: stages, status: 'CLOSED', completionDate: new Date().toISOString().slice(0, 10) }); if (updated) setSelectedPica(updated); }} className="w-full rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-bold text-black">Tutup PICA</button> : <span className="text-xs font-semibold text-emerald-300">PICA sudah ditutup</span>}
+                  <p className="text-xs text-neutral-300">Detail temuan tetap baca-saja. Anda hanya dapat memberikan persetujuan sesuai jabatan; PICA tertutup setelah semua tahap lengkap.</p>
+                  {selectedPica.status === 'CLOSED' ? (
+                    <span className="text-xs font-semibold text-emerald-300">PICA sudah ditutup</span>
+                  ) : currentUser.role === 'Foreman Safety' && !selectedPica.approvalStages.foreman ? (
+                    <button onClick={() => handleSignoff('foreman')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap Foreman</button>
+                  ) : currentUser.role === 'SPV HSE' && !selectedPica.approvalStages.spvHse ? (
+                    <button onClick={() => handleSignoff('spvHse')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap SPV HSE</button>
+                  ) : ['KTT', 'Project Manager', 'PJO'].includes(currentUser.role) && !selectedPica.approvalStages.ktt ? (
+                    <button onClick={() => handleSignoff('ktt')} className="w-full rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-bold text-black">Persetujuan Final / Tutup PICA</button>
+                  ) : (
+                    <span className="text-xs text-neutral-400">Tidak ada tahap persetujuan yang dapat Anda lakukan saat ini.</span>
+                  )}
                 </div>
               ) : (
                             <div className="pt-3 border-t border-white/10 space-y-2">
