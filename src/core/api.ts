@@ -306,6 +306,10 @@ export const hseApi = {
     return request<{ id: string; deleted: boolean }>('DELETE', `/api/repository/${encodeURIComponent(id)}`);
   },
 
+  async listOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents'): Promise<Array<Record<string, unknown>>> {
+    return request<Array<Record<string, unknown>>>('GET', `/api/${entity}`);
+  },
+
   async listPublishedForms(): Promise<Array<Record<string, unknown>>> {
     return request<Array<Record<string, unknown>>>('GET', '/api/forms');
   },
