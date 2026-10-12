@@ -38,7 +38,6 @@ export const InspectionModule: React.FC = () => {
   const currentUser = hdosAuth.getCurrentUser();
   const sessionUser = getCurrentUser();
   const canDownloadReports = String(sessionUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(sessionUser?.roles.includes('Admin CGG'));
-  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateDef['id']>('APAR');
