@@ -523,15 +523,30 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
       setSelectedDoc(newDoc);
       setModalNewDocOpen(false);
+
+      // A document explicitly categorized as Form is also published as a
+      // digital inspection form. Reference documents (SOP/JSA/WI/IBPR) remain
+      // in Repository only and are never converted into inspection forms.
+      const shouldCreateInspectionForm =
+        String(newDoc.category || '').trim().toLowerCase() === 'form' ||
+        /checklist|formulir|form inspeksi|form pemeriksaan/i.test(newDoc.title);
+      let formCreated = false;
+      if (shouldCreateInspectionForm) {
+        formCreated = await handleGenerateForm(newDoc);
+      }
+
       setTitle('');
       setSummary('');
       setRegisterPreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      // Repository upload only registers the source document. It must not
-      // automatically create a digital inspection form: SOP/JSA/WI/IBPR etc.
-      // are controlled reference documents, not inspection instances.
-      setSuccessMessage(`Dokumen ${newDoc.docNumber} berhasil disimpan ke Central Repository. Tidak ada inspeksi yang dibuat otomatis.`);
+      setSuccessMessage(
+        shouldCreateInspectionForm
+          ? formCreated
+            ? `Dokumen ${newDoc.docNumber} tersimpan. Form digital telah diterbitkan dan sedang didistribusikan ke modul Inspeksi.`
+            : `Dokumen ${newDoc.docNumber} tersimpan di Repository, tetapi form digital belum berhasil dibuat. Periksa pesan error lalu coba buat form dari detail dokumen.`
+          : `Dokumen ${newDoc.docNumber} berhasil disimpan ke Central Repository.`
+      );
       setOfficialDocumentNumber('');
     } catch (error) {
       console.error('[RepositoryModule] Gagal mengunggah dokumen:', error);
