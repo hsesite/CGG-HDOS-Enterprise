@@ -57,6 +57,20 @@ export const InspectionModule: React.FC = () => {
   const [selectedRepositoryFormId, setSelectedRepositoryFormId] = useState<string>('');
   const [repositoryAnswers, setRepositoryAnswers] = useState<Record<string, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({});
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!hseApi.baseUrl || !sessionUser) return;
+    void Promise.all([
+      hseApi.listOperationalRecords('inspections'),
+      hseApi.listOperationalRecords('picas'),
+    ]).then(async ([inspections, picas]) => {
+      if (cancelled) return;
+      await store.mergeCloudOperationalRecords('inspections', inspections);
+      await store.mergeCloudOperationalRecords('picas', picas);
+    }).catch((error) => console.warn('[InspectionModule] Gagal memuat riwayat pusat:', error));
+    return () => { cancelled = true; };
+  }, [store, sessionUser?.id, hseApi.baseUrl]);
+
   const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId) || { id: 'APAR' as const, title: '', category: '', smkpElement: '', items: [] };
   useEffect(() => {
     let cancelled = false;
