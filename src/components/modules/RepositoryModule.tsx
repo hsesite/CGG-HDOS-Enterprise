@@ -787,6 +787,36 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     }
   };
 
+  // Automatically convert existing local Repository documents categorized as Form
+  // into published Inspection forms when no form definition exists yet.
+  // This repairs files uploaded before the automatic form-generation workflow.
+  useEffect(() => {
+    let cancelled = false;
+    const createMissingInspectionForms = async () => {
+      if (isBasicReadOnlyAccount || generatingForm || !store.documents.length) return;
+      for (const doc of store.documents) {
+        if (cancelled) return;
+        const category = String(doc.category || '').trim().toLowerCase();
+        if (category !== 'form' && !/checklist|formulir|form inspeksi|form pemeriksaan/i.test(doc.title)) continue;
+        if (store.getFormDefinitionByDocumentId(doc.id)) continue;
+        try {
+          const db = await hdosDB.init();
+          if (!db) return;
+          const storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+          if (!storedFile?.blob) continue;
+          const created = await handleGenerateForm(doc);
+          if (created) {
+            setSuccessMessage((current) => current || `Form inspeksi "${doc.title}" berhasil dibuat dan tersedia di modul Inspeksi.`);
+          }
+        } catch (error) {
+          console.warn('[RepositoryModule] Form inspeksi otomatis belum dapat dibuat:', doc.title, error);
+        }
+      }
+    };
+    void createMissingInspectionForms();
+    return () => { cancelled = true; };
+  }, [store, store.documents, store.formDefinitions, isBasicReadOnlyAccount]);
+
   // Repair already-published DOCX forms created by the old line-based parser.
   // It only updates forms when the checklist labels actually differ.
   useEffect(() => {
