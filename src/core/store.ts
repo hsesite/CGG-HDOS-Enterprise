@@ -54,9 +54,16 @@ export class HDOSCentralStore {
     // mutations remain restricted; PICA can only be closed through its signoff flow.
     if (action === 'pica') {
       if (isPicaClose) return;
-      if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)) {
-        throw new Error('PICA hanya dapat ditutup setelah semua tahap persetujuan lengkap.');
-      }
+      const stages = updates?.approvalStages;
+      const keys = updates ? Object.keys(updates) : [];
+      const isStageOnlyUpdate = Boolean(
+        stages &&
+        keys.every((key) => ['approvalStages', 'status', 'updatedAt'].includes(key)) &&
+        ['OPEN', 'PROGRESS', 'CLOSED'].includes(String(updates?.status || 'PROGRESS')) &&
+        Object.values(stages).every((value) => typeof value === 'boolean')
+      );
+      if (isStageOnlyUpdate) return;
+      throw new Error('PICA hanya dapat diperbarui melalui tahapan persetujuan; detail temuan tidak dapat diedit.');
     }
     if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role) && !['inspection', 'hazard', 'incident', 'pica'].includes(action)) {
       throw new Error('Akun ini hanya dapat membuat laporan operasional dan melakukan penutupan PICA yang disetujui.');
