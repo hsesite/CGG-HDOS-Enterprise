@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ShieldAlert,
   Flame,
@@ -15,10 +15,21 @@ import { useHDOSStore } from '../../core/store';
 import { Incident, MiningArea } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { createIncidentAction } from '../../core/module-actions';
+import { hseApi } from '../../core/api';
+import { getCurrentUser } from '../../core/auth-utils';
 
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const sessionUser = getCurrentUser();
+  useEffect(() => {
+    let cancelled = false;
+    if (!hseApi.baseUrl || !sessionUser) return;
+    void hseApi.listOperationalRecords('incidents').then(async (records) => {
+      if (!cancelled) await store.mergeCloudOperationalRecords('incidents', records);
+    }).catch((error) => console.warn('[IncidentModule] Gagal memuat register pusat:', error));
+    return () => { cancelled = true; };
+  }, [store, sessionUser?.id, hseApi.baseUrl]);
 
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
