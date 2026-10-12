@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckSquare,
   Clock,
@@ -12,11 +12,22 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { PICA } from '../../core/types';
+import { hseApi } from '../../core/api';
+import { getCurrentUser } from '../../core/auth-utils';
 import { hdosAuth } from '../../core/auth';
 
 export const PICAModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const sessionUser = getCurrentUser();
+  useEffect(() => {
+    let cancelled = false;
+    if (!hseApi.baseUrl || !sessionUser) return;
+    void hseApi.listOperationalRecords('picas').then(async (records) => {
+      if (!cancelled) await store.mergeCloudOperationalRecords('picas', records);
+    }).catch((error) => console.warn('[PICAModule] Gagal memuat register pusat:', error));
+    return () => { cancelled = true; };
+  }, [store, sessionUser?.id, hseApi.baseUrl]);
   const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
   const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
