@@ -655,8 +655,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   };
 
   const handleDeleteDocument = async (doc: DocumentItem) => {
-    if (!currentUser?.name || doc.owner !== currentUser.name) {
-      setErrorMessage('Penghapusan hanya dapat dilakukan oleh pengguna yang mengunggah dokumen ini.');
+    const roles = sessionUser?.roles || [];
+    const canDelete = Boolean(
+      currentUser?.name &&
+      (doc.owner === currentUser.name || roles.includes('Admin CGG') || roles.includes('Company Admin'))
+    );
+    if (!canDelete) {
+      setErrorMessage('Penghapusan hanya dapat dilakukan oleh pengunggah, Admin Perusahaan, atau Admin CGG.');
       return;
     }
     const confirmed = window.confirm(
