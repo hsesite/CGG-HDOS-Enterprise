@@ -14,13 +14,14 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { Incident, MiningArea } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
+import { createIncidentAction } from '../../core/module-actions';
 
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
   const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
-  const [activeTab, setActiveTab] = useState<'list' | 'report'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
 
   // New incident form state
@@ -48,7 +49,7 @@ export const IncidentModule: React.FC = () => {
       fiveWhy3 ? `3. Mengapa kondisi itu dibiarkan? ${fiveWhy3}` : '',
     ].filter(Boolean);
 
-    const newInc = await store.addIncident({
+    const newInc = await createIncidentAction({
       title,
       type,
       location,
@@ -96,7 +97,7 @@ export const IncidentModule: React.FC = () => {
           >
             Register Insiden ({store.incidents.length})
           </button>
-          {!isControlViewer && <button
+          {<button
             onClick={() => setActiveTab('report')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               activeTab === 'report' ? 'bg-red-500 text-white font-semibold shadow-sm' : 'text-neutral-300 hover:text-white'
