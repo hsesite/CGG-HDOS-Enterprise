@@ -817,6 +817,33 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     return () => { cancelled = true; };
   }, [store, store.documents, store.formDefinitions, isBasicReadOnlyAccount]);
 
+  // Publish locally generated forms to the central GAS register so every
+  // authorized account receives the same inspection template across browsers.
+  useEffect(() => {
+    let cancelled = false;
+    const publishExistingForms = async () => {
+      if (!hseApi.baseUrl || isBasicReadOnlyAccount || !sessionUser) return;
+      for (const form of store.formDefinitions) {
+        if (cancelled) return;
+        if (form.status !== 'PUBLISHED' || !Array.isArray(form.fields) || form.fields.length === 0) continue;
+        try {
+          const sourceDoc = store.documents.find((doc) => doc.id === form.sourceDocumentId);
+          await hseApi.publishFormDefinition({
+            ...form,
+            companyCode: sourceDoc?.companyCode || sessionUser.companyCode || 'CGG',
+            parentCompanyCode: sourceDoc?.parentCompanyCode || sessionUser.parentCompanyCode || '',
+          });
+        } catch (error) {
+          // Keep the local form available offline; show a warning in the console so
+          // missing central distribution can be diagnosed without breaking Repository.
+          console.warn('[RepositoryModule] Form belum berhasil didistribusikan ke pusat:', form.formNumber, error);
+        }
+      }
+    };
+    void publishExistingForms();
+    return () => { cancelled = true; };
+  }, [store, store.formDefinitions, store.documents, hseApi.baseUrl, isBasicReadOnlyAccount, sessionUser?.id]);
+
   // Repair already-published DOCX forms created by the old line-based parser.
   // It only updates forms when the checklist labels actually differ.
   useEffect(() => {
