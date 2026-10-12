@@ -20,6 +20,7 @@ import { useHDOSStore } from '../../core/store';
 import { MiningArea, InspectionItem, Inspection, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { hseApi } from '../../core/api';
+import { createInspectionAction } from '../../core/module-actions';
 import { getCurrentUser } from '../../core/auth-utils';
 
 interface TemplateDef {
@@ -39,7 +40,7 @@ export const InspectionModule: React.FC = () => {
   const canDownloadReports = String(sessionUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(sessionUser?.roles.includes('Admin CGG'));
   const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
 
-  const [activeTab, setActiveTab] = useState<'form' | 'history'>(() => isControlViewer ? 'history' : 'form');
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateDef['id']>('APAR');
   const [location, setLocation] = useState<MiningArea>('');
   const [answers, setAnswers] = useState<Record<number, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({
@@ -149,7 +150,7 @@ export const InspectionModule: React.FC = () => {
           gpsCoordinates = undefined;
         }
       }
-      const newInspection = await store.addInspection({
+      const newInspection = await createInspectionAction({
         title: selectedRepositoryForm.title,
         templateType: 'WORKSHOP',
         sourceFormId: selectedRepositoryForm.id,
@@ -237,7 +238,7 @@ export const InspectionModule: React.FC = () => {
     const passCount = items.filter((i) => i.result === 'PASS').length;
     const scorePercent = Math.round((passCount / items.length) * 100);
 
-    const newInspection = await store.addInspection({
+    const newInspection = await createInspectionAction({
       title: currentTemplate.title,
       templateType: currentTemplate.id,
       location,
@@ -284,7 +285,7 @@ export const InspectionModule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
-          {!isControlViewer && <button
+          {<button
             onClick={() => setActiveTab('form')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               activeTab === 'form' ? 'bg-[#42A5F5] text-black font-semibold shadow-sm' : 'text-neutral-300 hover:text-white'
