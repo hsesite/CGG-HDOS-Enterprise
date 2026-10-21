@@ -390,7 +390,14 @@ export class HDOSCentralStore {
   async addFormDefinition(
   input: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<FormDefinition> {
-  this.assertMutationAllowed('document');
+  // Form definitions are generated from an already registered repository document.
+  // This is not a document-control edit: operational staff need to generate/use
+  // the checklist from an approved source document without receiving repository
+  // upload/edit/delete privileges.
+  const sourceDocument = this.documents.find((doc) => doc.id === input.sourceDocumentId);
+  if (!sourceDocument) {
+    throw new Error('Formulir tidak dapat dibuat karena dokumen sumber tidak ditemukan di Repository SMKP. Sinkronkan Repository lalu coba kembali.');
+  }
   const now = new Date().toISOString();
 
   const formDefinition: FormDefinition = {
