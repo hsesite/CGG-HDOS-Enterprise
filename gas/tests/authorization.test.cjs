@@ -49,10 +49,10 @@ test('Admin CGG retains administrative bypass', () => {
   assert.equal(applyRecordScope('incidents',record,{roles:['Admin CGG']},true),record);
 });
 test('all supervisory roles are accepted and new elevated accounts start unverified', () => {
-  assert.match(source,/const companyAdminRoles = \\[[^\\]]*'Superintendent'[^\\]]*'Supervisor'[^\\]]*'Foreman'/);
-  assert.match(source,/const cggRoles = \\[[^\\]]*'Superintendent'[^\\]]*'Supervisor'[^\\]]*'Foreman'/);
-  assert.match(source,/const allowedRoles = \\[[^\\]]*'Superintendent'[^\\]]*'Supervisor'[^\\]]*'Foreman'/);
-  assert.match(source,/const roleVerified = false;/);
+  assert.ok(source.includes("const companyAdminRoles = ['PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman'"));
+  assert.ok(source.includes("const cggRoles = ['Company Admin', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
+  assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
+  assert.ok(source.includes('const roleVerified = false;'));
 });
 test('Spreadsheet ID is configured via Script Properties, not hardcoded', () => {
   assert.match(source,/getProperty\\('HDOS_SPREADSHEET_ID'\\)/);
