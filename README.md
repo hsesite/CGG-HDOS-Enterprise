@@ -8,6 +8,7 @@
 - **Hosting frontend:** GitHub Pages melalui workflow GitHub Actions.
 - **Penyimpanan lokal:** IndexedDB untuk data/cache lokal dan antrean offline.
 - **Integrasi cloud:** Google Apps Script (GAS) melalui satu URL endpoint yang dikonfigurasi sebagai `VITE_GAS_URL`.
+- **Backend GAS:** sumber kode ada di `gas/Code.gs`; deployment Web App tetap dikelola terpisah dari GitHub Pages.
 - **Spreadsheet:** sumber data cloud yang diakses melalui implementasi GAS yang sesuai.
 
 > Folder `server/`, dependensi Express/PostgreSQL, dan skrip migrasi yang masih ada di repositori bukan bukti bahwa layanan tersebut dipakai oleh runtime GitHub Pages. Jangan menganggap fitur cloud aktif sebelum URL GAS, deployment GAS, izin, dan struktur spreadsheet sudah dikonfigurasi serta diuji.
