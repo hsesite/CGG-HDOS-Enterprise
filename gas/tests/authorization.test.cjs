@@ -72,6 +72,46 @@ test('CGG onboarding accepts approved company domains and explicitly allowlisted
   assert.equal(context.isCggEmailAllowed_('unknown@gmail.com'), false);
   assert.equal(context.isCggEmailAllowed_('worker@other-company.com'), false);
 });
+test('Company Admin can assign an operational role in its own company but cannot verify it', () => {
+  const rows = [
+    ['id','email','password','displayName','role','status','passwordHash','passwordSalt','googleSub','companyCode','parentCompanyCode','position','department','section','roleVerified'],
+    ['user-1','worker@sls.co.id','', 'Worker','Employee','ACTIVE','hash','salt','',
+    'SLS','','Crew','','',false]
+  ];
+  const writes = [];
+  const sheet = {
+    getDataRange: () => ({ getValues: () => rows }),
+    getRange: (...args) => ({
+      setValue: value => writes.push({args,value}),
+      setValues: value => writes.push({args,value})
+    })
+  };
+  const context = {
+    isObject_: value => value && typeof value === 'object' && !Array.isArray(value),
+    isAdminCGG_: actor => (actor.roles || []).includes('Admin CGG'),
+    isCompanyAdmin_: actor => (actor.roles || []).includes('Company Admin'),
+    canManageCompany_: () => true,
+    findCompanyRegistry_: () => ({status:'ACTIVE',role:'Contractor',parentCompanyCode:''}),
+    getSheet_: () => sheet,
+    error_: (status,message) => ({success:false,status,message}),
+    success_: data => ({success:true,data}),
+    logAudit_: () => {}
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function updateUserAccess_(');
+  const end=source.indexOf('function isRecordVisibleToUser_(',start+1);
+  assert.notEqual(start,-1); assert.notEqual(end,-1);
+  vm.runInContext(source.slice(start,end),context);
+  const actor={id:'admin-sls',roles:['Company Admin'],companyCode:'SLS'};
+  const result=context.updateUserAccess_('user-1',{role:'Foreman Safety',position:'Foreman',status:'ACTIVE'},actor);
+  assert.equal(result.success,true);
+  assert.equal(result.data.roleVerified,false);
+  assert.ok(writes.some(write=>write.args[0]===2 && write.args[1]===5 && write.value==='Foreman Safety'));
+  const cannotVerify=context.updateUserAccess_('user-1',{roleVerified:true},actor);
+  assert.equal(cannotVerify.status,403);
+  const cannotMoveCompany=context.updateUserAccess_('user-1',{companyCode:'VIP'},actor);
+  assert.equal(cannotMoveCompany.status,403);
+});
 test('Spreadsheet ID is configured via Script Properties, not hardcoded', () => {
   assert.ok(source.includes("getProperty('HDOS_SPREADSHEET_ID')"));
   assert.doesNotMatch(source,/14DIOz1lMeck-pYAJxAq3TQvlrKbWS9esP7W06xri1PI/);
