@@ -12,6 +12,7 @@ Gunakan `gas/Code.gs` pada repository ini sebagai sumber backend GAS. Perubahan 
 - `GET /api/users` — `Admin CGG` melihat seluruh akun; `Company Admin` hanya melihat akun di perusahaannya dan Subkon yang berada di bawah Contractor tersebut.
 - `POST /api/users` — `Admin CGG` membuat akun perusahaan dan menunjuk `Company Admin`; `Company Admin` membuat akun pekerja sesuai role yang diizinkan dalam cakupannya.
 - `PATCH /api/users/:id` — `Admin CGG` mengelola role, perusahaan, status, dan verifikasi; `Company Admin` hanya dapat menetapkan role operasional, posisi, dan status akun dalam cakupannya. `Company Admin` tidak dapat mengubah perusahaan, menunjuk `Company Admin`, atau memverifikasi role.
+- `POST /api/forms` — hanya `Admin CGG` dan `Company Admin` yang dapat menerbitkan formulir; role operasional lain tetap baca-saja untuk pengaturan sistem.
 - `POST /api/auth/logout` — menghapus sesi server.
 
 Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun baru, memigrasikan password lama ke hash setelah login berhasil, dan menggunakan Script Properties untuk sesi yang bertahan melewati restart browser sampai logout atau akun dinonaktifkan. Password lama yang tersimpan dalam sheet tidak otomatis dapat dihapus sebelum pemilik memastikan migrasi dan backup aman.
