@@ -30,3 +30,5 @@ jobs:
         env:
           GITHUB_PAGES: 'true'
         run: bun run build
+      - name: Validate Google Apps Script backend
+        run: bun run test:gas
