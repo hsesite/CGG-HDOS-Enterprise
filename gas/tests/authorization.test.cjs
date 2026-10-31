@@ -73,10 +73,11 @@ test('CGG onboarding accepts approved company domains and explicitly allowlisted
   assert.equal(context.isCggEmailAllowed_('worker@other-company.com'), false);
 });
 test('Company Admin can assign an operational role in its own company but cannot verify it', () => {
-  const rows = [[
-    'user-1','worker@sls.co.id','', 'Worker','Employee','ACTIVE','hash','salt','',
-    'SLS','','Crew','','',false
-  ]];
+  const rows = [
+    ['id','email','password','displayName','role','status','passwordHash','passwordSalt','googleSub','companyCode','parentCompanyCode','position','department','section','roleVerified'],
+    ['user-1','worker@sls.co.id','', 'Worker','Employee','ACTIVE','hash','salt','',
+    'SLS','','Crew','','',false]
+  ];
   const writes = [];
   const sheet = {
     getDataRange: () => ({ getValues: () => rows }),
