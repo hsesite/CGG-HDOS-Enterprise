@@ -28,7 +28,7 @@ export const PICAModule: React.FC = () => {
     }).catch((error) => console.warn('[PICAModule] Gagal memuat register pusat:', error));
     return () => { cancelled = true; };
   }, [store, sessionUser?.id, hseApi.baseUrl]);
-  const isControlViewer = ['PJO', 'SPV HSE', 'Foreman Safety'].includes(currentUser.role);
+  const isControlViewer = ['KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman'].includes(currentUser.role);
   const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
@@ -229,9 +229,9 @@ export const PICAModule: React.FC = () => {
                   <p className="text-xs text-neutral-300">Detail temuan tetap baca-saja. Anda hanya dapat memberikan persetujuan sesuai jabatan; PICA tertutup setelah semua tahap lengkap.</p>
                   {selectedPica.status === 'CLOSED' ? (
                     <span className="text-xs font-semibold text-emerald-300">PICA sudah ditutup</span>
-                  ) : currentUser.role === 'Foreman Safety' && !selectedPica.approvalStages.foreman ? (
+                  ) : ['Foreman Safety', 'Foreman'].includes(currentUser.role) && !selectedPica.approvalStages.foreman ? (
                     <button onClick={() => handleSignoff('foreman')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap Foreman</button>
-                  ) : currentUser.role === 'SPV HSE' && !selectedPica.approvalStages.spvHse ? (
+                  ) : ['SPV HSE', 'Supervisor', 'Superintendent'].includes(currentUser.role) && !selectedPica.approvalStages.spvHse ? (
                     <button onClick={() => handleSignoff('spvHse')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap SPV HSE</button>
                   ) : ['KTT', 'Project Manager', 'PJO'].includes(currentUser.role) && !selectedPica.approvalStages.ktt ? (
                     <button onClick={() => handleSignoff('ktt')} className="w-full rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-bold text-black">Persetujuan Final / Tutup PICA</button>
