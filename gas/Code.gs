@@ -32,7 +32,7 @@
 
 const CONFIG = {
   // Configure the spreadsheet ID in Script Properties as HDOS_SPREADSHEET_ID.
-  SPREADSHEET_ID: ''
+  SPREADSHEET_ID: '',
 
   SHEETS: [
     'users',
