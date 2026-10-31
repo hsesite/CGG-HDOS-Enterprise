@@ -13,7 +13,7 @@ export class HDOSAuthEngine {
   getCurrentUser(): UserProfile {
     const user = AuthState.getUser();
     const assignedRole = (user?.roles.find((value): value is UserRole => VALID_ROLES.includes(value as UserRole)) || this.selectedRole || 'Employee');
-    const verificationRoles = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'];
+    const verificationRoles = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
     const hasUnverifiedSeniorRole = Boolean(user?.roles.some((value) => verificationRoles.includes(value)) && user?.roleVerified !== true);
     // Until verification, behave as Crew in module-level controls as well as navigation.
     const role: UserRole = hasUnverifiedSeniorRole ? 'Employee' : assignedRole;
@@ -43,7 +43,7 @@ export class HDOSAuthEngine {
     const sessionUser = AuthState.getUser();
     const roles = sessionUser?.roles || [];
     const role = this.getCurrentRole();
-    const verificationRoles = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'];
+    const verificationRoles = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
     if (roles.some((value) => verificationRoles.includes(value)) && sessionUser?.roleVerified !== true) {
       return ['dashboard', 'repository', 'inspection', 'hazard'].includes(moduleName);
     }
@@ -73,7 +73,7 @@ export class HDOSAuthEngine {
 
   canApprovePICA(): boolean {
     const role = this.getCurrentRole();
-    return ['KTT', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
+    return ['KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
   }
 
   init(): void {
