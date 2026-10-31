@@ -106,7 +106,7 @@ test('Company Admin can assign an operational role in its own company but cannot
   const result=context.updateUserAccess_('user-1',{role:'Foreman Safety',position:'Foreman',status:'ACTIVE'},actor);
   assert.equal(result.success,true);
   assert.equal(result.data.roleVerified,false);
-  assert.ok(writes.some(write=>write.args[0]===1 && write.args[1]===5 && write.value==='Foreman Safety'));
+  assert.ok(writes.some(write=>write.args[0]===2 && write.args[1]===5 && write.value==='Foreman Safety'));
   const cannotVerify=context.updateUserAccess_('user-1',{roleVerified:true},actor);
   assert.equal(cannotVerify.status,403);
   const cannotMoveCompany=context.updateUserAccess_('user-1',{companyCode:'VIP'},actor);
