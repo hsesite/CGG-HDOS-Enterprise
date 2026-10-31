@@ -1140,6 +1140,17 @@ function googleLogin_(payload) {
   return createSessionResponse_(user);
 }
 
+function isCggEmailAllowed_(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const domain = normalizedEmail.split('@').pop() || '';
+  const props = PropertiesService.getScriptProperties();
+  const allowedDomains = String(props.getProperty('CGG_EMAIL_DOMAINS') || 'ptcgg.com')
+    .split(/[;,]/).map(function(value) { return value.trim().toLowerCase().replace(/^@/, ''); }).filter(Boolean);
+  const allowedEmails = String(props.getProperty('CGG_ALLOWED_EMAILS') || '')
+    .split(/[;,]/).map(function(value) { return value.trim().toLowerCase(); }).filter(Boolean);
+  return allowedEmails.indexOf(normalizedEmail) !== -1 || allowedDomains.indexOf(domain) !== -1;
+}
+
 function googleOnboard_(payload) {
   const input = isObject_(payload) ? payload : {};
   const credential = String(input.credential || '');
@@ -1165,6 +1176,7 @@ function googleOnboard_(payload) {
     return error_(401, 'Identitas Google tidak dapat diverifikasi untuk aplikasi ini.');
   }
   const email = String(tokenInfo.email).trim().toLowerCase();
+  if (companyCode === 'CGG' && !isCggEmailAllowed_(email)) return error_(403, 'Email CGG belum diizinkan. Admin CGG perlu menambahkan alamat email ke Script Property CGG_ALLOWED_EMAILS atau domain resmi ke CGG_EMAIL_DOMAINS.');
   const existing = findUserByEmail_(email);
   if (existing) {
     if (existing.status === 'PENDING') return error_(409, 'Profil akun sudah diterima dan sedang menunggu persetujuan Admin CGG.');
