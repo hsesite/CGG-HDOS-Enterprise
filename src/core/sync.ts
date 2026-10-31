@@ -418,20 +418,6 @@ export class HDOSSyncEngine {
           continue;
         }
 
-        if (item.action === 'DELETE') {
-          item.status = 'CONFLICT';
-          item.retryCount = MAX_RETRIES;
-          item.error =
-            'Operasi DELETE belum didukung oleh kontrak API cloud. Item ditahan agar tidak mengulang request yang pasti gagal.';
-
-          await hdosDB.put('queue', item);
-          this.syncLogs.unshift({
-            time: formatTime(),
-            message: `Sync DELETE ditahan untuk ${item.entity}; endpoint cloud belum mendukung penghapusan.`,
-            type: 'warning',
-          });
-          continue;
-        }
 
         item.status = 'SYNCING';
 
@@ -456,20 +442,17 @@ export class HDOSSyncEngine {
           } else if (
             item.action === 'UPDATE'
           ) {
-            const recordId =
-              getRecordId(item);
-
+            const recordId = getRecordId(item);
             if (!recordId) {
-              throw new Error(
-                `ID record tidak ditemukan untuk queue item ${item.id}.`
-              );
+              throw new Error(`ID record tidak ditemukan untuk queue item ${item.id}.`);
             }
-
-            await hseApi.update(
-              endpoint,
-              recordId,
-              item.payload
-            );
+            await hseApi.update(endpoint, recordId, item.payload);
+          } else if (item.action === 'DELETE') {
+            const recordId = getRecordId(item);
+            if (!recordId) {
+              throw new Error(`ID record tidak ditemukan untuk penghapusan queue item ${item.id}.`);
+            }
+            await hseApi.deleteOperationalRecord(endpoint, recordId);
           }
 
           await hdosDB.delete(
