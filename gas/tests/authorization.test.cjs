@@ -55,6 +55,6 @@ test('all supervisory roles are accepted and new elevated accounts start unverif
   assert.ok(source.includes('const roleVerified = false;'));
 });
 test('Spreadsheet ID is configured via Script Properties, not hardcoded', () => {
-  assert.match(source,/getProperty\\('HDOS_SPREADSHEET_ID'\\)/);
+  assert.ok(source.includes("getProperty('HDOS_SPREADSHEET_ID')"));
   assert.doesNotMatch(source,/14DIOz1lMeck-pYAJxAq3TQvlrKbWS9esP7W06xri1PI/);
 });
