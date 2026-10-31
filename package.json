@@ -14,7 +14,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit && tsc -p tsconfig.server.json",
     "typecheck:server": "tsc -p tsconfig.server.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:gas": "node --test gas/tests/*.test.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
