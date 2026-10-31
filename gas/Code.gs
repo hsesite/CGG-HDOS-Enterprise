@@ -1423,7 +1423,9 @@ function updateUserAccess_(userId, payload, actor) {
   if (!isAdminCGG_(actor) && hasVerificationUpdate) return error_(403, 'Hanya Admin CGG yang dapat memverifikasi jabatan.');
   if (hasVerificationUpdate && typeof input.roleVerified !== 'boolean') return error_(400, 'roleVerified harus berupa boolean.');
   if (role !== null && allowedRoles.indexOf(role) === -1) return error_(400, 'Jenis akun tidak valid.');
-  if (!isAdminCGG_(actor) && (role !== null || companyCode !== null || parentCompanyCode !== null)) return error_(403, 'Admin Perusahaan hanya dapat mengaktifkan atau menonaktifkan akun dalam cakupannya.');
+  if (!isAdminCGG_(actor) && (companyCode !== null || parentCompanyCode !== null)) return error_(403, 'Admin Perusahaan tidak dapat mengubah relasi perusahaan akun.');
+  const companyAdminAssignableRoles = ['PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+  if (!isAdminCGG_(actor) && role !== null && (!isCompanyAdmin_(actor) || companyAdminAssignableRoles.indexOf(role) === -1)) return error_(403, 'Admin Perusahaan hanya dapat menetapkan jabatan operasional dalam cakupan perusahaannya.');
   if (status !== null && ['ACTIVE', 'INACTIVE'].indexOf(status) === -1) return error_(400, 'Status akun tidak valid.');
   const sheet = getSheet_('users');
   const rows = sheet.getDataRange().getValues();
@@ -1456,7 +1458,7 @@ function updateUserAccess_(userId, payload, actor) {
     if (hasVerificationUpdate) roleVerified = input.roleVerified;
     if (roleVerified && ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'].indexOf(nextRole) === -1) roleVerified = false;
     const position = input.position === undefined ? String(rows[i][11] || '') : String(input.position || '').trim();
-    if (input.position !== undefined && !isAdminCGG_(actor)) return error_(403, 'Hanya Admin CGG yang dapat menetapkan jabatan internal.');
+    if (input.position !== undefined && !isAdminCGG_(actor) && !isCompanyAdmin_(actor)) return error_(403, 'Hanya Admin CGG atau Admin Perusahaan yang dapat menetapkan jabatan dalam cakupannya.');
     sheet.getRange(i + 1, 5).setValue(nextRole);
     if (status !== null) sheet.getRange(i + 1, 6).setValue(status);
     sheet.getRange(i + 1, 10, 1, 2).setValues([[storedCompanyCode, storedParentCode]]);
