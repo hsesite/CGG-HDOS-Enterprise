@@ -307,6 +307,10 @@ export const hseApi = {
     return request<{ id: string; deleted: boolean }>('DELETE', `/api/repository/${encodeURIComponent(id)}`);
   },
 
+  async deleteOperationalRecord(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string): Promise<{ id: string; deleted: boolean }> {
+    return request<{ id: string; deleted: boolean }>('DELETE', `/api/${entity}/${encodeURIComponent(id)}`);
+  },
+
   async listOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents'): Promise<Array<Record<string, unknown>>> {
     return request<Array<Record<string, unknown>>>('GET', `/api/${entity}`);
   },
