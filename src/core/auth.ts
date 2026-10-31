@@ -2,7 +2,7 @@ import type { UserRole, UserProfile } from './types';
 import { hdosEvents } from './events';
 import { AuthState } from './auth-state';
 
-const VALID_ROLES: UserRole[] = ['Admin CGG', 'Company Admin', 'Contractor', 'Subkon', 'PJO', 'KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+const VALID_ROLES: UserRole[] = ['Admin CGG', 'Company Admin', 'Contractor', 'Subkon', 'PJO', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
 
 // Kept as an empty compatibility export for older UI imports. No sample employees are shipped.
 export const USER_PROFILES: Partial<Record<UserRole, UserProfile>> = {};
