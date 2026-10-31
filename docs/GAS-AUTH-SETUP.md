@@ -4,7 +4,7 @@ Frontend menyediakan login Google dan pendaftaran profil pertama kali. Pendaftar
 
 ## Backend script
 
-Gunakan file GAS pendamping yang diserahkan bersama pekerjaan ini sebagai dasar deployment GAS. File tersebut tidak otomatis mengubah Web App GAS yang saat ini sudah ter-deploy. Jangan hanya mengubah frontend. Endpoint yang dibutuhkan:
+Gunakan `gas/Code.gs` pada repository ini sebagai sumber backend GAS. Perubahan di GitHub tidak otomatis mengubah Web App GAS yang saat ini sudah ter-deploy. Jangan hanya mengubah frontend. Endpoint yang dibutuhkan:
 
 - Pendaftaran mandiri dinonaktifkan. `POST /api/users` hanya dapat dipanggil oleh akun `Admin CGG` untuk membuat akun.
 - `POST /api/auth/google` — memverifikasi ID token Google dan membuat sesi untuk akun yang sudah aktif.
