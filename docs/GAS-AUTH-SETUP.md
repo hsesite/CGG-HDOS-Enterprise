@@ -6,12 +6,12 @@ Frontend menyediakan login Google dan pendaftaran profil pertama kali. Pendaftar
 
 Gunakan `gas/Code.gs` pada repository ini sebagai sumber backend GAS. Perubahan di GitHub tidak otomatis mengubah Web App GAS yang saat ini sudah ter-deploy. Jangan hanya mengubah frontend. Endpoint yang dibutuhkan:
 
-- Pendaftaran mandiri dinonaktifkan. `POST /api/users` hanya dapat dipanggil oleh akun `Admin CGG` untuk membuat akun.
+- Pendaftaran mandiri melalui password dinonaktifkan. `POST /api/users` hanya dapat dipanggil oleh `Admin CGG` atau `Company Admin` yang terautentikasi; backend membatasi role dan perusahaan yang dapat dikelola.
 - `POST /api/auth/google` — memverifikasi ID token Google dan membuat sesi untuk akun yang sudah aktif.
 - `POST /api/auth/google/onboard` — memverifikasi ID token Google, menyimpan nama lengkap, kode perusahaan, jabatan, departemen, dan bagian, membuat akun `ACTIVE` ber-role awal `Employee`, lalu mengembalikan `{ pending: false }`. Frontend kemudian login melalui `/api/auth/google`.
-- `GET /api/users` — daftar akun, hanya `Admin CGG`.
-- `POST /api/users` — buat akun `Admin CGG`, `Contractor`, atau `Subkon`, hanya `Admin CGG`.
-- `PATCH /api/users/:id` — ubah status/relasi akun, hanya `Admin CGG`.
+- `GET /api/users` — `Admin CGG` melihat seluruh akun; `Company Admin` hanya melihat akun di perusahaannya dan Subkon yang berada di bawah Contractor tersebut.
+- `POST /api/users` — `Admin CGG` membuat akun perusahaan dan menunjuk `Company Admin`; `Company Admin` membuat akun pekerja sesuai role yang diizinkan dalam cakupannya.
+- `PATCH /api/users/:id` — `Admin CGG` mengelola role, perusahaan, status, dan verifikasi; `Company Admin` hanya dapat menetapkan role operasional, posisi, dan status akun dalam cakupannya. `Company Admin` tidak dapat mengubah perusahaan, menunjuk `Company Admin`, atau memverifikasi role.
 - `POST /api/auth/logout` — menghapus sesi server.
 
 Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun baru, memigrasikan password lama ke hash setelah login berhasil, dan menggunakan Script Properties untuk sesi yang bertahan melewati restart browser sampai logout atau akun dinonaktifkan. Password lama yang tersimpan dalam sheet tidak otomatis dapat dihapus sebelum pemilik memastikan migrasi dan backup aman.
@@ -36,7 +36,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 
 - Google Sign-In hanya menerima token ID yang diverifikasi server terhadap Client ID dan email terverifikasi.
 - Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` aktif. Untuk perusahaan kontraktor/subkon, kode harus ada di master aktif. Untuk `CGG`, domain email harus sesuai `CGG_EMAIL_DOMAINS` (default `ptcgg.com`) atau alamat email harus tercantum persis di `CGG_ALLOWED_EMAILS`. Ini memungkinkan Gmail tertentu tanpa membuka pendaftaran CGG untuk seluruh akun Gmail publik. Jabatan yang diketik tidak menentukan role aplikasi; Admin CGG menetapkan role KTT/SPV/Foreman/Project Manager secara terpisah.
-- Admin CGG menetapkan Company Admin dari Pengaturan. Company Admin membuat akun jabatan sesuai perusahaan; backend membatasi daftar akun dan operasi data berdasarkan `companyCode`/`parentCompanyCode`.
+- Admin CGG menetapkan Company Admin dari Pengaturan. Company Admin membuat akun dan menetapkan role operasional sesuai perusahaan; setiap role tinggi tetap `roleVerified=false` sampai diverifikasi oleh Admin CGG. Backend membatasi daftar akun dan operasi data berdasarkan `companyCode`/`parentCompanyCode`.
 - Sesi persisten tetap dapat dicabut dengan logout atau menonaktifkan akun. Lindungi perangkat bersama dan jangan simpan sesi di komputer publik.
 - Jangan menjalankan `setup()` atau deployment perubahan autentikasi di produksi sebelum membuat salinan spreadsheet dan menguji dengan akun uji.
 - Keberhasilan build frontend tidak berarti deployment GAS telah diperbarui. Uji register, login password, login Google, refresh halaman, logout, penonaktifan akun, dan kontrol role pada deployment nonproduksi terlebih dahulu.
