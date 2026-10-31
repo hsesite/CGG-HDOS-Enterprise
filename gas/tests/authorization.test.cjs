@@ -54,6 +54,24 @@ test('all supervisory roles are accepted and new elevated accounts start unverif
   assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
   assert.ok(source.includes('const roleVerified = false;'));
 });
+test('CGG onboarding accepts approved company domains and explicitly allowlisted Gmail only', () => {
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({ getProperty: key => ({
+      CGG_EMAIL_DOMAINS: 'ptcgg.com; corp.cgg.id',
+      CGG_ALLOWED_EMAILS: 'hse.personel@gmail.com; safety.lead@gmail.com'
+    })[key] || '' }) }
+  };
+  vm.createContext(context);
+  const helperStart = source.indexOf('function isCggEmailAllowed_(');
+  const helperEnd = source.indexOf('function googleOnboard_(', helperStart + 1);
+  assert.notEqual(helperStart, -1);
+  assert.notEqual(helperEnd, -1);
+  vm.runInContext(source.slice(helperStart, helperEnd), context);
+  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com'), true);
+  assert.equal(context.isCggEmailAllowed_('hse.personel@gmail.com'), true);
+  assert.equal(context.isCggEmailAllowed_('unknown@gmail.com'), false);
+  assert.equal(context.isCggEmailAllowed_('worker@other-company.com'), false);
+});
 test('Spreadsheet ID is configured via Script Properties, not hardcoded', () => {
   assert.ok(source.includes("getProperty('HDOS_SPREADSHEET_ID')"));
   assert.doesNotMatch(source,/14DIOz1lMeck-pYAJxAq3TQvlrKbWS9esP7W06xri1PI/);

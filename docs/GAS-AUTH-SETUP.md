@@ -22,7 +22,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 2. Tambahkan origin aplikasi yang persis, misalnya `https://hsesite.github.io`, ke Authorized JavaScript origins. Jika aplikasi dipasang pada subpath, tetap gunakan origin saja, tanpa path.
 3. Simpan Client ID sebagai GitHub Actions repository secret `VITE_GOOGLE_CLIENT_ID`.
 4. Pada Apps Script, buka **Project Settings → Script Properties**, lalu buat `GOOGLE_CLIENT_ID` dengan nilai Client ID yang sama.
-   Tambahkan juga `HDOS_SPREADSHEET_ID` berisi ID Spreadsheet untuk environment tersebut. ID Spreadsheet tidak disimpan di repository.
+   Tambahkan juga `HDOS_SPREADSHEET_ID` berisi ID Spreadsheet untuk environment tersebut. ID Spreadsheet tidak disimpan di repository. Jika personel CGG menggunakan Gmail, masukkan alamat Gmail yang diizinkan ke `CGG_ALLOWED_EMAILS` (pisahkan dengan koma/titik koma).
 5. Deploy ulang Apps Script sebagai Web App dengan akses sesuai kebijakan perusahaan, lalu pastikan URL deployment sama dengan `VITE_GAS_URL`.
 6. Buat backup spreadsheet. Jalankan fungsi `setup()` satu kali untuk menambahkan kolom user yang diperlukan. Fungsi ini tidak membuat akun administrator demo.
 7. Jika ingin membersihkan data operasional di Spreadsheet, set Script Property `CONFIRM_CLEAN_START` ke `DELETE_HDOS_OPERATIONAL_DATA`, lalu jalankan fungsi `clearOperationalDataForCleanStart()` secara manual. Fungsi ini mempertahankan sheet `users` dan `audit_logs`; jangan jalankan sebelum backup.
@@ -35,7 +35,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 ## Catatan keamanan dan batas verifikasi
 
 - Google Sign-In hanya menerima token ID yang diverifikasi server terhadap Client ID dan email terverifikasi.
-- Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` aktif. Untuk perusahaan kontraktor/subkon, kode harus ada di master aktif. Untuk `CGG`, domain email harus sesuai Script Property `CGG_EMAIL_DOMAINS` (default `ptcgg.com`). Jabatan yang diketik tidak menentukan role aplikasi; Admin CGG menetapkan role KTT/SPV/Foreman/Project Manager secara terpisah.
+- Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` aktif. Untuk perusahaan kontraktor/subkon, kode harus ada di master aktif. Untuk `CGG`, domain email harus sesuai `CGG_EMAIL_DOMAINS` (default `ptcgg.com`) atau alamat email harus tercantum persis di `CGG_ALLOWED_EMAILS`. Ini memungkinkan Gmail tertentu tanpa membuka pendaftaran CGG untuk seluruh akun Gmail publik. Jabatan yang diketik tidak menentukan role aplikasi; Admin CGG menetapkan role KTT/SPV/Foreman/Project Manager secara terpisah.
 - Admin CGG menetapkan Company Admin dari Pengaturan. Company Admin membuat akun jabatan sesuai perusahaan; backend membatasi daftar akun dan operasi data berdasarkan `companyCode`/`parentCompanyCode`.
 - Sesi persisten tetap dapat dicabut dengan logout atau menonaktifkan akun. Lindungi perangkat bersama dan jangan simpan sesi di komputer publik.
 - Jangan menjalankan `setup()` atau deployment perubahan autentikasi di produksi sebelum membuat salinan spreadsheet dan menguji dengan akun uji.
