@@ -4,7 +4,7 @@ import { getCurrentUser } from '../../core/auth-utils';
 import { hseApi, type ApiUser } from '../../core/api';
 import { canManagePersonnel, requiresRoleVerification } from '../../core/access-policy';
 
-const SENIOR_ROLES = ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'] as const;
+const SENIOR_ROLES = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'] as const;
 
 export function RoleVerificationPanel() {
   const actor = getCurrentUser();
@@ -40,7 +40,7 @@ export function RoleVerificationPanel() {
     <section className="mt-6 space-y-4 rounded-2xl border border-[#00E676]/20 bg-[#00E676]/[0.04] p-5">
       <header className="flex items-start gap-3">
         <div className="rounded-xl border border-[#00E676]/20 bg-[#00E676]/10 p-2"><BadgeCheck className="h-5 w-5 text-[#00E676]" /></div>
-        <div><h3 className="font-semibold text-white">Verifikasi Jabatan</h3><p className="mt-1 text-sm text-neutral-400">Khusus Admin CGG. KTT, Project Manager, SPV HSE, Foreman Safety, dan PJO yang belum diverifikasi hanya mendapat 4 modul Crew: Dashboard, Repository, Inspeksi, dan Hazard.</p></div>
+        <div><h3 className="font-semibold text-white">Verifikasi Jabatan</h3><p className="mt-1 text-sm text-neutral-400">Khusus Admin CGG. KTT, Project Manager, Superintendent, Supervisor, Foreman, SPV HSE, Foreman Safety, dan PJO yang belum diverifikasi hanya mendapat 4 modul Crew: Dashboard, Repository, Inspeksi, dan Hazard.</p></div>
       </header>
       {message && <p role="status" className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-neutral-200">{message}</p>}
       <div className="flex items-center justify-between gap-3"><h4 className="text-sm font-semibold text-white">Akun jabatan tinggi ({seniorUsers.length})</h4><button type="button" disabled={loading} onClick={() => void reload()} className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50"><RefreshCw size={14}/>{loading ? 'Memuat...' : 'Muat ulang'}</button></div>
