@@ -913,8 +913,7 @@ function handleRoute_(
     return success_(forms);
   }
   if (path === '/api/forms' && method === 'POST') {
-    const canPublishForm = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && (user.roles || []).some(function(role) { return ['PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) !== -1; }));
-    if (!canPublishForm) return error_(403, 'Penerbitan formulir hanya untuk Admin CGG, Admin Perusahaan, atau jabatan HSE yang telah diverifikasi.');
+    if (!canPublishForms_(user)) return error_(403, 'Penerbitan formulir hanya untuk Admin CGG atau Admin Perusahaan.');
     const input = isObject_(params.payload) ? params.payload : {};
     if (String(input.status || '').toUpperCase() !== 'PUBLISHED' || !Array.isArray(input.fields) || input.fields.length === 0) return error_(400, 'Formulir harus berstatus PUBLISHED dan memiliki minimal satu pertanyaan.');
     const companyCode = String(input.companyCode || user.companyCode || 'CGG').trim().toUpperCase();
@@ -1337,6 +1336,10 @@ function isAdminCGG_(user) {
 
 function isCompanyAdmin_(user) {
   return Boolean(user && user.roles && user.roles.indexOf('Company Admin') !== -1);
+}
+
+function canPublishForms_(user) {
+  return isAdminCGG_(user) || isCompanyAdmin_(user);
 }
 
 function isReadOnlyController_(user) {

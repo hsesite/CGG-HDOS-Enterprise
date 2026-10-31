@@ -112,6 +112,22 @@ test('Company Admin can assign an operational role in its own company but cannot
   const cannotMoveCompany=context.updateUserAccess_('user-1',{companyCode:'VIP'},actor);
   assert.equal(cannotMoveCompany.status,403);
 });
+test('only Admin CGG and Company Admin can publish shared forms', () => {
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    isCompanyAdmin_: user => (user.roles || []).includes('Company Admin')
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function canPublishForms_(');
+  const end=source.indexOf('function isReadOnlyController_(',start+1);
+  assert.notEqual(start,-1); assert.notEqual(end,-1);
+  vm.runInContext(source.slice(start,end),context);
+  assert.equal(context.canPublishForms_({roles:['Admin CGG']}),true);
+  assert.equal(context.canPublishForms_({roles:['Company Admin']}),true);
+  for (const role of ['PJO','SPV HSE','Foreman Safety','Foreman','Supervisor','Employee']) {
+    assert.equal(context.canPublishForms_({roles:[role],roleVerified:true}),false);
+  }
+});
 test('Spreadsheet ID is configured via Script Properties, not hardcoded', () => {
   assert.ok(source.includes("getProperty('HDOS_SPREADSHEET_ID')"));
   assert.doesNotMatch(source,/14DIOz1lMeck-pYAJxAq3TQvlrKbWS9esP7W06xri1PI/);
