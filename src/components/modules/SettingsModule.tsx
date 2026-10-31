@@ -105,7 +105,7 @@ export const SettingsModule: React.FC = () => {
     if (!position) { setMessage('Pilih jabatan terlebih dahulu.'); return; }
     const companyCode = (account.companyCode || user?.companyCode || 'CGG').trim().toUpperCase();
     const needsVerification = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
-    await updateAccount(account.id, { role, position, ...(isCGGAdmin ? { companyCode } : {}), status: 'ACTIVE', roleVerified: needsVerification });
+    await updateAccount(account.id, { role, position, ...(isCGGAdmin ? { companyCode, roleVerified: needsVerification } : {}), status: 'ACTIVE' });
   }
 
   async function approveGoogleAccount(event: React.FormEvent<HTMLFormElement>, account: ApiUser) {
