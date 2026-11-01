@@ -161,7 +161,7 @@ export class HDOSCentralStore {
     this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
     this.incidents = this.incidents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
     this.documents = this.documents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
-    this.formDefinitions = this.formDefinitions.filter(form => isLocalRecordVisible(form as unknown as Record<string, unknown>, currentUser));
+    this.formDefinitions = this.formDefinitions.filter(form => this.documents.some(document => document.id === form.sourceDocumentId));
     this.contractors = this.contractors.filter(record => {
       if (!currentUser) return false;
       if (currentUser.roles.includes('Admin CGG')) return true;
