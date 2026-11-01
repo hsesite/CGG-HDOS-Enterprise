@@ -4,6 +4,8 @@ export const CREW_BASE_MODULES = ['dashboard', 'repository', 'inspection', 'haza
 
 export const ROLES_REQUIRING_VERIFICATION = [
   'KTT',
+  'SPT',
+  'SPV',
   'Project Manager',
   'Superintendent',
   'Supervisor',
@@ -37,6 +39,7 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
   }
 
   const roles = user.roles || [];
+  if (['KTT', 'SPT', 'SPV'].some((role) => roles.includes(role))) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai', 'sync'].includes(module);
   if (roles.includes('Company Admin')) return true;
   if (['PJO', 'SPV HSE', 'Foreman Safety'].some((role) => roles.includes(role))) {
     return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai', 'sync'].includes(module);
