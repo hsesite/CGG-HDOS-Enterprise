@@ -174,7 +174,7 @@ SESSION_TTL_HOURS=12
 
 # Seed Admin
 SEED_ADMIN_EMAIL=alamat-email-admin-yang-ditetapkan-perusahaan
-SEED_ADMIN_PASSWORD=GantiDenganPasswordKuat123!
+SEED_ADMIN_PASSWORD=gunakan-password-yang-dikonfigurasi-operator
 SEED_ADMIN_NAME=HDOS System Administrator
 ```
 
@@ -239,16 +239,16 @@ bun run db:seed
 Output:
 
 ```text
-[HDOS seed] creating admin user: admin@ptcgg.com
+[HDOS seed] creating admin user: alamat-email-admin-yang-ditetapkan-perusahaan
 [HDOS seed] complete
 ```
 
 Admin credentials:
 
 ```text
-Email: admin@ptcgg.com
-Password: GantiDenganPasswordKuat123!
-Role: KTT
+Email: alamat-email-admin-yang-ditetapkan-perusahaan
+Password: gunakan-password-yang-dikonfigurasi-operator
+Role: sesuai konfigurasi legacy database (bukan role Admin CGG pada GAS)
 ```
 
 ---
@@ -318,15 +318,15 @@ Seharusnya:
 ```bash
 curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@ptcgg.com","password":"GantiDenganPasswordKuat123!"}'
+  -d '{"email":"alamat-email-admin-yang-ditetapkan-perusahaan","password":"gunakan-password-yang-dikonfigurasi-operator"}'
 ```
 
 **Windows PowerShell:**
 
 ```powershell
 $body = @{
-  email = "admin@ptcgg.com"
-  password = "GantiDenganPasswordKuat123!"
+  email = "alamat-email-admin-yang-ditetapkan-perusahaan"
+  password = "gunakan-password-yang-dikonfigurasi-operator"
 } | ConvertTo-Json
 
 Invoke-RestMethod -Method Post `
@@ -344,7 +344,7 @@ Invoke-RestMethod -Method Post `
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "id": "uuid-admin",
-      "email": "admin@ptcgg.com",
+      "email": "alamat-email-admin-yang-ditetapkan-perusahaan",
       "displayName": "HDOS System Administrator",
       "roles": ["KTT"]
     }
@@ -382,8 +382,8 @@ Buka browser ke `http://localhost:3000`.
 1. Buka `http://localhost:3000` di browser
 2. Anda akan melihat login screen "CGG HDOS Enterprise Access"
 3. Masukkan:
-   - Email: `admin@ptcgg.com`
-   - Password: `GantiDenganPasswordKuat123!`
+   - Email: `alamat-email-admin-yang-ditetapkan-perusahaan`
+   - Password: `gunakan-password-yang-dikonfigurasi-operator`
 4. Klik "Masuk ke HDOS"
 5. Jika login berhasil, dashboard akan terbuka
 6. Top menu bar akan menampilkan nama user dan tombol logout
