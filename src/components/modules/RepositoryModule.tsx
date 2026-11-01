@@ -805,11 +805,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       if (!sourceBlob) {
         throw new Error('Berkas asli tidak tersedia untuk membuat formulir.');
       }
-      const originalBlob = sourceBlob instanceof Blob
-        ? sourceBlob
-        : new Blob([sourceBlob], {
-            type: storedFile.mimeType || 'application/octet-stream',
-          });
+      // StoredDocumentFile defines both binary fields as Blob. The guard
+      // above narrows sourceBlob to Blob, so avoid an unreachable conversion
+      // branch that TypeScript correctly treats as undefined/never.
+      const originalBlob: Blob = sourceBlob;
 
       const extracted = await extractDocumentText(
         originalBlob,
