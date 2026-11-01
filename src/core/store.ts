@@ -159,6 +159,11 @@ export class HDOSCentralStore {
     // tenant boundary to cached data before exposing it to any module.
     const currentUser = AuthState.getUser();
     if (currentUser) {
+      const ownCompanyCode = String(currentUser.companyCode || '').trim().toUpperCase();
+      const canSeeAllContractors = currentUser.roles?.includes('Admin CGG') || ownCompanyCode === 'CGG';
+      this.contractors = this.contractors.filter(contractor =>
+        canSeeAllContractors || String(contractor.code || '').trim().toUpperCase() === ownCompanyCode
+      );
       try {
         // The server master is authoritative across devices. Keep the cached
         // IndexedDB copy only when the API is unavailable (offline mode).
