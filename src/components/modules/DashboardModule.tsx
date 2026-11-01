@@ -227,7 +227,7 @@ export const DashboardModule: React.FC = () => {
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                   contentStyle={{ background: '#171717', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: '#FFFFFF', fontSize: 12 }}
-                  formatter={(value: number, name: string) => [Number(value).toLocaleString('id-ID'), name]}
+                  formatter={(value, name) => [Number(value ?? 0).toLocaleString('id-ID'), String(name)]}
                   labelFormatter={(label) => `Perusahaan: ${label}`}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, color: '#D4D4D4' }} />
