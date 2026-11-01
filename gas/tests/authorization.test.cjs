@@ -147,13 +147,30 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
   assert.notEqual(start,-1); assert.notEqual(end,-1);
   vm.runInContext(source.slice(start,end),context);
   for (const role of ['KTT','SPT','SPV']) {
-    const user={roles:[role],companyCode:'CGG'};
+    const user={roles:[role],companyCode:'CGG',roleVerified:true};
     assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'BCJ',parentCompanyCode:'SLS'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'CHN',parentCompanyCode:'VIP'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'OTHER'},user),false);
   }
+});
+test('unverified KTT, SPT, and SPV cannot view cross-company records', () => {
+  const context = {
+    isAdminCGG_: () => false,
+    isCompanyScopedRole_: () => true,
+    isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV'].includes(role)),
+    getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
+      ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
+      ['SLS','PT SLS','Contractor','','','FALSE','ACTIVE'],
+      ['VIP','PT VIP','Contractor','','','FALSE','ACTIVE']
+    ]}) })
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function getOversightCompanyCodes_(');
+  const end=source.indexOf('function requiresRoleVerification_(',start+1);
+  vm.runInContext(source.slice(start,end),context);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},{roles:['KTT'],companyCode:'CGG',roleVerified:false}),false);
 });
 test('all verified oversight roles are read-only for operational record writes', () => {
   assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety']"));
