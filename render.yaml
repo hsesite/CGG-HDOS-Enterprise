@@ -23,7 +23,7 @@ services:
       - key: SESSION_TTL_HOURS
         value: 12
       - key: SEED_ADMIN_EMAIL
-        value: admin@ptcgg.com
+        value: admin@example.com
       - key: SEED_ADMIN_PASSWORD
         generateValue: true
       - key: SEED_ADMIN_NAME
