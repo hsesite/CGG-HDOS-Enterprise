@@ -15,10 +15,10 @@ function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<
   const company = String(record.companyCode || record.contractorCode || record.ownerCompanyCode || '').trim().toUpperCase();
   const subkon = String(record.subcontractorCode || record.subkonCode || '').trim().toUpperCase();
   const parent = String(record.parentCompanyCode || '').trim().toUpperCase();
-  if (['KTT', 'SPT', 'SPV'].some(role => roles.includes(role))) {
-    if (user.roleVerified !== true) return false;
+  if (user.roleVerified === true && ['KTT', 'SPT', 'SPV'].some(role => roles.includes(role))) {
     return ['SLS', 'VIP'].includes(company) || ['SLS', 'VIP'].includes(parent);
   }
+  // Unverified supervisory accounts use the same own-tenant cache scope as crew.
   if (user.parentCompanyCode) return company === own || subkon === own;
   return company === own || subkon === own || parent === own;
 }
