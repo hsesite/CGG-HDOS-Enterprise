@@ -269,7 +269,14 @@ export class HDOSSyncEngine {
       queueItem
     );
 
-    if (belongsToCurrentOwner) {
+    const activeOwnerAfterWrite = this.getCurrentOwner();
+    const ownerStillCurrent = belongsToCurrentOwner &&
+      Boolean(activeOwnerAfterWrite &&
+        activeOwnerAfterWrite.userId === owner.userId &&
+        activeOwnerAfterWrite.companyCode === owner.companyCode &&
+        this.queueOwnerKey === `${owner.userId}::${owner.companyCode}`);
+
+    if (ownerStillCurrent) {
       this.queue.push(queueItem);
       hdosEvents.emit(
         'sync:queue_updated',
