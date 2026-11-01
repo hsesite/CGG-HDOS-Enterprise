@@ -25,7 +25,7 @@ function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<
 
 function getCurrentTenantFields() {
   const user = AuthState.getUser();
-  const companyCode = String(user?.companyCode || '').trim().toUpperCase();
+  const companyCode = String(user?.companyCode || (user?.roles?.includes('Admin CGG') ? 'CGG' : '')).trim().toUpperCase();
   const parentCompanyCode = String(user?.parentCompanyCode || '').trim().toUpperCase();
   return {
     companyCode,
