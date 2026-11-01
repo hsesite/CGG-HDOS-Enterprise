@@ -173,6 +173,7 @@ test('unverified KTT, SPT, and SPV cannot view cross-company records', () => {
     isAdminCGG_: () => false,
     isCompanyScopedRole_: () => true,
     isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV'].includes(role)),
+    findCompanyRegistry_: () => null,
     getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
       ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
       ['SLS','PT SLS','Contractor','','','FALSE','ACTIVE'],
@@ -359,7 +360,7 @@ test('PICA approval changes are included in the existing audit record', () => {
   assert.ok(source.includes('approvalStageChanges: stageChanges'));
   assert.ok(source.includes('statusFrom: oldStatus'));
   assert.match(source, /details:\s*details\s*\|\|\s*\{\}/);
-  assert.ok(source.includes('updateRecord_(entity, id, scopedPayload, user, auditDetails)'));
+  assert.match(source, /updateRecord_\(entity,\s*id,\s*scopedPayload,\s*user,\s*auditDetails,\s*expectedPicaState\)/);
 });
 
 test('Repository API strips internal Drive identifiers and file bytes from metadata', () => {
