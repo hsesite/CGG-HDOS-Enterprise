@@ -287,3 +287,42 @@ test('Company Admin management scope requires active company registrations', () 
   assert.equal(context.canManageCompany_(actor,'SLS'),false);
   assert.equal(context.canManageCompany_(actor,'BCJ'),false);
 });
+
+test('tenant activation is enforced for login sessions, including subcontractor parent status', () => {
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    findCompanyRegistry_: code => ({
+      SLS: {status:'ACTIVE',role:'Contractor',parentCompanyCode:''},
+      VIP: {status:'INACTIVE',role:'Contractor',parentCompanyCode:''},
+      BCJ: {status:'ACTIVE',role:'Subkon',parentCompanyCode:'SLS'},
+      CHN: {status:'ACTIVE',role:'Subkon',parentCompanyCode:'VIP'}
+    })[code] || null
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('isUserCompanyActive_', 'createSessionResponse_'), context);
+  assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'CGG'}), true);
+  assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'SLS'}), true);
+  assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'VIP'}), false);
+  assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'BCJ',parentCompanyCode:'SLS'}), true);
+  assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'CHN',parentCompanyCode:'VIP'}), false);
+  assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'BCJ',parentCompanyCode:'OTHER'}), false);
+  assert.equal(context.isUserCompanyActive_({roles:['Admin CGG'],companyCode:''}), true);
+});
+
+test('an inactive tenant invalidates an otherwise active user session', () => {
+  let deleted = false;
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: key => key === 'session:token-1' ? JSON.stringify({email:'worker@sls.co.id'}) : null,
+      deleteProperty: key => { if (key === 'session:token-1') deleted = true; }
+    }) },
+    CacheService: { getScriptCache: () => ({ get: () => null, remove: () => {} }) },
+    findUserByEmail_: () => ({id:'u1',email:'worker@sls.co.id',displayName:'Worker',roles:['Employee'],status:'ACTIVE',companyCode:'SLS'}),
+    isUserCompanyActive_: () => false,
+    httpError_: (status,message) => Object.assign(new Error(message),{status})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('requireAuth_', 'publicUser_'), context);
+  assert.throws(() => context.requireAuth_('token-1'), error => error.status === 401);
+  assert.equal(deleted, true);
+});
