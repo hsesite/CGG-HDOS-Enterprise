@@ -67,7 +67,7 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 
 - [ ] Ten failed password attempts for one normalized email cause HTTP 429 for the 5-minute cache window.
 - [ ] Successful login clears that email's failure counter.
-- [ ] Legacy Express/PostgreSQL production startup fails unless `ENABLE_LEGACY_EXPRESS_BACKEND=true` is explicitly set.
+- [ ] Legacy Express/PostgreSQL startup fails outside `development`/`test` unless `ENABLE_LEGACY_EXPRESS_BACKEND=true` is explicitly set, including when `NODE_ENV` is missing.
 - [ ] Confirm the active production GAS deployment version includes the current `gas/Code.gs` changes.
 - [ ] Confirm Script Properties contain the actual company-approved `CGG_EMAIL_DOMAINS` and/or `CGG_ALLOWED_EMAILS`; no corporate email domain is assumed by the code.
 
