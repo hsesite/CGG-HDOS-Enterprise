@@ -32,7 +32,7 @@ export const SettingsModule: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
   const [accountLoading, setAccountLoading] = useState(false);
-  const [newAccount, setNewAccount] = useState({displayName:'',email:'',password:'',position:'',role:(getCurrentUser()?.roles.includes('Company Admin') ? 'Employee' : 'Company Admin') as 'Company Admin'|'KTT'|'Project Manager'|'Superintendent'|'Supervisor'|'Foreman'|'PJO'|'SPV HSE'|'Foreman Safety'|'Safety Officer'|'Paramedis'|'Contractor PIC'|'Employee',companyCode:getCurrentUser()?.companyCode || ''});
+  const [newAccount, setNewAccount] = useState({displayName:'',email:'',password:'',position:'',role:(getCurrentUser()?.roles.includes('Company Admin') ? 'Employee' : 'Company Admin') as 'Company Admin'|'KTT'|'SPT'|'SPV'|'Project Manager'|'Superintendent'|'Supervisor'|'Foreman'|'PJO'|'SPV HSE'|'Foreman Safety'|'Safety Officer'|'Paramedis'|'Contractor PIC'|'Employee',companyCode:getCurrentUser()?.companyCode || ''});
   const user = getCurrentUser();
   const isCGGAdmin = Boolean(user?.roles.includes('Admin CGG'));
   const isCompanyAdmin = Boolean(user?.roles.includes('Company Admin'));
@@ -90,7 +90,7 @@ export const SettingsModule: React.FC = () => {
     } finally { setBusy(false); }
   }
 
-  async function updateAccount(id: string, updates: { role?: 'Admin CGG' | 'Company Admin' | 'Contractor' | 'Subkon' | 'KTT' | 'Project Manager' | 'Superintendent' | 'Supervisor' | 'Foreman' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; status?: 'ACTIVE' | 'INACTIVE'; companyCode?: string; parentCompanyCode?: string; roleVerified?: boolean; position?: string }) {
+  async function updateAccount(id: string, updates: { role?: 'Admin CGG' | 'Company Admin' | 'Contractor' | 'Subkon' | 'KTT' | 'SPT' | 'SPV' | 'Project Manager' | 'Superintendent' | 'Supervisor' | 'Foreman' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Safety Officer' | 'Paramedis' | 'Contractor PIC' | 'Employee'; status?: 'ACTIVE' | 'INACTIVE'; companyCode?: string; parentCompanyCode?: string; roleVerified?: boolean; position?: string }) {
     setBusy(true);
     try { await hseApi.updateUserAccess(id, updates); await loadAccounts(); setMessage('Hak akses akun berhasil diperbarui.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Hak akses gagal diperbarui.'); }
@@ -101,10 +101,10 @@ export const SettingsModule: React.FC = () => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const position = String(form.get('position') || '').trim();
-    const role = String(form.get('role') || 'Employee') as 'KTT' | 'Project Manager' | 'Superintendent' | 'Supervisor' | 'Foreman' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Employee';
+    const role = String(form.get('role') || 'Employee') as 'KTT' | 'SPT' | 'SPV' | 'Project Manager' | 'Superintendent' | 'Supervisor' | 'Foreman' | 'PJO' | 'SPV HSE' | 'Foreman Safety' | 'Employee';
     if (!position) { setMessage('Pilih jabatan terlebih dahulu.'); return; }
     const companyCode = (account.companyCode || user?.companyCode || 'CGG').trim().toUpperCase();
-    const needsVerification = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
+    const needsVerification = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role);
     await updateAccount(account.id, { role, position, ...(isCGGAdmin ? { companyCode, roleVerified: needsVerification } : {}), status: 'ACTIVE' });
   }
 
