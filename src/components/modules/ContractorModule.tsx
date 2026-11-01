@@ -179,37 +179,20 @@ export const ContractorModule: React.FC = () => {
           </div>
         </div>
 
-        {/* Equipment & Fleet Status */}
+        {/* Equipment & Fleet Status — show only verified master data. */}
         <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2">
               <Truck className="w-4 h-4 text-[#F59E0B]" />
-              Peralatan &amp; Fleet Terdaftar di Konsesi Pit CGG
+              Peralatan &amp; Fleet
             </h4>
             <span className="text-xs font-mono text-neutral-400">
-              Total: {selectedContractor.equipmentCount > 0 ? selectedContractor.equipmentCount : '—'} Unit Terkomisi
+              {selectedContractor.equipmentCount > 0 ? `${selectedContractor.equipmentCount} unit tercatat` : 'Data belum tersedia'}
             </span>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-neutral-400 text-[11px]">Dump Truck &amp; Hauler:</div>
-              <div className="font-bold text-white mt-0.5">24 Unit (Komatsu HD785 &amp; Hino 500)</div>
-              <div className="text-[10px] text-emerald-400 mt-1">✓ P2H terverifikasi hari ini</div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-neutral-400 text-[11px]">Excavator &amp; Loader:</div>
-              <div className="font-bold text-white mt-0.5">8 Unit (PC1250, CAT 349D)</div>
-              <div className="text-[10px] text-emerald-400 mt-1">✓ Surat Ijin Alat (SIA) Aktif</div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-neutral-400 text-[11px]">Support &amp; Water Truck:</div>
-              <div className="font-bold text-white mt-0.5">6 Unit (Water Truck 20kL, Grader)</div>
-              <div className="text-[10px] text-emerald-400 mt-1">✓ Dust suppression aktif di KM0-KM10</div>
-            </div>
-          </div>
+          <p className="text-xs text-neutral-400">
+            Rincian jenis unit, nomor lambung, status P2H, dan masa berlaku SIA belum tersedia pada data Contractor Passport. Informasi operasional tidak ditampilkan sebelum dicatat dan diverifikasi.
+          </p>
         </div>
       </div>
     </div>
