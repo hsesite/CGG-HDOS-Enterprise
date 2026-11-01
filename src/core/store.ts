@@ -213,26 +213,68 @@ export class HDOSCentralStore {
 
   async mergeCloudOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', records: Array<Record<string, unknown>>): Promise<void> {
     const rows = records.filter((record) => record && typeof record.id === 'string' && record.id.trim());
+    const currentUser = AuthState.getUser();
+    const queueEntity = {
+      inspections: 'inspection',
+      hazards: 'hazard',
+      picas: 'pica',
+      incidents: 'incident',
+    }[entity];
+    const pendingIds = new Set(
+      hdosSync.getQueue()
+        .filter((item) => item.entity === queueEntity && item.status !== 'SYNCED')
+        .flatMap((item) => {
+          const payload = item.payload;
+          if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+            const id = (payload as Record<string, unknown>).id;
+            return typeof id === 'string' && id.trim() ? [id] : [];
+          }
+          return [];
+        })
+    );
+
+    // A successful cloud list is the authoritative snapshot for this user's
+    // visible tenant scope. Keep local writes only while they are still queued;
+    // otherwise deleted cloud records would reappear forever from IndexedDB.
+    const mergeSnapshot = async <T extends { id: string }>(
+      storeName: 'inspection' | 'hazard' | 'pica' | 'incident',
+      current: T[],
+    ): Promise<T[]> => {
+      const visibleLocal = current.filter((record) =>
+        isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser)
+      );
+      const remote = rows.filter((record) =>
+        isLocalRecordVisible(record, currentUser)
+      ) as unknown as T[];
+      const remoteIds = new Set(remote.map((record) => record.id));
+      const merged = new Map<string, T>(remote.map((record) => [record.id, record]));
+
+      // An unsynced local create/update must win over an older server snapshot.
+      for (const local of visibleLocal) {
+        if (pendingIds.has(local.id)) merged.set(local.id, local);
+      }
+
+      // Remove stale records from this tenant's local cache, but never touch
+      // another tenant's cached data or any record still waiting to sync.
+      for (const local of visibleLocal) {
+        if (!remoteIds.has(local.id) && !pendingIds.has(local.id)) {
+          await hdosDB.delete(storeName, local.id);
+        }
+      }
+
+      const snapshot = [...merged.values()];
+      for (const record of snapshot) await hdosDB.put(storeName, record);
+      return snapshot;
+    };
+
     if (entity === 'inspections') {
-      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as Inspection[];
-      const ids = new Set(remote.map((record) => record.id));
-      this.inspections = [...remote, ...this.inspections.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
-      for (const record of remote) await hdosDB.put('inspection', record);
+      this.inspections = await mergeSnapshot('inspection', this.inspections);
     } else if (entity === 'hazards') {
-      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as Hazard[];
-      const ids = new Set(remote.map((record) => record.id));
-      this.hazards = [...remote, ...this.hazards.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
-      for (const record of remote) await hdosDB.put('hazard', record);
+      this.hazards = await mergeSnapshot('hazard', this.hazards);
     } else if (entity === 'picas') {
-      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as PICA[];
-      const ids = new Set(remote.map((record) => record.id));
-      this.picas = [...remote, ...this.picas.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
-      for (const record of remote) await hdosDB.put('pica', record);
+      this.picas = await mergeSnapshot('pica', this.picas);
     } else {
-      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as Incident[];
-      const ids = new Set(remote.map((record) => record.id));
-      this.incidents = [...remote, ...this.incidents.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
-      for (const record of remote) await hdosDB.put('incident', record);
+      this.incidents = await mergeSnapshot('incident', this.incidents);
     }
     this.notify();
   }
