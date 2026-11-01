@@ -60,6 +60,7 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 - [ ] A stale 401 response never logs out or clears a newer account's session.
 - [ ] Foreground create/update fallback queues retain the owner captured before the local write.
 - [ ] Logout during an in-flight sync does not clear a different account's token/profile.
+- [ ] A login/logout or role change in another browser tab refreshes the session profile and tenant-scoped local data before modules become available.
 - [ ] Duplicate create IDs from another tenant return 403 and do not disclose the existing record.
 
 ### Authentication and legacy runtime
