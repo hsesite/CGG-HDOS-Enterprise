@@ -26,7 +26,7 @@ async function enqueueCreate(
     entity,
     action: 'CREATE',
     payload,
-  }, owner || undefined);
+  }, owner);
 }
 
 async function syncCreatedRecord<T>(
@@ -256,7 +256,7 @@ export class ApiIntegration {
             entity: 'pica',
             action: 'UPDATE',
             payload: cloudPayload,
-          }, owner || undefined);
+          }, owner);
 
           throw error;
         }
@@ -272,7 +272,7 @@ export class ApiIntegration {
       entity: 'pica',
       action: 'UPDATE',
       payload: cloudPayload,
-    }, owner || undefined);
+    }, owner);
 
     return updated;
   }
@@ -291,7 +291,7 @@ export class ApiIntegration {
       );
 
     if (
-      isAuthenticatedAndOnline()
+      isAuthenticatedAndOnline(authToken)
     ) {
       try {
         await hseApi.create(
