@@ -1127,6 +1127,11 @@ function handleRoute_(
           const stageKey = stageKeys[i];
           if (stages[stageKey] === false && oldStages[stageKey] === true) return error_(403, 'Persetujuan PICA tidak dapat dibatalkan melalui akun operasional.');
           if (stages[stageKey] !== oldStages[stageKey] && stageKey !== allowedStage) return error_(403, 'Anda hanya dapat menyetujui tahap PICA sesuai jabatan Anda.');
+          if (stages[stageKey] === true && oldStages[stageKey] !== true && !isPicaApprovalSequenceValid_(stages, stageKey)) {
+            return error_(403, stageKey === 'spvHse'
+              ? 'Persetujuan SPV HSE menunggu persetujuan Foreman.'
+              : 'Persetujuan KTT menunggu persetujuan Foreman dan SPV HSE.');
+          }
         }
       }
       const status = String(requestedPayload.status || existingRecord.status || '').toUpperCase();
@@ -1419,6 +1424,12 @@ function isUserCompanyActive_(user) {
   if (!parentCode || userParentCode !== parentCode) return false;
   const parent = findCompanyRegistry_(parentCode);
   return Boolean(parent && parent.status === 'ACTIVE' && parent.role === 'Contractor');
+}
+
+function isPicaApprovalSequenceValid_(stages, stageKey) {
+  if (stageKey === 'spvHse') return stages.foreman === true;
+  if (stageKey === 'ktt') return stages.foreman === true && stages.spvHse === true;
+  return stageKey === 'foreman';
 }
 
 function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
