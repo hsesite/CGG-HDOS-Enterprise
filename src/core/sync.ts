@@ -2,6 +2,7 @@ import type { SyncQueueItem } from './types';
 import { hdosDB } from './db';
 import { hdosEvents } from './events';
 import { hseApi, ApiError } from './api';
+import { AuthState } from './auth-state';
 
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY_MS = 2000;
@@ -79,7 +80,15 @@ export class HDOSSyncEngine {
 
   private queue: SyncQueueItem[] = [];
 
+  private queueOwnerUserId = '';
+
   private lastSyncTime = '';
+
+  private getCurrentOwner() {
+    const user = AuthState.getUser();
+    if (!user?.id) return null;
+    return { userId: String(user.id), companyCode: String(user.companyCode || '').trim().toUpperCase() };
+  }
 
   private retryTimer:
     | ReturnType<typeof setTimeout>
@@ -115,11 +124,27 @@ export class HDOSSyncEngine {
   }
 
   async init(): Promise<void> {
-    this.queue =
-      await hdosDB.getAll<SyncQueueItem>(
-        'queue'
-      );
-
+    const owner = this.getCurrentOwner();
+    this.queueOwnerUserId = owner?.userId || '';
+    const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    let quarantinedCount = 0;
+    for (const item of storedQueue) {
+      if (!item.ownerUserId && item.retryCount < MAX_RETRIES) {
+        item.status = 'CONFLICT';
+        item.retryCount = MAX_RETRIES;
+        item.error = 'Item offline lama tidak memiliki identitas pemilik. Item ditahan; verifikasi dan input ulang diperlukan.';
+        await hdosDB.put('queue', item);
+        quarantinedCount += 1;
+      }
+    }
+    this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId) : [];
+    if (quarantinedCount > 0) {
+      this.syncLogs.unshift({ time: formatTime(), message: `${quarantinedCount} item lama ditahan karena tidak memiliki identitas akun pemilik.`, type: 'warning' });
+    }
+    const hiddenCount = storedQueue.length - this.queue.length;
+    if (hiddenCount > quarantinedCount) {
+      this.syncLogs.unshift({ time: formatTime(), message: `${hiddenCount - quarantinedCount} item antrean milik akun lain disimpan terpisah dan tidak diproses.`, type: 'info' });
+    }
     if (this.queue.length > 0) {
       this.syncLogs.unshift({
         time: formatTime(),
@@ -212,6 +237,9 @@ export class HDOSSyncEngine {
       'id' | 'timestamp' | 'status' | 'retryCount'
     >
   ): Promise<SyncQueueItem> {
+    const owner = this.getCurrentOwner();
+    if (!owner) throw new Error('Login ulang diperlukan sebelum menyimpan data ke antrean offline.');
+    if (this.queueOwnerUserId !== owner.userId) await this.init();
     const queueItem: SyncQueueItem = {
       id:
         typeof crypto !== 'undefined' &&
@@ -224,6 +252,8 @@ export class HDOSSyncEngine {
       status: 'PENDING',
       retryCount: 0,
       ...item,
+      ownerUserId: owner.userId,
+      ownerCompanyCode: owner.companyCode,
     };
 
     this.queue.push(queueItem);
@@ -330,6 +360,10 @@ export class HDOSSyncEngine {
   }
 
   async triggerSync(): Promise<boolean> {
+    const owner = this.getCurrentOwner();
+    if (!owner) return false;
+    if (this.queueOwnerUserId !== owner.userId) await this.init();
+    this.queue = this.queue.filter(item => item.ownerUserId === owner.userId);
     if (this.isSyncing) {
       return false;
     }
@@ -380,6 +414,8 @@ export class HDOSSyncEngine {
       for (
         const item of [...this.queue]
       ) {
+        const activeOwner = this.getCurrentOwner();
+        if (!activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId) break;
         if (!this.isOnline) {
           break;
         }
