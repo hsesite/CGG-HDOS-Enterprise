@@ -411,6 +411,33 @@ export class HDOSSyncEngine {
     let successCount = 0;
 
     try {
+      // Revalidate identity immediately before sending queued writes. This also
+      // protects the reconnect path when company membership changed while offline.
+      const previousProfile = AuthState.getUser();
+      const verifiedProfile = await hseApi.me();
+      const profileChanged = !previousProfile ||
+        previousProfile.id !== verifiedProfile.id ||
+        String(previousProfile.companyCode || '').trim().toUpperCase() !== String(verifiedProfile.companyCode || '').trim().toUpperCase() ||
+        String(previousProfile.parentCompanyCode || '').trim().toUpperCase() !== String(verifiedProfile.parentCompanyCode || '').trim().toUpperCase() ||
+        previousProfile.roleVerified !== verifiedProfile.roleVerified ||
+        JSON.stringify(previousProfile.roles || []) !== JSON.stringify(verifiedProfile.roles || []);
+      AuthState.saveUser(verifiedProfile);
+      const verifiedOwner = this.getCurrentOwner();
+
+      if (profileChanged) {
+        hdosEvents.emit('auth:profile_refreshed', {});
+      }
+
+      if (!verifiedOwner ||
+          verifiedOwner.userId !== owner.userId ||
+          verifiedOwner.companyCode !== owner.companyCode) {
+        // Keep old-tenant queue items stored under their original owner key.
+        // Reinitialize for the server-confirmed identity; never replay them as
+        // writes belonging to the newly assigned company.
+        await this.init();
+        return false;
+      }
+
       for (
         const item of [...this.queue]
       ) {
@@ -587,6 +614,17 @@ export class HDOSSyncEngine {
 
       return this.queue.length === 0;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        // A revoked/deactivated session must not keep an authenticated queue
+        // owner in memory. Persisted items remain quarantined for a later login.
+        try { await hseApi.logout(); } catch { /* logout clears the local token */ }
+        AuthState.clear();
+        this.queue = [];
+        this.queueOwnerKey = '';
+        hdosEvents.emit('auth:session_invalid', {});
+        return false;
+      }
+
       console.error(
         '[HDOS Sync] Sync engine error:',
         error
