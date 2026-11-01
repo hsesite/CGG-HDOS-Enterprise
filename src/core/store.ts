@@ -826,6 +826,7 @@ export class HDOSCentralStore {
     const updated = { ...current, ...updates };
     const currentStages = current.approvalStages || { foreman: false, spvHse: false, ktt: false };
     const nextStages = { ...currentStages, ...(updates.approvalStages || {}) };
+    updated.approvalStages = nextStages;
     const sessionUser = AuthState.getUser();
     const isAdminCGG = Boolean(sessionUser?.roles?.includes('Admin CGG'));
 
@@ -875,7 +876,7 @@ export class HDOSCentralStore {
 
     if (updated.approvalStages.foreman && updated.approvalStages.spvHse && updated.approvalStages.ktt) {
       updated.status = 'CLOSED';
-      updated.completionDate = new Date().toISOString().split('T')[0];
+      if (current.status !== 'CLOSED') updated.completionDate = new Date().toISOString().split('T')[0];
     }
 
     this.picas[index] = updated;
