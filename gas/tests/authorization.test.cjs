@@ -103,6 +103,7 @@ test('Company Admin can assign an operational role in its own company but cannot
     success_: data => ({success:true,data}),
     LockService: { getScriptLock: () => ({ waitLock: () => lockEvents.push('lock'), releaseLock: () => lockEvents.push('unlock') }) },
     SpreadsheetApp: { flush: () => lockEvents.push('flush') },
+    revokeUserSessions_: userId => lockEvents.push('revoke:' + userId),
     logAudit_: () => lockEvents.push('audit')
   };
   vm.createContext(context);
@@ -116,7 +117,7 @@ test('Company Admin can assign an operational role in its own company but cannot
   assert.equal(result.success,true);
   assert.equal(result.data.roleVerified,false);
   assert.ok(writes.some(write=>write.args[0]===2 && write.args[1]===5 && write.value==='Foreman Safety'));
-  assert.deepEqual(lockEvents.slice(0,4),['lock','flush','unlock','audit']);
+  assert.deepEqual(lockEvents.slice(0,5),['lock','flush','unlock','revoke:u1','audit']);
   const cannotVerify=context.updateUserAccess_('user-1',{roleVerified:true},actor);
   assert.equal(cannotVerify.status,403);
   const cannotMoveCompany=context.updateUserAccess_('user-1',{companyCode:'VIP'},actor);
@@ -319,6 +320,32 @@ test('tenant activation is enforced for login sessions, including subcontractor 
   assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'CHN',parentCompanyCode:'VIP'}), false);
   assert.equal(context.isUserCompanyActive_({roles:['Employee'],companyCode:'BCJ',parentCompanyCode:'OTHER'}), false);
   assert.equal(context.isUserCompanyActive_({roles:['Admin CGG'],companyCode:''}), true);
+});
+
+test('user access changes revoke every persistent session belonging to that user ID', () => {
+  const properties = {
+    'session:token-a': JSON.stringify({id:'u1',email:'one@example.com'}),
+    'session:token-b': JSON.stringify({id:'u1',email:'one@example.com'}),
+    'session:other-user': JSON.stringify({id:'u2',email:'two@example.com'}),
+    'unrelated-setting': 'keep'
+  };
+  const removed = [];
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({
+      getProperties: () => Object.assign({}, properties),
+      deleteProperty: key => { removed.push(key); delete properties[key]; }
+    }) },
+    CacheService: { getScriptCache: () => ({ remove: key => removed.push('cache:' + key) }) }
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('revokeUserSessions_', 'updateUserAccessCore_'), context);
+  assert.equal(context.revokeUserSessions_('u1'), 2);
+  assert.equal(properties['session:token-a'], undefined);
+  assert.equal(properties['session:token-b'], undefined);
+  assert.ok(properties['session:other-user']);
+  assert.equal(properties['unrelated-setting'], 'keep');
+  assert.ok(removed.includes('cache:session:token-a'));
+  assert.ok(removed.includes('cache:session:token-b'));
 });
 
 test('a session token cannot authenticate a different account reusing the same email', () => {
