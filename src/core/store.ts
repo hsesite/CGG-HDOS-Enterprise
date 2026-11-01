@@ -23,6 +23,17 @@ function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<
   return company === own || subkon === own || parent === own;
 }
 
+function getCurrentTenantFields() {
+  const user = AuthState.getUser();
+  const companyCode = String(user?.companyCode || '').trim().toUpperCase();
+  const parentCompanyCode = String(user?.parentCompanyCode || '').trim().toUpperCase();
+  return {
+    companyCode,
+    contractorCode: parentCompanyCode || companyCode,
+    parentCompanyCode,
+    ...(parentCompanyCode ? { subcontractorCode: companyCode } : {}),
+  };
+}
 function createEntityId(): string {
   if (
     typeof crypto !== 'undefined' &&
@@ -536,6 +547,7 @@ export class HDOSCentralStore {
     const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
+    const tenantFields = getCurrentTenantFields();
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
 
     // Create one PICA for every failed checklist item so no finding is lost.
@@ -544,6 +556,7 @@ export class HDOSCentralStore {
       const picaCode = `PICA-${new Date().getFullYear()}-${String(picaCount).padStart(3, '0')}`;
       const picaId = createEntityId();
       const picaCreated: PICA = {
+        ...tenantFields,
         id: picaId,
         code: picaCode,
         source: 'INSPECTION',
@@ -568,6 +581,7 @@ export class HDOSCentralStore {
 
     const newInspection: Inspection = {
       ...inspection,
+      ...tenantFields,
       id,
       code,
       createdAt: now,
@@ -656,7 +670,9 @@ export class HDOSCentralStore {
         this.picas.length + 1
       ).padStart(3, '0')}`;
 
+    const tenantFields = getCurrentTenantFields();
     const picaCreated: PICA = {
+      ...tenantFields,
       id: picaId,
       code: picaCode,
 
@@ -721,6 +737,7 @@ export class HDOSCentralStore {
 
     const newHazard: Hazard = {
       ...hazard,
+      ...tenantFields,
 
       id,
       code,
@@ -791,7 +808,7 @@ export class HDOSCentralStore {
     const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    const newInc: Incident = { ...incident, id, code, createdAt: now };
+    const newInc: Incident = { ...incident, ...getCurrentTenantFields(), id, code, createdAt: now };
 
     this.incidents.unshift(newInc);
     await hdosDB.put('incident', newInc);

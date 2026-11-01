@@ -40,6 +40,11 @@ export interface InspectionItem {
 }
 
 export interface Inspection {
+  /** Server-assigned tenant ownership, mirrored locally for safe offline scoping. */
+  companyCode?: string;
+  contractorCode?: string;
+  parentCompanyCode?: string;
+  subcontractorCode?: string;
   id: string;
   code: string;
   title: string;
@@ -66,6 +71,11 @@ export interface Inspection {
 }
 
 export interface Hazard {
+  /** Server-assigned tenant ownership, mirrored locally for safe offline scoping. */
+  companyCode?: string;
+  contractorCode?: string;
+  parentCompanyCode?: string;
+  subcontractorCode?: string;
   id: string;
   code: string;
   title: string;
@@ -90,6 +100,11 @@ export interface Hazard {
 }
 
 export interface Incident {
+  /** Server-assigned tenant ownership, mirrored locally for safe offline scoping. */
+  companyCode?: string;
+  contractorCode?: string;
+  parentCompanyCode?: string;
+  subcontractorCode?: string;
   id: string;
   code: string;
   title: string;
@@ -110,6 +125,11 @@ export interface Incident {
 }
 
 export interface PICA {
+  /** Server-assigned tenant ownership, mirrored locally for safe offline scoping. */
+  companyCode?: string;
+  contractorCode?: string;
+  parentCompanyCode?: string;
+  subcontractorCode?: string;
   id: string;
   code: string;
   source: 'INSPECTION' | 'HAZARD' | 'INCIDENT' | 'AUDIT';
