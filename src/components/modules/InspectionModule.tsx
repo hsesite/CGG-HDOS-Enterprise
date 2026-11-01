@@ -439,7 +439,7 @@ export const InspectionModule: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {publishedRepositoryForms.map((form) => (
-                  <button key={form.id} type="button" onClick={() => { setSelectedRepositoryFormId(form.id); setRepositoryAnswers({}); setSuccessMessage(''); }} className="text-left p-3 rounded-xl border border-[#42A5F5]/25 bg-[#42A5F5]/5 hover:bg-[#42A5F5]/10">
+                  <button key={form.id} type="button" onClick={() => { setSelectedRepositoryFormId(form.id); setRepositoryAnswers({}); setPicaDepartment(form.department || ''); setPicaPicName(''); setPicaPicEmail(''); setSuccessMessage(''); }} className="text-left p-3 rounded-xl border border-[#42A5F5]/25 bg-[#42A5F5]/5 hover:bg-[#42A5F5]/10">
                     <span className="flex items-center gap-2 text-xs font-bold text-white"><FileText className="w-4 h-4 text-[#42A5F5]" />{form.title}</span>
                     <span className="block text-[10px] text-neutral-400 mt-1">{form.formNumber || form.id} · {form.fields.length} pertanyaan</span>
                     <span className="block text-[10px] text-emerald-300 mt-1">PUBLISHED · Siap diperiksa</span>
