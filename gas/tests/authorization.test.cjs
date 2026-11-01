@@ -281,6 +281,7 @@ test('CGG tenant code is reserved and cannot be registered as a contractor or su
   const wrapper=source.slice(end,wrapperEnd);
   assert.ok(fn.includes("if (code === 'CGG') return error_(400,"));
   assert.ok(wrapper.includes('LockService.getScriptLock()'));
+  assert.ok(wrapper.indexOf('revokeCompanySessions_(code)') < wrapper.indexOf('lock.releaseLock()'));
   assert.ok(wrapper.indexOf('lock.releaseLock()') < wrapper.indexOf('logAudit_('));
 });
 
