@@ -567,7 +567,13 @@ export class HDOSSyncEngine {
       const blockedRecordIds = new Set<string>();
       for (const item of [...this.queue].sort(compareQueueItemsByTime)) {
         const itemRecordId = getRecordId(item);
-        if (itemRecordId && blockedRecordIds.has(itemRecordId)) continue;
+        if (itemRecordId && blockedRecordIds.has(itemRecordId)) {
+          item.status = 'CONFLICT';
+          item.retryCount = MAX_RETRIES;
+          item.error = 'Perubahan ditahan karena sinkronisasi perubahan sebelumnya untuk record ini belum berhasil. Periksa dan retry setelah item sebelumnya selesai.';
+          await hdosDB.put('queue', item);
+          continue;
+        }
         const activeOwner = this.getCurrentOwner();
         if (hseApi.authToken !== syncToken || !activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId || activeOwner.companyCode !== item.ownerCompanyCode || activeOwner.companyCode !== owner.companyCode) break;
         if (!this.isOnline) {
