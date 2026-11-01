@@ -908,9 +908,11 @@ test('sync initialization recovers interrupted SYNCING items for the active owne
 test('sync retries transient failures but holds permanent API errors for manual correction', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.ok(sync.includes('function isRetryableSyncError(error: unknown): boolean'));
+  assert.ok(sync.includes('if (!(error instanceof ApiError)) return false;'));
   assert.ok(sync.includes('status === 0 || status === 408 || status === 425 ||'));
   assert.ok(sync.includes('status === 429 || status >= 500'));
   assert.ok(sync.includes("item.status === 'PENDING' &&"));
   assert.ok(sync.includes("item.status = retryable && item.retryCount < MAX_RETRIES"));
   assert.ok(sync.includes('Perlu pemeriksaan atau retry manual.'));
+  assert.ok(sync.includes('if (!(error instanceof ApiError)) return false;'));
 });
