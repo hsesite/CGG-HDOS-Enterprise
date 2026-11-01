@@ -446,3 +446,14 @@ test('operational PICA status is derived from stage approvals and cannot be chan
   assert.ok(source.includes("Status PICA ditetapkan otomatis sesuai tahapan persetujuan."));
   assert.ok(source.includes("changedKeys.indexOf('status') >= 0 && changedKeys.indexOf('approvalStages') === -1"));
 });
+
+test('missing records fail closed in tenant visibility checks', () => {
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    isCompanyScopedRole_: () => true
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('isRecordVisibleToUser_', 'requiresRoleVerification_'), context);
+  assert.equal(context.isRecordVisibleToUser_(null,{roles:['Admin CGG']}),false);
+  assert.equal(context.isRecordVisibleToUser_(undefined,{roles:['Employee'],companyCode:'SLS'}),false);
+});
