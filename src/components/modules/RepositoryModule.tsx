@@ -792,7 +792,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         };
       }
 
-      if (!canUseLocalDocumentFile(storedFile, doc, sessionUser) || !storedFile.blob) {
+      if ((!hseApi.baseUrl || !sessionUser) && !canUseLocalDocumentFile(storedFile, doc, sessionUser)) {
         throw new Error(
           'Berkas asli tidak ditemukan di penyimpanan lokal maupun Drive pusat. Periksa tautan berkas dokumen ini.'
         );
