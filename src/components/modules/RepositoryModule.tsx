@@ -578,33 +578,37 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setOriginalFileHtml('');
     setOriginalFileType(doc.fileType);
     try {
-      const db = await hdosDB.init();
-      if (!db) throw new Error('IndexedDB tidak tersedia pada browser ini.');
-      // Support both the current storage shape (blob) and legacy records (file).
-      // Prefer the exact document-file key; fall back only to a record explicitly linked to this document.
-      let storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
-      if (!storedFile || !(storedFile.blob || storedFile.file)) {
-        const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
-        storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
-      }
-      const rawFile = storedFile?.blob || storedFile?.file;
       let blob: Blob;
-      let fileName = storedFile?.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
-      if (storedFile && rawFile) {
+      let fileName = `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+
+      if (hseApi.baseUrl && sessionUser) {
+        // Online preview must always pass through the server's current tenant
+        // authorization and preview audit. Do not trust a potentially stale
+        // IndexedDB copy after an account, role, or tenant change.
+        const remote = await hseApi.previewRepositoryFile(doc.id);
+        blob = base64ToBlob(remote.base64, remote.mimeType);
+        fileName = remote.fileName || fileName;
+      } else {
+        // Offline-only fallback: use a local copy only when the API is unavailable.
+        const db = await hdosDB.init();
+        if (!db) throw new Error('IndexedDB tidak tersedia pada browser ini.');
+        let storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+        if (!storedFile || !(storedFile.blob || storedFile.file)) {
+          const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
+          storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+        }
+        if (storedFile?.documentId && storedFile.documentId !== doc.id) {
+          throw new Error('Identitas file tidak cocok dengan dokumen yang dipilih. Pratinjau dibatalkan demi mencegah file yang salah ditampilkan.');
+        }
+        const rawFile = storedFile?.blob || storedFile?.file;
+        if (!rawFile) throw new Error('Berkas tidak tersedia di penyimpanan lokal offline.');
         const safePreviewMimeType = doc.fileType === 'PDF'
           ? 'application/pdf'
           : doc.fileType === 'XLSX'
             ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        // Never trust a cached file's MIME type when creating a preview URL.
         blob = new Blob([rawFile as BlobPart], { type: safePreviewMimeType });
-      } else {
-        const remote = await hseApi.previewRepositoryFile(doc.id);
-        blob = base64ToBlob(remote.base64, remote.mimeType);
-        fileName = remote.fileName || fileName;
-      }
-      if (storedFile && storedFile.documentId && storedFile.documentId !== doc.id) {
-        throw new Error('Identitas file tidak cocok dengan dokumen yang dipilih. Pratinjau dibatalkan demi mencegah file yang salah ditampilkan.');
+        fileName = storedFile?.fileName || fileName;
       }
       setOriginalFileName(fileName);
       setOriginalFileUrl(URL.createObjectURL(blob));
