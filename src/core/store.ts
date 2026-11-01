@@ -637,15 +637,15 @@ export class HDOSCentralStore {
       ...inspection, ...tenantFields, id, code, createdAt: now,
       status: failedItems.length > 0 ? 'PICA_TRIGGERED' : 'COMPLETED',
     };
-
-    // Persist the complete local bundle before publishing it to in-memory modules.
-    // Stable IDs keep retries idempotent if the network is interrupted afterwards.
-    for (const pica of createdPicas) await hdosDB.put('pica', pica);
-    await hdosDB.put('inspection', newInspection);
-    for (const pica of createdPicas) {
-      await hdosSync.enqueue({ action: 'CREATE', entity: 'pica', payload: pica, note: `PICA otomatis dari Inspection ${code}` });
-    }
-    await hdosSync.enqueue({ action: 'CREATE', entity: 'inspection', payload: newInspection, note: `Inspection ${code}` });
+    const records = [
+      ...createdPicas.map(item => ({ storeName: 'pica' as const, item })),
+      { storeName: 'inspection' as const, item: newInspection },
+    ];
+    const queueItems = [
+      ...createdPicas.map(item => ({ action: 'CREATE' as const, entity: 'pica' as const, payload: item, note: `PICA otomatis dari Inspection ${code}` })),
+      { action: 'CREATE' as const, entity: 'inspection' as const, payload: newInspection, note: `Inspection ${code}` },
+    ];
+    await hdosSync.enqueueBatch(records, queueItems);
 
     this.picas = [...createdPicas].reverse().concat(this.picas);
     this.inspections.unshift(newInspection);
@@ -683,12 +683,13 @@ export class HDOSCentralStore {
     const newHazard: Hazard = {
       ...hazard, ...tenantFields, id, code, createdAt: now, picaId, status: 'PICA_ISSUED',
     };
-
-    // Do not expose an in-memory success until both linked records and queue writes persist.
-    await hdosDB.put('pica', picaCreated);
-    await hdosDB.put('hazard', newHazard);
-    await hdosSync.enqueue({ action: 'CREATE', entity: 'pica', payload: picaCreated, note: `PICA otomatis dari Hazard ${code}` });
-    await hdosSync.enqueue({ action: 'CREATE', entity: 'hazard', payload: newHazard, note: `Hazard ${code}` });
+    await hdosSync.enqueueBatch(
+      [{ storeName: 'pica', item: picaCreated }, { storeName: 'hazard', item: newHazard }],
+      [
+        { action: 'CREATE', entity: 'pica', payload: picaCreated, note: `PICA otomatis dari Hazard ${code}` },
+        { action: 'CREATE', entity: 'hazard', payload: newHazard, note: `Hazard ${code}` },
+      ]
+    );
 
     this.picas.unshift(picaCreated);
     this.hazards.unshift(newHazard);
@@ -711,8 +712,10 @@ export class HDOSCentralStore {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const newInc: Incident = { ...incident, ...getCurrentTenantFields(), id, code, createdAt: now };
 
-    await hdosDB.put('incident', newInc);
-    await hdosSync.enqueue({ action: 'CREATE', entity: 'incident', payload: newInc, note: `Incident ${code}` });
+    await hdosSync.enqueueBatch(
+      [{ storeName: 'incident', item: newInc }],
+      [{ action: 'CREATE', entity: 'incident', payload: newInc, note: `Incident ${code}` }]
+    );
     this.incidents.unshift(newInc);
     this.notify();
     hdosEvents.emit('incident:created', newInc);
@@ -735,44 +738,24 @@ export class HDOSCentralStore {
     if (!isAdminCGG) {
       const role = hdosAuth.getCurrentRole();
       const stageByRole: Record<string, 'foreman' | 'spvHse' | 'ktt'> = {
-        'Foreman': 'foreman',
-        'Foreman Safety': 'foreman',
-        'Supervisor': 'spvHse',
-        'SPV HSE': 'spvHse',
-        'Superintendent': 'spvHse',
-        'KTT': 'ktt',
-        'Project Manager': 'ktt',
-        'PJO': 'ktt',
+        'Foreman': 'foreman', 'Foreman Safety': 'foreman', 'Supervisor': 'spvHse',
+        'SPV HSE': 'spvHse', 'Superintendent': 'spvHse', 'KTT': 'ktt',
+        'Project Manager': 'ktt', 'PJO': 'ktt',
       };
       const allowedStage = stageByRole[role];
       const stageKeys = ['foreman', 'spvHse', 'ktt'] as const;
       const changedStages = stageKeys.filter((stage) => nextStages[stage] !== currentStages[stage]);
 
-      if (current.status === 'CLOSED' && updates.status && updates.status !== 'CLOSED') {
-        throw new Error('PICA yang sudah ditutup tidak dapat dibuka kembali.');
-      }
-      if (changedStages.some((stage) => stage !== allowedStage)) {
-        throw new Error('Anda hanya dapat menyetujui tahap PICA sesuai jabatan Anda.');
-      }
-      if (changedStages.some((stage) => currentStages[stage] === true && nextStages[stage] !== true)) {
-        throw new Error('Persetujuan PICA tidak dapat dibatalkan.');
-      }
-      if (changedStages.includes('spvHse') && nextStages.spvHse && !nextStages.foreman) {
-        throw new Error('Persetujuan SPV HSE menunggu persetujuan Foreman.');
-      }
-      if (changedStages.includes('ktt') && nextStages.ktt && !(nextStages.foreman && nextStages.spvHse)) {
-        throw new Error('Persetujuan KTT menunggu persetujuan Foreman dan SPV HSE.');
-      }
-      if (changedStages.length === 0 && updates.status && updates.status !== current.status) {
-        throw new Error('Status PICA tidak dapat diubah tanpa persetujuan tahap yang sah.');
-      }
+      if (current.status === 'CLOSED' && updates.status && updates.status !== 'CLOSED') throw new Error('PICA yang sudah ditutup tidak dapat dibuka kembali.');
+      if (changedStages.some((stage) => stage !== allowedStage)) throw new Error('Anda hanya dapat menyetujui tahap PICA sesuai jabatan Anda.');
+      if (changedStages.some((stage) => currentStages[stage] === true && nextStages[stage] !== true)) throw new Error('Persetujuan PICA tidak dapat dibatalkan.');
+      if (changedStages.includes('spvHse') && nextStages.spvHse && !nextStages.foreman) throw new Error('Persetujuan SPV HSE menunggu persetujuan Foreman.');
+      if (changedStages.includes('ktt') && nextStages.ktt && !(nextStages.foreman && nextStages.spvHse)) throw new Error('Persetujuan KTT menunggu persetujuan Foreman dan SPV HSE.');
+      if (changedStages.length === 0 && updates.status && updates.status !== current.status) throw new Error('Status PICA tidak dapat diubah tanpa persetujuan tahap yang sah.');
 
       const expectedStatus = nextStages.foreman && nextStages.spvHse && nextStages.ktt
-        ? 'CLOSED'
-        : (nextStages.foreman || nextStages.spvHse ? 'PROGRESS' : current.status);
-      if (updates.status && updates.status !== expectedStatus) {
-        throw new Error('Status PICA ditetapkan otomatis sesuai tahapan persetujuan.');
-      }
+        ? 'CLOSED' : (nextStages.foreman || nextStages.spvHse ? 'PROGRESS' : current.status);
+      if (updates.status && updates.status !== expectedStatus) throw new Error('Status PICA ditetapkan otomatis sesuai tahapan persetujuan.');
       updated.status = expectedStatus;
     }
 
@@ -781,13 +764,10 @@ export class HDOSCentralStore {
       if (current.status !== 'CLOSED') updated.completionDate = new Date().toISOString().split('T')[0];
     }
 
-    await hdosDB.put('pica', updated);
-    await hdosSync.enqueue({
-      action: 'UPDATE',
-      entity: 'pica',
-      payload: updated,
-      note: `Persetujuan PICA ${updated.code}`,
-    });
+    await hdosSync.enqueueBatch(
+      [{ storeName: 'pica', item: updated }],
+      [{ action: 'UPDATE', entity: 'pica', payload: updated, note: `Persetujuan PICA ${updated.code}` }]
+    );
     this.picas[index] = updated;
     this.notify();
     hdosEvents.emit('pica:updated', updated);
