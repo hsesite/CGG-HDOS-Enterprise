@@ -1455,6 +1455,30 @@ function listCompanyRegistry_() {
   return success_(companies);
 }
 
+
+function revokeCompanySessions_(companyCode) {
+  const targetCode = String(companyCode || '').trim().toUpperCase();
+  if (!targetCode) return 0;
+  const properties = PropertiesService.getScriptProperties();
+  const allProperties = properties.getProperties();
+  const cache = CacheService.getScriptCache();
+  let revokedCount = 0;
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf('session:') !== 0) return;
+    let session = null;
+    try { session = JSON.parse(allProperties[key]); } catch (err) { session = null; }
+    if (!session) return;
+    const ownCode = String(session.companyCode || '').trim().toUpperCase();
+    const parentCode = String(session.parentCompanyCode || '').trim().toUpperCase();
+    if (ownCode === targetCode || parentCode === targetCode) {
+      properties.deleteProperty(key);
+      cache.remove(key);
+      revokedCount += 1;
+    }
+  });
+  return revokedCount;
+}
+
 function upsertCompanyRegistryCore_(payload, actor, auditOut) {
   const input = isObject_(payload) ? payload : {};
   const code = String(input.code || '').trim().toUpperCase();
@@ -1506,6 +1530,10 @@ function upsertCompanyRegistry_(payload, actor) {
   } finally {
     lock.releaseLock();
   }
+  // Revoke sessions for this company and its direct subcontractors after the
+  // company master is committed. Reactivating a tenant must not revive old tokens.
+  if (result && result.success) revokeCompanySessions_(code);
+
   // logAudit_ takes the same script lock; append it after the company row is committed.
   if (result && result.success && auditOut.length) {
     const audit = auditOut[0];
