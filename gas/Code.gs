@@ -2311,7 +2311,7 @@ function isExpectedPicaStateCurrent_(current, expected) {
   const expectedStages = expected.approvalStages || {};
   return String(current && current.status || '').toUpperCase() === String(expected.status || '').toUpperCase() &&
     ['foreman', 'spvHse', 'ktt'].every(function(stage) {
-      return currentStages[stage] === true === (expectedStages[stage] === true);
+      return (currentStages[stage] === true) === (expectedStages[stage] === true);
     });
 }
 
