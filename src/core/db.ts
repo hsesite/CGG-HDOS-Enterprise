@@ -203,6 +203,54 @@ class HDOSDatabase {
     });
   }
 
+  async putBundle(entries: Array<{ storeName: StoreName; item: { id: string } }>): Promise<void> {
+    if (entries.length === 0) return;
+    const db = await this.init();
+
+    if (!db) {
+      // Best-effort rollback for the localStorage fallback. IndexedDB below
+      // provides the full cross-store atomic transaction.
+      const storeNames = [...new Set(entries.map(entry => entry.storeName))];
+      const snapshots = new Map<string, string | null>();
+      try {
+        for (const storeName of storeNames) {
+          const key = this.getFallbackKey(storeName);
+          snapshots.set(key, localStorage.getItem(key));
+        }
+        const grouped = new Map<StoreName, Array<{ id: string }>>();
+        for (const entry of entries) {
+          const group = grouped.get(entry.storeName) || this.readFallback<{ id: string }>(entry.storeName);
+          grouped.set(entry.storeName, group.filter(existing => existing.id !== entry.item.id).concat(entry.item));
+        }
+        for (const [storeName, items] of grouped) this.writeFallback(storeName, items);
+      } catch (error) {
+        for (const [key, value] of snapshots) {
+          try {
+            if (value === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, value);
+          } catch (rollbackError) {
+            console.error('[HDOS DB] localStorage bundle rollback failed', rollbackError);
+          }
+        }
+        throw error;
+      }
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const storeNames = [...new Set(entries.map(entry => entry.storeName))];
+        const tx = db.transaction(storeNames, 'readwrite');
+        for (const entry of entries) tx.objectStore(entry.storeName).put(entry.item);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB bundle transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB bundle transaction aborted'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async put<T extends { id: string }>(
     storeName: StoreName,
     item: T
