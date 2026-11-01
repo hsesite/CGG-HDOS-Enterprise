@@ -37,7 +37,7 @@ export const DashboardModule: React.FC = () => {
   const roles = sessionUser?.roles || [];
   const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const isOwnerAdmin = roles.includes('Admin CGG');
-  const isOversight = roles.some((role) => ['KTT', 'SPT', 'SPV'].includes(role));
+  const isOversight = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV'].includes(role));
   const isContractor = companyCode === 'SLS' || companyCode === 'VIP';
   const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
   const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan KTT / SPT / SPV' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
@@ -66,8 +66,8 @@ export const DashboardModule: React.FC = () => {
     return recordCompany === companyCode || recordSubkon === companyCode;
   };
   const dashboardInspections = store.inspections.filter(recordInDashboardScope);
-  const dashboardHazards = dashboardHazards.filter(recordInDashboardScope);
-  const dashboardPicas = dashboardPicas.filter(recordInDashboardScope);
+  const dashboardHazards = store.hazards.filter(recordInDashboardScope);
+  const dashboardPicas = store.picas.filter(recordInDashboardScope);
 
   const totalInspections = dashboardInspections.length;
   const openHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED').length;
