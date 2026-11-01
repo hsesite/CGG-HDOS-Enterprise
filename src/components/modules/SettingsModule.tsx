@@ -200,7 +200,7 @@ export const SettingsModule: React.FC = () => {
             <input required minLength={2} className={`${inputClass} mt-1`} placeholder={area.zoneType==='PIT'?'Contoh: Pit Utara':area.zoneType==='HAUL_ROAD'?'Contoh: Hauling Road KM 12':'Contoh: Stockpile EFO'} value={area.name} onChange={e=>setArea({...area,name:e.target.value})}/>
           </label>}
           <input className={inputClass} placeholder="Koordinat UTM (opsional)" value={area.utm} onChange={e=>setArea({...area,utm:e.target.value})}/>
-          <div className="grid grid-cols-2 gap-3"><input className={inputClass} type="number" step="any" placeholder="Latitude (opsional)" value={area.lat} onChange={e=>setArea({...area,lat:e.target.value})}/><input className={inputClass} type="number" step="any" placeholder="Longitude (opsional)" value={area.lng} onChange={e=>setArea({...area,lng:e.target.value})}/></div>
+          <div className="grid grid-cols-2 gap-3"><input className={inputClass} type="number" step="any" min="-90" max="90" placeholder="Latitude (−90 s.d. 90)" value={area.lat} onChange={e=>setArea({...area,lat:e.target.value})}/><input className={inputClass} type="number" step="any" min="-180" max="180" placeholder="Longitude (−180 s.d. 180)" value={area.lng} onChange={e=>setArea({...area,lng:e.target.value})}/></div>
           <textarea className={inputClass} placeholder="Deskripsi (opsional)" rows={3} value={area.description} onChange={e=>setArea({...area,description:e.target.value})}/>
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-60"><Plus size={16}/>Simpan Area</button>
         </form>
