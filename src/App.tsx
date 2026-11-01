@@ -12,6 +12,7 @@ import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
 import { hseApi } from './core/api';
 import { hdosSync } from './core/sync';
+import { hdosStore } from './core/store';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
