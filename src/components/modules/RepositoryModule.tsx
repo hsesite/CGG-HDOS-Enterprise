@@ -593,7 +593,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       if (storedFile && rawFile) {
         blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
       } else {
-        const remote = await hseApi.downloadRepositoryFile(doc.id);
+        const remote = await hseApi.previewRepositoryFile(doc.id);
         blob = base64ToBlob(remote.base64, remote.mimeType);
         fileName = remote.fileName || fileName;
       }
