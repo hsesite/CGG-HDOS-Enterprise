@@ -84,16 +84,21 @@ export default function App() {
 
         // Validate the persisted session before exposing cached tenant data or
         // allowing any queued write to reach the server.
-        if (hseApi.isAuthenticated) {
+        const bootToken = hseApi.authToken;
+        if (bootToken) {
           try {
-            AuthState.saveUser(await hseApi.me());
+            const serverProfile = await hseApi.me(bootToken);
+            // A response from a prior account must never overwrite a newer login.
+            if (hseApi.authToken === bootToken) AuthState.saveUser(serverProfile);
           } catch (sessionRefreshError) {
             if (sessionRefreshError instanceof ApiError && sessionRefreshError.status === 401) {
-              // A server-side revocation/deactivation is authoritative. Do not
-              // fall back to a cached profile after an explicit unauthorized response.
-              try { await hseApi.logout(); } catch { /* logout still clears the local token */ }
-              AuthState.clear();
-            } else {
+              // A server-side revocation/deactivation is authoritative, but only
+              // for the exact session token used by this boot attempt.
+              if (hseApi.authToken === bootToken) {
+                try { await hseApi.logout(bootToken); } catch { /* logout clears only this token */ }
+                if (hseApi.authToken === null) AuthState.clear();
+              }
+            } else if (hseApi.authToken === bootToken) {
               // A network/server outage may be a genuine offline start; retain
               // the cached profile so the user can continue working offline.
               console.warn('[HDOS] Session refresh unavailable; retaining cached profile for offline use.', sessionRefreshError);
