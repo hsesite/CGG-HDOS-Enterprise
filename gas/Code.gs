@@ -917,7 +917,7 @@ function handleRoute_(
     return success_({ id: documentId, deleted: true });
   }
 
-  const repositoryPreviewMatch = path.match(/^\\/api\\/repository\\/([^/]+)\\/preview$/);
+  const repositoryPreviewMatch = path.match(/^\/api\/repository\/([^/]+)\/preview$/);
   if (repositoryPreviewMatch && method === 'GET') {
     const doc = readOne_('repository', decodeURIComponent(repositoryPreviewMatch[1]));
     if (!doc) return error_(404, 'Dokumen Repository tidak ditemukan.');
