@@ -1038,6 +1038,7 @@ function handleRoute_(
     id
   ) {
     const record = readOne_(entity, id);
+    if (!record) return error_(404, 'Record not found');
     if (!isRecordVisibleToUser_(record, user)) return error_(403, 'Anda tidak memiliki akses ke data ini.');
     return success_(record);
   }
@@ -1063,6 +1064,7 @@ function handleRoute_(
   if (method === 'DELETE' && id) {
     if (!isAdminCGG_(user) && !isCompanyAdmin_(user)) return error_(403, 'Penghapusan data operasional hanya dapat dilakukan Admin CGG atau Admin Perusahaan.');
     const existingRecord = readOne_(entity, id);
+    if (!existingRecord) return error_(404, 'Record not found');
     if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk menghapus data perusahaan lain.');
     const targetSheet = getSheet_(entity);
     const targetRow = findRecordRow_(targetSheet, id);
@@ -1078,6 +1080,7 @@ function handleRoute_(
   ) {
     const requestedPayload = Object.assign({}, isObject_(params.payload) ? params.payload : {});
     const existingRecord = readOne_(entity, id);
+    if (!existingRecord) return error_(404, 'Record not found');
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
     if (entity === 'picas') {
       const closureError = enforcePicaClosureRules_(existingRecord, requestedPayload, user);
@@ -1688,6 +1691,7 @@ function getOversightCompanyCodes_() {
 }
 
 function isRecordVisibleToUser_(record, user) {
+  if (!record) return false;
   if (isAdminCGG_(user)) return true;
   if (!isCompanyScopedRole_(user)) return false;
   const ownCompany = String(user.companyCode || '').trim().toUpperCase();
