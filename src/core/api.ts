@@ -313,6 +313,10 @@ export const hseApi = {
     return request<Record<string, unknown>>('POST', '/api/repository', input);
   },
 
+  async uploadOperationalPhoto(input: { fileName: string; mimeType: string; fileBase64: string }): Promise<{ photoFileId: string; photoUrl: string; fileName: string; mimeType: string }> {
+    return request<{ photoFileId: string; photoUrl: string; fileName: string; mimeType: string }>('POST', '/api/photos', input);
+  },
+
   async previewRepositoryFile(id: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
     return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/preview`);
   },
