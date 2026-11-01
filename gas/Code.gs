@@ -1281,7 +1281,7 @@ function login_(payload) {
   const user = findUserByEmail_(email);
   let validPassword = false;
   if (user && user.passwordHash && user.passwordSalt) {
-    validPassword = passwordHash_(password, user.passwordSalt) === user.passwordHash;
+    validPassword = constantTimeStringEquals_(passwordHash_(password, user.passwordSalt), user.passwordHash);
   } else if (user && user.password) {
     // Backward compatibility for existing accounts; migrate the row to a hash after successful login.
     validPassword = user.password === password;
@@ -1622,6 +1622,19 @@ function createSessionResponse_(user) {
 function passwordHash_(password, salt) {
   const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(salt) + ':' + String(password), Utilities.Charset.UTF_8);
   return Utilities.base64EncodeWebSafe(bytes);
+}
+
+// Compare fixed-format password hashes without stopping at the first differing character.
+// This reduces timing leakage during hash verification; it does not replace a slow password KDF.
+function constantTimeStringEquals_(left, right) {
+  const a = String(left || '');
+  const b = String(right || '');
+  const maxLength = Math.max(a.length, b.length);
+  let difference = a.length ^ b.length;
+  for (let i = 0; i < maxLength; i++) {
+    difference |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+  return difference === 0;
 }
 
 function migrateLegacyPassword_(user, password) {
