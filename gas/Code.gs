@@ -2968,73 +2968,36 @@ function logAudit_(
   recordId,
   details
 ) {
-  const sheet =
-    getSheet_(
-      'audit_logs'
-    );
-
-  const now =
-    new Date().toISOString();
-
-  const id =
-    Utilities.getUuid();
-
-  const rowNum =
-    sheet.getLastRow();
-
-  const code =
-    'AUD-' +
-    new Date()
-      .getFullYear() +
-    '-' +
-    String(
-      rowNum
-    ).padStart(
-      3,
-      '0'
-    );
-
-  const auditPayload = {
-    action:
-      action,
-
-    entity:
-      entity,
-
-    recordId:
-      recordId,
-
-    userId:
-      user.id,
-
-    email:
-      user.email,
-
-    roles:
-      user.roles || [],
-
-    timestamp:
+  const sheet = getSheet_('audit_logs');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const now = new Date().toISOString();
+    const id = Utilities.getUuid();
+    const rowNum = sheet.getLastRow();
+    const code = 'AUD-' + new Date().getFullYear() + '-' + String(rowNum).padStart(3, '0');
+    const auditPayload = {
+      action: action,
+      entity: entity,
+      recordId: recordId,
+      userId: user.id,
+      email: user.email,
+      roles: user.roles || [],
+      timestamp: now,
+      details: details || {}
+    };
+    sheet.appendRow([
+      id,
+      code,
+      JSON.stringify(auditPayload),
+      'RECORDED',
       now,
-
-    details:
-      details || {}
-  };
-
-  sheet.appendRow([
-    id,
-
-    code,
-
-    JSON.stringify(
-      auditPayload
-    ),
-
-    'RECORDED',
-
-    now,
-
-    now
-  ]);
+      now
+    ]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 
