@@ -168,6 +168,12 @@ export class HDOSCentralStore {
       } catch (error) {
         console.warn('[HDOS Store] Master area pusat tidak tersedia; memakai cache lokal.', error);
       }
+      try {
+        const centralCompanies = await hseApi.listCompanies();
+        await this.setContractorsFromCompanyMaster(centralCompanies);
+      } catch (error) {
+        console.warn('[HDOS Store] Master kontraktor pusat tidak tersedia; memakai cache lokal.', error);
+      }
     }
     this.inspections = this.inspections.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
     this.hazards = this.hazards.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
@@ -400,6 +406,32 @@ export class HDOSCentralStore {
     await hseApi.deleteLocation(id);
     await hdosDB.delete('maps', id);
     this.locations = this.locations.filter((item) => item.id !== id);
+    this.notify();
+  }
+
+  async setContractorsFromCompanyMaster(companies: Array<{
+    code: string; name: string; role: 'Contractor' | 'Subkon'; status: string;
+    passportStatus?: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName?: string;
+    picContact?: string; safetyPassportExpiry?: string;
+  }>): Promise<void> {
+    const mapped: ContractorPassport[] = companies.map(company => ({
+      id: company.code,
+      code: company.code,
+      companyName: company.name,
+      picName: company.picName || '',
+      picContact: company.picContact || '',
+      manpowerCount: 0,
+      equipmentCount: 0,
+      kpiSafetyScore: 0,
+      safeHours: 0,
+      activePicaCount: 0,
+      mcuCompliancePercent: 0,
+      inductionRatePercent: 0,
+      status: company.status === 'INACTIVE' ? 'SUSPENDED' : (company.passportStatus || 'ACTIVE'),
+      safetyPassportExpiry: company.safetyPassportExpiry || '',
+    }));
+    this.contractors = mapped;
+    for (const contractor of mapped) await hdosDB.put('contractor', contractor);
     this.notify();
   }
 
