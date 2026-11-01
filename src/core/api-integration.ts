@@ -9,11 +9,8 @@ import type {
   Incident,
 } from './types';
 
-function isAuthenticatedAndOnline(): boolean {
-  return (
-    hseApi.isAuthenticated &&
-    hdosSync.getIsOnline()
-  );
+function isAuthenticatedAndOnline(authToken: string | null): boolean {
+  return Boolean(authToken) && hdosSync.getIsOnline();
 }
 
 async function enqueueCreate(
@@ -22,13 +19,14 @@ async function enqueueCreate(
     | 'hazard'
     | 'pica'
     | 'incident',
-  payload: unknown
+  payload: unknown,
+  owner?: { userId: string; companyCode: string } | null
 ): Promise<void> {
   await hdosSync.enqueue({
     entity,
     action: 'CREATE',
     payload,
-  });
+  }, owner || undefined);
 }
 
 async function syncCreatedRecord<T>(
@@ -42,13 +40,16 @@ async function syncCreatedRecord<T>(
     | 'hazard'
     | 'pica'
     | 'incident',
-  record: T
+  record: T,
+  authToken: string | null,
+  owner: { userId: string; companyCode: string } | null
 ): Promise<void> {
-  if (isAuthenticatedAndOnline()) {
+  if (isAuthenticatedAndOnline(authToken)) {
     try {
       await hseApi.create(
         entity,
-        record
+        record,
+        authToken || undefined
       );
       return;
     } catch (error) {
@@ -58,7 +59,8 @@ async function syncCreatedRecord<T>(
       ) {
         await enqueueCreate(
           queueEntity,
-          record
+          record,
+          owner
         );
 
         throw error;
@@ -73,7 +75,8 @@ async function syncCreatedRecord<T>(
 
   await enqueueCreate(
     queueEntity,
-    record
+    record,
+    owner
   );
 }
 
@@ -84,6 +87,8 @@ export class ApiIntegration {
       'id' | 'code' | 'createdAt'
     >
   ): Promise<Inspection> {
+    const authToken = hseApi.authToken;
+    const owner = hdosSync.getOwnerSnapshot();
     const picaCountBefore =
       hdosStore.picas.length;
 
@@ -110,7 +115,9 @@ export class ApiIntegration {
       await syncCreatedRecord(
         'inspections',
         'inspection',
-        created
+        created,
+        authToken,
+        owner
       );
 
       for (
@@ -119,7 +126,9 @@ export class ApiIntegration {
         await syncCreatedRecord(
           'picas',
           'pica',
-          pica
+          pica,
+          authToken,
+          owner
         );
       }
     } catch (error) {
@@ -145,6 +154,8 @@ export class ApiIntegration {
       'id' | 'code' | 'createdAt'
     >
   ): Promise<Hazard> {
+    const authToken = hseApi.authToken;
+    const owner = hdosSync.getOwnerSnapshot();
     const picaCountBefore =
       hdosStore.picas.length;
 
@@ -168,7 +179,9 @@ export class ApiIntegration {
       await syncCreatedRecord(
         'hazards',
         'hazard',
-        created
+        created,
+        authToken,
+        owner
       );
 
       for (
@@ -177,7 +190,9 @@ export class ApiIntegration {
         await syncCreatedRecord(
           'picas',
           'pica',
-          pica
+          pica,
+          authToken,
+          owner
         );
       }
     } catch (error) {
@@ -196,6 +211,8 @@ export class ApiIntegration {
     id: string,
     updates: Partial<PICA>
   ): Promise<PICA | null> {
+    const authToken = hseApi.authToken;
+    const owner = hdosSync.getOwnerSnapshot();
     const updated =
       await hdosStore.updatePICAStatus(
         id,
@@ -219,13 +236,14 @@ export class ApiIntegration {
     };
 
     if (
-      isAuthenticatedAndOnline()
+      isAuthenticatedAndOnline(authToken)
     ) {
       try {
         await hseApi.update(
           'picas',
           id,
-          updates
+          updates,
+          authToken || undefined
         );
 
         return updated;
@@ -238,7 +256,7 @@ export class ApiIntegration {
             entity: 'pica',
             action: 'UPDATE',
             payload: cloudPayload,
-          });
+          }, owner || undefined);
 
           throw error;
         }
@@ -254,7 +272,7 @@ export class ApiIntegration {
       entity: 'pica',
       action: 'UPDATE',
       payload: cloudPayload,
-    });
+    }, owner || undefined);
 
     return updated;
   }
@@ -265,6 +283,8 @@ export class ApiIntegration {
       'id' | 'code' | 'createdAt'
     >
   ): Promise<Incident> {
+    const authToken = hseApi.authToken;
+    const owner = hdosSync.getOwnerSnapshot();
     const created =
       await hdosStore.addIncident(
         incident
@@ -276,7 +296,8 @@ export class ApiIntegration {
       try {
         await hseApi.create(
           'incidents',
-          created
+          created,
+          authToken || undefined
         );
 
         return created;
@@ -287,7 +308,8 @@ export class ApiIntegration {
         ) {
           await enqueueCreate(
             'incident',
-            created
+            created,
+            owner
           );
 
           throw error;
@@ -302,7 +324,8 @@ export class ApiIntegration {
 
     await enqueueCreate(
       'incident',
-      created
+      created,
+      owner
     );
 
     return created;
