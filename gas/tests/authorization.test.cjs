@@ -974,3 +974,30 @@ test('offline sync replays queue by creation time and blocks later writes to a f
   assert.match(sync, /Perubahan ditahan karena sinkronisasi perubahan sebelumnya untuk record ini belum berhasil/);
   assert.match(sync, /if \(itemRecordId\) blockedRecordIds\.add\(itemRecordId\)/);
 });
+
+
+test('a retried update whose first response was lost is accepted without a second write or audit', () => {
+  const current = {
+    id: 'haz-1',
+    title: 'Guardrail repaired',
+    status: 'CLOSED',
+    riskMatrix: { severity: 2, likelihood: 1 },
+    updatedAt: '2026-11-01T10:05:00.000Z'
+  };
+  const payload = {
+    id: 'haz-1',
+    title: 'Guardrail repaired',
+    status: 'CLOSED',
+    riskMatrix: { likelihood: 1, severity: 2 },
+    updatedAt: '2026-11-01T10:00:00.000Z'
+  };
+  const context = {
+    isObject_: value => value && typeof value === 'object' && !Array.isArray(value),
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('areUpdateValuesEqual_', 'isUpdatePayloadAlreadyApplied_') +
+    extractFunction('isUpdatePayloadAlreadyApplied_', 'updateRecord_'), context);
+  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, payload), true);
+  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, {...payload, status:'OPEN'}), false);
+  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, {updatedAt:payload.updatedAt}), false);
+});
