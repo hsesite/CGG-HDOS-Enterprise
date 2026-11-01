@@ -916,3 +916,17 @@ test('sync retries transient failures but holds permanent API errors for manual 
   assert.ok(sync.includes('Perlu pemeriksaan atau retry manual.'));
   assert.ok(sync.includes('if (!(error instanceof ApiError)) return false;'));
 });
+
+test('operational DELETE is tenant-authorized, locked, and idempotent after a lost response', () => {
+  const routeStart = source.indexOf('// DELETE — admin-only and idempotent so a lost response can be safely replayed.');
+  const routeEnd = source.indexOf('// UPDATE', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /isAdminCGG_\(user\).*isCompanyAdmin_\(user\)/);
+  assert.match(route, /deleteLock\.waitLock\(10000\)/);
+  assert.match(route, /if \(!existingRecord\) return success_\(\{ id: id, deleted: true, alreadyDeleted: true \}\)/);
+  assert.match(route, /isRecordVisibleToUser_\(existingRecord, user\)/);
+  assert.match(route, /deleteLock\.releaseLock\(\)/);
+  assert.match(route, /SpreadsheetApp\.flush\(\)/);
+  assert.match(route, /if \(deleted\) logAudit_\(user, 'OPERATIONAL_RECORD_DELETED'/);
+});
