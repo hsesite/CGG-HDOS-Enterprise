@@ -1,15 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import {
-  CheckSquare,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  UserCheck,
-  Calendar,
-  Filter,
-  ArrowRight,
-  ShieldAlert,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckSquare, Clock, CheckCircle2, AlertCircle, UserCheck, Calendar, Filter, ShieldCheck } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { PICA } from '../../core/types';
 import { hseApi } from '../../core/api';
@@ -20,6 +10,15 @@ export const PICAModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
   const sessionUser = getCurrentUser();
+  const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ALL' | 'CLOSED'>('ACTIVE');
+  const [correctiveAction, setCorrectiveAction] = useState('');
+  const [evidencePhotoUrl, setEvidencePhotoUrl] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
+  const isHSEValidator = ['Foreman', 'Foreman Safety', 'SPV HSE'].includes(currentUser.role);
+
   useEffect(() => {
     let cancelled = false;
     if (!hseApi.baseUrl || !sessionUser) return;
@@ -28,311 +27,105 @@ export const PICAModule: React.FC = () => {
     }).catch((error) => console.warn('[PICAModule] Gagal memuat register pusat:', error));
     return () => { cancelled = true; };
   }, [store, sessionUser?.id, hseApi.baseUrl]);
-  // Only the explicit Admin CGG role sees the administrative all-stage override.
-  // Every other role receives its own server-authorized sign-off button or a read-only view.
-  const isControlViewer = currentUser.role !== 'Admin CGG';
-  const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
-  // Derive aging and overdue state from dates so untouched records remain accurate.
-  const getPicaMetrics = (pica: PICA) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const createdDate = new Date(String(pica.createdAt || '').slice(0, 10) + 'T00:00:00');
-    const targetDate = new Date(String(pica.targetDate || '').slice(0, 10) + 'T00:00:00');
-    const daysAging = Number.isNaN(createdDate.getTime())
-      ? Math.max(0, Number(pica.daysAging) || 0)
-      : Math.max(0, Math.floor((today.getTime() - createdDate.getTime()) / 86400000));
-    const isOverdue = pica.status !== 'CLOSED' && !Number.isNaN(targetDate.getTime()) && targetDate.getTime() < today.getTime();
-    const status: PICA['status'] = pica.status === 'CLOSED'
-      ? 'CLOSED'
-      : isOverdue || pica.status === 'OVERDUE' ? 'OVERDUE' : pica.status;
-    return { daysAging, status };
-  };
-  const picasWithMetrics = store.picas.map((pica) => ({ pica, ...getPicaMetrics(pica) }));
-  const openCount = picasWithMetrics.filter(({ status }) => status === 'OPEN').length;
-  const progressCount = picasWithMetrics.filter(({ status }) => status === 'PROGRESS').length;
-  const closedCount = picasWithMetrics.filter(({ status }) => status === 'CLOSED').length;
-  const overdueCount = picasWithMetrics.filter(({ status }) => status === 'OVERDUE').length;
-
-  const handleSignoff = async (stage: 'foreman' | 'spvHse' | 'ktt') => {
+  useEffect(() => {
     if (!selectedPica) return;
+    setCorrectiveAction(selectedPica.correctiveAction || '');
+    setEvidencePhotoUrl(selectedPica.evidencePhotoUrl || '');
+    setRejectionReason('');
+  }, [selectedPica?.id, selectedPica?.updatedAt]);
 
-    const currentStages = { ...selectedPica.approvalStages };
-    currentStages[stage] = true;
+  const getMetrics = (pica: PICA) => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const created = new Date(String(pica.createdAt || '').slice(0, 10) + 'T00:00:00');
+    const target = new Date(String(pica.targetDate || '').slice(0, 10) + 'T00:00:00');
+    const aging = Number.isNaN(created.getTime()) ? Math.max(0, Number(pica.daysAging) || 0) : Math.max(0, Math.floor((today.getTime() - created.getTime()) / 86400000));
+    const status = pica.status !== 'CLOSED' && pica.status !== 'WAITING_HSE' && !Number.isNaN(target.getTime()) && target < today ? 'OVERDUE' : pica.status;
+    return { aging, status };
+  };
+  const picas = useMemo(() => store.picas.map((pica) => ({ pica, ...getMetrics(pica) })), [store.picas]);
+  const visible = picas.filter(({ pica, status }) => {
+    if (filterStatus === 'ACTIVE') return status !== 'CLOSED';
+    if (filterStatus === 'CLOSED') return status === 'CLOSED';
+    return true;
+  });
+  const openCount = picas.filter(({ status }) => status === 'OPEN' || status === 'OVERDUE').length;
+  const progressCount = picas.filter(({ status }) => status === 'PROGRESS').length;
+  const waitingCount = picas.filter(({ status }) => status === 'WAITING_HSE').length;
+  const closedCount = picas.filter(({ status }) => status === 'CLOSED').length;
 
-    let newStatus: PICA['status'] = selectedPica.status;
-    if (currentStages.foreman || currentStages.spvHse) newStatus = 'PROGRESS';
-    if (currentStages.foreman && currentStages.spvHse && currentStages.ktt) newStatus = 'CLOSED';
-
-    const updated = await store.updatePICAStatus(selectedPica.id, {
-      approvalStages: currentStages,
-      status: newStatus,
-    });
-
-    if (updated) setSelectedPica(updated);
+  const savePICProgress = async () => {
+    if (!selectedPica) return;
+    setBusy(true);
+    try {
+      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'PROGRESS', correctiveAction, evidencePhotoUrl });
+      if (updated) setSelectedPica(updated);
+    } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal menyimpan tindakan PIC.'); }
+    finally { setBusy(false); }
+  };
+  const submitForHSE = async () => {
+    if (!selectedPica) return;
+    if (!correctiveAction.trim() || !evidencePhotoUrl.trim()) { window.alert('Tindakan perbaikan dan tautan bukti foto wajib diisi.'); return; }
+    setBusy(true);
+    try {
+      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'WAITING_HSE', correctiveAction, evidencePhotoUrl });
+      if (updated) setSelectedPica(updated);
+    } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal mengajukan PICA.'); }
+    finally { setBusy(false); }
+  };
+  const validateClose = async () => {
+    if (!selectedPica) return;
+    setBusy(true);
+    try {
+      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'CLOSED' });
+      if (updated) setSelectedPica(updated);
+    } catch (error) { window.alert(error instanceof Error ? error.message : 'Validasi HSE gagal.'); }
+    finally { setBusy(false); }
+  };
+  const returnToPIC = async () => {
+    if (!selectedPica || !rejectionReason.trim()) { window.alert('Isi alasan pengembalian kepada PIC.'); return; }
+    setBusy(true);
+    try {
+      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'PROGRESS', rejectionReason });
+      if (updated) setSelectedPica(updated);
+    } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal mengembalikan PICA.'); }
+    finally { setBusy(false); }
   };
 
-  const filteredPicas = picasWithMetrics.filter(({ status }) => {
-    if (filterStatus === 'ALL') return true;
-    return status === filterStatus;
-  });
-
-  return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-[#FFC107]" />
-            PICA (Plan of Corrective Action) & Aging Control
-          </h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
-            Manajemen tindak lanjut temuan inspeksi, bahaya & investigasi dengan 3-tier signoff (Foreman → SPV HSE → KTT).
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-neutral-200"
-          >
-            <option value="ALL">Semua Status</option>
-            <option value="OPEN">Open (Belum Tindak Lanjut)</option>
-            <option value="PROGRESS">Progress (Dalam Penanganan)</option>
-            <option value="CLOSED">Closed (Selesai Disetujui)</option>
-            <option value="OVERDUE">Overdue (Jatuh Tempo)</option>
-          </select>
-        </div>
+  return <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-white/10">
+      <div><h2 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="w-5 h-5 text-[#FFC107]" /> PICA · Tindak Lanjut Temuan</h2>
+        <p className="text-xs text-neutral-400 mt-1">PIC departemen menindaklanjuti temuan. Penutupan cukup divalidasi Foreman Safety atau SPV HSE.</p></div>
+      <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white">
+        <option value="ACTIVE">PICA Aktif</option><option value="CLOSED">Riwayat Closed</option><option value="ALL">Semua PICA</option>
+      </select>
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[['Open / Overdue',openCount,'text-amber-300'],['Dalam Progress',progressCount,'text-blue-300'],['Menunggu Validasi HSE',waitingCount,'text-purple-300'],['Closed',closedCount,'text-emerald-300']].map(([label,value,color]) => <div key={String(label)} className="apple-glass-card p-4 rounded-xl"><p className="text-[11px] text-neutral-400">{label}</p><p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p></div>)}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="lg:col-span-2 apple-glass-card p-4 rounded-2xl space-y-2">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3"><h3 className="text-xs font-bold uppercase text-neutral-300">Register PICA</h3><span className="text-xs text-neutral-400">{visible.length} tiket</span></div>
+        {visible.map(({pica,aging,status}) => <button key={pica.id} onClick={() => setSelectedPica(pica)} className={`w-full text-left p-3 rounded-xl border mb-2 ${selectedPica?.id === pica.id ? 'border-amber-400/50 bg-amber-400/10' : 'border-white/5 hover:bg-white/5'}`}>
+          <div className="flex justify-between gap-2"><span className="text-xs font-bold text-amber-300">{pica.code}</span><span className="text-[10px] text-neutral-300">{status}</span></div>
+          <p className="text-xs text-white mt-1">{pica.findingDescription}</p>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-neutral-400"><span>Departemen: {pica.picDepartment || '-'}</span><span>PIC: {pica.picName || '-'}</span><span>Target: {pica.targetDate || '-'}</span><span>Aging: {aging} hari</span></div>
+        </button>)}
+        {visible.length === 0 && <p className="text-xs text-neutral-500 py-8 text-center">Tidak ada PICA pada kategori ini.</p>}
       </div>
-
-      {/* KPI Aging Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="apple-glass-card p-4 rounded-2xl">
-          <div className="text-[11px] text-neutral-400">Open (Baru)</div>
-          <div className="text-2xl font-bold text-amber-400 font-mono mt-1">{openCount}</div>
-          <div className="text-[10px] text-neutral-500 mt-1">&lt; 3 hari penugasan</div>
-        </div>
-
-        <div className="apple-glass-card p-4 rounded-2xl">
-          <div className="text-[11px] text-neutral-400">Dalam Progress</div>
-          <div className="text-2xl font-bold text-blue-400 font-mono mt-1">{progressCount}</div>
-          <div className="text-[10px] text-neutral-500 mt-1">Sedang dikerjakan</div>
-        </div>
-
-        <div className="apple-glass-card p-4 rounded-2xl">
-          <div className="text-[11px] text-neutral-400">Closed (Selesai)</div>
-          <div className="text-2xl font-bold text-[#00E676] font-mono mt-1">{closedCount}</div>
-          <div className="text-[10px] text-neutral-500 mt-1">3 approval terpenuhi</div>
-        </div>
-
-        <div className="apple-glass-card p-4 rounded-2xl">
-          <div className="text-[11px] text-neutral-400">Overdue (Terlambat)</div>
-          <div className="text-2xl font-bold text-red-400 font-mono mt-1">{overdueCount}</div>
-          <div className="text-[10px] text-neutral-500 mt-1">&gt; batas target hari</div>
-        </div>
-      </div>
-
-      {/* Main Content Grid: Table + Detail Inspector */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* PICA Register Table */}
-        <div className="lg:col-span-2 apple-glass-card p-5 rounded-2xl space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-white/10">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-300">
-              Daftar Tiket Tindakan Koreksi
-            </h3>
-            <span className="text-xs text-neutral-400 font-mono">{filteredPicas.length} Tiket</span>
-          </div>
-
-          <div className="divide-y divide-white/5">
-            {filteredPicas.map(({ pica, status, daysAging }) => {
-              const isSelected = selectedPica?.id === pica.id;
-
-              return (
-                <div
-                  key={pica.id}
-                  onClick={() => setSelectedPica(pica)}
-                  className={`p-3.5 rounded-xl transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-amber-500/15 border border-amber-500/40'
-                      : 'hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-[#FFC107]">{pica.code}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-neutral-300">
-                          Sumber: {pica.source} ({pica.sourceRefCode})
-                        </span>
-                      </div>
-                      <div className="text-xs font-semibold text-white mt-1 leading-snug">
-                        {pica.findingDescription}
-                      </div>
-                    </div>
-
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
-                        status === 'CLOSED'
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : status === 'PROGRESS'
-                          ? 'bg-blue-500/20 text-blue-300'
-                          : status === 'OVERDUE'
-                          ? 'bg-red-500/20 text-red-300'
-                          : 'bg-amber-500/20 text-amber-300'
-                      }`}
-                    >
-                      {status}
-                    </span>
-                  </div>
-
-                  <div className="mt-2.5 flex flex-wrap items-center justify-between text-[11px] text-neutral-400 gap-2">
-                    <div className="flex items-center gap-2">
-                      <span>PIC: <strong className="text-neutral-200">{pica.picName}</strong></span>
-                      <span>·</span>
-                      <span>Dept: {pica.picDepartment}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 font-mono">
-                      <span>Target: {pica.targetDate}</span>
-                      <span className="px-1.5 py-0.2 rounded bg-white/5 text-neutral-300">
-                        Aging: {daysAging} hari
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Detail & Multi-Tier Verification Sign-off Box */}
-        <div className="space-y-4">
-          {selectedPica ? (
-            <div className="apple-glass-card p-5 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <span className="font-mono text-xs font-bold text-[#FFC107]">
-                  Detail {selectedPica.code}
-                </span>
-                <span className="text-xs text-neutral-400">{selectedPica.status}</span>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <div className="text-neutral-400 text-[11px]">Temuan Ketidaksesuaian:</div>
-                  <p className="text-white font-medium mt-0.5 leading-relaxed">
-                    {selectedPica.findingDescription}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="text-neutral-400 text-[11px]">Tindakan Koreksi Langsung:</div>
-                  <p className="text-neutral-200 mt-0.5 leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/10">
-                    {selectedPica.correctiveAction}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="text-neutral-400 text-[11px]">Tindakan Preventif Jangka Panjang:</div>
-                  <p className="text-neutral-200 mt-0.5 leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/10">
-                    {selectedPica.preventiveAction}
-                  </p>
-                </div>
-              </div>
-
-              {/* PJO/SPV/Foreman receive a read-only control view with only a PICA close action. */}
-              {isControlViewer ? (
-                <div className="pt-3 border-t border-white/10 space-y-3">
-                  <p className="text-xs text-neutral-300">Detail temuan tetap baca-saja. Anda hanya dapat memberikan persetujuan sesuai jabatan; PICA tertutup setelah semua tahap lengkap.</p>
-                  {selectedPica.status === 'CLOSED' ? (
-                    <span className="text-xs font-semibold text-emerald-300">PICA sudah ditutup</span>
-                  ) : ['Foreman Safety', 'Foreman'].includes(currentUser.role) && !selectedPica.approvalStages.foreman ? (
-                    <button onClick={() => handleSignoff('foreman')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap Foreman</button>
-                  ) : ['SPV HSE', 'Supervisor', 'Superintendent'].includes(currentUser.role) && selectedPica.approvalStages.foreman && !selectedPica.approvalStages.spvHse ? (
-                    <button onClick={() => handleSignoff('spvHse')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap SPV HSE</button>
-                  ) : ['KTT', 'Project Manager', 'PJO'].includes(currentUser.role) && selectedPica.approvalStages.foreman && selectedPica.approvalStages.spvHse && !selectedPica.approvalStages.ktt ? (
-                    <button onClick={() => handleSignoff('ktt')} className="w-full rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-bold text-black">Persetujuan Final / Tutup PICA</button>
-                  ) : (
-                    <span className="text-xs text-neutral-400">Menunggu persetujuan tahap sebelumnya atau tidak ada tahap yang sesuai dengan jabatan Anda.</span>
-                  )}
-                </div>
-              ) : (
-                            <div className="pt-3 border-t border-white/10 space-y-2">
-                <div className="text-xs font-bold text-white uppercase tracking-wider mb-2">
-                  Alur Verifikasi Bertingkat (Sign-off)
-                </div>
-
-                {/* Stage 1: Foreman Safety */}
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-                  <div>
-                    <div className="font-medium text-white">1. Foreman Safety Lapangan</div>
-                    <div className="text-[10px] text-neutral-400">Verifikasi fisik di lapangan</div>
-                  </div>
-                  {selectedPica.approvalStages.foreman ? (
-                    <span className="text-emerald-400 flex items-center gap-1 font-semibold text-[11px]">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approved
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleSignoff('foreman')}
-                      className="px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-[11px] cursor-pointer"
-                    >
-                      Sign-off
-                    </button>
-                  )}
-                </div>
-
-                {/* Stage 2: SPV HSE */}
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-                  <div>
-                    <div className="font-medium text-white">2. SPV HSE</div>
-                    <div className="text-[10px] text-neutral-400">Review bukti &amp; kepatuhan SMKP</div>
-                  </div>
-                  {selectedPica.approvalStages.spvHse ? (
-                    <span className="text-emerald-400 flex items-center gap-1 font-semibold text-[11px]">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approved
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleSignoff('spvHse')}
-                      className="px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-[11px] cursor-pointer"
-                    >
-                      Sign-off
-                    </button>
-                  )}
-                </div>
-
-                {/* Stage 3: KTT (Kepala Teknik Tambang) */}
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-                  <div>
-                    <div className="font-medium text-white">3. KTT (Approval Final)</div>
-                    <div className="text-[10px] text-neutral-400">Otoritas penutupan tiket SMKP</div>
-                  </div>
-                  {selectedPica.approvalStages.ktt ? (
-                    <span className="text-emerald-400 flex items-center gap-1 font-semibold text-[11px]">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Closed
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleSignoff('ktt')}
-                      className="px-2.5 py-1 rounded-lg bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-[11px] cursor-pointer"
-                    >
-                      KTT Close
-                    </button>
-                  )}
-                </div>
-              </div>
-              )}
-            </div>
-          ) : (
-            <div className="apple-glass-card p-8 rounded-2xl text-center text-neutral-400 text-xs">
-              <CheckSquare className="w-10 h-10 mx-auto mb-2 text-neutral-600" />
-              <p>Pilih tiket PICA di sebelah kiri untuk melihat detail tindakan koreksi dan melakukan verifikasi persetujuan (sign-off).</p>
-            </div>
-          )}
-        </div>
+      <div className="apple-glass-card p-5 rounded-2xl space-y-4">
+        {selectedPica ? <>
+          <div className="border-b border-white/10 pb-3"><p className="text-xs font-bold text-amber-300">{selectedPica.code}</p><p className="text-sm font-semibold text-white mt-1">{selectedPica.picDepartment} · {selectedPica.picName}</p><p className="text-[10px] text-neutral-400">Akun PIC: {selectedPica.assignedToEmail || 'Belum ditautkan'}</p></div>
+          <div><p className="text-[10px] text-neutral-400">Temuan</p><p className="text-xs text-white mt-1">{selectedPica.findingDescription}</p></div>
+          <div><p className="text-[10px] text-neutral-400">Tindakan perbaikan</p><textarea value={correctiveAction} onChange={(e) => setCorrectiveAction(e.target.value)} disabled={!isPIC(selectedPica) || selectedPica.status === 'CLOSED' || selectedPica.status === 'WAITING_HSE'} rows={4} className="w-full mt-1 p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white disabled:opacity-60" /></div>
+          <div><p className="text-[10px] text-neutral-400">Bukti foto penyelesaian (tautan)</p><input value={evidencePhotoUrl} onChange={(e) => setEvidencePhotoUrl(e.target.value)} disabled={!isPIC(selectedPica) || selectedPica.status === 'CLOSED' || selectedPica.status === 'WAITING_HSE'} placeholder="Tautan foto bukti dari Repository/Drive" className="w-full mt-1 p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white disabled:opacity-60" /></div>
+          {selectedPica.rejectionReason && <p className="text-xs text-red-300 bg-red-500/10 p-2 rounded-lg">Dikembalikan HSE: {selectedPica.rejectionReason}</p>}
+          {selectedPica.status === 'WAITING_HSE' && <p className="text-xs text-purple-300 bg-purple-500/10 p-2 rounded-lg">Menunggu validasi HSE.</p>}
+          {selectedPica.status === 'CLOSED' && <p className="text-xs text-emerald-300 bg-emerald-500/10 p-2 rounded-lg">Closed oleh {selectedPica.hseValidatedBy || 'HSE'} ({selectedPica.hseValidatedRole || '-'}) pada {selectedPica.completionDate || '-'}</p>}
+          {isPIC(selectedPica) && ['OPEN','PROGRESS'].includes(selectedPica.status) && <div className="space-y-2"><button disabled={busy} onClick={savePICProgress} className="w-full p-2 rounded-lg bg-blue-500/20 text-blue-200 text-xs font-semibold disabled:opacity-50">Simpan Progress</button><button disabled={busy} onClick={submitForHSE} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">Ajukan Close ke HSE</button></div>}
+          {isHSEValidator && selectedPica.status === 'WAITING_HSE' && <div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs font-bold text-white flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Validasi HSE</p><button disabled={busy} onClick={validateClose} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">Validasi & Close PICA</button><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} placeholder="Alasan jika bukti belum sesuai" className="w-full p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white" /><button disabled={busy} onClick={returnToPIC} className="w-full p-2 rounded-lg bg-red-500/20 text-red-200 text-xs font-semibold disabled:opacity-50">Kembalikan ke PIC</button></div>}
+        </> : <div className="text-center text-xs text-neutral-500 py-12"><UserCheck className="w-8 h-8 mx-auto mb-2" />Pilih PICA untuk melihat penugasan dan tindak lanjut.</div>}
       </div>
     </div>
-  );
+  </div>;
 };
