@@ -1226,7 +1226,7 @@ function handleRoute_(
       if (!photoFileId || !photoUrl) return error_(400, 'Lampiran foto lapangan wajib diunggah sebelum laporan dapat disimpan.');
       try {
         const photoFile = DriveApp.getFileById(photoFileId);
-        const companyCode = String(scopedCreatePayload.companyCode || '').trim().toUpperCase();
+        const companyCode = String(scopedCreatePayload.companyCode || user.companyCode || 'CGG').trim().toUpperCase();
         const folderKey = 'HDOS_PHOTO_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
         const expectedFolderId = PropertiesService.getScriptProperties().getProperty(folderKey);
         let belongsToTenantFolder = false;
