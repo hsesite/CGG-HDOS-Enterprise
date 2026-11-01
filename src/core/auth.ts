@@ -2,7 +2,7 @@ import type { UserRole, UserProfile } from './types';
 import { hdosEvents } from './events';
 import { AuthState } from './auth-state';
 
-const VALID_ROLES: UserRole[] = ['Admin CGG', 'Company Admin', 'Contractor', 'Subkon', 'PJO', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+const VALID_ROLES: UserRole[] = ['Admin CGG', 'Company Admin', 'Contractor', 'Subkon', 'PJO', 'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
 
 // Kept as an empty compatibility export for older UI imports. No sample employees are shipped.
 export const USER_PROFILES: Partial<Record<UserRole, UserProfile>> = {};
@@ -13,7 +13,7 @@ export class HDOSAuthEngine {
   getCurrentUser(): UserProfile {
     const user = AuthState.getUser();
     const assignedRole = (user?.roles.find((value): value is UserRole => VALID_ROLES.includes(value as UserRole)) || this.selectedRole || 'Employee');
-    const verificationRoles = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
+    const verificationRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
     const hasUnverifiedSeniorRole = Boolean(user?.roles.some((value) => verificationRoles.includes(value)) && user?.roleVerified !== true);
     // Until verification, behave as Crew in module-level controls as well as navigation.
     const role: UserRole = hasUnverifiedSeniorRole ? 'Employee' : assignedRole;
@@ -43,11 +43,12 @@ export class HDOSAuthEngine {
     const sessionUser = AuthState.getUser();
     const roles = sessionUser?.roles || [];
     const role = this.getCurrentRole();
-    const verificationRoles = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
+    const verificationRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
     if (roles.some((value) => verificationRoles.includes(value)) && sessionUser?.roleVerified !== true) {
       return ['dashboard', 'repository', 'inspection', 'hazard'].includes(moduleName);
     }
     if (roles.includes('Admin CGG')) return true;
+    if (['KTT', 'SPT', 'SPV'].some((value) => roles.includes(value))) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai'].includes(moduleName);
     if (roles.includes('Company Admin')) return true;
     if (['PJO', 'SPV HSE', 'Foreman Safety'].some((value) => roles.includes(value))) {
       return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai'].includes(moduleName);
@@ -58,7 +59,7 @@ export class HDOSAuthEngine {
     if (role === 'Project Manager') return true;
     switch (moduleName) {
       case 'dashboard': return true;
-      case 'inspection': return ['KTT', 'Project Manager', 'Safety Officer'].includes(role);
+      case 'inspection': return ['KTT', 'SPT', 'SPV', 'Project Manager', 'Safety Officer'].includes(role);
       case 'hazard': return true;
       case 'pica': return ['KTT', 'Project Manager', 'Contractor PIC'].includes(role);
       case 'incident': return ['KTT', 'Project Manager', 'Paramedis', 'Safety Officer'].includes(role);
