@@ -346,7 +346,7 @@ test('PICA closure is terminal for non-CGG admins and completion date is server-
   const allApproved = {status:'PROGRESS',completionDate:'',approvalStages:{foreman:true,spvHse:true,ktt:true}};
   const payload = {status:'CLOSED'};
   assert.equal(context.enforcePicaClosureRules_(allApproved,payload,{roles:['KTT']}),null);
-  assert.match(payload.completionDate,/^\\d{4}-\\d{2}-\\d{2}$/);
+  assert.match(payload.completionDate,/^\d{4}-\d{2}-\d{2}$/);
 
   const adminPayload = {status:'OPEN'};
   assert.equal(context.enforcePicaClosureRules_(closed,adminPayload,{roles:['Admin CGG']}),null);
