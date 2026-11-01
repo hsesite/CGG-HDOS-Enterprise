@@ -1250,7 +1250,7 @@ function handleRoute_(
       const oldStatus = String(existingRecord.status || 'OPEN').toUpperCase();
       const nextStatus = String(requestedPayload.status || oldStatus).toUpperCase();
       const allowedKeys = nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')
-        ? ['status', 'rejectionReason', 'updatedAt']
+        ? ['status', 'rejectionReason', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'updatedAt']
         : nextStatus === 'WAITING_HSE'
           ? ['status', 'correctiveAction', 'evidencePhotoUrl', 'submittedAt', 'closeRequestedAt', 'rejectionReason', 'updatedAt']
           : ['status', 'correctiveAction', 'evidencePhotoUrl', 'updatedAt'];
