@@ -17,7 +17,7 @@ export const PICAModule: React.FC = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [busy, setBusy] = useState(false);
   const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
-  const isHSEValidator = ['Foreman', 'Foreman Safety', 'SPV HSE'].includes(currentUser.role);
+  const isHSEValidator = ['Foreman Safety', 'SPV HSE'].includes(currentUser.role);
 
   useEffect(() => {
     let cancelled = false;
