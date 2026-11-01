@@ -440,3 +440,10 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:false,ktt:true},'ktt'),false);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true,ktt:true},'ktt'),true);
 });
+
+test('operational PICA status is derived from stage approvals and cannot be changed alone', () => {
+  const route = source.slice(source.indexOf("if (method === 'PATCH'"), source.indexOf("return error_(\n    405", source.indexOf("if (method === 'PATCH'")));
+  assert.ok(route.includes("const hasStageChange = JSON.stringify(stages) !== JSON.stringify(oldStages)"));
+  assert.ok(route.includes("Status PICA ditetapkan otomatis sesuai tahapan persetujuan."));
+  assert.ok(route.includes("changedKeys.indexOf('status') >= 0 && changedKeys.indexOf('approvalStages') === -1"));
+});
