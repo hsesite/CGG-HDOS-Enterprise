@@ -698,7 +698,7 @@ export class HDOSSyncEngine {
     const escapeCsvCell = (value: unknown): string => {
       let text = String(value ?? '');
       // Prefix formula-like text so Excel/Sheets cannot execute imported cell content.
-      if (typeof value === 'string' && /^[\s]*[=+\-@]/.test(text)) text = "'" + text;
+      if (typeof value === 'string' && /^[\s\uFEFF]*[=+\-@]/.test(text)) text = "'" + text;
       return `"${text.replace(/"/g, '""')}"`;
     };
 
