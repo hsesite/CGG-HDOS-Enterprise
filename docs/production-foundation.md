@@ -26,7 +26,7 @@ bun run server:dev
 Set these values in `.env` before running `bun run db:seed`:
 
 ```dotenv
-SEED_ADMIN_EMAIL=admin@ptcgg.com
+SEED_ADMIN_EMAIL=admin@example.com
 SEED_ADMIN_PASSWORD=use-a-unique-password-at-least-12-characters
 SEED_ADMIN_NAME=HDOS System Administrator
 ```
