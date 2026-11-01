@@ -173,7 +173,7 @@ DATABASE_URL=postgresql://hdos:hdos-dev-password@localhost:5432/hdos
 SESSION_TTL_HOURS=12
 
 # Seed Admin
-SEED_ADMIN_EMAIL=admin@ptcgg.com
+SEED_ADMIN_EMAIL=alamat-email-admin-yang-ditetapkan-perusahaan
 SEED_ADMIN_PASSWORD=GantiDenganPasswordKuat123!
 SEED_ADMIN_NAME=HDOS System Administrator
 ```
