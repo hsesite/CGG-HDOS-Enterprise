@@ -18,7 +18,7 @@ export async function loginUser(email: string, password: string): Promise<ApiUse
 export async function logoutUser(): Promise<void> {
   const tokenToRevoke = hseApi.authToken;
   try {
-    await hseApi.logout(tokenToRevoke || undefined);
+    await hseApi.logout(tokenToRevoke);
   } finally {
     // Do not clear a different account that signed in while logout was pending.
     if (hseApi.authToken === null) AuthState.clear();
