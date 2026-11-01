@@ -950,7 +950,7 @@ test('operational DELETE is tenant-authorized, locked, and idempotent after a lo
 test('cloud snapshot merge cannot publish stale account data after an account switch', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const start = storeSource.indexOf('async mergeCloudOperationalRecords(');
-  const end = storeSource.indexOf('\\n  subscribe(', start);
+  const end = storeSource.indexOf('\n  subscribe(', start);
   assert.ok(start >= 0 && end > start);
   const merge = storeSource.slice(start, end);
   assert.match(merge, /const ownerKey = currentUser\?\.id/);
