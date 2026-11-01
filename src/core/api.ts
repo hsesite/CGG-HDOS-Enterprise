@@ -332,7 +332,7 @@ export const hseApi = {
     return getToken();
   },
 
-  async logout(authToken?: string): Promise<void> {
+  async logout(authToken?: string | null): Promise<void> {
     const tokenToRevoke = authToken === undefined ? getToken() : authToken;
     try {
       if (tokenToRevoke) {
