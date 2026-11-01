@@ -818,3 +818,18 @@ test('store initialization preserves operational offline data during upgrades', 
   assert.match(storeSource, /const seededDemoDocument = storedDocuments\.find\(\(doc\) => doc\.id === 'doc_1'\)/);
   assert.match(storeSource, /Only explicitly identified demo seed records are removed below/);
 });
+
+
+test('same-tab login scopes the tenant cache and queue before revealing the authenticated workspace', () => {
+  const appSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'App.tsx'), 'utf8');
+  const start = appSource.indexOf('async function handleLoggedIn()');
+  const end = appSource.indexOf('async function handleLogout()', start + 1);
+  assert.ok(start >= 0 && end > start);
+  const handler = appSource.slice(start, end);
+  assert.ok(handler.indexOf('await hdosStore.init()') >= 0);
+  assert.ok(handler.indexOf('await hdosSync.init()') > handler.indexOf('await hdosStore.init()'));
+  assert.ok(handler.indexOf('setIsAuthenticated(true)') > handler.indexOf('await hdosSync.init()'));
+  assert.match(handler, /hseApi\.authToken !== loginToken/);
+  assert.match(handler, /activeUser\.id !== user\.id/);
+  assert.match(handler, /setIsAuthenticated\(false\)/);
+});
