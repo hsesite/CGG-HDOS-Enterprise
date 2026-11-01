@@ -1142,7 +1142,7 @@ function googleLogin_(payload) {
 function isCggEmailAllowed_(email) {
   // Registration accepts any verified Google email domain.
   // Company identity is selected from the active company registry, never inferred from email domain.
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(email || '').trim());
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
 
 function googleOnboard_(payload) {
