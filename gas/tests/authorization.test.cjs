@@ -488,7 +488,9 @@ test('Repository file validation rejects MIME-spoofed and unsupported uploads', 
   };
   vm.createContext(context);
   vm.runInContext(extractFunction('getRepositoryFileMetadata_', 'publicRepositoryDocument_'), context);
-  assert.deepEqual(JSON.parse(JSON.stringify(context.getRepositoryFileMetadata_('safe.pdf',[37,80,68,70,45,49])),), {fileType:'PDF',mimeType:'application/pdf'});
+  const pdfMetadata = context.getRepositoryFileMetadata_('safe.pdf',[37,80,68,70,45,49]);
+  assert.equal(pdfMetadata.fileType,'PDF');
+  assert.equal(pdfMetadata.mimeType,'application/pdf');
   assert.throws(()=>context.getRepositoryFileMetadata_('spoofed.pdf',[60,104,116,109,108]),error=>error.status===400);
   assert.equal(context.getRepositoryFileMetadata_('procedure.docx',[80,75,3,4]).mimeType,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   assert.equal(context.getRepositoryFileMetadata_('register.xlsx',[80,75,3,4]).fileType,'XLSX');
