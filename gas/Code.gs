@@ -1177,17 +1177,30 @@ function handleRoute_(
   }
 
 
-  // DELETE — only explicit administrators may delete centrally stored operational records.
+  // DELETE — admin-only and idempotent so a lost response can be safely replayed.
   if (method === 'DELETE' && id) {
     if (!isAdminCGG_(user) && !isCompanyAdmin_(user)) return error_(403, 'Penghapusan data operasional hanya dapat dilakukan Admin CGG atau Admin Perusahaan.');
-    const existingRecord = readOne_(entity, id);
-    if (!existingRecord) return error_(404, 'Record not found');
-    if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk menghapus data perusahaan lain.');
-    const targetSheet = getSheet_(entity);
-    const targetRow = findRecordRow_(targetSheet, id);
-    if (targetRow) targetSheet.deleteRow(targetRow);
-    logAudit_(user, 'OPERATIONAL_RECORD_DELETED', entity, id);
-    return success_({ id: id, deleted: true });
+    const deleteLock = LockService.getScriptLock();
+    let deleted = false;
+    deleteLock.waitLock(10000);
+    try {
+      const existingRecord = readOne_(entity, id);
+      // A prior DELETE may have succeeded while its response was lost.
+      // Return success without exposing whether an unknown ID exists.
+      if (!existingRecord) return success_({ id: id, deleted: true, alreadyDeleted: true });
+      if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk menghapus data perusahaan lain.');
+      const targetSheet = getSheet_(entity);
+      const targetRow = findRecordRow_(targetSheet, id);
+      if (targetRow) {
+        targetSheet.deleteRow(targetRow);
+        SpreadsheetApp.flush();
+        deleted = true;
+      }
+    } finally {
+      deleteLock.releaseLock();
+    }
+    if (deleted) logAudit_(user, 'OPERATIONAL_RECORD_DELETED', entity, id);
+    return success_({ id: id, deleted: true, alreadyDeleted: !deleted });
   }
 
   // UPDATE
