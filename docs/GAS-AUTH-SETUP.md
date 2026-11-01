@@ -23,7 +23,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 2. Tambahkan origin aplikasi yang persis, misalnya `https://hsesite.github.io`, ke Authorized JavaScript origins. Jika aplikasi dipasang pada subpath, tetap gunakan origin saja, tanpa path.
 3. Simpan Client ID sebagai GitHub Actions repository secret `VITE_GOOGLE_CLIENT_ID`.
 4. Pada Apps Script, buka **Project Settings → Script Properties**, lalu buat `GOOGLE_CLIENT_ID` dengan nilai Client ID yang sama.
-   Tambahkan juga `HDOS_SPREADSHEET_ID` berisi ID Spreadsheet untuk environment tersebut. ID Spreadsheet tidak disimpan di repository. Jika personel CGG menggunakan Gmail, masukkan alamat Gmail yang diizinkan ke `CGG_ALLOWED_EMAILS` (pisahkan dengan koma/titik koma).
+   Tambahkan juga `HDOS_SPREADSHEET_ID` berisi ID Spreadsheet untuk environment tersebut. ID Spreadsheet tidak disimpan di repository. Pendaftaran menerima semua domain email yang valid dan terverifikasi Google. Identitas perusahaan ditentukan dari pilihan perusahaan aktif di master, bukan dari domain email.
 5. Deploy ulang Apps Script sebagai Web App dengan akses sesuai kebijakan perusahaan, lalu pastikan URL deployment sama dengan `VITE_GAS_URL`.
 6. Buat backup spreadsheet. Jalankan fungsi `setup()` satu kali untuk menambahkan kolom user yang diperlukan. Fungsi ini tidak membuat akun administrator demo.
 7. Jika ingin membersihkan data operasional di Spreadsheet, set Script Property `CONFIRM_CLEAN_START` ke `DELETE_HDOS_OPERATIONAL_DATA`, lalu jalankan fungsi `clearOperationalDataForCleanStart()` secara manual. Fungsi ini mempertahankan sheet `users` dan `audit_logs`; jangan jalankan sebelum backup.
@@ -36,7 +36,7 @@ Versi GAS yang diperbarui menyimpan hash SHA-256 bersalt untuk password akun bar
 ## Catatan keamanan dan batas verifikasi
 
 - Google Sign-In hanya menerima token ID yang diverifikasi server terhadap Client ID dan email terverifikasi.
-- Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` aktif. Untuk perusahaan kontraktor/subkon, kode harus ada di master aktif. Untuk `CGG`, domain email harus sesuai `CGG_EMAIL_DOMAINS` (default `ptcgg.com`) atau alamat email harus tercantum persis di `CGG_ALLOWED_EMAILS`. Ini memungkinkan Gmail tertentu tanpa membuka pendaftaran CGG untuk seluruh akun Gmail publik. Jabatan yang diketik tidak menentukan role aplikasi; Admin CGG menetapkan role KTT/SPV/Foreman/Project Manager secara terpisah.
+- Profil pertama kali diverifikasi token Google di server, lalu langsung dibuat sebagai `Employee` aktif. Untuk perusahaan kontraktor/subkon, kode harus ada di master aktif. Semua domain email (Gmail, Yahoo, Outlook, dan domain perusahaan lain) diterima selama email terverifikasi Google. Pengguna memilih perusahaan aktif dari master; email tidak memberikan hak akses perusahaan atau admin. Jabatan yang diketik tidak menentukan role aplikasi; Admin CGG menetapkan role KTT/SPV/Foreman/Project Manager secara terpisah.
 - Admin CGG menetapkan Company Admin dari Pengaturan. Company Admin membuat akun dan menetapkan role operasional sesuai perusahaan; setiap role tinggi tetap `roleVerified=false` sampai diverifikasi oleh Admin CGG. Backend membatasi daftar akun dan operasi data berdasarkan `companyCode`/`parentCompanyCode`.
 - Sesi persisten tetap dapat dicabut dengan logout atau menonaktifkan akun. Lindungi perangkat bersama dan jangan simpan sesi di komputer publik.
 - Jangan menjalankan `setup()` atau deployment perubahan autentikasi di produksi sebelum membuat salinan spreadsheet dan menguji dengan akun uji.
@@ -76,7 +76,7 @@ Pendaftaran umum tidak memerlukan domain perusahaan. Pengguna hanya dapat memili
 Endpoint publik `GET /api/public/companies` menyediakan pilihan perusahaan aktif untuk formulir Google Sign-In. Setelah mengubah GAS, deploy sebagai versi baru. Isi master perusahaan hanya dengan kode dan domain yang telah diverifikasi.
 
 
-## Pendaftaran langsung CGG dan kontrol unduhan
+## Pendaftaran lintas domain dan kontrol unduhan
 
 - Tambahkan Script Property `CGG_EMAIL_DOMAINS` dengan domain email resmi CGG, misalnya `ptcgg.com` (tanpa `@`; beberapa domain dipisahkan koma atau titik koma). Jika tidak diisi, script memakai `ptcgg.com` sebagai default.
 - Akun yang memilih `CGG` hanya diterima jika email Google terverifikasi memakai domain yang diizinkan. Akun langsung berstatus `ACTIVE`, tetapi role awal tetap `Employee`.
@@ -108,3 +108,17 @@ Frontend memakai field `roleVerified` dari respons pengguna. Untuk memastikan ke
 7. Pendaftaran profil tetap langsung aktif dan masuk; posisi yang diketik tidak memberikan role atau status verifikasi dengan sendirinya.
 
 **Status integrasi:** kode GAS deployment aktif tidak berada di repository ini. Perubahan frontend tidak memperbarui deployment GAS secara otomatis. Jangan tandai fitur ini siap produksi sebelum endpoint GAS menerapkan dan lulus uji di atas.
+
+
+## Model otoritas lintas perusahaan (revisi November 2026)
+
+- **Admin CGG**: full access seluruh perusahaan, master perusahaan, akun, konfigurasi, dan modul.
+- **KTT, SPT, SPV**: satu cakupan pengawasan yang sama untuk data PT SLS, PT VIP, dan semua perusahaan berstatus aktif dengan kategori Subkon yang parentCompanyCode-nya SLS atau VIP. Ketiga role ini bersifat baca/periksa untuk data operasional; tidak memperoleh hak tulis operasional melalui endpoint CRUD umum.
+- **SLS**: hanya data SLS dan subkon aktif yang terdaftar di bawah SLS.
+- **VIP**: hanya data VIP dan subkon aktif yang terdaftar di bawah VIP.
+- **Subkon**: hanya data milik perusahaan Subkon itu sendiri.
+- Perusahaan baru ditambahkan oleh Admin CGG ke master perusahaan. Penambahan subkon cukup mengisi parentCompanyCode ke SLS atau VIP; tidak perlu perubahan kode untuk setiap nama subkon.
+- Setiap data operasional dan dokumen wajib memiliki metadata kepemilikan perusahaan yang benar. Data tanpa metadata tenant tidak boleh otomatis ditampilkan lintas perusahaan.
+- KTT/SPT/SPV wajib ditetapkan sebagai role aplikasi oleh Admin CGG dan roleVerified harus true sebelum akses modul tambahan dibuka.
+- Dashboard harus menggunakan cakupan data yang sama dengan backend. Tampilan agregat Owner/otoritas hanya menghitung data SLS, VIP, dan subkon dalam cakupan tersebut; dashboard SLS/VIP hanya menghitung perusahaan sendiri beserta subkonnya; dashboard Subkon hanya menghitung perusahaannya sendiri.
+- Pendaftaran menerima email domain apa pun yang terverifikasi Google. Domain email bukan dasar penentuan tenant maupun pemberian role.

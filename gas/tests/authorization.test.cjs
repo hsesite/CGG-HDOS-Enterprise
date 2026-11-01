@@ -50,27 +50,20 @@ test('Admin CGG retains administrative bypass', () => {
 });
 test('all supervisory roles are accepted and new elevated accounts start unverified', () => {
   assert.ok(source.includes("const companyAdminRoles = ['PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman'"));
-  assert.ok(source.includes("const cggRoles = ['Company Admin', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
-  assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
+  assert.ok(source.includes("const cggRoles = ['Company Admin', 'KTT', 'SPT', 'SPV', 'Project Manager'"));
+  assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'SPT', 'SPV', 'Project Manager'"));
   assert.ok(source.includes('const roleVerified = false;'));
 });
-test('CGG onboarding accepts approved company domains and explicitly allowlisted Gmail only', () => {
-  const context = {
-    PropertiesService: { getScriptProperties: () => ({ getProperty: key => ({
-      CGG_EMAIL_DOMAINS: 'ptcgg.com; corp.cgg.id',
-      CGG_ALLOWED_EMAILS: 'hse.personel@gmail.com; safety.lead@gmail.com'
-    })[key] || '' }) }
-  };
+test('email validation accepts all verified email domains without allowlisting', () => {
+  const context = {};
   vm.createContext(context);
   const helperStart = source.indexOf('function isCggEmailAllowed_(');
   const helperEnd = source.indexOf('function googleOnboard_(', helperStart + 1);
-  assert.notEqual(helperStart, -1);
-  assert.notEqual(helperEnd, -1);
   vm.runInContext(source.slice(helperStart, helperEnd), context);
-  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com'), true);
-  assert.equal(context.isCggEmailAllowed_('hse.personel@gmail.com'), true);
-  assert.equal(context.isCggEmailAllowed_('unknown@gmail.com'), false);
-  assert.equal(context.isCggEmailAllowed_('worker@other-company.com'), false);
+  for (const email of ['worker@ptcgg.com','staff@gmail.com','person@yahoo.com','user@outlook.com','worker@other-company.co.id']) {
+    assert.equal(context.isCggEmailAllowed_(email), true);
+  }
+  assert.equal(context.isCggEmailAllowed_('not-an-email'), false);
 });
 test('Company Admin can assign an operational role in its own company but cannot verify it', () => {
   const rows = [
@@ -131,4 +124,40 @@ test('only Admin CGG and Company Admin can publish shared forms', () => {
 test('Spreadsheet ID is configured via Script Properties, not hardcoded', () => {
   assert.ok(source.includes("getProperty('HDOS_SPREADSHEET_ID')"));
   assert.doesNotMatch(source,/14DIOz1lMeck-pYAJxAq3TQvlrKbWS9esP7W06xri1PI/);
+});
+
+
+test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcontracts', () => {
+  const context = {
+    isAdminCGG_: () => false,
+    isCompanyScopedRole_: () => true,
+    isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV'].includes(role)),
+    getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
+      ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
+      ['SLS','PT SLS','Contractor','','','FALSE','ACTIVE'],
+      ['VIP','PT VIP','Contractor','','','FALSE','ACTIVE'],
+      ['BCJ','PT BCJ','Subkon','SLS','','FALSE','ACTIVE'],
+      ['CHN','PT CHN','Subkon','VIP','','FALSE','ACTIVE'],
+      ['OTHER','Other Subkon','Subkon','OTHERCO','','FALSE','ACTIVE']
+    ]}) })
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function getOversightCompanyCodes_(');
+  const end=source.indexOf('function requiresRoleVerification_(',start+1);
+  assert.notEqual(start,-1); assert.notEqual(end,-1);
+  vm.runInContext(source.slice(start,end),context);
+  for (const role of ['KTT','SPT','SPV']) {
+    const user={roles:[role],companyCode:'CGG'};
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),true);
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),true);
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'BCJ',parentCompanyCode:'SLS'},user),true);
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'CHN',parentCompanyCode:'VIP'},user),true);
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'OTHER'},user),false);
+  }
+});
+test('all verified oversight roles are read-only for operational record writes', () => {
+  assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety']"));
+  for (const role of ['KTT','SPT','SPV']) {
+    assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'Project Manager'"));
+  }
 });
