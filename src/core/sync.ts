@@ -241,10 +241,10 @@ export class HDOSSyncEngine {
       SyncQueueItem,
       'id' | 'timestamp' | 'status' | 'retryCount'
     >,
-    ownerOverride?: { userId: string; companyCode: string }
+    ownerOverride?: { userId: string; companyCode: string } | null
   ): Promise<SyncQueueItem> {
     const currentOwner = this.getCurrentOwner();
-    const owner = ownerOverride || currentOwner;
+    const owner = ownerOverride === undefined ? currentOwner : ownerOverride;
     if (!owner) throw new Error('Login ulang diperlukan sebelum menyimpan data ke antrean offline.');
     if (currentOwner && this.queueOwnerKey !== `${currentOwner.userId}::${currentOwner.companyCode}`) await this.init();
     const belongsToCurrentOwner = Boolean(currentOwner && currentOwner.userId === owner.userId && currentOwner.companyCode === owner.companyCode);
