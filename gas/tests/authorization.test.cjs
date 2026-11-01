@@ -496,3 +496,13 @@ test('Repository file validation rejects MIME-spoofed and unsupported uploads', 
   assert.equal(context.getRepositoryFileMetadata_('register.xlsx',[80,75,3,4]).fileType,'XLSX');
   assert.throws(()=>context.getRepositoryFileMetadata_('script.html',[60,115,99,114]),error=>error.status===400);
 });
+
+test('PICA updates reject stale approval states to prevent concurrent stage overwrite', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(extractFunction('isExpectedPicaStateCurrent_', 'updateRecord_'), context);
+  const expected={status:'PROGRESS',approvalStages:{foreman:true,spvHse:false,ktt:false}};
+  assert.equal(context.isExpectedPicaStateCurrent_({status:'PROGRESS',approvalStages:{foreman:true,spvHse:false,ktt:false}},expected),true);
+  assert.equal(context.isExpectedPicaStateCurrent_({status:'PROGRESS',approvalStages:{foreman:true,spvHse:true,ktt:false}},expected),false);
+  assert.equal(context.isExpectedPicaStateCurrent_({status:'CLOSED',approvalStages:{foreman:true,spvHse:false,ktt:false}},expected),false);
+});
