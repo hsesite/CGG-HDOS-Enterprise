@@ -481,3 +481,16 @@ test('Repository preview and download accesses are recorded in the audit log', (
   assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_PREVIEWED', 'repository', doc.id"));
   assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_DOWNLOADED', 'repository', doc.id"));
 });
+
+test('Repository file validation rejects MIME-spoofed and unsupported uploads', () => {
+  const context = {
+    httpError_: (status,message) => Object.assign(new Error(message),{status})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('getRepositoryFileMetadata_', 'publicRepositoryDocument_'), context);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.getRepositoryFileMetadata_('safe.pdf',[37,80,68,70,45,49])),), {fileType:'PDF',mimeType:'application/pdf'});
+  assert.throws(()=>context.getRepositoryFileMetadata_('spoofed.pdf',[60,104,116,109,108]),error=>error.status===400);
+  assert.equal(context.getRepositoryFileMetadata_('procedure.docx',[80,75,3,4]).mimeType,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  assert.equal(context.getRepositoryFileMetadata_('register.xlsx',[80,75,3,4]).fileType,'XLSX');
+  assert.throws(()=>context.getRepositoryFileMetadata_('script.html',[60,115,99,114]),error=>error.status===400);
+});
