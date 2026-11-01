@@ -63,7 +63,8 @@ function getRetryDelay(
 function isRetryableSyncError(error: unknown): boolean {
   // Network failures, rate limits, timeouts and server errors are transient.
   // Validation, permission and missing-record errors need human correction.
-  const status = error instanceof ApiError ? error.status : 0;
+  if (!(error instanceof ApiError)) return false;
+  const status = error.status;
   return status === 0 || status === 408 || status === 425 ||
     status === 429 || status >= 500;
 }
