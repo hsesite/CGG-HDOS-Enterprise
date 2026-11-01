@@ -178,3 +178,10 @@ test('all verified oversight roles are read-only for operational record writes',
     assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'Project Manager'"));
   }
 });
+
+
+test('Company Admin cannot overwrite a published form outside its tenant or change form ownership', () => {
+  assert.ok(source.includes("if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) return error_(403, 'Anda tidak memiliki akses untuk memperbarui formulir perusahaan lain.')"));
+  assert.ok(source.includes("safeForm.companyCode = String(existing.companyCode || user.companyCode || '').trim().toUpperCase();"));
+  assert.ok(source.includes("safeForm.parentCompanyCode = String(existing.parentCompanyCode || user.parentCompanyCode || '').trim().toUpperCase();"));
+});
