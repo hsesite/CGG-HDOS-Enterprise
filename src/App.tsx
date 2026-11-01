@@ -55,6 +55,62 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
   useEffect(() => {
+    let requestVersion = 0;
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== 'hdos_api_session' && event.key !== 'hdos_current_user' && event.key !== null) return;
+      const version = ++requestVersion;
+      const token = hseApi.authToken;
+
+      if (event.key === 'hdos_api_session') {
+        // Do not expose the previous tab's tenant while a different session is being verified.
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        AuthState.clear();
+      }
+
+      if (!token) {
+        AuthState.clear();
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        void hdosStore.init().then(() => hdosSync.init());
+        return;
+      }
+
+      void (async () => {
+        try {
+          const serverProfile = await hseApi.me(token);
+          if (version !== requestVersion || hseApi.authToken !== token) return;
+          AuthState.saveUser(serverProfile);
+          setIsAuthenticated(true);
+          setCurrentUser(getCurrentUser());
+          await hdosStore.init();
+          await hdosSync.init();
+        } catch (error) {
+          if (version !== requestVersion || hseApi.authToken !== token) return;
+          if (error instanceof ApiError && error.status === 401) {
+            try { await hseApi.logout(token); } catch { /* revoke only the captured session */ }
+            if (hseApi.authToken === null) {
+              AuthState.clear();
+              setIsAuthenticated(false);
+              setCurrentUser(null);
+              await hdosStore.init();
+              await hdosSync.init();
+            }
+          } else {
+            // Fail closed on cross-tab account changes if the new session cannot be verified.
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            console.warn('[HDOS] Cross-tab session refresh unavailable; sign in again when connected.', error);
+          }
+        }
+      })();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  useEffect(() => {
     const unsubscribeInvalid = hdosEvents.on('auth:session_invalid', () => {
       AuthState.clear();
       setIsAuthenticated(false);
