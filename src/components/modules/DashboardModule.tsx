@@ -29,24 +29,62 @@ import {
 } from 'recharts';
 import { useHDOSStore } from '../../core/store';
 import { hdosSync } from '../../core/sync';
+import { AuthState } from '../../core/auth-state';
 
 export const DashboardModule: React.FC = () => {
   const store = useHDOSStore();
+  const sessionUser = AuthState.getUser();
+  const roles = sessionUser?.roles || [];
+  const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
+  const isOwnerAdmin = roles.includes('Admin CGG');
+  const isOversight = roles.some((role) => ['KTT', 'SPT', 'SPV'].includes(role));
+  const isContractor = companyCode === 'SLS' || companyCode === 'VIP';
+  const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
+  const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan KTT / SPT / SPV' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
+  const dashboardDescription = isOwnerAdmin
+    ? 'Konsolidasi seluruh perusahaan dan wilayah dalam HDOS.'
+    : isOversight
+      ? 'Cakupan pengawasan bersama: SLS, VIP, dan seluruh subkontraktor aktif di bawah keduanya.'
+      : isContractor
+        ? `Data ${companyCode} dan subkontraktor yang terdaftar di bawah perusahaan ini.`
+        : isSubcontractor
+          ? 'Data terbatas pada perusahaan subkontraktor Anda.'
+          : 'Data operasional sesuai perusahaan dan hak akses akun Anda.';
 
-  const totalInspections = store.inspections.length;
-  const openHazards = store.hazards.filter((h) => h.status !== 'CLOSED').length;
-  const criticalHazards = store.hazards.filter((h) => h.riskMatrix.level === 'CRITICAL').length;
-  const activePicas = store.picas.filter((p) => p.status !== 'CLOSED').length;
-  const overduePicas = store.picas.filter((p) => p.status === 'OVERDUE').length;
+  // Dashboard summaries are filtered again in the browser for offline data already cached on this device.
+  // Server-side tenant filtering remains authoritative for every API request.
+  const recordInDashboardScope = (record: unknown): boolean => {
+    if (isOwnerAdmin) return true;
+    const item = record as Record<string, unknown>;
+    const recordCompany = String(item.companyCode || item.contractorCode || item.ownerCompanyCode || '').trim().toUpperCase();
+    const recordSubkon = String(item.subcontractorCode || item.subkonCode || '').trim().toUpperCase();
+    const recordParent = String(item.parentCompanyCode || '').trim().toUpperCase();
+    if (isOversight) return ['SLS', 'VIP'].includes(recordCompany) || ['SLS', 'VIP'].includes(recordParent) || ['SLS', 'VIP'].includes(recordSubkon) || Boolean(recordCompany && recordParent && ['SLS', 'VIP'].includes(recordParent));
+    if (!companyCode) return false;
+    if (isSubcontractor) return recordCompany === companyCode || recordSubkon === companyCode;
+    if (isContractor) return recordCompany === companyCode || recordSubkon === companyCode || recordParent === companyCode;
+    return recordCompany === companyCode || recordSubkon === companyCode;
+  };
+  const dashboardInspections = store.inspections.filter(recordInDashboardScope);
+  const dashboardHazards = dashboardHazards.filter(recordInDashboardScope);
+  const dashboardPicas = dashboardPicas.filter(recordInDashboardScope);
+
+  const totalInspections = dashboardInspections.length;
+  const openHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED').length;
+  const criticalHazards = dashboardHazards.filter((h) => h.riskMatrix.level === 'CRITICAL').length;
+  const activePicas = dashboardPicas.filter((p) => p.status !== 'CLOSED').length;
+  const overduePicas = dashboardPicas.filter((p) => p.status === 'OVERDUE').length;
 
   const [timeRange, setTimeRange] = useState<'7D' | '14D' | '30D'>('30D');
 
   // Historical trends are not synthesized. Show only records with a real source.
-  const activeTrendData = useMemo(() => [], [store.inspections, store.hazards]);
+  const activeTrendData = useMemo(() => [], [dashboardInspections, dashboardHazards]);
   const rangeDeltaHours = 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      <header className="apple-glass-card rounded-2xl border border-[#00E676]/20 p-5 space-y-1"><h2 className="text-lg font-bold text-white">{dashboardTitle}</h2><p className="text-xs text-neutral-400">{dashboardDescription}</p><p className="text-[10px] text-neutral-500">Cakupan data mengikuti otorisasi perusahaan pada server.</p></header>
+
       {/* Executive KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Safe Man Hours */}
@@ -56,11 +94,11 @@ export const DashboardModule: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-[#00E676]" />
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-mono tabular-nums">
-            {store.safeHours > 0 ? store.safeHours.toLocaleString('id-ID') : '—'}
+            {isOwnerAdmin && store.safeHours > 0 ? store.safeHours.toLocaleString('id-ID') : '—'}
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs text-[#00E676]">
             <span className="w-2 h-2 rounded-full bg-[#00E676] animate-ping" />
-            <span>{store.inspections.length > 0 ? 'Data inspeksi tersedia' : 'Belum ada data jam kerja / LTI'}</span>
+            <span>{isOwnerAdmin && store.safeHours > 0 ? 'Data jam kerja konsolidasi' : 'Menunggu data jam kerja per perusahaan'}</span>
           </div>
         </div>
 
@@ -364,7 +402,7 @@ export const DashboardModule: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {store.locations.map((loc) => (
+              {(isOwnerAdmin || isOversight ? store.locations : []).map((loc) => (
                 <div
                   key={loc.id}
                   onClick={() => store.openWindow('map')}
@@ -490,7 +528,7 @@ export const DashboardModule: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {store.liveFeed.map((feed) => (
+              {(isOwnerAdmin ? store.liveFeed : []).map((feed) => (
                 <div key={feed.id} className="flex items-start gap-2.5 text-xs">
                   <span className="font-mono text-[11px] text-neutral-400 tabular-nums shrink-0 pt-0.5">
                     {feed.time}
