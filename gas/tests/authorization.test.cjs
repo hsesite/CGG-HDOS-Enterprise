@@ -185,3 +185,10 @@ test('Company Admin cannot overwrite a published form outside its tenant or chan
   assert.ok(source.includes("safeForm.companyCode = String(existing.companyCode || user.companyCode || '').trim().toUpperCase();"));
   assert.ok(source.includes("safeForm.parentCompanyCode = String(existing.parentCompanyCode || user.parentCompanyCode || '').trim().toUpperCase();"));
 });
+
+test('Repository upload derives parent company from master registry and is idempotent before Drive upload', () => {
+  assert.ok(source.includes("const registeredCompany = companyCode === 'CGG' ? null : findCompanyRegistry_(companyCode);"));
+  assert.ok(source.includes("const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';"));
+  assert.ok(source.includes("const existingDocument = findRecordRow_(getSheet_('repository'), id);"));
+  assert.ok(source.includes("parentCompanyCode: parentCompanyCode"));
+});
