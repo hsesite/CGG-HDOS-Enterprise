@@ -44,10 +44,12 @@ Perintah `lint` saat ini menjalankan pemeriksaan TypeScript frontend dan konfigu
 ## Master data dan autentikasi
 
 - Data operasional lokal dimulai kosong; migrasi sekali jalan membersihkan data demo lama dari IndexedDB dan localStorage fallback browser.
-- Area kerja dan kontraktor ditambahkan melalui modul **Pengaturan** dan langsung dibaca modul terkait di browser yang sama.
+- Master Area Kerja dibaca dan ditulis melalui endpoint GAS ke Google Spreadsheet; cache IndexedDB dipakai saat layanan pusat tidak tersedia.
+- Master perusahaan Contractor/Subkon disimpan terpusat di sheet `companies`, termasuk status Safety Passport, PIC, kontak PIC, dan tanggal kedaluwarsa. Data profil ini dibaca ulang lintas perangkat melalui endpoint GAS.
+- Modul Contractor Passport masih menampilkan metrik manpower, fleet, KPI, Safe Hours, MCU, induksi, dan PICA sebagai belum tersedia sampai sumber data operasionalnya diintegrasikan; angka nol/placeholder bukan data kinerja aktual.
 - Form inspeksi bawaan yang berisi contoh data dinonaktifkan; formulir inspeksi dipilih dari dokumen Repository yang benar-benar diterbitkan.
 - Login dan akun saat ini menggunakan endpoint GAS. UI daftar akun, Google Sign-In, sesi persisten, dan kontrol akun memerlukan versi GAS yang sesuai serta konfigurasi OAuth. Ikuti [panduan GAS dan Google OAuth](docs/GAS-AUTH-SETUP.md).
-- Pengaturan area/kontraktor saat ini tersimpan di browser (IndexedDB), belum menjadi master data lintas perangkat/cloud sampai endpoint master data GAS disediakan dan diuji.
+- Ketersediaan master data lintas perangkat tetap bergantung pada URL GAS, deployment backend terbaru, izin Spreadsheet, dan pengujian dengan akun CGG/kontraktor/subkontraktor.
 
 ## Konfigurasi cloud
 
@@ -65,8 +67,8 @@ Status di bawah adalah catatan teknis, bukan sertifikasi kesiapan produksi.
 
 - **Inisialisasi aplikasi:** memiliki penanganan error dan opsi mencoba kembali.
 - **Penyimpanan lokal:** IndexedDB digunakan untuk data lokal.
-- **Sinkronisasi:** antrean dan retry tersedia, tetapi cakupan entity/action yang didukung harus diverifikasi terhadap API GAS yang sedang ter-deploy. Operasi yang belum memiliki endpoint tidak akan tersinkron.
-- **Repository dokumen:** metadata dan berkas lokal dapat disimpan di browser. Penyimpanan lokal tidak sama dengan upload ke Google Drive; integrasi Drive perlu diimplementasikan dan diuji terpisah.
+- **Sinkronisasi:** antrean offline, retry, pemulihan item terputus, pengurutan perubahan per record, serta perlindungan replay create/update/delete tersedia di kode. Pengujian jaringan nyata dan verifikasi seluruh modul tetap wajib.
+- **Repository dokumen:** jalur upload, metadata pusat, preview, download, dan delete melalui GAS/Google Drive sudah tersedia di kode. Hak akses download dibatasi pada CGG; konfigurasi izin Drive, folder penyimpanan, dan pengujian file nyata tetap wajib sebelum produksi.
 - **Mobile:** simulator perangkat di dalam UI bukan pengganti pengujian responsive pada ponsel fisik.
 - **Keamanan:** konfigurasi credential, akses role, validasi input, dan izin cloud wajib diuji sebelum produksi.
 - **Pengujian:** build yang berhasil hanya membuktikan proses bundling berhasil, bukan semua alur aplikasi berfungsi.
