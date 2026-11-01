@@ -1610,9 +1610,12 @@ function createSessionResponse_(user) {
   if (!isUserCompanyActive_(user)) return error_(403, 'Perusahaan akun tidak aktif atau relasi Contractor induk tidak valid.');
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   const sessionUser = { id: user.id, email: user.email, displayName: user.displayName, roles: user.roles, status: user.status, companyCode: user.companyCode || '', parentCompanyCode: user.parentCompanyCode || '', position: user.position || '', department: user.department || '', section: user.section || '', roleVerified: user.roleVerified === true };
-  // Persistent server-side session: remains valid across browser restarts until explicit logout or account deactivation.
-  PropertiesService.getScriptProperties().setProperty('session:' + token, JSON.stringify(sessionUser));
-  CacheService.getScriptCache().put('session:' + token, JSON.stringify(sessionUser), CONFIG.SESSION_TTL);
+  const sessionRecord = Object.assign({}, sessionUser, {
+    issuedAt: Date.now(),
+    expiresAt: Date.now() + (CONFIG.SESSION_TTL * 1000)
+  });
+  PropertiesService.getScriptProperties().setProperty('session:' + token, JSON.stringify(sessionRecord));
+  CacheService.getScriptCache().put('session:' + token, JSON.stringify(sessionRecord), CONFIG.SESSION_TTL);
   return success_({ token: token, user: publicUser_(sessionUser) });
 }
 
@@ -2117,7 +2120,20 @@ function requireAuth_(token) {
     CacheService.getScriptCache().remove('session:' + token);
     throw httpError_(401, 'Unauthorized: Session invalid. Silakan masuk kembali.');
   }
-  const session = JSON.parse(raw);
+  let session;
+  try {
+    session = JSON.parse(raw);
+  } catch (error) {
+    properties.deleteProperty('session:' + token);
+    CacheService.getScriptCache().remove('session:' + token);
+    throw httpError_(401, 'Data sesi tidak valid. Silakan masuk kembali.');
+  }
+  const now = Date.now();
+  if (!Number.isFinite(Number(session.expiresAt)) || Number(session.expiresAt) <= now) {
+    properties.deleteProperty('session:' + token);
+    CacheService.getScriptCache().remove('session:' + token);
+    throw httpError_(401, 'Sesi telah kedaluwarsa. Silakan masuk kembali.');
+  }
   const current = findUserByEmail_(session.email);
   // Bind every session to the immutable user ID captured at issuance. An email
   // address may be changed or reused; an old token must never authenticate a
