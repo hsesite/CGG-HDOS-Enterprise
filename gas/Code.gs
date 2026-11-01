@@ -1342,7 +1342,26 @@ function findCompanyRegistry_(companyCode) {
   return null;
 }
 
+function isUserCompanyActive_(user) {
+  if (isAdminCGG_(user)) return true;
+  const companyCode = String(user && user.companyCode || '').trim().toUpperCase();
+  if (companyCode === 'CGG') return true;
+  if (!companyCode) return false;
+
+  const company = findCompanyRegistry_(companyCode);
+  if (!company || company.status !== 'ACTIVE') return false;
+  if (company.role === 'Contractor') return true;
+  if (company.role !== 'Subkon') return false;
+
+  const parentCode = String(company.parentCompanyCode || '').trim().toUpperCase();
+  const userParentCode = String(user.parentCompanyCode || '').trim().toUpperCase();
+  if (!parentCode || userParentCode !== parentCode) return false;
+  const parent = findCompanyRegistry_(parentCode);
+  return Boolean(parent && parent.status === 'ACTIVE' && parent.role === 'Contractor');
+}
+
 function createSessionResponse_(user) {
+  if (!isUserCompanyActive_(user)) return error_(403, 'Perusahaan akun tidak aktif atau relasi Contractor induk tidak valid.');
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   const sessionUser = { id: user.id, email: user.email, displayName: user.displayName, roles: user.roles, status: user.status, companyCode: user.companyCode || '', parentCompanyCode: user.parentCompanyCode || '', position: user.position || '', department: user.department || '', section: user.section || '', roleVerified: user.roleVerified === true };
   // Persistent server-side session: remains valid across browser restarts until explicit logout or account deactivation.
@@ -1790,6 +1809,11 @@ function requireAuth_(token) {
     properties.deleteProperty('session:' + token);
     CacheService.getScriptCache().remove('session:' + token);
     throw httpError_(401, 'Akun tidak aktif atau tidak ditemukan.');
+  }
+  if (!isUserCompanyActive_(current)) {
+    properties.deleteProperty('session:' + token);
+    CacheService.getScriptCache().remove('session:' + token);
+    throw httpError_(401, 'Perusahaan akun tidak aktif atau relasi Contractor induk tidak valid.');
   }
   // Always trust current role/status from the users sheet, not stale client session data.
   return { id: current.id, email: current.email, displayName: current.displayName, roles: current.roles, status: current.status, companyCode: current.companyCode || '', parentCompanyCode: current.parentCompanyCode || '', position: current.position || '', department: current.department || '', section: current.section || '', roleVerified: current.roleVerified === true };
