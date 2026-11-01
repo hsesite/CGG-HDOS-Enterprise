@@ -610,293 +610,97 @@ export class HDOSCentralStore {
     const code = `INS-2026-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
     const tenantFields = getCurrentTenantFields();
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
     const createdPicas: PICA[] = [];
 
-    // Create one PICA for every failed checklist item so no finding is lost.
     for (const failedItem of failedItems) {
-      const picaCount = this.picas.length + 1;
+      const picaCount = this.picas.length + createdPicas.length + 1;
       const picaCode = `PICA-${new Date().getFullYear()}-${String(picaCount).padStart(3, '0')}`;
       const picaId = createEntityId();
       const picaCreated: PICA = {
-        ...tenantFields,
-        id: picaId,
-        code: picaCode,
-        source: 'INSPECTION',
+        ...tenantFields, id: picaId, code: picaCode, source: 'INSPECTION',
         sourceRefCode: code,
         findingDescription: `Temuan: ${failedItem.question}${failedItem.notes ? ` — ${failedItem.notes}` : ''}`,
         correctiveAction: `Penuhi standar ${failedItem.standardRef || 'sesuai dokumen sumber'} dan verifikasi ulang sebelum pekerjaan dilanjutkan.`,
         preventiveAction: 'Evaluasi akar penyebab dan perbarui pengendalian agar ketidaksesuaian tidak berulang.',
-        picDepartment: 'Operations',
-        picName: 'PIC Terkait',
+        picDepartment: 'Operations', picName: 'PIC Terkait',
         targetDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
-        status: 'OPEN',
-        daysAging: 0,
-        approvalStages: { foreman: false, spvHse: false, ktt: false },
-        createdAt: now,
+        status: 'OPEN', daysAging: 0,
+        approvalStages: { foreman: false, spvHse: false, ktt: false }, createdAt: now,
       };
-
       failedItem.picaId = picaId;
       createdPicas.push(picaCreated);
-      this.picas.unshift(picaCreated);
-      await hdosDB.put('pica', picaCreated);
-      hdosEvents.emit('pica:created', picaCreated);
     }
 
     const newInspection: Inspection = {
-      ...inspection,
-      ...tenantFields,
-      id,
-      code,
-      createdAt: now,
+      ...inspection, ...tenantFields, id, code, createdAt: now,
       status: failedItems.length > 0 ? 'PICA_TRIGGERED' : 'COMPLETED',
     };
 
-    this.inspections.unshift(newInspection);
+    // Persist the complete local bundle before publishing it to in-memory modules.
+    // Stable IDs keep retries idempotent if the network is interrupted afterwards.
+    for (const pica of createdPicas) await hdosDB.put('pica', pica);
     await hdosDB.put('inspection', newInspection);
-
-    // Queue related PICAs before the inspection so their references exist first
-    // when the cloud records are created. Stable IDs make server retries idempotent.
     for (const pica of createdPicas) {
-      await hdosSync.enqueue({
-        action: 'CREATE',
-        entity: 'pica',
-        payload: pica,
-        note: `PICA otomatis dari Inspection ${code}`,
-      });
+      await hdosSync.enqueue({ action: 'CREATE', entity: 'pica', payload: pica, note: `PICA otomatis dari Inspection ${code}` });
     }
-    await hdosSync.enqueue({
-      action: 'CREATE',
-      entity: 'inspection',
-      payload: newInspection,
-      note: `Inspection ${code}`,
-    });
+    await hdosSync.enqueue({ action: 'CREATE', entity: 'inspection', payload: newInspection, note: `Inspection ${code}` });
 
+    this.picas = [...createdPicas].reverse().concat(this.picas);
+    this.inspections.unshift(newInspection);
+    createdPicas.forEach(pica => hdosEvents.emit('pica:created', pica));
     this.notify();
     hdosEvents.emit('inspection:created', newInspection);
     return newInspection;
   }
 
   async addHazard(
-    hazard: Omit<
-      Hazard,
-      'id' | 'code' | 'createdAt'
-    >
+    hazard: Omit<Hazard, 'id' | 'code' | 'createdAt'>
   ): Promise<Hazard> {
     this.assertMutationAllowed('hazard');
-    const count =
-      this.hazards.length + 1;
-
-    const year =
-      new Date().getFullYear();
-
-    const code =
-      `HAZ-${year}-${String(
-        count
-      ).padStart(3, '0')}`;
-
-    const id =
-      createEntityId();
-
-    const now =
-      new Date()
-        .toISOString()
-        .replace('T', ' ')
-        .substring(0, 19);
-
-    /*
-     * Build v1.0:
-     * Every validated hazard produces a PICA.
-     *
-     * PICA target:
-     * LOW      = 30 days
-     * MEDIUM   = 14 days
-     * HIGH     = 7 days
-     * CRITICAL = 24 hours
-     */
-    const targetDays: Record<
-      Hazard['riskMatrix']['level'],
-      number
-    > = {
-      LOW: 30,
-      MEDIUM: 14,
-      HIGH: 7,
-      CRITICAL: 1,
-    };
-
-    const picaTarget =
-      new Date();
-
-    if (
-      hazard.riskMatrix.level ===
-      'CRITICAL'
-    ) {
-      picaTarget.setTime(
-        picaTarget.getTime() +
-          24 * 60 * 60 * 1000
-      );
-    } else {
-      picaTarget.setDate(
-        picaTarget.getDate() +
-          targetDays[
-            hazard.riskMatrix.level
-          ]
-      );
-    }
-
-    const picaId =
-      createEntityId();
-
-    const picaCode =
-      `PICA-${year}-${String(
-        this.picas.length + 1
-      ).padStart(3, '0')}`;
-
+    const count = this.hazards.length + 1;
+    const year = new Date().getFullYear();
+    const code = `HAZ-${year}-${String(count).padStart(3, '0')}`;
+    const id = createEntityId();
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const targetDays: Record<Hazard['riskMatrix']['level'], number> = { LOW: 30, MEDIUM: 14, HIGH: 7, CRITICAL: 1 };
+    const picaTarget = new Date();
+    if (hazard.riskMatrix.level === 'CRITICAL') picaTarget.setTime(picaTarget.getTime() + 86400000);
+    else picaTarget.setDate(picaTarget.getDate() + targetDays[hazard.riskMatrix.level]);
+    const picaId = createEntityId();
+    const picaCode = `PICA-${year}-${String(this.picas.length + 1).padStart(3, '0')}`;
     const tenantFields = getCurrentTenantFields();
     const picaCreated: PICA = {
-      ...tenantFields,
-      id: picaId,
-      code: picaCode,
-
-      source: 'HAZARD',
-      sourceRefCode: code,
-
-      findingDescription:
-        `Temuan Hazard ${hazard.riskMatrix.level}: ${hazard.title}`,
-
-      correctiveAction:
-        hazard.actionTaken?.trim()
-          ? hazard.actionTaken
-          : 'Laksanakan tindakan pengendalian sesuai hasil penilaian risiko dan pastikan kondisi aman.',
-
-      preventiveAction:
-        'Lakukan evaluasi penyebab, verifikasi efektivitas pengendalian, dan cegah terulangnya kondisi serupa.',
-
-      picDepartment:
-        'Operations',
-
-      picName:
-        'PIC Belum Ditentukan',
-
-      targetDate:
-        picaTarget
-          .toISOString()
-          .split('T')[0],
-
-      status:
-        'OPEN',
-
-      daysAging:
-        0,
-
-      approvalStages: {
-        foreman: false,
-        spvHse: false,
-        ktt: false,
-      },
-
-      createdAt:
-        now,
+      ...tenantFields, id: picaId, code: picaCode, source: 'HAZARD', sourceRefCode: code,
+      findingDescription: `Temuan Hazard ${hazard.riskMatrix.level}: ${hazard.title}`,
+      correctiveAction: hazard.actionTaken?.trim() ? hazard.actionTaken : 'Laksanakan tindakan pengendalian sesuai hasil penilaian risiko dan pastikan kondisi aman.',
+      preventiveAction: 'Lakukan evaluasi penyebab, verifikasi efektivitas pengendalian, dan cegah terulangnya kondisi serupa.',
+      picDepartment: 'Operations', picName: 'PIC Belum Ditentukan',
+      targetDate: picaTarget.toISOString().split('T')[0], status: 'OPEN', daysAging: 0,
+      approvalStages: { foreman: false, spvHse: false, ktt: false }, createdAt: now,
     };
-
-    /*
-     * PICA is created before the Hazard object so the
-     * Hazard can retain the authoritative PICA ID.
-     */
-    this.picas.unshift(
-      picaCreated
-    );
-
-    await hdosDB.put(
-      'pica',
-      picaCreated
-    );
-
-    hdosEvents.emit(
-      'pica:created',
-      picaCreated
-    );
-
     const newHazard: Hazard = {
-      ...hazard,
-      ...tenantFields,
-
-      id,
-      code,
-
-      createdAt: now,
-
-      /*
-       * Every hazard now has a PICA.
-       */
-      picaId,
-
-      status:
-        'PICA_ISSUED',
+      ...hazard, ...tenantFields, id, code, createdAt: now, picaId, status: 'PICA_ISSUED',
     };
 
-    this.hazards.unshift(
-      newHazard
-    );
+    // Do not expose an in-memory success until both linked records and queue writes persist.
+    await hdosDB.put('pica', picaCreated);
+    await hdosDB.put('hazard', newHazard);
+    await hdosSync.enqueue({ action: 'CREATE', entity: 'pica', payload: picaCreated, note: `PICA otomatis dari Hazard ${code}` });
+    await hdosSync.enqueue({ action: 'CREATE', entity: 'hazard', payload: newHazard, note: `Hazard ${code}` });
 
-    await hdosDB.put(
-      'hazard',
-      newHazard
-    );
-
-    // Persist the linked PICA first, then the Hazard that references it.
-    await hdosSync.enqueue({
-      action: 'CREATE',
-      entity: 'pica',
-      payload: picaCreated,
-      note: `PICA otomatis dari Hazard ${code}`,
-    });
-    await hdosSync.enqueue({
-      action: 'CREATE',
-      entity: 'hazard',
-      payload: newHazard,
-      note: `Hazard ${code}`,
-    });
-
-    /*
-     * Update location telemetry.
-     */
-    const loc =
-      this.locations.find(
-        (l) =>
-          l.name ===
-          hazard.location
-      );
-
+    this.picas.unshift(picaCreated);
+    this.hazards.unshift(newHazard);
+    const loc = this.locations.find((l) => l.name === hazard.location);
     if (loc) {
       loc.activeHazards += 1;
-
-      if (
-        hazard.riskMatrix.level ===
-        'CRITICAL'
-      ) {
-        loc.safetyStatus =
-          'ALERT';
-      } else if (
-        hazard.riskMatrix.level ===
-          'HIGH' &&
-        loc.safetyStatus ===
-          'SAFE'
-      ) {
-        loc.safetyStatus =
-          'WARNING';
-      }
+      if (hazard.riskMatrix.level === 'CRITICAL') loc.safetyStatus = 'ALERT';
+      else if (hazard.riskMatrix.level === 'HIGH' && loc.safetyStatus === 'SAFE') loc.safetyStatus = 'WARNING';
     }
-
     this.notify();
-
-    hdosEvents.emit(
-      'hazard:created',
-      newHazard
-    );
-
+    hdosEvents.emit('pica:created', picaCreated);
+    hdosEvents.emit('hazard:created', newHazard);
     return newHazard;
   }
   async addIncident(incident: Omit<Incident, 'id' | 'code' | 'createdAt'>): Promise<Incident> {
@@ -905,17 +709,11 @@ export class HDOSCentralStore {
     const code = `INC-2026-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
     const newInc: Incident = { ...incident, ...getCurrentTenantFields(), id, code, createdAt: now };
 
-    this.incidents.unshift(newInc);
     await hdosDB.put('incident', newInc);
-    await hdosSync.enqueue({
-      action: 'CREATE',
-      entity: 'incident',
-      payload: newInc,
-      note: `Incident ${code}`,
-    });
+    await hdosSync.enqueue({ action: 'CREATE', entity: 'incident', payload: newInc, note: `Incident ${code}` });
+    this.incidents.unshift(newInc);
     this.notify();
     hdosEvents.emit('incident:created', newInc);
     return newInc;
@@ -983,7 +781,6 @@ export class HDOSCentralStore {
       if (current.status !== 'CLOSED') updated.completionDate = new Date().toISOString().split('T')[0];
     }
 
-    this.picas[index] = updated;
     await hdosDB.put('pica', updated);
     await hdosSync.enqueue({
       action: 'UPDATE',
@@ -991,6 +788,7 @@ export class HDOSCentralStore {
       payload: updated,
       note: `Persetujuan PICA ${updated.code}`,
     });
+    this.picas[index] = updated;
     this.notify();
     hdosEvents.emit('pica:updated', updated);
     return updated;
