@@ -1221,8 +1221,24 @@ function handleRoute_(
     // Employees may submit new operational records; edits remain restricted below.
     const scopedCreatePayload = applyRecordScope_(entity, params.payload || {}, user, true);
     if (entity === 'inspections' || entity === 'hazards') {
-      if (!String(scopedCreatePayload.photoFileId || '').trim() || !String(scopedCreatePayload.photoUrl || '').trim()) {
-        return error_(400, 'Lampiran foto lapangan wajib diunggah sebelum laporan dapat disimpan.');
+      const photoFileId = String(scopedCreatePayload.photoFileId || '').trim();
+      const photoUrl = String(scopedCreatePayload.photoUrl || '').trim();
+      if (!photoFileId || !photoUrl) return error_(400, 'Lampiran foto lapangan wajib diunggah sebelum laporan dapat disimpan.');
+      try {
+        const photoFile = DriveApp.getFileById(photoFileId);
+        const companyCode = String(scopedCreatePayload.companyCode || '').trim().toUpperCase();
+        const folderKey = 'HDOS_PHOTO_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
+        const expectedFolderId = PropertiesService.getScriptProperties().getProperty(folderKey);
+        let belongsToTenantFolder = false;
+        const parents = photoFile.getParents();
+        while (parents.hasNext()) {
+          if (parents.next().getId() === expectedFolderId) belongsToTenantFolder = true;
+        }
+        if (!expectedFolderId || !belongsToTenantFolder || photoFile.getUrl() !== photoUrl || !String(photoFile.getMimeType() || '').match(/^image\\/(jpeg|png|webp)$/i)) {
+          return error_(403, 'Lampiran foto tidak valid atau bukan milik penyimpanan perusahaan akun ini.');
+        }
+      } catch (photoError) {
+        return error_(400, 'Berkas foto tidak ditemukan di Google Drive. Unggah ulang foto sebelum menyimpan laporan.');
       }
     }
     if (entity === 'picas' && String(scopedCreatePayload.source || '').toUpperCase() === 'INSPECTION') {
