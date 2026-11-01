@@ -573,10 +573,12 @@ export class HDOSSyncEngine {
             // A stale queue request must never log out or clear a newer account.
             if (hseApi.authToken === syncToken) {
               try { await hseApi.logout(syncToken); } catch { /* token is cleared locally if still current */ }
-              AuthState.clear();
-              this.queue = [];
-              this.queueOwnerKey = '';
-              hdosEvents.emit('auth:session_invalid', {});
+              if (hseApi.authToken === null) {
+                AuthState.clear();
+                this.queue = [];
+                this.queueOwnerKey = '';
+                hdosEvents.emit('auth:session_invalid', {});
+              }
             }
             break;
           }
@@ -630,10 +632,12 @@ export class HDOSSyncEngine {
         // Revoke only the token this sync run captured. Never affect a newer login.
         if (hseApi.authToken === syncToken) {
           try { await hseApi.logout(syncToken); } catch { /* token is cleared locally if still current */ }
-          AuthState.clear();
-          this.queue = [];
-          this.queueOwnerKey = '';
-          hdosEvents.emit('auth:session_invalid', {});
+          if (hseApi.authToken === null) {
+            AuthState.clear();
+            this.queue = [];
+            this.queueOwnerKey = '';
+            hdosEvents.emit('auth:session_invalid', {});
+          }
         }
         return false;
       }
