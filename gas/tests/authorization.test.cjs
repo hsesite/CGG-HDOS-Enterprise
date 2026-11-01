@@ -667,3 +667,22 @@ test('password hash comparison checks the full fixed-format value', () => {
   assert.equal(context.constantTimeStringEquals_('', ''), true);
   assert.ok(source.includes('constantTimeStringEquals_(passwordHash_(password, user.passwordSalt), user.passwordHash)'));
 });
+
+
+test('central mining area master is readable by authenticated sessions and writes are CGG-admin only', () => {
+  assert.ok(source.includes("if (path === '/api/locations' && method === 'GET')"));
+  assert.ok(source.includes("if (path === '/api/locations' && method === 'POST')"));
+  assert.ok(source.includes("if (!isAdminCGG_(user)) return error_(403, 'Hanya Admin CGG yang dapat mengubah master Area Kerja.')"));
+  assert.ok(source.includes("if (!isAdminCGG_(user)) return error_(403, 'Hanya Admin CGG yang dapat menghapus master Area Kerja.')"));
+  assert.ok(source.includes("locations: ['id', 'name', 'utm', 'lat', 'lng', 'description', 'zoneType'"));
+  assert.ok(source.includes("logAudit_(user, 'CREATE', 'locations'"));
+  assert.ok(source.includes("logAudit_(user, 'DELETE', 'locations'"));
+});
+
+test('central mining area master validates coordinates, category, and duplicate name/category under lock', () => {
+  assert.ok(source.includes("lat < -90 || lat > 90"));
+  assert.ok(source.includes("lng < -180 || lng > 180"));
+  assert.ok(source.includes("allowedZones.indexOf(zoneType) === -1"));
+  assert.ok(source.includes("Area dengan nama dan kategori yang sama sudah terdaftar."));
+  assert.ok(source.includes("lock.waitLock(10000)"));
+});
