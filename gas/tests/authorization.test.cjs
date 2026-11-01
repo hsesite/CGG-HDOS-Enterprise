@@ -856,3 +856,25 @@ test('operational create and approval methods persist locally and queue before p
     }
   }
 });
+
+
+test('operational records and matching sync queue entries use one atomic IndexedDB bundle', () => {
+  const dbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  assert.match(dbSource, /db\.transaction\(storeNames, 'readwrite'\)/);
+  assert.match(dbSource, /tx\.oncomplete = \(\) => resolve\(\)/);
+  assert.match(dbSource, /async putBundle\(/);
+  assert.match(syncSource, /async enqueueBatch\(/);
+  assert.match(syncSource, /await hdosDB\.putBundle\(/);
+  assert.match(syncSource, /ownerUserId: owner\.userId/);
+  assert.match(syncSource, /ownerCompanyCode: owner\.companyCode/);
+  for (const marker of ['async addInspection(', 'async addHazard(', 'async addIncident(', 'async updatePICAStatus(']) {
+    const start = storeSource.indexOf(marker);
+    const next = storeSource.indexOf('\n  async ', start + marker.length);
+    const method = storeSource.slice(start, next < 0 ? storeSource.length : next);
+    assert.match(method, /hdosSync\.enqueueBatch\(/, marker + ' uses atomic bundle');
+    assert.doesNotMatch(method, /hdosDB\.put\(/, marker + ' does not write records separately');
+    assert.doesNotMatch(method, /hdosSync\.enqueue\(/, marker + ' does not queue separately');
+  }
+});
