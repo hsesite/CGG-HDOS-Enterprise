@@ -76,6 +76,8 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 - [ ] Duplicate create IDs from another tenant return 403 and do not disclose the existing record.
 
 ### Authentication and legacy runtime
+- [ ] Any successful user access/role/company/verification update revokes all previously issued persistent sessions for that user ID; reactivation cannot resurrect an old token.
+- [ ] `requireAuth_` trusts only the persistent Script Properties session registry and never falls back to a stale CacheService session after revocation.
 - [ ] Session token is bound to the immutable user ID captured at issuance; deleting/recreating or reassigning an email address cannot let an old token authenticate a different account.
 
 - [ ] Ten failed password attempts for one normalized email cause HTTP 429 for the 5-minute cache window.
