@@ -91,6 +91,7 @@ test('Company Admin can assign an operational role in its own company but cannot
       setValues: value => writes.push({args,value})
     })
   };
+  const lockEvents = [];
   const context = {
     isObject_: value => value && typeof value === 'object' && !Array.isArray(value),
     isAdminCGG_: actor => (actor.roles || []).includes('Admin CGG'),
@@ -100,18 +101,22 @@ test('Company Admin can assign an operational role in its own company but cannot
     getSheet_: () => sheet,
     error_: (status,message) => ({success:false,status,message}),
     success_: data => ({success:true,data}),
-    logAudit_: () => {}
+    LockService: { getScriptLock: () => ({ waitLock: () => lockEvents.push('lock'), releaseLock: () => lockEvents.push('unlock') }) },
+    SpreadsheetApp: { flush: () => lockEvents.push('flush') },
+    logAudit_: () => lockEvents.push('audit')
   };
   vm.createContext(context);
-  const start=source.indexOf('function updateUserAccess_(');
-  const end=source.indexOf('function isRecordVisibleToUser_(',start+1);
-  assert.notEqual(start,-1); assert.notEqual(end,-1);
-  vm.runInContext(source.slice(start,end),context);
+  const coreStart=source.indexOf('function updateUserAccessCore_(');
+  const wrapperStart=source.indexOf('function updateUserAccess_(',coreStart+1);
+  const end=source.indexOf('function isOversightRole_(',wrapperStart+1);
+  assert.notEqual(coreStart,-1); assert.notEqual(wrapperStart,-1); assert.notEqual(end,-1);
+  vm.runInContext(source.slice(coreStart,end),context);
   const actor={id:'admin-sls',roles:['Company Admin'],companyCode:'SLS'};
   const result=context.updateUserAccess_('user-1',{role:'Foreman Safety',position:'Foreman',status:'ACTIVE'},actor);
   assert.equal(result.success,true);
   assert.equal(result.data.roleVerified,false);
   assert.ok(writes.some(write=>write.args[0]===2 && write.args[1]===5 && write.value==='Foreman Safety'));
+  assert.deepEqual(lockEvents.slice(0,4),['lock','flush','unlock','audit']);
   const cannotVerify=context.updateUserAccess_('user-1',{roleVerified:true},actor);
   assert.equal(cannotVerify.status,403);
   const cannotMoveCompany=context.updateUserAccess_('user-1',{companyCode:'VIP'},actor);
