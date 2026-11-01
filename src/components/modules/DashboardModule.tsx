@@ -62,7 +62,7 @@ export const DashboardModule: React.FC = () => {
     if (isOversight) return ['SLS', 'VIP'].includes(recordCompany) || ['SLS', 'VIP'].includes(recordParent) || ['SLS', 'VIP'].includes(recordSubkon) || Boolean(recordCompany && recordParent && ['SLS', 'VIP'].includes(recordParent));
     if (!companyCode) return false;
     if (isSubcontractor) return recordCompany === companyCode || recordSubkon === companyCode;
-    if (isContractor) return recordCompany === companyCode || recordSubkon === companyCode || recordParent === companyCode;
+    if (isContractor) return recordCompany === companyCode || recordSubkon === companyCode;
     return recordCompany === companyCode || recordSubkon === companyCode;
   };
   const dashboardInspections = store.inspections.filter(recordInDashboardScope);
@@ -78,6 +78,23 @@ export const DashboardModule: React.FC = () => {
   const overduePicas = dashboardPicas.filter((p) => p.status === 'OVERDUE').length;
 
   const [timeRange, setTimeRange] = useState<'7D' | '14D' | '30D'>('30D');
+
+  // Company comparison is exposed only to the CGG owner administrator.
+  // The company bucket prefers subcontractorCode so subkon activity is not
+  // incorrectly attributed to its parent contractor.
+  const companyDashboardRows = isOwnerAdmin
+    ? ['CGG', 'SLS', 'KIJA', 'VIP', 'BCJ', 'CHN', 'PAR', 'ARL'].map((code) => {
+        const ownedBy = (record: unknown) => {
+          const item = record as Record<string, unknown>;
+          return String(item.subcontractorCode || item.subkonCode || item.companyCode || item.contractorCode || '').trim().toUpperCase() || 'CGG';
+        };
+        const inspections = dashboardInspections.filter((record) => ownedBy(record) === code).length;
+        const hazards = dashboardHazards.filter((record) => ownedBy(record) === code).length;
+        const picas = dashboardPicas.filter((record) => ownedBy(record) === code).length;
+        return { code, inspections, hazards, picas, total: inspections + hazards + picas };
+      })
+    : [];
+
 
   // Historical trends are not synthesized. Show only records with a real source.
   const activeTrendData = useMemo(() => [], [dashboardInspections, dashboardHazards]);
@@ -169,6 +186,37 @@ export const DashboardModule: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isOwnerAdmin && (
+        <section className="apple-glass-card p-5 rounded-2xl space-y-4 border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-white">Perbandingan Dashboard per Perusahaan</h3>
+              <p className="text-[11px] text-neutral-400">Pemilik dashboard: CGG · Cakupan: CGG, SLS, KIJA, VIP, BCJ, CHN, PAR, dan ARL.</p>
+            </div>
+            <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">Khusus Admin CGG</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-xs text-left">
+              <thead><tr className="text-neutral-400 border-b border-white/10">
+                <th className="py-2">Perusahaan</th><th className="py-2 text-right">Inspeksi</th><th className="py-2 text-right">Hazard</th><th className="py-2 text-right">PICA</th><th className="py-2 text-right">Total</th>
+              </tr></thead>
+              <tbody className="divide-y divide-white/5">
+                {companyDashboardRows.map((row) => (
+                  <tr key={row.code}>
+                    <td className="py-2.5 font-semibold text-white">{row.code}</td>
+                    <td className="py-2.5 text-right font-mono text-blue-300">{row.inspections}</td>
+                    <td className="py-2.5 text-right font-mono text-red-300">{row.hazards}</td>
+                    <td className="py-2.5 text-right font-mono text-amber-300">{row.picas}</td>
+                    <td className="py-2.5 text-right font-mono font-bold text-white">{row.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10px] text-neutral-500">Angka dihitung dari data aktual yang tersedia pada perangkat/snapshot pusat. Perusahaan tanpa data akan tetap tampil dengan nilai 0.</p>
+        </section>
+      )}
 
       {/* Performance Trends Card (Recharts + Custom macOS Glass Tooltips) */}
       <div className="apple-glass-card p-4 sm:p-6 rounded-[24px] space-y-4 border border-white/10 shadow-2xl relative overflow-hidden">
