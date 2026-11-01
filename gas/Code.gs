@@ -926,14 +926,18 @@ function handleRoute_(
     if (!canPublishForms_(user)) return error_(403, 'Penerbitan formulir hanya untuk Admin CGG atau Admin Perusahaan.');
     const input = isObject_(params.payload) ? params.payload : {};
     if (String(input.status || '').toUpperCase() !== 'PUBLISHED' || !Array.isArray(input.fields) || input.fields.length === 0) return error_(400, 'Formulir harus berstatus PUBLISHED dan memiliki minimal satu pertanyaan.');
-    const companyCode = String(input.companyCode || user.companyCode || 'CGG').trim().toUpperCase();
+    const companyCode = String(isAdminCGG_(user) ? (input.companyCode || user.companyCode || 'CGG') : (user.companyCode || '')).trim().toUpperCase();
+    if (!companyCode) return error_(403, 'Akun belum memiliki perusahaan untuk menerbitkan formulir.');
     if (!isAdminCGG_(user) && companyCode !== String(user.companyCode || '').trim().toUpperCase()) return error_(403, 'Admin Perusahaan hanya dapat menerbitkan formulir untuk perusahaannya.');
+    const registeredCompany = companyCode === 'CGG' ? null : findCompanyRegistry_(companyCode);
+    if (companyCode !== 'CGG' && (!registeredCompany || registeredCompany.status !== 'ACTIVE')) return error_(400, 'Perusahaan formulir tidak terdaftar aktif pada master perusahaan.');
+    const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';
     const safeForm = Object.assign({}, input, {
       id: String(input.id || Utilities.getUuid()),
       code: String(input.formNumber || input.code || input.id || Utilities.getUuid()),
       title: String(input.title || 'Form Inspeksi'),
       status: 'PUBLISHED', companyCode: companyCode,
-      parentCompanyCode: String(input.parentCompanyCode || user.parentCompanyCode || ''),
+      parentCompanyCode: parentCompanyCode,
       updatedAt: new Date().toISOString()
     });
     const existingRow = findRecordRow_(getSheet_('forms'), safeForm.id);
