@@ -12,6 +12,8 @@
 - **Spreadsheet:** sumber data cloud yang diakses melalui implementasi GAS yang sesuai.
 
 > Folder `server/`, dependensi Express/PostgreSQL, dan skrip migrasi yang masih ada di repositori bukan bukti bahwa layanan tersebut dipakai oleh runtime GitHub Pages. Jangan menganggap fitur cloud aktif sebelum URL GAS, deployment GAS, izin, dan struktur spreadsheet sudah dikonfigurasi serta diuji.
+>
+> `render.yaml` adalah blueprint historis untuk backend Express/PostgreSQL dan bukan jalur deployment runtime saat ini. Backend legacy diblokir saat startup production kecuali diaktifkan secara eksplisit setelah audit keamanan terpisah.
 
 ## Menjalankan frontend secara lokal
 
