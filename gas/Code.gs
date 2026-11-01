@@ -1037,7 +1037,7 @@ function handleRoute_(
     logAudit_(user, 'CREATE', 'locations', item.id, { name: item.name, zoneType: item.zoneType });
     return success_(item);
   }
-  const locationDeleteMatch = path.match(/^\\/api\\/locations\\/([^/]+)$/);
+  const locationDeleteMatch = path.match(/^\/api\/locations\/([^/]+)$/);
   if (locationDeleteMatch && method === 'DELETE') {
     if (!isAdminCGG_(user)) return error_(403, 'Hanya Admin CGG yang dapat menghapus master Area Kerja.');
     const id = decodeURIComponent(locationDeleteMatch[1]);
