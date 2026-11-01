@@ -1117,6 +1117,9 @@ function handleRoute_(
           return error_(403, 'Status PICA ditetapkan otomatis sesuai tahapan persetujuan.');
         }
         requestedPayload.status = expectedStatus;
+        if (expectedStatus === 'CLOSED' && String(existingRecord.status || '').toUpperCase() !== 'CLOSED') {
+          requestedPayload.completionDate = new Date().toISOString().slice(0, 10);
+        }
       }
       const changedKeys = Object.keys(requestedPayload).filter(function(key) { return JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]); });
       if (changedKeys.some(function(key) { return allowedChangedKeys.indexOf(key) === -1; })) return error_(403, 'PICA hanya dapat diperbarui melalui tahap persetujuan; detail temuan dan tindakan koreksi tidak dapat diedit.');
