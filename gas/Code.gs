@@ -1149,7 +1149,7 @@ function handleRoute_(
       if (!isRecordVisibleToUser_(record, user)) return false;
       if (entity !== 'picas') return true;
       const role = String((user.roles || [])[0] || '');
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0;
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0);
       return canMonitorPicas || String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase();
     }));
   }
