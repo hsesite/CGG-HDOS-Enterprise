@@ -2062,10 +2062,13 @@ function requireAuth_(token) {
   if (!raw) throw httpError_(401, 'Unauthorized: Session invalid. Silakan masuk kembali.');
   const session = JSON.parse(raw);
   const current = findUserByEmail_(session.email);
-  if (!current || current.status !== 'ACTIVE') {
+  // Bind every session to the immutable user ID captured at issuance. An email
+  // address may be changed or reused; an old token must never authenticate a
+  // different account that later receives the same email address.
+  if (!current || !session.id || String(current.id) !== String(session.id) || current.status !== 'ACTIVE') {
     properties.deleteProperty('session:' + token);
     CacheService.getScriptCache().remove('session:' + token);
-    throw httpError_(401, 'Akun tidak aktif atau tidak ditemukan.');
+    throw httpError_(401, 'Akun tidak aktif, berubah, atau tidak ditemukan. Silakan masuk kembali.');
   }
   if (!isUserCompanyActive_(current)) {
     properties.deleteProperty('session:' + token);
