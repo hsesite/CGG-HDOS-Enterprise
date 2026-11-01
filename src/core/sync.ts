@@ -80,14 +80,14 @@ export class HDOSSyncEngine {
 
   private queue: SyncQueueItem[] = [];
 
-  private queueOwnerUserId = '';
+  private queueOwnerKey = '';
 
   private lastSyncTime = '';
 
   private getCurrentOwner() {
     const user = AuthState.getUser();
     if (!user?.id) return null;
-    return { userId: String(user.id), companyCode: String(user.companyCode || '').trim().toUpperCase() };
+    return { userId: String(user.id), companyCode: String(user.companyCode || ((user.roles || []).includes('Admin CGG') ? 'CGG' : '')).trim().toUpperCase() };
   }
 
   private retryTimer:
@@ -125,7 +125,7 @@ export class HDOSSyncEngine {
 
   async init(): Promise<void> {
     const owner = this.getCurrentOwner();
-    this.queueOwnerUserId = owner?.userId || '';
+    this.queueOwnerKey = owner ? `${owner.userId}::${owner.companyCode}` : '';
     const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
     let quarantinedCount = 0;
     for (const item of storedQueue) {
@@ -239,7 +239,7 @@ export class HDOSSyncEngine {
   ): Promise<SyncQueueItem> {
     const owner = this.getCurrentOwner();
     if (!owner) throw new Error('Login ulang diperlukan sebelum menyimpan data ke antrean offline.');
-    if (this.queueOwnerUserId !== owner.userId) await this.init();
+    if (this.queueOwnerKey !== `${owner.userId}::${owner.companyCode}`) await this.init();
     const queueItem: SyncQueueItem = {
       id:
         typeof crypto !== 'undefined' &&
@@ -362,7 +362,7 @@ export class HDOSSyncEngine {
   async triggerSync(): Promise<boolean> {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
-    if (this.queueOwnerUserId !== owner.userId) await this.init();
+    if (this.queueOwnerKey !== `${owner.userId}::${owner.companyCode}`) await this.init();
     this.queue = this.queue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode);
     if (this.isSyncing) {
       return false;
