@@ -194,13 +194,34 @@ export default function App() {
     return () => { cancelled = true; };
   }, [bootAttempt]);
 
-  function handleLoggedIn(): void {
+  async function handleLoggedIn(): Promise<void> {
     const user = getCurrentUser();
-    if (user) {
+    const loginToken = hseApi.authToken;
+    if (!user || !loginToken) return;
+
+    // Keep the login screen visible until the newly authenticated tenant's
+    // local cache and queue have both been scoped to that identity. This
+    // prevents the previous account's in-memory records flashing on screen.
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setCheckingSession(true);
+    try {
+      await hdosStore.init();
+      await hdosSync.init();
+
+      const activeUser = getCurrentUser();
+      if (
+        hseApi.authToken !== loginToken ||
+        !activeUser ||
+        activeUser.id !== user.id
+      ) return;
+
+      setCurrentUser(activeUser);
       setIsAuthenticated(true);
-      setCurrentUser(user);
-      setCheckingSession(false);
-      void hdosStore.init().then(() => hdosSync.init());
+    } finally {
+      if (hseApi.authToken === loginToken && getCurrentUser()?.id === user.id) {
+        setCheckingSession(false);
+      }
     }
   }
 
