@@ -476,3 +476,8 @@ test('unverified oversight roles behave like crew for own-tenant reporting and v
   assert.equal(context.isRecordVisibleToUser_({companyCode:'CGG'},{...user}),true);
   assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},{...user}),false);
 });
+
+test('Repository preview and download accesses are recorded in the audit log', () => {
+  assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_PREVIEWED', 'repository', doc.id"));
+  assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_DOWNLOADED', 'repository', doc.id"));
+});
