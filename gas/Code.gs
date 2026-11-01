@@ -1180,13 +1180,20 @@ function handleRoute_(
     !id
   ) {
     // Employees may submit new operational records; edits remain restricted below.
-    return success_(
-      createRecord_(
-        entity,
-        applyRecordScope_(entity, params.payload || {}, user, true),
-        user
-      )
-    );
+    const scopedCreatePayload = applyRecordScope_(entity, params.payload || {}, user, true);
+    if (entity === 'picas' && String(scopedCreatePayload.source || '').toUpperCase() === 'INSPECTION') {
+      const assignedEmail = String(scopedCreatePayload.assignedToEmail || '').trim().toLowerCase();
+      if (!String(scopedCreatePayload.picDepartment || '').trim() ||
+          !String(scopedCreatePayload.picName || '').trim() || !assignedEmail) {
+        return error_(400, 'PICA hasil inspeksi wajib memiliki departemen, nama PIC, dan email akun PIC.');
+      }
+      const assignedUser = findUserByEmail_(assignedEmail);
+      if (!assignedUser || assignedUser.status !== 'ACTIVE') return error_(400, 'Akun PIC tidak ditemukan atau tidak aktif.');
+      if (String(assignedUser.companyCode || '').trim().toUpperCase() !== String(scopedCreatePayload.companyCode || '').trim().toUpperCase()) {
+        return error_(403, 'PIC harus berasal dari perusahaan yang sama dengan pemilik PICA.');
+      }
+    }
+    return success_(createRecord_(entity, scopedCreatePayload, user));
   }
 
 
