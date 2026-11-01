@@ -873,6 +873,45 @@ function handleRoute_(
   }
 
   // ----------------------------------------------------------
+  // OPERATIONAL PHOTO UPLOAD — tenant-scoped Google Drive storage
+  // ----------------------------------------------------------
+  if (path === '/api/photos' && method === 'POST') {
+    const input = isObject_(params.payload) ? params.payload : {};
+    const mimeType = String(input.mimeType || '').toLowerCase();
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const base64 = String(input.fileBase64 || '');
+    if (allowedMimeTypes.indexOf(mimeType) < 0) return error_(400, 'Foto harus berformat JPG, PNG, atau WEBP.');
+    if (!base64 || base64.length > 7000000) return error_(400, 'Foto wajib diisi dan ukuran maksimal 5 MB.');
+    const companyCode = String(user.companyCode || '').trim().toUpperCase();
+    if (!companyCode) return error_(403, 'Akun belum memiliki perusahaan untuk penyimpanan foto.');
+    const bytes = Utilities.base64Decode(base64);
+    if (!bytes.length || bytes.length > 5 * 1024 * 1024) return error_(400, 'Ukuran foto melebihi batas 5 MB.');
+    const signature = bytes.slice(0, 12).map(function(value) { return (Number(value) + 256) % 256; });
+    const validSignature = mimeType === 'image/jpeg'
+      ? signature[0] === 0xFF && signature[1] === 0xD8 && signature[2] === 0xFF
+      : mimeType === 'image/png'
+        ? signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4E && signature[3] === 0x47
+        : signature[0] === 0x52 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x46 && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50;
+    if (!validSignature) return error_(400, 'Isi foto tidak sesuai dengan tipe berkas.');
+    const folderKey = 'HDOS_PHOTO_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
+    const props = PropertiesService.getScriptProperties();
+    let folderId = props.getProperty(folderKey);
+    let folder;
+    if (folderId) {
+      folder = DriveApp.getFolderById(folderId);
+    } else {
+      folder = DriveApp.createFolder('CGG HDOS Photos - ' + companyCode);
+      props.setProperty(folderKey, folder.getId());
+    }
+    const safeName = String(input.fileName || 'operational-photo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
+    const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/png' ? 'png' : 'webp';
+    const fileName = safeName.replace(/\.(jpg|jpeg|png|webp)$/i, '') + '-' + Utilities.getUuid() + '.' + extension;
+    const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
+    logAudit_(user, 'OPERATIONAL_PHOTO_UPLOADED', 'photos', file.getId(), { companyCode: companyCode, mimeType: mimeType, size: bytes.length });
+    return success_({ photoFileId: file.getId(), photoUrl: file.getUrl(), fileName: fileName, mimeType: mimeType });
+  }
+
+  // ----------------------------------------------------------
   // CENTRAL REPOSITORY — shared metadata + Google Drive files
   // ----------------------------------------------------------
   if (path === '/api/repository' && method === 'GET') {
@@ -1181,6 +1220,11 @@ function handleRoute_(
   ) {
     // Employees may submit new operational records; edits remain restricted below.
     const scopedCreatePayload = applyRecordScope_(entity, params.payload || {}, user, true);
+    if (entity === 'inspections' || entity === 'hazards') {
+      if (!String(scopedCreatePayload.photoFileId || '').trim() || !String(scopedCreatePayload.photoUrl || '').trim()) {
+        return error_(400, 'Lampiran foto lapangan wajib diunggah sebelum laporan dapat disimpan.');
+      }
+    }
     if (entity === 'picas' && String(scopedCreatePayload.source || '').toUpperCase() === 'INSPECTION') {
       const assignedEmail = String(scopedCreatePayload.assignedToEmail || '').trim().toLowerCase();
       if (!String(scopedCreatePayload.picDepartment || '').trim() ||
