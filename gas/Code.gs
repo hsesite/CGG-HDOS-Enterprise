@@ -2590,6 +2590,42 @@ function isExpectedRecordVersionCurrent_(current, expectedUpdatedAt) {
   return String(current && current.updatedAt || '') === String(expectedUpdatedAt);
 }
 
+function areUpdateValuesEqual_(left, right) {
+  if (left === right) return true;
+  if (left === null || right === null || left === undefined || right === undefined) return left === right;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index++) {
+      if (!areUpdateValuesEqual_(left[index], right[index])) return false;
+    }
+    return true;
+  }
+  if (typeof left === 'object' || typeof right === 'object') {
+    if (typeof left !== 'object' || typeof right !== 'object') return false;
+    const leftKeys = Object.keys(left).sort();
+    const rightKeys = Object.keys(right).sort();
+    if (leftKeys.length !== rightKeys.length) return false;
+    for (let index = 0; index < leftKeys.length; index++) {
+      if (leftKeys[index] !== rightKeys[index] ||
+          !areUpdateValuesEqual_(left[leftKeys[index]], right[rightKeys[index]])) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function isUpdatePayloadAlreadyApplied_(current, payload) {
+  if (!current || !isObject_(payload)) return false;
+  const keys = Object.keys(payload).filter(function(key) {
+    // updatedAt is deliberately changed by the server after each successful write.
+    return key !== 'updatedAt';
+  });
+  if (keys.length === 0) return false;
+  return keys.every(function(key) {
+    return areUpdateValuesEqual_(current[key], payload[key]);
+  });
+}
+
 function updateRecord_(
   entity,
   id,
@@ -2612,41 +2648,54 @@ function updateRecord_(
     if (!rowNumber) throw httpError_(404, 'Record not found');
     const old = parseRow_(sheet, rowNumber);
 
-    // Reject PICA writes validated against a stale approval state.
-    if (entity === 'picas' && !isExpectedPicaStateCurrent_(old, expectedPicaState)) {
-      throw httpError_(409, 'PICA telah diperbarui oleh pengguna lain. Muat ulang data sebelum melanjutkan persetujuan.');
+    const recordVersionCurrent = isExpectedRecordVersionCurrent_(old, expectedRecordUpdatedAt);
+    const replayedUpdate = !recordVersionCurrent && isUpdatePayloadAlreadyApplied_(old, safePayload);
+
+    // A successful update may reach the Spreadsheet while its response is lost.
+    // When the same queued payload is replayed against the newer version, accept
+    // it as already applied instead of converting a successful write into 409.
+    if (replayedUpdate) {
+      item = old;
+    } else {
+      // Reject PICA writes validated against a stale approval state.
+      if (entity === 'picas' && !isExpectedPicaStateCurrent_(old, expectedPicaState)) {
+        throw httpError_(409, 'PICA telah diperbarui oleh pengguna lain. Muat ulang data sebelum melanjutkan persetujuan.');
+      }
+
+      // Reject stale edits for every operational entity, not only PICA approvals.
+      if (!recordVersionCurrent) {
+        throw httpError_(409, 'Data telah diperbarui oleh pengguna lain. Muat ulang data sebelum menyimpan perubahan.');
+      }
+
+      item = Object.assign({}, old, safePayload, {
+        id: String(id),
+        code: old.code,
+        createdAt: old.createdAt,
+        updatedAt: new Date().toISOString()
+      });
+
+      if (entity === 'hazards' && safePayload.riskMatrix && isObject_(safePayload.riskMatrix)) {
+        item.riskMatrix = Object.assign({}, old.riskMatrix || {}, safePayload.riskMatrix);
+      }
+
+      if (entity === 'picas' && safePayload.approvalStages && isObject_(safePayload.approvalStages)) {
+        item.approvalStages = Object.assign({}, old.approvalStages || {}, safePayload.approvalStages);
+      }
+
+      sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
+        buildEntityRow_(entity, item, headers)
+      ]);
+      SpreadsheetApp.flush();
     }
-
-    // Reject stale edits for every operational entity, not only PICA approvals.
-    if (!isExpectedRecordVersionCurrent_(old, expectedRecordUpdatedAt)) {
-      throw httpError_(409, 'Data telah diperbarui oleh pengguna lain. Muat ulang data sebelum menyimpan perubahan.');
-    }
-
-    item = Object.assign({}, old, safePayload, {
-      id: String(id),
-      code: old.code,
-      createdAt: old.createdAt,
-      updatedAt: new Date().toISOString()
-    });
-
-    if (entity === 'hazards' && safePayload.riskMatrix && isObject_(safePayload.riskMatrix)) {
-      item.riskMatrix = Object.assign({}, old.riskMatrix || {}, safePayload.riskMatrix);
-    }
-
-    if (entity === 'picas' && safePayload.approvalStages && isObject_(safePayload.approvalStages)) {
-      item.approvalStages = Object.assign({}, old.approvalStages || {}, safePayload.approvalStages);
-    }
-
-    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
-      buildEntityRow_(entity, item, headers)
-    ]);
-    SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
 
-  // Audit is written after releasing the record lock; logAudit_ obtains its own lock.
-  logAudit_(user, 'UPDATE', entity, id, auditDetails);
+  // A replay that already matches the current record must not create a second audit event.
+  if (!replayedUpdate) {
+    // Audit is written after releasing the record lock; logAudit_ obtains its own lock.
+    logAudit_(user, 'UPDATE', entity, id, auditDetails);
+  }
   return item;
 }
 
