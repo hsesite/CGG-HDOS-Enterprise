@@ -10,7 +10,8 @@ import { IOSMobileSimulator } from './components/mobile/IOSMobileSimulator';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
-import { hseApi } from './core/api';
+import { ApiError, hseApi } from './core/api';
+import { hdosEvents } from './core/events';
 import { hdosSync } from './core/sync';
 import { hdosStore } from './core/store';
 
@@ -54,6 +55,23 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
   useEffect(() => {
+    const unsubscribeInvalid = hdosEvents.on('auth:session_invalid', () => {
+      AuthState.clear();
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      void hdosStore.init();
+    });
+    const unsubscribeProfile = hdosEvents.on('auth:profile_refreshed', () => {
+      setCurrentUser(getCurrentUser());
+      void hdosStore.init();
+    });
+    return () => {
+      unsubscribeInvalid();
+      unsubscribeProfile();
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function initializeApp(): Promise<void> {
@@ -64,17 +82,33 @@ export default function App() {
         await bootHDOS();
         if (cancelled) return;
 
-        // Refresh server-owned role verification and company scope on every app boot.
+        // Validate the persisted session before exposing cached tenant data or
+        // allowing any queued write to reach the server.
         if (hseApi.isAuthenticated) {
           try {
             AuthState.saveUser(await hseApi.me());
           } catch (sessionRefreshError) {
-            console.warn('[HDOS] Could not refresh server session profile; using cached profile.', sessionRefreshError);
+            if (sessionRefreshError instanceof ApiError && sessionRefreshError.status === 401) {
+              // A server-side revocation/deactivation is authoritative. Do not
+              // fall back to a cached profile after an explicit unauthorized response.
+              try { await hseApi.logout(); } catch { /* logout still clears the local token */ }
+              AuthState.clear();
+            } else {
+              // A network/server outage may be a genuine offline start; retain
+              // the cached profile so the user can continue working offline.
+              console.warn('[HDOS] Session refresh unavailable; retaining cached profile for offline use.', sessionRefreshError);
+            }
           }
+        } else if (AuthState.getUser()) {
+          // A cached profile without its corresponding session token is not an
+          // authenticated offline session.
+          AuthState.clear();
         }
         if (cancelled) return;
 
-        // Load only this authenticated user's offline queue after session refresh.
+        // Tenant-filter local records only after the server profile has been
+        // refreshed (or a genuine offline fallback has been selected).
+        await hdosStore.init();
         await hdosSync.init();
         if (cancelled) return;
 
