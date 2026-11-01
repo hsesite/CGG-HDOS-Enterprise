@@ -689,8 +689,10 @@ export class HDOSCentralStore {
         findingDescription: `Temuan: ${failedItem.question}${failedItem.notes ? ` — ${failedItem.notes}` : ''}`,
         correctiveAction: `Penuhi standar ${failedItem.standardRef || 'sesuai dokumen sumber'} dan verifikasi ulang sebelum pekerjaan dilanjutkan.`,
         preventiveAction: 'Evaluasi akar penyebab dan perbarui pengendalian agar ketidaksesuaian tidak berulang.',
-        picDepartment: 'Operations', picName: 'PIC Terkait',
-        targetDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+        picDepartment: String(inspection.picaDepartment || '').trim() || 'Belum Ditentukan',
+        picName: String(inspection.picaPicName || '').trim() || 'PIC Belum Ditentukan',
+        assignedToEmail: String(inspection.picaPicEmail || '').trim().toLowerCase(),
+        targetDate: inspection.picaTargetDate || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
         status: 'OPEN', daysAging: 0,
         approvalStages: { foreman: false, spvHse: false, ktt: false }, createdAt: now,
       };
@@ -793,52 +795,49 @@ export class HDOSCentralStore {
     if (index === -1) return null;
 
     const current = this.picas[index];
-    const updated = { ...current, ...updates };
-    const currentStages = current.approvalStages || { foreman: false, spvHse: false, ktt: false };
-    const nextStages = { ...currentStages, ...(updates.approvalStages || {}) };
-    updated.approvalStages = nextStages;
+    if (current.status === 'CLOSED') throw new Error('PICA sudah ditutup dan tidak dapat diubah.');
     const sessionUser = AuthState.getUser();
-    const isAdminCGG = Boolean(sessionUser?.roles?.includes('Admin CGG'));
+    const role = hdosAuth.getCurrentRole();
+    const email = String(sessionUser?.email || '').trim().toLowerCase();
+    const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
+    const isHSEValidator = ['Foreman', 'Foreman Safety', 'SPV HSE'].includes(role);
+    const updated: PICA = { ...current, ...updates, approvalStages: current.approvalStages || { foreman: false, spvHse: false, ktt: false } };
 
-    if (!isAdminCGG) {
-      const role = hdosAuth.getCurrentRole();
-      const stageByRole: Record<string, 'foreman' | 'spvHse' | 'ktt'> = {
-        'Foreman': 'foreman', 'Foreman Safety': 'foreman', 'Supervisor': 'spvHse',
-        'SPV HSE': 'spvHse', 'Superintendent': 'spvHse', 'KTT': 'ktt',
-        'Project Manager': 'ktt', 'PJO': 'ktt',
-      };
-      const allowedStage = stageByRole[role];
-      const stageKeys = ['foreman', 'spvHse', 'ktt'] as const;
-      const changedStages = stageKeys.filter((stage) => nextStages[stage] !== currentStages[stage]);
-
-      if (current.status === 'CLOSED' && updates.status && updates.status !== 'CLOSED') throw new Error('PICA yang sudah ditutup tidak dapat dibuka kembali.');
-      if (changedStages.some((stage) => stage !== allowedStage)) throw new Error('Anda hanya dapat menyetujui tahap PICA sesuai jabatan Anda.');
-      if (changedStages.some((stage) => currentStages[stage] === true && nextStages[stage] !== true)) throw new Error('Persetujuan PICA tidak dapat dibatalkan.');
-      if (changedStages.includes('spvHse') && nextStages.spvHse && !nextStages.foreman) throw new Error('Persetujuan SPV HSE menunggu persetujuan Foreman.');
-      if (changedStages.includes('ktt') && nextStages.ktt && !(nextStages.foreman && nextStages.spvHse)) throw new Error('Persetujuan KTT menunggu persetujuan Foreman dan SPV HSE.');
-      if (changedStages.length === 0 && updates.status && updates.status !== current.status) throw new Error('Status PICA tidak dapat diubah tanpa persetujuan tahap yang sah.');
-
-      const expectedStatus = nextStages.foreman && nextStages.spvHse && nextStages.ktt
-        ? 'CLOSED' : (nextStages.foreman || nextStages.spvHse ? 'PROGRESS' : current.status);
-      if (updates.status && updates.status !== expectedStatus) throw new Error('Status PICA ditetapkan otomatis sesuai tahapan persetujuan.');
-      updated.status = expectedStatus;
-    }
-
-    if (updated.approvalStages.foreman && updated.approvalStages.spvHse && updated.approvalStages.ktt) {
+    if (updates.status === 'WAITING_HSE') {
+      if (!isAssignedPIC) throw new Error('Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA.');
+      if (!String(updates.correctiveAction || current.correctiveAction || '').trim()) throw new Error('Tindakan perbaikan wajib diisi.');
+      if (!String(updates.evidencePhotoUrl || current.evidencePhotoUrl || '').trim()) throw new Error('Foto bukti penyelesaian wajib dilampirkan.');
+      updated.status = 'WAITING_HSE';
+      updated.submittedAt = new Date().toISOString();
+      updated.closeRequestedAt = updated.submittedAt;
+      updated.rejectionReason = '';
+    } else if (updates.status === 'CLOSED') {
+      if (!isHSEValidator) throw new Error('Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE.');
+      if (current.status !== 'WAITING_HSE') throw new Error('PICA belum diajukan PIC untuk validasi HSE.');
       updated.status = 'CLOSED';
-      if (current.status !== 'CLOSED') updated.completionDate = new Date().toISOString().split('T')[0];
+      updated.completionDate = new Date().toISOString().split('T')[0];
+      updated.hseValidatedBy = sessionUser?.displayName || email;
+      updated.hseValidatedRole = role;
+      updated.hseValidatedAt = new Date().toISOString();
+    } else if (updates.status === 'PROGRESS') {
+      if (!isHSEValidator || current.status !== 'WAITING_HSE') throw new Error('Hanya HSE yang dapat mengembalikan pengajuan PICA kepada PIC.');
+      if (!String(updates.rejectionReason || '').trim()) throw new Error('Alasan pengembalian wajib diisi.');
+      updated.status = 'PROGRESS';
+    } else if (updates.status && updates.status !== current.status) {
+      if (!isAssignedPIC || !['OPEN', 'PROGRESS'].includes(current.status)) throw new Error('Perubahan status hanya dapat dilakukan PIC yang ditugaskan.');
+      if (updates.status !== 'PROGRESS') throw new Error('Status PICA tidak valid.');
+      updated.status = 'PROGRESS';
     }
 
     await hdosSync.enqueueBatch(
       [{ storeName: 'pica', item: updated }],
-      [{ action: 'UPDATE', entity: 'pica', payload: updated, note: `Persetujuan PICA ${updated.code}` }]
+      [{ action: 'UPDATE', entity: 'pica', payload: updated, note: `Tindak lanjut PICA ${updated.code}` }]
     );
     this.picas[index] = updated;
     this.notify();
     hdosEvents.emit('pica:updated', updated);
     return updated;
-  }
-}
+  }}
 
 export const hdosStore = new HDOSCentralStore();
 
