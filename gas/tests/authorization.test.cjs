@@ -809,3 +809,12 @@ test('offline sync queue is bound to the authenticated user and company before r
   assert.match(storeSource, /pendingIds\.has\(local\.id\)/);
   assert.match(storeSource, /if \(!remoteIds\.has\(local\.id\) && !pendingIds\.has\(local\.id\)\)/);
 });
+
+
+test('store initialization preserves operational offline data during upgrades', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  assert.doesNotMatch(storeSource, /cgg_hdos_empty_start_v1/);
+  assert.doesNotMatch(storeSource, /for\s*\([^)]*storeName[^)]*\)\s*\{[\s\S]{0,300}hdosDB\.delete\(storeName/);
+  assert.match(storeSource, /const seededDemoDocument = storedDocuments\.find\(\(doc\) => doc\.id === 'doc_1'\)/);
+  assert.match(storeSource, /Only explicitly identified demo seed records are removed below/);
+});
