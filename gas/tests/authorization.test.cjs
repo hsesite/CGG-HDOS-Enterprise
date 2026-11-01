@@ -582,7 +582,7 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
 
 test('PICA register limits non-HSE users to assigned records and enforces PIC/HSE lifecycle', () => {
   assert.ok(source.includes("String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()"));
-  assert.ok(source.includes("const isHSEValidator = ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0 && user.roleVerified === true"));
+  assert.ok(source.includes("const isHSEValidator = ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0 && user.roleVerified === true"));
   assert.ok(source.includes("Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA."));
   assert.ok(source.includes("Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE"));
   assert.ok(source.includes("PICA belum diajukan PIC untuk validasi HSE."));
