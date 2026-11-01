@@ -66,7 +66,7 @@ class HDOSDatabase {
       } catch (err) {
         console.error('[HDOS DB] Exception opening IndexedDB', err);
         this.initPromise = null;
-        resolve(null);
+        reject(new Error(`Gagal membuka data "${storeName}/${id}" dari IndexedDB.`, { cause: error }));
         return;
       }
 
@@ -139,7 +139,7 @@ class HDOSDatabase {
         error
       );
 
-      return [];
+      throw new Error(`Data lokal "${storeName}" tidak dapat dibaca.`, { cause: error });
     }
   }
 
@@ -174,7 +174,7 @@ class HDOSDatabase {
       return this.readFallback<T>(storeName);
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       try {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
@@ -190,7 +190,7 @@ class HDOSDatabase {
             request.error
           );
 
-          resolve([]);
+          reject(new Error(`Gagal membaca data "${storeName}" dari IndexedDB.`, { cause: request.error }));
         };
       } catch (error) {
         console.error(
@@ -198,7 +198,7 @@ class HDOSDatabase {
           error
         );
 
-        resolve([]);
+        reject(new Error(`Gagal membuka data "${storeName}" dari IndexedDB.`, { cause: error }));
       }
     });
   }
@@ -351,7 +351,7 @@ class HDOSDatabase {
       );
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       try {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
@@ -367,7 +367,7 @@ class HDOSDatabase {
             request.error
           );
 
-          resolve(null);
+          reject(new Error(`Gagal membaca data "${storeName}/${id}" dari IndexedDB.`, { cause: request.error }));
         };
       } catch (error) {
         console.error(
