@@ -699,7 +699,7 @@ test('operational store queues Inspection, Hazard, generated PICA, Incident, and
   assert.match(hazard, /action: 'CREATE'[\s\S]*?entity: 'hazard'/);
   assert.match(incident, /action: 'CREATE'[\s\S]*?entity: 'incident'/);
   assert.match(picaUpdate, /action: 'UPDATE'[\s\S]*?entity: 'pica'/);
-  assert.match(storeSource, /await hdosSync\.enqueue\(/);
+  assert.match(storeSource, /await hdosSync\.enqueueBatch\(/);
 });
 
 test('GAS operational creates preserve client IDs and are idempotent under a script lock', () => {
