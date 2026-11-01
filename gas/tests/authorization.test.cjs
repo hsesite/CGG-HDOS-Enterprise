@@ -733,3 +733,52 @@ test('operational GET ALL returns a complete unpaginated tenant-filtered snapsho
   assert.match(readAll, /rowNumber <= lastRow/);
   assert.doesNotMatch(readAll, /LIMIT|OFFSET|pageToken|nextPage/);
 });
+
+
+test('contractor reads own records and its registered subkon only', () => {
+  const companies = {
+    SLS: {status:'ACTIVE',role:'Contractor',parentCompanyCode:''},
+    VIP: {status:'ACTIVE',role:'Contractor',parentCompanyCode:''},
+    BCJ: {status:'ACTIVE',role:'Subkon',parentCompanyCode:'SLS'},
+    CHN: {status:'ACTIVE',role:'Subkon',parentCompanyCode:'VIP'}
+  };
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    isCompanyScopedRole_: () => true,
+    isOversightRole_: () => false,
+    findCompanyRegistry_: code => companies[code] || null
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function isRecordVisibleToUser_(');
+  const end=source.indexOf('function requiresRoleVerification_(',start+1);
+  assert.notEqual(start,-1); assert.notEqual(end,-1);
+  vm.runInContext(source.slice(start,end),context);
+  const user={roles:['Employee'],companyCode:'SLS',parentCompanyCode:''};
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),true);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'BCJ',parentCompanyCode:'SLS'},user),true);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),false);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'CHN',parentCompanyCode:'VIP'},user),false);
+});
+
+test('subkon reads only its own tenant records, not parent or sibling records', () => {
+  const companies = {
+    SLS: {status:'ACTIVE',role:'Contractor',parentCompanyCode:''},
+    BCJ: {status:'ACTIVE',role:'Subkon',parentCompanyCode:'SLS'},
+    BKR: {status:'ACTIVE',role:'Subkon',parentCompanyCode:'SLS'}
+  };
+  const context = {
+    isAdminCGG_: () => false,
+    isCompanyScopedRole_: () => true,
+    isOversightRole_: () => false,
+    findCompanyRegistry_: code => companies[code] || null
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function isRecordVisibleToUser_(');
+  const end=source.indexOf('function requiresRoleVerification_(',start+1);
+  vm.runInContext(source.slice(start,end),context);
+  const user={roles:['Employee'],companyCode:'BCJ',parentCompanyCode:'SLS'};
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'BCJ',parentCompanyCode:'SLS'},user),true);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),false);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'BKR',parentCompanyCode:'SLS'},user),false);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),false);
+});
