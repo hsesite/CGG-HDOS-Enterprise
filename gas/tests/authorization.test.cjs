@@ -945,3 +945,20 @@ test('operational DELETE is tenant-authorized, locked, and idempotent after a lo
   assert.match(route, /SpreadsheetApp\.flush\(\)/);
   assert.match(route, /if \(deleted\) logAudit_\(user, 'OPERATIONAL_RECORD_DELETED'/);
 });
+
+
+test('cloud snapshot merge cannot publish stale account data after an account switch', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const start = storeSource.indexOf('async mergeCloudOperationalRecords(');
+  const end = storeSource.indexOf('\\n  subscribe(', start);
+  assert.ok(start >= 0 && end > start);
+  const merge = storeSource.slice(start, end);
+  assert.match(merge, /const ownerKey = currentUser\?\.id/);
+  assert.match(merge, /if \(!ownerKey \|\| activeOwnerKey\(\) !== ownerKey\) return/);
+  assert.match(merge, /hdosSync\.getOwnerSnapshot\(\)/);
+  assert.match(merge, /queueMatchesOwner/);
+  assert.match(merge, /if \(activeOwnerKey\(\) !== ownerKey\) return/);
+  const publish = merge.indexOf('if (activeOwnerKey() !== ownerKey) return');
+  const assign = merge.indexOf('this.inspections = snapshot');
+  assert.ok(publish >= 0 && assign > publish, 'identity is rechecked before in-memory publication');
+});
