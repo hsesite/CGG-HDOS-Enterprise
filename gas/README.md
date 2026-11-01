@@ -8,7 +8,7 @@ Configure these in **Apps Script → Project Settings → Script Properties** be
 
 - `HDOS_SPREADSHEET_ID`: ID of the production or test Google Spreadsheet used by this deployment.
 - `GOOGLE_CLIENT_ID`: OAuth Web Client ID used by Google Sign-In; must match the frontend `VITE_GOOGLE_CLIENT_ID`.
-- `CGG_EMAIL_DOMAINS`: comma- or semicolon-separated approved CGG email domains (for example `ptcgg.com`; default `ptcgg.com`).
+- `CGG_EMAIL_DOMAINS`: comma- or semicolon-separated approved CGG email domains. Configure the real corporate domain(s) before enabling CGG self-registration; there is no assumed default domain.
 - `CGG_ALLOWED_EMAILS`: optional comma- or semicolon-separated exact email allowlist. Use this to permit specific CGG personnel who use Gmail or another personal email provider without allowing every public Gmail account to self-register as CGG.
 - `HDOS_REPOSITORY_FOLDER_ID`: optional Google Drive folder ID for controlled Repository documents. If absent, the script creates a folder on first upload/authorization.
 
