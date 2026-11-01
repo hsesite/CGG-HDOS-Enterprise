@@ -430,3 +430,13 @@ test('user creation enforces email uniqueness inside a script lock', () => {
   assert.equal(context.appendUniqueUser_('worker@example.com',['id-2','worker@example.com']),false);
   assert.equal(appended.length,1);
 });
+
+test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(extractFunction('isPicaApprovalSequenceValid_', 'enforcePicaClosureRules_'), context);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:false,spvHse:false,ktt:false},'foreman'),true);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:false,spvHse:true,ktt:false},'spvHse'),false);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:false,ktt:true},'ktt'),false);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true,ktt:true},'ktt'),true);
+});
