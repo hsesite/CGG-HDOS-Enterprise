@@ -1,0 +1,33 @@
+name: HDOS validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Typecheck, authorization tests, and production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck frontend and backend
+        run: bun run lint
+
+      - name: Run GAS authorization tests
+        run: bun run test:gas
+
+      - name: Build frontend
+        run: bun run build
