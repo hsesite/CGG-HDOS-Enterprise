@@ -67,6 +67,8 @@ export interface Inspection {
     utm: string;
   };
   notes?: string;
+  photoFileId?: string;
+  photoUrl?: string;
   picaDepartment?: string;
   picaPicName?: string;
   picaPicEmail?: string;
@@ -96,6 +98,7 @@ export interface Hazard {
   reporterRole: UserRole;
   status: 'OPEN' | 'INVESTIGATION' | 'PICA_ISSUED' | 'CLOSED';
   photoUrl?: string;
+  photoFileId?: string;
   aiDetected?: boolean;
   aiSuggestions?: string[];
   picaId?: string;
