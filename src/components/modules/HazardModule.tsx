@@ -19,6 +19,13 @@ import { createHazardAction } from '../../core/module-actions';
 import { hseApi } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
 
+const readImageBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Foto gagal dibaca.'));
+  reader.onload = () => { const value = String(reader.result || ''); const comma = value.indexOf(','); resolve(comma >= 0 ? value.slice(comma + 1) : value); };
+  reader.readAsDataURL(file);
+});
+
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
@@ -43,6 +50,7 @@ export const HazardModule: React.FC = () => {
   const [location, setLocation] = useState<MiningArea>('');
   const [specificLocation, setSpecificLocation] = useState('');
   const [actionTaken, setActionTaken] = useState('');
+  const [hazardPhoto, setHazardPhoto] = useState<File | null>(null);
   const [severity, setSeverity] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [likelihood, setLikelihood] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [submitting, setSubmitting] = useState(false);
@@ -60,42 +68,49 @@ export const HazardModule: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !specificLocation.trim()) return;
+    if (!hazardPhoto) {
+      window.alert('Foto bukti temuan bahaya wajib dilampirkan sebelum laporan disimpan.');
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(hazardPhoto.type) || hazardPhoto.size > 5 * 1024 * 1024) {
+      window.alert('Foto harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
+      return;
+    }
 
     setSubmitting(true);
-   const newHaz = await createHazardAction({
-  title,
-  category,
-  location,
-  specificLocation,
-  riskMatrix: {
-    severity,
-    likelihood,
-    score: riskScore,
-    level: riskLevel,
-  },
-  reporter: currentUser.name,
-  reporterRole: currentUser.role,
-  status:
-    riskLevel === 'CRITICAL' || riskLevel === 'HIGH'
-      ? 'PICA_ISSUED'
-      : 'OPEN',
-  actionTaken,
-  aiDetected: false,
-});
+    try {
+      const uploadedPhoto = await hseApi.uploadOperationalPhoto({
+        fileName: hazardPhoto.name,
+        mimeType: hazardPhoto.type,
+        fileBase64: await readImageBase64(hazardPhoto),
+      });
+      const newHaz = await createHazardAction({
+        title,
+        category,
+        location,
+        specificLocation,
+        riskMatrix: { severity, likelihood, score: riskScore, level: riskLevel },
+        reporter: currentUser.name,
+        reporterRole: currentUser.role,
+        status: riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'PICA_ISSUED' : 'OPEN',
+        actionTaken,
+        photoFileId: uploadedPhoto.photoFileId,
+        photoUrl: uploadedPhoto.photoUrl,
+        aiDetected: false,
+      });
 
-    setSubmitting(false);
-    setSuccessMsg(
-  `Laporan Bahaya ${newHaz.code} berhasil dicatat. PICA ${newHaz.picaId} otomatis diterbitkan dengan target penyelesaian berdasarkan tingkat risiko ${riskLevel}.`
-    );
-
-    setTitle('');
-    setSpecificLocation('');
-    setActionTaken('');
-
-    setTimeout(() => {
-      setSuccessMsg('');
-      setActiveTab('register');
-    }, 2000);
+      setSuccessMsg(`Laporan Bahaya ${newHaz.code} berhasil dicatat. Foto bukti tersimpan di Drive dan PICA ${newHaz.picaId} diterbitkan sesuai tingkat risiko ${riskLevel}.`);
+      setTitle('');
+      setSpecificLocation('');
+      setActionTaken('');
+      setHazardPhoto(null);
+      setTimeout(() => { setSuccessMsg(''); setActiveTab('register'); }, 2000);
+    } catch (error) {
+      console.error('[HazardModule] Gagal mengunggah foto atau menyimpan laporan:', error);
+      window.alert(error instanceof Error ? error.message : 'Laporan gagal disimpan. Periksa koneksi dan coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredHazards = store.hazards.filter((h) => {
@@ -218,6 +233,11 @@ export const HazardModule: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Foto bukti temuan * (JPG/PNG/WEBP, maks. 5 MB)</label>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" required onChange={(event) => setHazardPhoto(event.target.files?.[0] || null)} className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-red-500/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-red-200" />
+                  <p className="mt-1 text-[10px] text-neutral-500">{hazardPhoto ? `Terpilih: ${hazardPhoto.name}` : 'Lampirkan foto kondisi bahaya aktual di lapangan.'}</p>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-neutral-300 mb-1">
                     Tindakan Pengendalian Langsung yang Telah Dilakukan
