@@ -651,3 +651,19 @@ test('login failures are rate-limited per normalized email and can be cleared', 
   context.clearLoginFailures_('worker@example.com');
   assert.equal(context.isLoginRateLimited_('worker@example.com'),false);
 });
+
+test('password hash comparison checks the full fixed-format value', () => {
+  const context = {};
+  vm.createContext(context);
+  const start = source.indexOf('function constantTimeStringEquals_(');
+  const end = source.indexOf('function migrateLegacyPassword_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+  assert.equal(context.constantTimeStringEquals_('same-hash-value', 'same-hash-value'), true);
+  assert.equal(context.constantTimeStringEquals_('same-hash-value', 'xame-hash-value'), false);
+  assert.equal(context.constantTimeStringEquals_('same-hash-value', 'same-hash-valuX'), false);
+  assert.equal(context.constantTimeStringEquals_('short', 'longer'), false);
+  assert.equal(context.constantTimeStringEquals_('', ''), true);
+  assert.ok(source.includes('constantTimeStringEquals_(passwordHash_(password, user.passwordSalt), user.passwordHash)'));
+});
