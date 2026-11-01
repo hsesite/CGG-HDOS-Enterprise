@@ -1191,9 +1191,9 @@ function isCggEmailAllowed_(email, companyCode) {
   const properties = PropertiesService.getScriptProperties();
   const configuredDomains = String(properties.getProperty('CGG_EMAIL_DOMAINS') || '').trim();
   const allowedDomains = (configuredDomains || 'ptcgg.com')
-    .toLowerCase().split(/[;,\\s]+/).filter(Boolean);
+    .toLowerCase().split(/[;,\s]+/).filter(Boolean);
   const allowedEmails = String(properties.getProperty('CGG_ALLOWED_EMAILS') || '')
-    .toLowerCase().split(/[;,\\s]+/).filter(Boolean);
+    .toLowerCase().split(/[;,\s]+/).filter(Boolean);
   const domain = normalizedEmail.split('@').pop();
   return allowedEmails.indexOf(normalizedEmail) >= 0 || allowedDomains.indexOf(domain) >= 0;
 }
