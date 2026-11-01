@@ -377,12 +377,37 @@ test('user access changes revoke every persistent session belonging to that user
   assert.ok(removed.includes('cache:session:token-b'));
 });
 
+test('expired sessions are deleted and rejected before account lookup', () => {
+  let propertyDeleted = false;
+  let cacheDeleted = false;
+  let userLookupCalled = false;
+  const context = {
+    Date: { now: () => 200000 },
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: key => key === 'session:expired' ? JSON.stringify({id:'u1',email:'worker@example.com',expiresAt:199999}) : null,
+      deleteProperty: key => { if (key === 'session:expired') propertyDeleted = true; }
+    }) },
+    CacheService: { getScriptCache: () => ({
+      get: () => null,
+      remove: key => { if (key === 'session:expired') cacheDeleted = true; }
+    }) },
+    findUserByEmail_: () => { userLookupCalled = true; return null; },
+    httpError_: (status,message) => Object.assign(new Error(message),{status})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('requireAuth_', 'publicUser_'), context);
+  assert.throws(() => context.requireAuth_('expired'), error => error.status === 401);
+  assert.equal(propertyDeleted, true);
+  assert.equal(cacheDeleted, true);
+  assert.equal(userLookupCalled, false);
+});
+
 test('a session token cannot authenticate a different account reusing the same email', () => {
   let propertyDeleted = false;
   let cacheDeleted = false;
   const context = {
     PropertiesService: { getScriptProperties: () => ({
-      getProperty: key => key === 'session:token-reused' ? JSON.stringify({id:'old-user',email:'shared@example.com'}) : null,
+      getProperty: key => key === 'session:token-reused' ? JSON.stringify({id:'old-user',email:'shared@example.com',expiresAt:Date.now()+60000}) : null,
       deleteProperty: key => { if (key === 'session:token-reused') propertyDeleted = true; }
     }) },
     CacheService: { getScriptCache: () => ({
@@ -404,7 +429,7 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
   let deleted = false;
   const context = {
     PropertiesService: { getScriptProperties: () => ({
-      getProperty: key => key === 'session:token-1' ? JSON.stringify({id:'u1',email:'worker@sls.co.id'}) : null,
+      getProperty: key => key === 'session:token-1' ? JSON.stringify({id:'u1',email:'worker@sls.co.id',expiresAt:Date.now()+60000}) : null,
       deleteProperty: key => { if (key === 'session:token-1') deleted = true; }
     }) },
     CacheService: { getScriptCache: () => ({ get: () => null, remove: () => {} }) },
