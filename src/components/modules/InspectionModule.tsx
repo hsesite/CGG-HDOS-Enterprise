@@ -56,6 +56,11 @@ export const InspectionModule: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedRepositoryFormId, setSelectedRepositoryFormId] = useState<string>('');
   const [repositoryAnswers, setRepositoryAnswers] = useState<Record<string, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({});
+  const [picaDepartment, setPicaDepartment] = useState('');
+  const [picaPicName, setPicaPicName] = useState('');
+  const [picaPicEmail, setPicaPicEmail] = useState('');
+  const [picaTargetDate, setPicaTargetDate] = useState(() => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
+
 
   useEffect(() => {
     let cancelled = false;
@@ -138,7 +143,12 @@ export const InspectionModule: React.FC = () => {
         notes: repositoryAnswers[field.id]?.notes || '',
       }));
 
+    const failedItems = items.filter((item) => item.result === 'FAIL');
     const missingFindingNotes = items.some((item) => item.result === 'FAIL' && !item.notes?.trim());
+    if (failedItems.length > 0 && (!picaDepartment.trim() || !picaPicName.trim() || !picaPicEmail.trim() || !picaTargetDate)) {
+      window.alert('Temuan Tidak Sesuai wajib memiliki departemen tujuan, nama PIC, email PIC, dan target penyelesaian.');
+      return;
+    }
     if (missingFindingNotes) {
       setSuccessMessage('');
       window.alert('Lengkapi catatan untuk setiap item Tidak Sesuai sebelum menyimpan pemeriksaan.');
@@ -178,6 +188,10 @@ export const InspectionModule: React.FC = () => {
         scorePercent,
         items,
         notes: generalNotes,
+        picaDepartment: picaDepartment.trim(),
+        picaPicName: picaPicName.trim(),
+        picaPicEmail: picaPicEmail.trim().toLowerCase(),
+        picaTargetDate,
         ...(gpsCoordinates ? { gpsCoordinates } : {}),
       });
 
@@ -190,6 +204,7 @@ export const InspectionModule: React.FC = () => {
       setSelectedRepositoryFormId('');
       setRepositoryAnswers({});
       setGeneralNotes('');
+      setPicaDepartment(''); setPicaPicName(''); setPicaPicEmail(''); setPicaTargetDate(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
     } catch (error) {
       console.error('[InspectionModule] Gagal menyimpan pemeriksaan formulir Repository:', error);
       setSuccessMessage('Pemeriksaan gagal disimpan. Silakan coba lagi.');
@@ -360,6 +375,26 @@ export const InspectionModule: React.FC = () => {
                 </div>
               </div>
             </div>
+            {repositoryAnswers && Object.values(repositoryAnswers).some((answer) => answer.result === 'FAIL') && (
+              <div className="apple-glass-card p-5 rounded-2xl space-y-3 border border-amber-500/30">
+                <h3 className="text-sm font-semibold text-amber-300">Penugasan PICA Otomatis</h3>
+                <p className="text-[11px] text-neutral-400">Wajib diisi bila terdapat temuan Tidak Sesuai. PICA akan masuk ke departemen dan PIC yang ditentukan.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="text-neutral-400">Departemen tujuan
+                    <input required value={picaDepartment || selectedRepositoryForm.department || ''} onChange={(event) => setPicaDepartment(event.target.value)} placeholder="Contoh: Plant, Mining, HSE" className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-400">Nama PIC
+                    <input required value={picaPicName} onChange={(event) => setPicaPicName(event.target.value)} placeholder="Nama penanggung jawab" className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-400">Email akun PIC
+                    <input required type="email" value={picaPicEmail} onChange={(event) => setPicaPicEmail(event.target.value)} placeholder="email PIC yang terdaftar di HDOS" className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                  <label className="text-neutral-400">Target penyelesaian
+                    <input required type="date" value={picaTargetDate} onChange={(event) => setPicaTargetDate(event.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
+                  </label>
+                </div>
+              </div>
+            )}
             <div className="apple-glass-card p-5 rounded-2xl space-y-4">
               <h3 className="text-sm font-semibold text-white border-b border-white/10 pb-3">Checklist Pemeriksaan</h3>
               {selectedRepositoryForm.fields.slice().sort((a, b) => a.order - b.order).map((field, index) => {
