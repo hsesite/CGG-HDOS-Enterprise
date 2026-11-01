@@ -43,7 +43,7 @@ export const PICAModule: React.FC = () => {
     const status = pica.status !== 'CLOSED' && pica.status !== 'WAITING_HSE' && !Number.isNaN(target.getTime()) && target < today ? 'OVERDUE' : pica.status;
     return { aging, status };
   };
-  const canViewAllPicas = Boolean(sessionUser?.roles.some((role) => ['Admin CGG', 'Company Admin', 'Foreman', 'Foreman Safety', 'SPV HSE'].includes(role)));
+  const canViewAllPicas = currentUser.role === 'Admin CGG' || currentUser.role === 'Company Admin' || ['Foreman', 'Foreman Safety', 'SPV HSE'].includes(currentUser.role);
   const accessiblePicas = store.picas.filter((pica) => canViewAllPicas || Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase()));
   const picas = useMemo(() => accessiblePicas.map((pica) => ({ pica, ...getMetrics(pica) })), [store.picas, sessionUser?.email, currentUser.role]);
   const visible = picas.filter(({ pica, status }) => {
