@@ -690,6 +690,31 @@ function doPost(
 // ROUTING
 // ============================================================
 
+function getRepositoryFileMetadata_(fileName, bytes) {
+  const extension = String(fileName || '').split('.').pop().toLowerCase();
+  const data = bytes || [];
+
+  if (extension === 'pdf') {
+    let header = '';
+    for (let i = 0; i < Math.min(data.length, 1024); i++) {
+      header += String.fromCharCode((Number(data[i]) + 256) % 256);
+    }
+    if (header.indexOf('%PDF-') < 0) throw httpError_(400, 'Isi berkas tidak sesuai dengan format PDF.');
+    return { fileType: 'PDF', mimeType: 'application/pdf' };
+  }
+
+  if (extension === 'docx' || extension === 'xlsx') {
+    if (data.length < 4 || Number(data[0]) !== 0x50 || Number(data[1]) !== 0x4B || Number(data[2]) !== 0x03 || Number(data[3]) !== 0x04) {
+      throw httpError_(400, 'Isi berkas Office tidak valid atau tidak sesuai dengan ekstensi.');
+    }
+    return extension === 'docx'
+      ? { fileType: 'DOCX', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+      : { fileType: 'XLSX', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+  }
+
+  throw httpError_(400, 'Repository hanya menerima berkas PDF, DOCX, atau XLSX.');
+}
+
 function publicRepositoryDocument_(doc) {
   if (!doc) return doc;
   const safe = Object.assign({}, doc);
@@ -875,14 +900,15 @@ function handleRoute_(
     }
     const bytes = Utilities.base64Decode(base64);
     const fileName = String(input.fileName || 'document.bin');
-    const mimeType = String(input.mimeType || 'application/octet-stream');
+    const fileMetadata = getRepositoryFileMetadata_(fileName, bytes);
+    const mimeType = fileMetadata.mimeType;
     const blob = Utilities.newBlob(bytes, mimeType, fileName);
     const props = PropertiesService.getScriptProperties();
     const folderId = props.getProperty('HDOS_REPOSITORY_FOLDER_ID');
     const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS Repository');
     if (!folderId) props.setProperty('HDOS_REPOSITORY_FOLDER_ID', folder.getId());
     const file = folder.createFile(blob);
-    const doc = Object.assign({}, input, { id: id, code: String(input.docNumber || input.code || id), driveFileId: file.getId(), fileName: fileName, mimeType: mimeType, fileBase64: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), companyCode: companyCode, parentCompanyCode: parentCompanyCode });
+    const doc = Object.assign({}, input, { id: id, code: String(input.docNumber || input.code || id), driveFileId: file.getId(), fileName: fileName, fileType: fileMetadata.fileType, mimeType: mimeType, fileBase64: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), companyCode: companyCode, parentCompanyCode: parentCompanyCode });
     delete doc.fileBase64;
     return success_(publicRepositoryDocument_(createRecord_('repository', doc, user)));
   }
@@ -926,11 +952,13 @@ function handleRoute_(
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
     const blob = file.getBlob();
+    const fileMetadata = getRepositoryFileMetadata_(doc.fileName || file.getName(), blob.getBytes());
+    blob.setContentType(fileMetadata.mimeType);
     logAudit_(user, 'REPOSITORY_DOCUMENT_PREVIEWED', 'repository', doc.id, {
       fileName: file.getName(),
-      mimeType: blob.getContentType()
+      mimeType: fileMetadata.mimeType
     });
-    return success_({ fileName: file.getName(), mimeType: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
+    return success_({ fileName: file.getName(), mimeType: fileMetadata.mimeType, base64: Utilities.base64Encode(blob.getBytes()) });
   }
 
   const repositoryFileMatch = path.match(/^\/api\/repository\/([^/]+)\/file$/);
@@ -943,11 +971,13 @@ function handleRoute_(
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
     const blob = file.getBlob();
+    const fileMetadata = getRepositoryFileMetadata_(doc.fileName || file.getName(), blob.getBytes());
+    blob.setContentType(fileMetadata.mimeType);
     logAudit_(user, 'REPOSITORY_DOCUMENT_DOWNLOADED', 'repository', doc.id, {
       fileName: file.getName(),
-      mimeType: blob.getContentType()
+      mimeType: fileMetadata.mimeType
     });
-    return success_({ fileName: file.getName(), mimeType: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
+    return success_({ fileName: file.getName(), mimeType: fileMetadata.mimeType, base64: Utilities.base64Encode(blob.getBytes()) });
   }
 
   // ----------------------------------------------------------
