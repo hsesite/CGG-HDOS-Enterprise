@@ -841,7 +841,7 @@ test('operational create and approval methods commit records and queue before pu
     ['async addInspection(', 'async addHazard(', 'this.inspections.unshift(newInspection)'],
     ['async addHazard(', 'async addIncident(', 'this.hazards.unshift(newHazard)'],
     ['async addIncident(', 'async updatePICAStatus(', 'this.incidents.unshift(newInc)'],
-    ['async updatePICAStatus(', '}\\n\\nexport const hdosStore', 'this.picas[index] = updated']
+    ['async updatePICAStatus(', '}\n\nexport const hdosStore', 'this.picas[index] = updated']
   ];
   for (const [startMarker, endMarker, publishMarker] of methods) {
     const start = storeSource.indexOf(startMarker);
