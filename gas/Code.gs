@@ -1165,7 +1165,7 @@ function handleRoute_(
     if (!isRecordVisibleToUser_(record, user)) return error_(403, 'Anda tidak memiliki akses ke data ini.');
     if (entity === 'picas') {
       const role = String((user.roles || [])[0] || '');
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0;
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0);
       if (!canMonitorPicas && String(record.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
         return error_(403, 'PICA ini tidak ditugaskan kepada akun Anda.');
       }
@@ -1234,7 +1234,7 @@ function handleRoute_(
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
     if (entity === 'picas') {
       const role = String((user.roles || [])[0] || '');
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0;
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0);
       if (!canMonitorPicas && String(existingRecord.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
         return error_(403, 'PICA ini tidak ditugaskan kepada akun Anda.');
       }
