@@ -1240,11 +1240,43 @@ function handleRoute_(
 // LOGIN
 // ============================================================
 
+function loginRateLimitKey_(email) {
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(email || '').trim().toLowerCase(),
+    Utilities.Charset.UTF_8
+  );
+  return 'login-fail:' + Utilities.base64EncodeWebSafe(digest).replace(/=+$/g, '');
+}
+
+function isLoginRateLimited_(email) {
+  const attempts = Number(CacheService.getScriptCache().get(loginRateLimitKey_(email)) || 0);
+  return attempts >= 10;
+}
+
+function recordLoginFailure_(email) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    const cache = CacheService.getScriptCache();
+    const key = loginRateLimitKey_(email);
+    const attempts = Number(cache.get(key) || 0);
+    cache.put(key, String(attempts + 1), 300);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function clearLoginFailures_(email) {
+  CacheService.getScriptCache().remove(loginRateLimitKey_(email));
+}
+
 function login_(payload) {
   const input = isObject_(payload) ? payload : {};
   const email = String(input.email || '').trim().toLowerCase();
   const password = String(input.password || '');
   if (!email || !password) return error_(400, 'Email dan password diperlukan');
+  if (isLoginRateLimited_(email)) return error_(429, 'Terlalu banyak percobaan login. Coba kembali setelah 5 menit.');
 
   const user = findUserByEmail_(email);
   let validPassword = false;
@@ -1255,7 +1287,11 @@ function login_(payload) {
     validPassword = user.password === password;
     if (validPassword) migrateLegacyPassword_(user, password);
   }
-  if (!user || !validPassword || user.status !== 'ACTIVE') return error_(401, 'Email atau password salah atau akun tidak aktif');
+  if (!user || !validPassword || user.status !== 'ACTIVE') {
+    recordLoginFailure_(email);
+    return error_(401, 'Email atau password salah atau akun tidak aktif');
+  }
+  clearLoginFailures_(email);
   return createSessionResponse_(user);
 }
 
