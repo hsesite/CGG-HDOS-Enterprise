@@ -304,8 +304,8 @@ export const hseApi = {
     return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/preview`);
   },
 
-  async downloadRepositoryFile(id: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
-    return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`);
+  async downloadRepositoryFile(id: string, authToken?: string | null): Promise<{ fileName: string; mimeType: string; base64: string }> {
+    return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`, undefined, authToken);
   },
 
   async deleteRepositoryDocument(id: string): Promise<{ id: string; deleted: boolean }> {
