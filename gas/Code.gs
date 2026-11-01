@@ -2042,6 +2042,16 @@ function readOne_(
 // CRUD — CREATE
 // ============================================================
 
+function getExistingRecordForCreate_(sheet, id, user) {
+  const rowNumber = findRecordRow_(sheet, id);
+  if (!rowNumber) return null;
+  const existing = parseRow_(sheet, rowNumber);
+  if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) {
+    throw httpError_(403, 'ID record sudah digunakan di luar cakupan perusahaan Anda.');
+  }
+  return existing;
+}
+
 function createRecord_(
   entity,
   payload,
@@ -2079,18 +2089,8 @@ function createRecord_(
   // IDEMPOTENCY
   // ----------------------------------------------------------
 
-  const existing =
-    findRecordRow_(
-      sheet,
-      id
-    );
-
-  if (existing) {
-    return parseRow_(
-      sheet,
-      existing
-    );
-  }
+  const existing = getExistingRecordForCreate_(sheet, id, user);
+  if (existing) return existing;
 
 
   // ----------------------------------------------------------
@@ -2190,18 +2190,8 @@ function createRecord_(
   try {
 
     // Recheck after lock to prevent race condition.
-    const duplicate =
-      findRecordRow_(
-        sheet,
-        id
-      );
-
-    if (duplicate) {
-      return parseRow_(
-        sheet,
-        duplicate
-      );
-    }
+    const duplicate = getExistingRecordForCreate_(sheet, id, user);
+    if (duplicate) return duplicate;
 
     sheet.appendRow(
       buildEntityRow_(
