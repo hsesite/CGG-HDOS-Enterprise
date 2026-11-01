@@ -160,6 +160,7 @@ export interface PICA {
   hseValidatedRole?: string;
   hseValidatedAt?: string;
   rejectionReason?: string;
+  updatedAt?: string;
   createdAt: string;
 }
 
