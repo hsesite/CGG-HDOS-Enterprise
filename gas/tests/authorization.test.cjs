@@ -147,7 +147,7 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
   assert.notEqual(start,-1); assert.notEqual(end,-1);
   vm.runInContext(source.slice(start,end),context);
   for (const role of ['KTT','SPT','SPV']) {
-    const user={roles:[role],companyCode:'CGG'};
+    const user={roles:[role],companyCode:'CGG',roleVerified:true};
     assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'BCJ',parentCompanyCode:'SLS'},user),true);
