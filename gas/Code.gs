@@ -1244,12 +1244,12 @@ function isCggEmailAllowed_(email, companyCode) {
   // exact-address allowlist for personnel who use personal Google accounts.
   const properties = PropertiesService.getScriptProperties();
   const configuredDomains = String(properties.getProperty('CGG_EMAIL_DOMAINS') || '').trim();
-  const allowedDomains = (configuredDomains || 'ptcgg.com')
+  const allowedDomains = (configuredDomains)
     .toLowerCase().split(/[;,\s]+/).filter(Boolean);
   const allowedEmails = String(properties.getProperty('CGG_ALLOWED_EMAILS') || '')
     .toLowerCase().split(/[;,\s]+/).filter(Boolean);
   const domain = normalizedEmail.split('@').pop();
-  return allowedEmails.indexOf(normalizedEmail) >= 0 || allowedDomains.indexOf(domain) >= 0;
+  return allowedEmails.indexOf(normalizedEmail) >= 0 || (allowedDomains.length > 0 && allowedDomains.indexOf(domain) >= 0);
 }
 
 function googleOnboard_(payload) {
