@@ -327,3 +327,34 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
   assert.throws(() => context.requireAuth_('token-1'), error => error.status === 401);
   assert.equal(deleted, true);
 });
+
+test('PICA closure is terminal for non-CGG admins and completion date is server-owned', () => {
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    error_: (status, message) => ({status, message})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('enforcePicaClosureRules_', 'createSessionResponse_'), context);
+
+  const closed = {status:'CLOSED', completionDate:'2026-10-30', approvalStages:{foreman:true,spvHse:true,ktt:true}};
+  assert.equal(context.enforcePicaClosureRules_(closed,{status:'OPEN'},{roles:['Foreman Safety']}).status,403);
+  assert.equal(context.enforcePicaClosureRules_(closed,{status:'CLOSED',completionDate:'2026-10-31'},{roles:['Company Admin']}).status,403);
+  assert.equal(context.enforcePicaClosureRules_(closed,{status:'CLOSED'},{roles:['Company Admin']}),null);
+
+  const pending = {status:'PROGRESS',completionDate:'',approvalStages:{foreman:true,spvHse:true,ktt:false}};
+  assert.equal(context.enforcePicaClosureRules_(pending,{status:'CLOSED'},{roles:['KTT']}).status,403);
+  const allApproved = {status:'PROGRESS',completionDate:'',approvalStages:{foreman:true,spvHse:true,ktt:true}};
+  const payload = {status:'CLOSED'};
+  assert.equal(context.enforcePicaClosureRules_(allApproved,payload,{roles:['KTT']}),null);
+  assert.match(payload.completionDate,/^\\d{4}-\\d{2}-\\d{2}$/);
+
+  const adminPayload = {status:'OPEN'};
+  assert.equal(context.enforcePicaClosureRules_(closed,adminPayload,{roles:['Admin CGG']}),null);
+});
+
+test('PICA approval changes are included in the existing audit record', () => {
+  assert.ok(source.includes('approvalStageChanges: stageChanges'));
+  assert.ok(source.includes('statusFrom: oldStatus'));
+  assert.ok(source.includes('details:\n      details || {}'));
+  assert.ok(source.includes('updateRecord_(entity, id, scopedPayload, user, auditDetails)'));
+});
