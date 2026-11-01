@@ -1680,7 +1680,7 @@ function createManagedUser_(payload, actor) {
   return success_(publicUser_(user));
 }
 
-function updateUserAccess_(userId, payload, actor) {
+function updateUserAccessCore_(userId, payload, actor, auditOut) {
   const input = isObject_(payload) ? payload : {};
   const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
   const role = input.role === undefined ? null : String(input.role);
@@ -1736,20 +1736,43 @@ function updateUserAccess_(userId, payload, actor) {
     sheet.getRange(i + 1, 10, 1, 2).setValues([[storedCompanyCode, storedParentCode]]);
     sheet.getRange(i + 1, 12).setValue(position);
     sheet.getRange(i + 1, 15).setValue(roleVerified);
-    logAudit_(actor, hasVerificationUpdate ? (roleVerified ? 'ROLE_VERIFIED' : 'ROLE_VERIFICATION_REVOKED') : 'USER_ACCESS_UPDATED', 'users', userId, {
-      roleFrom: previousRole,
-      roleTo: nextRole,
-      statusFrom: previousStatus,
-      statusTo: status || previousStatus,
-      companyCodeFrom: previousCompanyCode,
-      companyCodeTo: storedCompanyCode,
-      roleVerifiedFrom: previousRoleVerified,
-      roleVerifiedTo: roleVerified,
-      position: position
+    auditOut.push({
+      action: hasVerificationUpdate ? (roleVerified ? 'ROLE_VERIFIED' : 'ROLE_VERIFICATION_REVOKED') : 'USER_ACCESS_UPDATED',
+      details: {
+        roleFrom: previousRole,
+        roleTo: nextRole,
+        statusFrom: previousStatus,
+        statusTo: status || previousStatus,
+        companyCodeFrom: previousCompanyCode,
+        companyCodeTo: storedCompanyCode,
+        roleVerifiedFrom: previousRoleVerified,
+        roleVerifiedTo: roleVerified,
+        position: position
+      }
     });
     return success_({ id: String(rows[i][0]), email: String(rows[i][1] || ''), displayName: String(rows[i][3] || ''), roles: [nextRole], status: status || String(rows[i][5] || 'ACTIVE'), companyCode: storedCompanyCode, parentCompanyCode: storedParentCode, position: position, department: String(rows[i][12] || ''), section: String(rows[i][13] || ''), roleVerified: roleVerified });
   }
   return error_(404, 'Akun tidak ditemukan.');
+}
+
+function updateUserAccess_(userId, payload, actor) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  const auditOut = [];
+  let result;
+  try {
+    result = updateUserAccessCore_(userId, payload, actor, auditOut);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  // Audit logging acquires the same script lock, so it must run after the
+  // user-row transaction releases its lock.
+  if (result && result.success && auditOut.length) {
+    const audit = auditOut[0];
+    logAudit_(actor, audit.action, 'users', userId, audit.details);
+  }
+  return result;
 }
 
 function isOversightRole_(user) {
