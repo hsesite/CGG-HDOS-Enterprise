@@ -50,6 +50,8 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 
 
 - [ ] Contractors/Subkon can preview only documents visible to their tenant.
+- [ ] Contractor/Subkon users can generate digital forms from documents visible to their tenant through the preview endpoint; this workflow must not call the CGG-only download endpoint.
+- [ ] Online form generation fetches the current tenant-authorized preview and does not create an additional unscoped IndexedDB copy of the source file.
 - [ ] Contractors/Subkon receive HTTP 403 from the original-download endpoint.
 - [ ] CGG users can download only documents visible within their permitted scope; Admin CGG retains administrative access.
 - [ ] Repository metadata responses never expose `driveFileId` or embedded `fileBase64`.
