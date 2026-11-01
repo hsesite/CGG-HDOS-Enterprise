@@ -436,9 +436,8 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
   assert.equal(deleted, true);
 });
 
-test('PICA closure is terminal for non-CGG admins and completion date is server-owned', () => {
+test('PICA can be submitted by its assigned PIC and closed by one verified HSE validator', () => {
   const context = {
-    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
     error_: (status, message) => ({status, message}),
     Utilities: { formatDate: () => '2026-11-01' },
     Session: { getScriptTimeZone: () => 'Asia/Jakarta' }
@@ -446,22 +445,28 @@ test('PICA closure is terminal for non-CGG admins and completion date is server-
   vm.createContext(context);
   vm.runInContext(extractFunction('enforcePicaClosureRules_', 'createSessionResponse_'), context);
 
-  const closed = {status:'CLOSED', completionDate:'2026-10-30', approvalStages:{foreman:true,spvHse:true,ktt:true}};
-  assert.equal(context.enforcePicaClosureRules_(closed,{status:'OPEN'},{roles:['Foreman Safety']}).status,403);
-  assert.equal(context.enforcePicaClosureRules_(closed,{status:'CLOSED',completionDate:'2026-10-31'},{roles:['Company Admin']}).status,403);
-  assert.equal(context.enforcePicaClosureRules_(closed,{status:'CLOSED'},{roles:['Company Admin']}),null);
+  const open = {status:'PROGRESS',assignedToEmail:'pic@example.com',completionDate:''};
+  const submit = {status:'WAITING_HSE',correctiveAction:'Guardrail repaired',evidencePhotoUrl:'https://drive.example/evidence.jpg'};
+  assert.equal(context.enforcePicaClosureRules_(open,submit,{roles:['Employee'],email:'pic@example.com',roleVerified:false}),null);
+  assert.ok(submit.submittedAt);
+  assert.ok(submit.closeRequestedAt);
 
-  const pending = {status:'PROGRESS',completionDate:'',approvalStages:{foreman:true,spvHse:true,ktt:false}};
-  assert.equal(context.enforcePicaClosureRules_(pending,{status:'CLOSED'},{roles:['KTT']}).status,403);
-  const allApproved = {status:'PROGRESS',completionDate:'',approvalStages:{foreman:true,spvHse:true,ktt:true}};
-  const payload = {status:'CLOSED'};
-  assert.equal(context.enforcePicaClosureRules_(allApproved,payload,{roles:['KTT']}),null);
-  assert.match(payload.completionDate,/^\d{4}-\d{2}-\d{2}$/);
+  const noPhoto = {status:'WAITING_HSE',correctiveAction:'Done'};
+  assert.equal(context.enforcePicaClosureRules_(open,noPhoto,{roles:['Employee'],email:'pic@example.com'}).status,400);
+  assert.equal(context.enforcePicaClosureRules_(open,{status:'WAITING_HSE',correctiveAction:'Done',evidencePhotoUrl:'x'},{roles:['Employee'],email:'other@example.com'}).status,403);
 
-  const adminPayload = {status:'OPEN'};
-  assert.equal(context.enforcePicaClosureRules_(closed,adminPayload,{roles:['Admin CGG']}),null);
+  const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',completionDate:''};
+  const close = {status:'CLOSED'};
+  assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
+  assert.equal(close.hseValidatedBy,'HSE Foreman');
+  assert.equal(close.hseValidatedRole,'Foreman Safety');
+  assert.match(close.completionDate,/^\\d{4}-\\d{2}-\\d{2}$/);
+  assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['KTT'],roleVerified:true}).status,403);
+
+  const returned = {status:'PROGRESS',rejectionReason:'Foto belum jelas'};
+  assert.equal(context.enforcePicaClosureRules_(waiting,returned,{roles:['SPV HSE'],roleVerified:true}),null);
+  assert.equal(context.enforcePicaClosureRules_({status:'CLOSED'},{status:'OPEN'},{roles:['Foreman Safety'],roleVerified:true}).status,403);
 });
-
 test('PICA approval changes are included in the existing audit record', () => {
   assert.ok(source.includes('approvalStageChanges: stageChanges'));
   assert.ok(source.includes('statusFrom: oldStatus'));
@@ -575,12 +580,14 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true,ktt:true},'ktt'),true);
 });
 
-test('operational PICA status is derived from stage approvals and cannot be changed alone', () => {
-  assert.ok(source.includes("const hasStageChange = JSON.stringify(stages) !== JSON.stringify(oldStages)"));
-  assert.ok(source.includes("Status PICA ditetapkan otomatis sesuai tahapan persetujuan."));
-  assert.ok(source.includes("changedKeys.indexOf('status') >= 0 && changedKeys.indexOf('approvalStages') === -1"));
+test('PICA register limits non-HSE users to assigned records and enforces PIC/HSE lifecycle', () => {
+  assert.ok(source.includes("String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()"));
+  assert.ok(source.includes("const isHSEValidator = ['Foreman', 'Foreman Safety', 'SPV HSE'].indexOf(role) >= 0 && user.roleVerified === true"));
+  assert.ok(source.includes("Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA."));
+  assert.ok(source.includes("Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE"));
+  assert.ok(source.includes("PICA belum diajukan PIC untuk validasi HSE."));
+  assert.ok(source.includes("'WAITING_HSE'"));
 });
-
 test('missing records fail closed in tenant visibility checks', () => {
   const context = {
     isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
