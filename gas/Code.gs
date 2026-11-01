@@ -1224,7 +1224,8 @@ function handleRoute_(
         };
       }
     }
-    return success_(updateRecord_(entity, id, scopedPayload, user, auditDetails));
+    const expectedPicaState = entity === 'picas' ? { status: existingRecord.status, approvalStages: existingRecord.approvalStages || {} } : null;
+    return success_(updateRecord_(entity, id, scopedPayload, user, auditDetails, expectedPicaState));
   }
 
 
@@ -2304,148 +2305,69 @@ function createRecord_(
 // CRUD — UPDATE
 // ============================================================
 
+function isExpectedPicaStateCurrent_(current, expected) {
+  if (!expected) return true;
+  const currentStages = current && current.approvalStages || {};
+  const expectedStages = expected.approvalStages || {};
+  return String(current && current.status || '').toUpperCase() === String(expected.status || '').toUpperCase() &&
+    ['foreman', 'spvHse', 'ktt'].every(function(stage) {
+      return currentStages[stage] === true === (expectedStages[stage] === true);
+    });
+}
+
 function updateRecord_(
   entity,
   id,
   payload,
   user,
-  auditDetails
+  auditDetails,
+  expectedPicaState
 ) {
-  const sheet =
-    getSheet_(
-      entity
-    );
+  const sheet = getSheet_(entity);
+  const headers = ENTITY_SCHEMAS[entity];
+  if (!headers) throw new Error('Schema entity tidak ditemukan: ' + entity);
+  const safePayload = isObject_(payload) ? payload : {};
+  const lock = LockService.getScriptLock();
+  let item;
 
-  const rowNumber =
-    findRecordRow_(
-      sheet,
-      id
-    );
+  lock.waitLock(10000);
+  try {
+    const rowNumber = findRecordRow_(sheet, id);
+    if (!rowNumber) throw httpError_(404, 'Record not found');
+    const old = parseRow_(sheet, rowNumber);
 
-  if (!rowNumber) {
-    throw httpError_(
-      404,
-      'Record not found'
-    );
-  }
+    // Reject PICA writes validated against a stale approval state.
+    if (entity === 'picas' && !isExpectedPicaStateCurrent_(old, expectedPicaState)) {
+      throw httpError_(409, 'PICA telah diperbarui oleh pengguna lain. Muat ulang data sebelum melanjutkan persetujuan.');
+    }
 
-  const old =
-    parseRow_(
-      sheet,
-      rowNumber
-    );
+    item = Object.assign({}, old, safePayload, {
+      id: String(id),
+      code: old.code,
+      createdAt: old.createdAt,
+      updatedAt: new Date().toISOString()
+    });
 
-  const safePayload =
-    isObject_(
-      payload
-    )
-      ? payload
-      : {};
+    if (entity === 'hazards' && safePayload.riskMatrix && isObject_(safePayload.riskMatrix)) {
+      item.riskMatrix = Object.assign({}, old.riskMatrix || {}, safePayload.riskMatrix);
+    }
 
-  const item =
-    Object.assign(
-      {},
-      old,
-      safePayload,
-      {
-        id:
-          String(id),
+    if (entity === 'picas' && safePayload.approvalStages && isObject_(safePayload.approvalStages)) {
+      item.approvalStages = Object.assign({}, old.approvalStages || {}, safePayload.approvalStages);
+    }
 
-        code:
-          old.code,
-
-        createdAt:
-          old.createdAt,
-
-        updatedAt:
-          new Date()
-            .toISOString()
-      }
-    );
-
-
-  // ----------------------------------------------------------
-  // IMPORTANT:
-  // Preserve current nested structures.
-  // ----------------------------------------------------------
-
-  if (
-    entity ===
-      'hazards' &&
-    safePayload.riskMatrix &&
-    isObject_(
-      safePayload.riskMatrix
-    )
-  ) {
-    item.riskMatrix =
-      Object.assign(
-        {},
-        old.riskMatrix ||
-          {},
-        safePayload.riskMatrix
-      );
-  }
-
-  if (
-    entity ===
-      'picas' &&
-    safePayload.approvalStages &&
-    isObject_(
-      safePayload.approvalStages
-    )
-  ) {
-    item.approvalStages =
-      Object.assign(
-        {},
-        old.approvalStages ||
-          {},
-        safePayload.approvalStages
-      );
-  }
-
-
-  const headers =
-    ENTITY_SCHEMAS[
-      entity
-    ];
-
-  if (!headers) {
-    throw new Error(
-      'Schema entity tidak ditemukan: ' +
-        entity
-    );
-  }
-
-
-  sheet
-    .getRange(
-      rowNumber,
-      1,
-      1,
-      headers.length
-    )
-    .setValues([
-      buildEntityRow_(
-        entity,
-        item,
-        headers
-      )
+    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
+      buildEntityRow_(entity, item, headers)
     ]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
 
-  SpreadsheetApp.flush();
-
-
-  logAudit_(
-    user,
-    'UPDATE',
-    entity,
-    id,
-    auditDetails
-  );
-
+  // Audit is written after releasing the record lock; logAudit_ obtains its own lock.
+  logAudit_(user, 'UPDATE', entity, id, auditDetails);
   return item;
 }
-
 
 // ============================================================
 // PARSE SHEET ROW
