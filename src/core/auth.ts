@@ -55,7 +55,7 @@ export class HDOSAuthEngine {
     }
     if (roles.includes('Contractor')) return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(moduleName);
     if (roles.includes('Subkon')) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(moduleName);
-    if (roles.includes('Employee')) return ['dashboard', 'repository', 'inspection', 'hazard'].includes(moduleName);
+    if (roles.includes('Employee')) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica'].includes(moduleName);
     if (role === 'Project Manager') return true;
     switch (moduleName) {
       case 'dashboard': return true;
