@@ -4,6 +4,7 @@ import { hdosEvents } from './events';
 import { hdosSync } from './sync';
 import { hdosAuth } from './auth';
 import { AuthState } from './auth-state';
+import { hseApi } from './api';
 import { useState, useEffect } from 'react';
 
 function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<typeof AuthState.getUser>): boolean {
@@ -167,6 +168,17 @@ export class HDOSCentralStore {
     // IndexedDB is shared by browser profiles, not by HDOS accounts. Apply the
     // tenant boundary to cached data before exposing it to any module.
     const currentUser = AuthState.getUser();
+    if (currentUser) {
+      try {
+        // The server master is authoritative across devices. Keep the cached
+        // IndexedDB copy only when the API is unavailable (offline mode).
+        const centralLocations = await hseApi.listLocations();
+        this.locations = centralLocations;
+        for (const location of centralLocations) await hdosDB.put('maps', location);
+      } catch (error) {
+        console.warn('[HDOS Store] Master area pusat tidak tersedia; memakai cache lokal.', error);
+      }
+    }
     this.inspections = this.inspections.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
     this.hazards = this.hazards.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
     this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
@@ -316,15 +328,16 @@ export class HDOSCentralStore {
       location.zoneType === input.zoneType
     );
     if (duplicate) throw new Error('Area dengan nama dan kategori yang sama sudah terdaftar.');
-    const location: MiningLocationGIS = { ...input, name, utm: String(input.utm || '').trim(), description: String(input.description || '').trim(), lat, lng, id: createEntityId(), activeHazards: 0, activeInspections: 0, safetyStatus: 'SAFE' };
+    const location = await hseApi.createLocation({ ...input, name, utm: String(input.utm || '').trim(), description: String(input.description || '').trim(), lat, lng, id: createEntityId() });
     await hdosDB.put('maps', location);
-    this.locations = [...this.locations, location];
+    this.locations = [...this.locations.filter(item => item.id !== location.id), location];
     this.notify();
     return location;
   }
 
   async deleteLocation(id: string): Promise<void> {
     this.assertMutationAllowed('location');
+    await hseApi.deleteLocation(id);
     await hdosDB.delete('maps', id);
     this.locations = this.locations.filter((item) => item.id !== id);
     this.notify();
