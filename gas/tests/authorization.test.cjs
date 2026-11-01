@@ -55,6 +55,7 @@ test('all supervisory roles are accepted and new elevated accounts start unverif
   assert.ok(source.includes('const roleVerified = false;'));
 });
 test('CGG self-registration requires an approved corporate domain or exact email allowlist', () => {
+  assert.ok(source.includes('isCggEmailAllowed_(email, companyCode)'));
   let properties = { CGG_EMAIL_DOMAINS: '', CGG_ALLOWED_EMAILS: '' };
   const context = {
     PropertiesService: { getScriptProperties: () => ({ getProperty: key => properties[key] || '' }) }
