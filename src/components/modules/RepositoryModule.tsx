@@ -747,20 +747,22 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         `${DOCUMENT_FILE_PREFIX}${doc.id}`
       );
 
-      // Existing Repository files may only exist in Drive (uploaded from another
-      // browser). Fetch the canonical cloud binary before giving up on form generation.
-      if (!storedFile?.blob && hseApi.baseUrl && sessionUser) {
-        const remote = await hseApi.downloadRepositoryFile(doc.id);
+      // When online, fetch through the tenant-scoped preview endpoint.
+      // Do not use the CGG-only download endpoint for form extraction: Contractor
+      // and Subkon users are allowed to preview visible documents and generate forms.
+      // Keep the fetched bytes in memory only; do not create another unscoped local copy.
+      if (hseApi.baseUrl && sessionUser) {
+        const remote = await hseApi.previewRepositoryFile(doc.id);
         const blob = base64ToBlob(remote.base64, remote.mimeType);
         storedFile = {
           id: `${DOCUMENT_FILE_PREFIX}${doc.id}`,
+          documentId: doc.id,
           blob,
           fileName: remote.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`,
           mimeType: remote.mimeType || 'application/octet-stream',
           size: blob.size,
           uploadedAt: new Date().toISOString(),
         };
-        await hdosDB.put('photos', storedFile);
       }
 
       if (!storedFile?.blob) {
