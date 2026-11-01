@@ -1047,9 +1047,13 @@ function handleRoute_(
     method === 'PATCH' &&
     id
   ) {
-    const requestedPayload = isObject_(params.payload) ? params.payload : {};
+    const requestedPayload = Object.assign({}, isObject_(params.payload) ? params.payload : {});
     const existingRecord = readOne_(entity, id);
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
+    if (entity === 'picas') {
+      const closureError = enforcePicaClosureRules_(existingRecord, requestedPayload, user);
+      if (closureError) return closureError;
+    }
     const isPrivilegedEditor = isAdminCGG_(user) || isCompanyAdmin_(user);
     // Company Admin may manage PICA details in its tenant, but cannot bypass the
     // operational approval chain or directly mark a PICA closed.
@@ -1108,7 +1112,28 @@ function handleRoute_(
       if (Object.prototype.hasOwnProperty.call(existingRecord, key)) scopedPayload[key] = existingRecord[key];
       else delete scopedPayload[key];
     });
-    return success_(updateRecord_(entity, id, scopedPayload, user));
+    let auditDetails = null;
+    if (entity === 'picas') {
+      const oldStages = existingRecord.approvalStages || {};
+      const nextStages = scopedPayload.approvalStages || oldStages;
+      const stageChanges = {};
+      ['foreman', 'spvHse', 'ktt'].forEach(function(stage) {
+        if (nextStages[stage] !== oldStages[stage]) {
+          stageChanges[stage] = { from: oldStages[stage] === true, to: nextStages[stage] === true };
+        }
+      });
+      const oldStatus = String(existingRecord.status || '').toUpperCase();
+      const nextStatus = String(scopedPayload.status || oldStatus).toUpperCase();
+      if (Object.keys(stageChanges).length > 0 || oldStatus !== nextStatus) {
+        auditDetails = {
+          approvalStageChanges: stageChanges,
+          statusFrom: oldStatus,
+          statusTo: nextStatus,
+          completionDate: scopedPayload.completionDate || null
+        };
+      }
+    }
+    return success_(updateRecord_(entity, id, scopedPayload, user, auditDetails));
   }
 
 
@@ -1358,6 +1383,34 @@ function isUserCompanyActive_(user) {
   if (!parentCode || userParentCode !== parentCode) return false;
   const parent = findCompanyRegistry_(parentCode);
   return Boolean(parent && parent.status === 'ACTIVE' && parent.role === 'Contractor');
+}
+
+function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
+  if (isAdminCGG_(user)) return null;
+
+  const oldStatus = String(existingRecord && existingRecord.status || '').trim().toUpperCase();
+  const nextStatus = String(requestedPayload.status || oldStatus).trim().toUpperCase();
+
+  // A closed PICA is terminal for operational and company-admin accounts.
+  if (oldStatus === 'CLOSED' && nextStatus !== 'CLOSED') {
+    return error_(403, 'PICA yang sudah ditutup tidak dapat dibuka kembali. Hubungi Admin CGG untuk koreksi administratif.');
+  }
+
+  // Completion dates are server-owned; clients cannot backdate or rewrite closure evidence.
+  if (Object.prototype.hasOwnProperty.call(requestedPayload, 'completionDate') &&
+      String(requestedPayload.completionDate || '') !== String(existingRecord.completionDate || '')) {
+    return error_(403, 'Tanggal penyelesaian PICA ditetapkan otomatis oleh server saat seluruh persetujuan selesai.');
+  }
+
+  if (nextStatus === 'CLOSED' && oldStatus !== 'CLOSED') {
+    const stages = requestedPayload.approvalStages || existingRecord.approvalStages || {};
+    if (!(stages.foreman === true && stages.spvHse === true && stages.ktt === true)) {
+      return error_(403, 'Penutupan PICA membutuhkan persetujuan Foreman, SPV HSE, dan KTT.');
+    }
+    requestedPayload.completionDate = new Date().toISOString().slice(0, 10);
+  }
+
+  return null;
 }
 
 function createSessionResponse_(user) {
@@ -2159,7 +2212,8 @@ function updateRecord_(
   entity,
   id,
   payload,
-  user
+  user,
+  auditDetails
 ) {
   const sheet =
     getSheet_(
@@ -2289,7 +2343,8 @@ function updateRecord_(
     user,
     'UPDATE',
     entity,
-    id
+    id,
+    auditDetails
   );
 
   return item;
@@ -2814,7 +2869,8 @@ function logAudit_(
   user,
   action,
   entity,
-  recordId
+  recordId,
+  details
 ) {
   const sheet =
     getSheet_(
@@ -2862,7 +2918,10 @@ function logAudit_(
       user.roles || [],
 
     timestamp:
-      now
+      now,
+
+    details:
+      details || {}
   };
 
   sheet.appendRow([
