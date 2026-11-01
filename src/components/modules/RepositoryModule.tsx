@@ -25,6 +25,9 @@ import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentP
 type StoredDocumentFile = {
   id: string;
   documentId?: string;
+  /** Local binary cache is private to the account that uploaded it. */
+  ownerUserId?: string;
+  ownerCompanyCode?: string;
   blob?: Blob;
   file?: Blob;
   fileName?: string;
@@ -33,6 +36,20 @@ type StoredDocumentFile = {
   uploadedAt?: string;
   savedAt?: string;
 };
+
+const canUseLocalDocumentFile = (
+  stored: StoredDocumentFile | null | undefined,
+  doc: DocumentItem,
+  user: ApiUser | null
+): stored is StoredDocumentFile => Boolean(
+  stored &&
+  user?.id &&
+  doc.ownerUserId &&
+  stored.ownerUserId === user.id &&
+  doc.ownerUserId === user.id &&
+  String(stored.ownerCompanyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase() &&
+  String(doc.companyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase()
+);
 
 const base64ToBlob = (base64: string, mimeType: string): Blob => {
   const binary = atob(base64);
@@ -280,7 +297,8 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
           for (const doc of localDocs) {
             if (remoteIds.has(doc.id)) continue;
             const stored = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
-            const blob = stored?.blob || stored?.file;
+            if (!canUseLocalDocumentFile(stored, doc, sessionUser)) continue;
+            const blob = stored.blob || stored.file;
             if (!blob) continue;
             const fileBase64 = await fileToBase64(blob);
             await hseApi.uploadRepositoryDocument({
@@ -494,6 +512,9 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
       const storedFile: StoredDocumentFile = {
         id: `${DOCUMENT_FILE_PREFIX}${newDoc.id}`,
+        documentId: newDoc.id,
+        ownerUserId: sessionUser?.id || '',
+        ownerCompanyCode: String(sessionUser?.companyCode || '').trim().toUpperCase(),
         blob: selectedFile,
         fileName: selectedFile.name,
         mimeType: selectedFile.type || 'application/octet-stream',
@@ -593,9 +614,9 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         const db = await hdosDB.init();
         if (!db) throw new Error('IndexedDB tidak tersedia pada browser ini.');
         let storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
-        if (!storedFile || !(storedFile.blob || storedFile.file)) {
+        if (!canUseLocalDocumentFile(storedFile, doc, sessionUser)) {
           const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
-          storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+          storedFile = allFiles.find((item) => item.documentId === doc.id && canUseLocalDocumentFile(item, doc, sessionUser) && Boolean(item.blob || item.file)) || null;
         }
         if (storedFile?.documentId && storedFile.documentId !== doc.id) {
           throw new Error('Identitas file tidak cocok dengan dokumen yang dipilih. Pratinjau dibatalkan demi mencegah file yang salah ditampilkan.');
@@ -671,12 +692,12 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
           'photos',
           `${DOCUMENT_FILE_PREFIX}${doc.id}`
         );
-        if (!storedFile || !(storedFile.blob || storedFile.file)) {
+        if (!canUseLocalDocumentFile(storedFile, doc, sessionUser)) {
           const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
-          storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+          storedFile = allFiles.find((item) => item.documentId === doc.id && canUseLocalDocumentFile(item, doc, sessionUser) && Boolean(item.blob || item.file)) || null;
         }
-        const rawFile = storedFile?.blob || storedFile?.file;
-        if (storedFile && rawFile && (!storedFile.documentId || storedFile.documentId === doc.id)) {
+        const rawFile = canUseLocalDocumentFile(storedFile, doc, sessionUser) ? (storedFile.blob || storedFile.file) : null;
+        if (storedFile && rawFile && storedFile.documentId === doc.id && canUseLocalDocumentFile(storedFile, doc, sessionUser)) {
           blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
           fileName = storedFile.fileName || fileName;
         }
@@ -761,6 +782,8 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         storedFile = {
           id: `${DOCUMENT_FILE_PREFIX}${doc.id}`,
           documentId: doc.id,
+          ownerUserId: sessionUser?.id || '',
+          ownerCompanyCode: String(sessionUser?.companyCode || '').trim().toUpperCase(),
           blob,
           fileName: remote.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`,
           mimeType: remote.mimeType || 'application/octet-stream',
@@ -769,7 +792,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         };
       }
 
-      if (!storedFile?.blob) {
+      if (!canUseLocalDocumentFile(storedFile, doc, sessionUser) || !storedFile.blob) {
         throw new Error(
           'Berkas asli tidak ditemukan di penyimpanan lokal maupun Drive pusat. Periksa tautan berkas dokumen ini.'
         );
@@ -947,7 +970,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
             'photos',
             `${DOCUMENT_FILE_PREFIX}${doc.id}`
           );
-          if (!storedFile?.blob) continue;
+          if (!canUseLocalDocumentFile(storedFile, doc, sessionUser) || !storedFile.blob) continue;
           const blob = storedFile.blob instanceof Blob
             ? storedFile.blob
             : new Blob([storedFile.blob as BlobPart], { type: storedFile.mimeType || 'application/octet-stream' });
