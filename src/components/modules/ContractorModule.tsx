@@ -111,7 +111,7 @@ export const ContractorModule: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white">{selectedContractor.companyName}</h3>
                 <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
-                  Verified SMKP Partner
+                  Status: {selectedContractor.status}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">

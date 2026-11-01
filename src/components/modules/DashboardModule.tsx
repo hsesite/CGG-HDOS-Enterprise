@@ -69,7 +69,9 @@ export const DashboardModule: React.FC = () => {
   const dashboardHazards = store.hazards.filter(recordInDashboardScope);
   const dashboardPicas = store.picas.filter(recordInDashboardScope);
 
-  const totalInspections = dashboardInspections.length;
+  const completedInspections = dashboardInspections.filter(record => record.status === 'COMPLETED' || record.status === 'PICA_TRIGGERED');
+  const totalInspections = completedInspections.length;
+  const complianceScore = totalInspections > 0 ? completedInspections.reduce((total, record) => total + Number(record.scorePercent || 0), 0) / totalInspections : null;
   const openHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED').length;
   const criticalHazards = dashboardHazards.filter((h) => h.riskMatrix.level === 'CRITICAL').length;
   const activePicas = dashboardPicas.filter((p) => p.status !== 'CLOSED').length;
@@ -79,7 +81,6 @@ export const DashboardModule: React.FC = () => {
 
   // Historical trends are not synthesized. Show only records with a real source.
   const activeTrendData = useMemo(() => [], [dashboardInspections, dashboardHazards]);
-  const rangeDeltaHours = 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -112,7 +113,7 @@ export const DashboardModule: React.FC = () => {
             {totalInspections}
           </div>
           <div className="mt-2 flex items-center justify-between text-xs text-neutral-400">
-            <span>Tingkat Kepatuhan: <strong className="text-white font-mono">96.4%</strong></span>
+            <span>Tingkat Kepatuhan: <strong className="text-white font-mono">{complianceScore === null ? '—' : `${complianceScore.toFixed(1)}%`}</strong></span>
             <button
               onClick={() => store.openWindow('inspection')}
               className="text-[#42A5F5] hover:underline flex items-center gap-0.5 cursor-pointer"
@@ -182,7 +183,7 @@ export const DashboardModule: React.FC = () => {
                 Performance Trends
               </h3>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-neutral-300">
-                Live Telemetry
+                Data Historis
               </span>
             </div>
             <p className="text-xs text-neutral-400">
@@ -231,11 +232,6 @@ export const DashboardModule: React.FC = () => {
 
             {/* Metric Pills */}
             <div className="flex items-center gap-2 text-xs font-mono">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-                <span className="w-2 h-2 rounded-full bg-[#00E676] shadow-[0_0_6px_#00E676]" />
-                <span className="text-neutral-300 hidden sm:inline">Delta:</span>
-                <strong className="text-[#00E676] tabular-nums">+{rangeDeltaHours.toLocaleString('id-ID')} Jam</strong>
-              </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/10 border border-red-500/25">
                 <span className="w-2 h-2 rounded-full bg-[#FF5252] shadow-[0_0_6px_#FF5252]" />
                 <span className="text-neutral-300 hidden sm:inline">Hazards:</span>
@@ -247,7 +243,7 @@ export const DashboardModule: React.FC = () => {
 
         {/* Recharts Responsive Canvas */}
         <div className="w-full h-64 sm:h-76 md:h-80 pt-1 -ml-2 sm:ml-0">
-          <ResponsiveContainer width="100%" height="100%">
+          {activeTrendData.length === 0 ? <div className="flex h-full items-center justify-center text-xs text-neutral-500">Belum ada data historis untuk periode ini.</div> : <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={activeTrendData}
               margin={{ top: 12, right: 12, left: -10, bottom: 0 }}
@@ -378,7 +374,7 @@ export const DashboardModule: React.FC = () => {
                 activeDot={{ r: 5, fill: '#FF5252', stroke: '#090909', strokeWidth: 2 }}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
         </div>
       </div>
 
