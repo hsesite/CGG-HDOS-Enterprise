@@ -433,7 +433,7 @@ export class HDOSSyncEngine {
       // Revalidate identity immediately before sending queued writes. This also
       // protects the reconnect path when company membership changed while offline.
       const previousProfile = AuthState.getUser();
-      const verifiedProfile = await hseApi.me();
+      const verifiedProfile = await hseApi.me(syncToken);
       if (hseApi.authToken !== syncToken) return false;
       const profileChanged = !previousProfile ||
         previousProfile.id !== verifiedProfile.id ||
