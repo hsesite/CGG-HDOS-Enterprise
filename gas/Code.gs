@@ -1455,7 +1455,7 @@ function listCompanyRegistry_() {
   return success_(companies);
 }
 
-function upsertCompanyRegistry_(payload, actor) {
+function upsertCompanyRegistryCore_(payload, actor, auditOut) {
   const input = isObject_(payload) ? payload : {};
   const code = String(input.code || '').trim().toUpperCase();
   const name = String(input.name || '').trim();
@@ -1486,8 +1486,32 @@ function upsertCompanyRegistry_(payload, actor) {
   const values = [code, name, role, role === 'Subkon' ? parentCode : '', domains, autoProvision ? 'TRUE' : 'FALSE', status];
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
   else sheet.appendRow(values);
-  logAudit_(actor, rowNumber > 0 ? 'COMPANY_MASTER_UPDATED' : 'COMPANY_MASTER_CREATED', 'companies', code, { companyName: name, role: role, parentCompanyCode: role === 'Subkon' ? parentCode : '', status: status });
+  auditOut.push({
+    action: rowNumber > 0 ? 'COMPANY_MASTER_UPDATED' : 'COMPANY_MASTER_CREATED',
+    details: { companyName: name, role: role, parentCompanyCode: role === 'Subkon' ? parentCode : '', status: status }
+  });
   return success_({ code: code, name: name, role: role, parentCompanyCode: role === 'Subkon' ? parentCode : '', emailDomains: domains, autoProvision: autoProvision, status: status });
+}
+
+function upsertCompanyRegistry_(payload, actor) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  const auditOut = [];
+  let result;
+  const input = isObject_(payload) ? payload : {};
+  const code = String(input.code || '').trim().toUpperCase();
+  try {
+    result = upsertCompanyRegistryCore_(payload, actor, auditOut);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  // logAudit_ takes the same script lock; append it after the company row is committed.
+  if (result && result.success && auditOut.length) {
+    const audit = auditOut[0];
+    logAudit_(actor, audit.action, 'companies', code, audit.details);
+  }
+  return result;
 }
 
 function findCompanyRegistry_(companyCode) {
