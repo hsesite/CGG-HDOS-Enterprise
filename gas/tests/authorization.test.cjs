@@ -782,3 +782,30 @@ test('subkon reads only its own tenant records, not parent or sibling records', 
   assert.equal(context.isRecordVisibleToUser_({companyCode:'BKR',parentCompanyCode:'SLS'},user),false);
   assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),false);
 });
+
+
+test('offline sync queue is bound to the authenticated user and company before replay', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+
+  // Every newly queued item receives immutable owner metadata from the active
+  // authenticated profile; legacy ownerless items are quarantined, not replayed.
+  assert.match(syncSource, /ownerUserId:\s*owner\.userId/);
+  assert.match(syncSource, /ownerCompanyCode:\s*owner\.companyCode/);
+  assert.match(syncSource, /!item\.ownerUserId\s*\|\|\s*!item\.ownerCompanyCode/);
+  assert.match(syncSource, /item\.status\s*=\s*'CONFLICT'/);
+
+  // A queue snapshot is filtered to the current user AND tenant, then identity
+  // is refreshed from the server before any queued write is sent.
+  assert.match(syncSource, /item\.ownerUserId\s*===\s*owner\.userId\s*&&\s*item\.ownerCompanyCode\s*===\s*owner\.companyCode/);
+  assert.match(syncSource, /const verifiedProfile\s*=\s*await hseApi\.me\(syncToken\)/);
+  assert.match(syncSource, /verifiedOwner\.userId\s*!==\s*owner\.userId/);
+  assert.match(syncSource, /verifiedOwner\.companyCode\s*!==\s*owner\.companyCode/);
+  assert.match(syncSource, /hseApi\.create\(\s*endpoint,\s*item\.payload,\s*syncToken\s*\)/);
+
+  // Cloud snapshots must not erase local records still waiting in this tenant's
+  // queue, and must not expose another tenant's cached operational records.
+  assert.match(storeSource, /isLocalRecordVisible\(record as unknown as Record<string, unknown>, currentUser\)/);
+  assert.match(storeSource, /pendingIds\.has\(local\.id\)/);
+  assert.match(storeSource, /if \(!remoteIds\.has\(local\.id\) && !pendingIds\.has\(local\.id\)\)/);
+});
