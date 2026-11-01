@@ -926,6 +926,10 @@ function handleRoute_(
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
     const blob = file.getBlob();
+    logAudit_(user, 'REPOSITORY_DOCUMENT_PREVIEWED', 'repository', doc.id, {
+      fileName: file.getName(),
+      mimeType: blob.getContentType()
+    });
     return success_({ fileName: file.getName(), mimeType: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
   }
 
@@ -939,6 +943,10 @@ function handleRoute_(
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
     const blob = file.getBlob();
+    logAudit_(user, 'REPOSITORY_DOCUMENT_DOWNLOADED', 'repository', doc.id, {
+      fileName: file.getName(),
+      mimeType: blob.getContentType()
+    });
     return success_({ fileName: file.getName(), mimeType: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
   }
 
