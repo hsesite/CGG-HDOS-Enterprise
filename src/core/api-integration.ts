@@ -1,6 +1,5 @@
 import { hdosStore } from './store';
 import { hdosSync } from './sync';
-import { hseApi, ApiError } from './api';
 
 import type {
   Inspection,
@@ -9,326 +8,40 @@ import type {
   Incident,
 } from './types';
 
-function isAuthenticatedAndOnline(authToken: string | null): boolean {
-  return Boolean(authToken) && hdosSync.getIsOnline();
-}
-
-async function enqueueCreate(
-  entity:
-    | 'inspection'
-    | 'hazard'
-    | 'pica'
-    | 'incident',
-  payload: unknown,
-  owner?: { userId: string; companyCode: string } | null
-): Promise<void> {
-  await hdosSync.enqueue({
-    entity,
-    action: 'CREATE',
-    payload,
-  }, owner);
-}
-
-async function syncCreatedRecord<T>(
-  entity:
-    | 'inspections'
-    | 'hazards'
-    | 'picas'
-    | 'incidents',
-  queueEntity:
-    | 'inspection'
-    | 'hazard'
-    | 'pica'
-    | 'incident',
-  record: T,
-  authToken: string | null,
-  owner: { userId: string; companyCode: string } | null
-): Promise<void> {
-  if (isAuthenticatedAndOnline(authToken)) {
-    try {
-      await hseApi.create(
-        entity,
-        record,
-        authToken || undefined
-      );
-      return;
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.status === 401
-      ) {
-        await enqueueCreate(
-          queueEntity,
-          record,
-          owner
-        );
-
-        throw error;
-      }
-
-      console.warn(
-        `[HDOS api] ${queueEntity} cloud create failed, queued for sync`,
-        error
-      );
-    }
-  }
-
-  await enqueueCreate(
-    queueEntity,
-    record,
-    owner
-  );
-}
-
+/**
+ * Single write path for operational records.
+ *
+ * HDOSCentralStore owns the local transaction and creates exactly one
+ * offline-queue item for each record. The sync engine is the only component
+ * that sends queued writes to the central GAS API.
+ *
+ * Do not call hseApi.create/update here: doing so in parallel with the
+ * store-owned queue caused the same record to be submitted twice.
+ */
 export class ApiIntegration {
   async createInspection(
-    inspection: Omit<
-      Inspection,
-      'id' | 'code' | 'createdAt'
-    >
+    inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>
   ): Promise<Inspection> {
-    const authToken = hseApi.authToken;
-    const owner = hdosSync.getOwnerSnapshot();
-    const picaCountBefore =
-      hdosStore.picas.length;
-
-    const created =
-      await hdosStore.addInspection(
-        inspection
-      );
-
-    /*
-     * addInspection() may automatically create a PICA
-     * when one or more checklist items fail.
-     *
-     * Capture newly-created PICA records so they do not
-     * remain local-only.
-     */
-    const newPicas =
-      hdosStore.picas.slice(
-        0,
-        hdosStore.picas.length -
-          picaCountBefore
-      );
-
-    try {
-      await syncCreatedRecord(
-        'inspections',
-        'inspection',
-        created,
-        authToken,
-        owner
-      );
-
-      for (
-        const pica of newPicas
-      ) {
-        await syncCreatedRecord(
-          'picas',
-          'pica',
-          pica,
-          authToken,
-          owner
-        );
-      }
-    } catch (error) {
-      /*
-       * Local record has already been committed to IndexedDB.
-       * If authentication failed, let the caller handle login
-       * renewal. The record remains safely queued.
-       */
-      if (
-        error instanceof ApiError &&
-        error.status === 401
-      ) {
-        throw error;
-      }
-    }
-
-    return created;
+    return hdosStore.addInspection(inspection);
   }
 
   async createHazard(
-    hazard: Omit<
-      Hazard,
-      'id' | 'code' | 'createdAt'
-    >
+    hazard: Omit<Hazard, 'id' | 'code' | 'createdAt'>
   ): Promise<Hazard> {
-    const authToken = hseApi.authToken;
-    const owner = hdosSync.getOwnerSnapshot();
-    const picaCountBefore =
-      hdosStore.picas.length;
-
-    const created =
-      await hdosStore.addHazard(
-        hazard
-      );
-
-    /*
-     * addHazard() automatically creates a PICA for
-     * HIGH / CRITICAL hazards.
-     */
-    const newPicas =
-      hdosStore.picas.slice(
-        0,
-        hdosStore.picas.length -
-          picaCountBefore
-      );
-
-    try {
-      await syncCreatedRecord(
-        'hazards',
-        'hazard',
-        created,
-        authToken,
-        owner
-      );
-
-      for (
-        const pica of newPicas
-      ) {
-        await syncCreatedRecord(
-          'picas',
-          'pica',
-          pica,
-          authToken,
-          owner
-        );
-      }
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.status === 401
-      ) {
-        throw error;
-      }
-    }
-
-    return created;
+    return hdosStore.addHazard(hazard);
   }
 
   async updatePICA(
     id: string,
     updates: Partial<PICA>
   ): Promise<PICA | null> {
-    const authToken = hseApi.authToken;
-    const owner = hdosSync.getOwnerSnapshot();
-    const updated =
-      await hdosStore.updatePICAStatus(
-        id,
-        updates
-      );
-
-    if (!updated) {
-      return null;
-    }
-
-    /*
-     * The queue payload MUST contain the record ID.
-     * This fixes the previous UPDATE queue defect where
-     * the queue item ID was incorrectly parsed as the PICA ID.
-     */
-    const cloudPayload: Partial<PICA> & {
-      id: string;
-    } = {
-      ...updates,
-      id,
-    };
-
-    if (
-      isAuthenticatedAndOnline(authToken)
-    ) {
-      try {
-        await hseApi.update(
-          'picas',
-          id,
-          updates,
-          authToken || undefined
-        );
-
-        return updated;
-      } catch (error) {
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
-          await hdosSync.enqueue({
-            entity: 'pica',
-            action: 'UPDATE',
-            payload: cloudPayload,
-          }, owner);
-
-          throw error;
-        }
-
-        console.warn(
-          '[HDOS api] PICA update failed, queued for sync',
-          error
-        );
-      }
-    }
-
-    await hdosSync.enqueue({
-      entity: 'pica',
-      action: 'UPDATE',
-      payload: cloudPayload,
-    }, owner);
-
-    return updated;
+    return hdosStore.updatePICAStatus(id, updates);
   }
 
   async createIncident(
-    incident: Omit<
-      Incident,
-      'id' | 'code' | 'createdAt'
-    >
+    incident: Omit<Incident, 'id' | 'code' | 'createdAt'>
   ): Promise<Incident> {
-    const authToken = hseApi.authToken;
-    const owner = hdosSync.getOwnerSnapshot();
-    const created =
-      await hdosStore.addIncident(
-        incident
-      );
-
-    if (
-      isAuthenticatedAndOnline(authToken)
-    ) {
-      try {
-        await hseApi.create(
-          'incidents',
-          created,
-          authToken || undefined
-        );
-
-        return created;
-      } catch (error) {
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
-          await enqueueCreate(
-            'incident',
-            created,
-            owner
-          );
-
-          throw error;
-        }
-
-        console.warn(
-          '[HDOS api] incident create failed, queued for sync',
-          error
-        );
-      }
-    }
-
-    await enqueueCreate(
-      'incident',
-      created,
-      owner
-    );
-
-    return created;
+    return hdosStore.addIncident(incident);
   }
 
   getSyncQueue() {
@@ -336,15 +49,11 @@ export class ApiIntegration {
   }
 
   clearSyncQueue(): void {
-    /*
-     * Build v1.0:
-     * Do not silently delete unsynchronized data.
-     */
+    // Unsynchronized records must not be silently deleted.
     console.warn(
-      '[HDOS api] clearSyncQueue disabled in Build v1.0 to protect queued data.'
+      '[HDOS api] clearSyncQueue disabled to protect queued data.'
     );
   }
 }
 
-export const apiIntegration =
-  new ApiIntegration();
+export const apiIntegration = new ApiIntegration();
