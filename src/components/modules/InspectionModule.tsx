@@ -145,7 +145,7 @@ export const InspectionModule: React.FC = () => {
 
     const failedItems = items.filter((item) => item.result === 'FAIL');
     const missingFindingNotes = items.some((item) => item.result === 'FAIL' && !item.notes?.trim());
-    if (failedItems.length > 0 && (!picaDepartment.trim() || !picaPicName.trim() || !picaPicEmail.trim() || !picaTargetDate)) {
+    if (failedItems.length > 0 && (!(picaDepartment.trim() || selectedRepositoryForm.department?.trim()) || !picaPicName.trim() || !picaPicEmail.trim() || !picaTargetDate)) {
       window.alert('Temuan Tidak Sesuai wajib memiliki departemen tujuan, nama PIC, email PIC, dan target penyelesaian.');
       return;
     }
@@ -188,7 +188,7 @@ export const InspectionModule: React.FC = () => {
         scorePercent,
         items,
         notes: generalNotes,
-        picaDepartment: picaDepartment.trim(),
+        picaDepartment: picaDepartment.trim() || String(selectedRepositoryForm.department || '').trim(),
         picaPicName: picaPicName.trim(),
         picaPicEmail: picaPicEmail.trim().toLowerCase(),
         picaTargetDate,
