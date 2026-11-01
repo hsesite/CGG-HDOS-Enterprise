@@ -126,18 +126,8 @@ export class HDOSCentralStore {
 
   async init(): Promise<void> {
   try {
-    // One-time cleanup of legacy demo records from this browser. The owner requested a clean start.
-    const cleanupKey = 'cgg_hdos_empty_start_v1';
-    if (localStorage.getItem(cleanupKey) !== 'done') {
-      for (const storeName of ['queue','repository','form-definition','inspection','inspection-draft','hazard','incident','pica','contractor','maps','photos','ai-cache','systemlog'] as const) {
-        const records = await hdosDB.getAll<{ id: string }>(storeName);
-        for (const record of records) await hdosDB.delete(storeName, record.id);
-        // Clear legacy localStorage fallback too, even when IndexedDB is currently available.
-        localStorage.removeItem(`cgg_hdos_${storeName}`);
-      }
-      for (const key of ['cgg_hdos_location_master','cgg_hdos_contractor_master','cgg_hdos_safe_hours','cgg_hdos_weather']) localStorage.removeItem(key);
-      localStorage.setItem(cleanupKey, 'done');
-    }
+    // Preserve all operational offline data during application upgrades.
+    // Only explicitly identified demo seed records are removed below.
     this.inspections = await hdosDB.getAll<Inspection>('inspection');
 
     this.hazards = await hdosDB.getAll<Hazard>('hazard');
