@@ -1317,7 +1317,12 @@ function handleRoute_(
       }
     }
     const expectedPicaState = entity === 'picas' ? { status: existingRecord.status, approvalStages: existingRecord.approvalStages || {} } : null;
-    return success_(updateRecord_(entity, id, scopedPayload, user, auditDetails, expectedPicaState));
+    // The client sends the updatedAt value it last read. Preserve it as an optimistic
+    // concurrency token so an older full-record edit cannot overwrite newer server data.
+    const expectedRecordUpdatedAt = Object.prototype.hasOwnProperty.call(requestedPayload, 'updatedAt')
+      ? String(requestedPayload.updatedAt || '')
+      : null;
+    return success_(updateRecord_(entity, id, scopedPayload, user, auditDetails, expectedPicaState, expectedRecordUpdatedAt));
   }
 
 
@@ -2580,13 +2585,19 @@ function isExpectedPicaStateCurrent_(current, expected) {
     });
 }
 
+function isExpectedRecordVersionCurrent_(current, expectedUpdatedAt) {
+  if (expectedUpdatedAt === null || expectedUpdatedAt === undefined || expectedUpdatedAt === '') return true;
+  return String(current && current.updatedAt || '') === String(expectedUpdatedAt);
+}
+
 function updateRecord_(
   entity,
   id,
   payload,
   user,
   auditDetails,
-  expectedPicaState
+  expectedPicaState,
+  expectedRecordUpdatedAt
 ) {
   const sheet = getSheet_(entity);
   const headers = ENTITY_SCHEMAS[entity];
@@ -2604,6 +2615,11 @@ function updateRecord_(
     // Reject PICA writes validated against a stale approval state.
     if (entity === 'picas' && !isExpectedPicaStateCurrent_(old, expectedPicaState)) {
       throw httpError_(409, 'PICA telah diperbarui oleh pengguna lain. Muat ulang data sebelum melanjutkan persetujuan.');
+    }
+
+    // Reject stale edits for every operational entity, not only PICA approvals.
+    if (!isExpectedRecordVersionCurrent_(old, expectedRecordUpdatedAt)) {
+      throw httpError_(409, 'Data telah diperbarui oleh pengguna lain. Muat ulang data sebelum menyimpan perubahan.');
     }
 
     item = Object.assign({}, old, safePayload, {
