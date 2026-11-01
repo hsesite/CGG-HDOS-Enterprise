@@ -304,7 +304,19 @@ export class HDOSCentralStore {
 
   async addLocation(input: Omit<MiningLocationGIS, 'id' | 'activeHazards' | 'activeInspections' | 'safetyStatus'>): Promise<MiningLocationGIS> {
     this.assertMutationAllowed('location');
-    const location: MiningLocationGIS = { ...input, id: createEntityId(), activeHazards: 0, activeInspections: 0, safetyStatus: 'SAFE' };
+    const name = String(input.name || '').trim();
+    if (name.length < 2) throw new Error('Nama area minimal 2 karakter.');
+    const lat = Number(input.lat);
+    const lng = Number(input.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Koordinat latitude dan longitude harus berupa angka yang valid.');
+    if (lat < -90 || lat > 90) throw new Error('Latitude harus berada pada rentang -90 sampai 90 derajat.');
+    if (lng < -180 || lng > 180) throw new Error('Longitude harus berada pada rentang -180 sampai 180 derajat.');
+    const duplicate = this.locations.some(location =>
+      location.name.trim().toLocaleLowerCase('id-ID') === name.toLocaleLowerCase('id-ID') &&
+      location.zoneType === input.zoneType
+    );
+    if (duplicate) throw new Error('Area dengan nama dan kategori yang sama sudah terdaftar.');
+    const location: MiningLocationGIS = { ...input, name, utm: String(input.utm || '').trim(), description: String(input.description || '').trim(), lat, lng, id: createEntityId(), activeHazards: 0, activeInspections: 0, safetyStatus: 'SAFE' };
     await hdosDB.put('maps', location);
     this.locations = [...this.locations, location];
     this.notify();
