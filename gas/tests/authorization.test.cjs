@@ -466,7 +466,7 @@ test('PICA approval changes are included in the existing audit record', () => {
   assert.ok(source.includes('approvalStageChanges: stageChanges'));
   assert.ok(source.includes('statusFrom: oldStatus'));
   assert.match(source, /details:\s*details\s*\|\|\s*\{\}/);
-  assert.match(source, /updateRecord_\(entity,\s*id,\s*scopedPayload,\s*user,\s*auditDetails,\s*expectedPicaState\)/);
+  assert.match(source, /updateRecord_\(entity,\s*id,\s*scopedPayload,\s*user,\s*auditDetails,\s*expectedPicaState,\s*expectedRecordUpdatedAt\)/);
 });
 
 test('Repository API strips internal Drive identifiers and file bytes from metadata', () => {
