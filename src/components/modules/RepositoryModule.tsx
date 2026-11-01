@@ -18,7 +18,7 @@ import { DocumentItem, FormDefinition, DocumentLevel, DocumentControlMetadata } 
 import { hdosAuth } from '../../core/auth';
 import { getCurrentUser as getSessionUser } from '../../core/auth-utils';
 import { canDownloadDocuments } from '../../core/access-policy';
-import { hseApi, type ApiUser } from '../../core/api';
+import { ApiError, hseApi, type ApiUser } from '../../core/api';
 import { hdosDB } from '../../core/db';
 import { extractDocumentText, extractChecklistItemsFromDocument, renderDocumentPreviewHtml } from '../../core/document-parser';
 
@@ -622,28 +622,67 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     setDownloading(true);
 
     try {
-      const db = await hdosDB.init();
-      if (!db) {
-        throw new Error('IndexedDB tidak tersedia pada browser ini.');
+      if (!isCGGAccount) {
+        throw new Error('Unduhan dokumen hanya tersedia untuk akun internal CGG.');
+      }
+      const downloadToken = hseApi.authToken;
+      if (!downloadToken) {
+        throw new Error('Sesi login tidak tersedia. Login ulang sebelum mengunduh dokumen.');
       }
 
-      let storedFile = await hdosDB.getById<StoredDocumentFile>(
-        'photos',
-        `${DOCUMENT_FILE_PREFIX}${doc.id}`
-      );
-      if (!storedFile || !(storedFile.blob || storedFile.file)) {
-        const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
-        storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+      let blob: Blob | null = null;
+      let fileName = `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
+      let allowLocalFallback = !hseApi.baseUrl;
+
+      // Ask the server first so current authorization and the download audit
+      // event are enforced for every online download.
+      if (hseApi.baseUrl) {
+        try {
+          const remote = await hseApi.downloadRepositoryFile(doc.id, downloadToken);
+          if (hseApi.authToken !== downloadToken) {
+            throw new Error('Sesi akun berubah saat unduhan diproses. Silakan ulangi dengan akun aktif.');
+          }
+          blob = base64ToBlob(remote.base64, remote.mimeType);
+          fileName = remote.fileName || fileName;
+        } catch (error) {
+          // Never turn an authorization denial into a successful local download.
+          if (error instanceof ApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {
+            throw error;
+          }
+          if (hseApi.authToken !== downloadToken) {
+            throw new Error('Sesi akun berubah saat unduhan diproses. Silakan ulangi dengan akun aktif.');
+          }
+          allowLocalFallback = error instanceof ApiError && (error.status === 0 || error.status === 503);
+          if (!allowLocalFallback) throw error;
+        }
       }
-      const rawFile = storedFile?.blob || storedFile?.file;
-      let blob: Blob;
-      let fileName = storedFile?.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
-      if (storedFile && rawFile && (!storedFile.documentId || storedFile.documentId === doc.id)) {
-        blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
-      } else {
-        const remote = await hseApi.downloadRepositoryFile(doc.id);
-        blob = base64ToBlob(remote.base64, remote.mimeType);
-        fileName = remote.fileName || fileName;
+
+      if (!blob && allowLocalFallback) {
+        const db = await hdosDB.init();
+        if (!db) {
+          throw new Error('IndexedDB tidak tersedia pada browser ini.');
+        }
+
+        let storedFile = await hdosDB.getById<StoredDocumentFile>(
+          'photos',
+          `${DOCUMENT_FILE_PREFIX}${doc.id}`
+        );
+        if (!storedFile || !(storedFile.blob || storedFile.file)) {
+          const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
+          storedFile = allFiles.find((item) => item.documentId === doc.id && Boolean(item.blob || item.file)) || null;
+        }
+        const rawFile = storedFile?.blob || storedFile?.file;
+        if (storedFile && rawFile && (!storedFile.documentId || storedFile.documentId === doc.id)) {
+          blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
+          fileName = storedFile.fileName || fileName;
+        }
+      }
+
+      if (!blob) {
+        throw new Error('Berkas tidak tersedia di server maupun penyimpanan lokal offline.');
+      }
+      if (hseApi.authToken !== downloadToken) {
+        throw new Error('Sesi akun berubah sebelum unduhan dimulai. Silakan ulangi dengan akun aktif.');
       }
 
       const objectUrl = URL.createObjectURL(blob);
