@@ -801,10 +801,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       if (!storedFile || !(storedFile.blob || storedFile.file)) {
         throw new Error('Berkas asli tidak tersedia untuk membuat formulir.');
       }
-      const sourceBlob = storedFile.blob || storedFile.file;
+      const sourceBlob = storedFile.blob ?? storedFile.file;
+      if (!sourceBlob) {
+        throw new Error('Berkas asli tidak tersedia untuk membuat formulir.');
+      }
       const originalBlob = sourceBlob instanceof Blob
         ? sourceBlob
-        : new Blob([sourceBlob as BlobPart], {
+        : new Blob([sourceBlob], {
             type: storedFile.mimeType || 'application/octet-stream',
           });
 
