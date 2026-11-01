@@ -805,13 +805,15 @@ export class HDOSCentralStore {
       updated.hseValidatedRole = role;
       updated.hseValidatedAt = new Date().toISOString();
     } else if (updates.status === 'PROGRESS') {
-      if (!isHSEValidator || current.status !== 'WAITING_HSE') throw new Error('Hanya HSE yang dapat mengembalikan pengajuan PICA kepada PIC.');
-      if (!String(updates.rejectionReason || '').trim()) throw new Error('Alasan pengembalian wajib diisi.');
+      if (current.status === 'WAITING_HSE') {
+        if (!isHSEValidator) throw new Error('Hanya HSE yang dapat mengembalikan pengajuan PICA kepada PIC.');
+        if (!String(updates.rejectionReason || '').trim()) throw new Error('Alasan pengembalian wajib diisi.');
+      } else if (!isAssignedPIC || !['OPEN', 'PROGRESS'].includes(current.status)) {
+        throw new Error('Perubahan status hanya dapat dilakukan PIC yang ditugaskan.');
+      }
       updated.status = 'PROGRESS';
     } else if (updates.status && updates.status !== current.status) {
-      if (!isAssignedPIC || !['OPEN', 'PROGRESS'].includes(current.status)) throw new Error('Perubahan status hanya dapat dilakukan PIC yang ditugaskan.');
-      if (updates.status !== 'PROGRESS') throw new Error('Status PICA tidak valid.');
-      updated.status = 'PROGRESS';
+      throw new Error('Status PICA tidak valid.');
     }
 
     await hdosSync.enqueueBatch(
