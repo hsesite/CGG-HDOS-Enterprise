@@ -1051,6 +1051,24 @@ function handleRoute_(
     const existingRecord = readOne_(entity, id);
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
     const isPrivilegedEditor = isAdminCGG_(user) || isCompanyAdmin_(user);
+    // Company Admin may manage PICA details in its tenant, but cannot bypass the
+    // operational approval chain or directly mark a PICA closed.
+    if (entity === 'picas' && isCompanyAdmin_(user) && !isAdminCGG_(user)) {
+      const oldStagesForCompanyAdmin = existingRecord.approvalStages || {};
+      const requestedStagesForCompanyAdmin = requestedPayload.approvalStages || oldStagesForCompanyAdmin;
+      if (Object.prototype.hasOwnProperty.call(requestedPayload, 'approvalStages') &&
+          JSON.stringify(requestedStagesForCompanyAdmin) !== JSON.stringify(oldStagesForCompanyAdmin)) {
+        return error_(403, 'Admin Perusahaan tidak dapat mengubah tahapan persetujuan PICA.');
+      }
+      const requestedStatusForCompanyAdmin = String(requestedPayload.status || existingRecord.status || '').toUpperCase();
+      if (requestedStatusForCompanyAdmin === 'CLOSED' &&
+          !(oldStagesForCompanyAdmin.foreman === true && oldStagesForCompanyAdmin.spvHse === true && oldStagesForCompanyAdmin.ktt === true)) {
+        return error_(403, 'Penutupan PICA membutuhkan seluruh tahap verifikasi.');
+      }
+      if (['OPEN', 'PROGRESS', 'CLOSED'].indexOf(requestedStatusForCompanyAdmin) === -1) {
+        return error_(403, 'Status PICA tidak valid.');
+      }
+    }
     if (!isPrivilegedEditor) {
       if (entity === 'picas') assertVerifiedRole_(user, 'perubahan status atau persetujuan PICA');
       if (entity !== 'picas') return error_(403, 'Data operasional yang sudah dikirim tidak dapat diedit atau dihapus.');
