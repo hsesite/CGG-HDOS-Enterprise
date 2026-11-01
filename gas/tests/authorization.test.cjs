@@ -200,3 +200,14 @@ test('New published forms derive tenant parent from active company registry, not
   assert.ok(source.includes("parentCompanyCode: parentCompanyCode,"));
   assert.ok(!source.includes("parentCompanyCode: String(input.parentCompanyCode || user.parentCompanyCode || '')"));
 });
+
+
+test('Company Admin cannot bypass PICA approval stages or close an unapproved PICA', () => {
+  assert.ok(source.includes("if (entity === 'picas' && isCompanyAdmin_(user) && !isAdminCGG_(user))"));
+  assert.ok(source.includes("return error_(403, 'Admin Perusahaan tidak dapat mengubah tahapan persetujuan PICA.')"));
+  assert.ok(source.includes("if (requestedStatusForCompanyAdmin === 'CLOSED' &&"));
+  assert.ok(source.includes("oldStagesForCompanyAdmin.foreman === true && oldStagesForCompanyAdmin.spvHse === true && oldStagesForCompanyAdmin.ktt === true"));
+});
+test('Operational tenant ownership remains immutable during PATCH for non-CGG admins', () => {
+  assert.ok(source.includes("['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode'].forEach(function(key)"));
+});
