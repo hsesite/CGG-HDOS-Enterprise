@@ -208,9 +208,27 @@ export const SyncModule: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-neutral-300">
-                    {item.status}
-                  </span>
+                  <div className="text-right max-w-[48%]">
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                      item.status === 'CONFLICT'
+                        ? 'bg-red-500/15 text-red-300'
+                        : item.status === 'SYNCING'
+                        ? 'bg-blue-500/15 text-blue-300'
+                        : 'bg-white/10 text-neutral-300'
+                    }`}>
+                      {item.status}
+                    </span>
+                    {item.retryCount > 0 && (
+                      <div className="text-[10px] text-amber-300 mt-1">
+                        Percobaan: {item.retryCount}/5
+                      </div>
+                    )}
+                    {item.error && (
+                      <div className="text-[10px] text-red-300 mt-1 break-words" title={item.error}>
+                        {item.error}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
