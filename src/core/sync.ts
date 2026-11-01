@@ -129,7 +129,7 @@ export class HDOSSyncEngine {
     const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
     let quarantinedCount = 0;
     for (const item of storedQueue) {
-      if (!item.ownerUserId && item.retryCount < MAX_RETRIES) {
+      if ((!item.ownerUserId || !item.ownerCompanyCode) && item.retryCount < MAX_RETRIES) {
         item.status = 'CONFLICT';
         item.retryCount = MAX_RETRIES;
         item.error = 'Item offline lama tidak memiliki identitas pemilik. Item ditahan; verifikasi dan input ulang diperlukan.';
@@ -137,7 +137,7 @@ export class HDOSSyncEngine {
         quarantinedCount += 1;
       }
     }
-    this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId) : [];
+    this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode) : [];
     if (quarantinedCount > 0) {
       this.syncLogs.unshift({ time: formatTime(), message: `${quarantinedCount} item lama ditahan karena tidak memiliki identitas akun pemilik.`, type: 'warning' });
     }
@@ -363,7 +363,7 @@ export class HDOSSyncEngine {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
     if (this.queueOwnerUserId !== owner.userId) await this.init();
-    this.queue = this.queue.filter(item => item.ownerUserId === owner.userId);
+    this.queue = this.queue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode);
     if (this.isSyncing) {
       return false;
     }
@@ -415,7 +415,7 @@ export class HDOSSyncEngine {
         const item of [...this.queue]
       ) {
         const activeOwner = this.getCurrentOwner();
-        if (!activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId) break;
+        if (!activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId || activeOwner.companyCode !== item.ownerCompanyCode || activeOwner.companyCode !== owner.companyCode) break;
         if (!this.isOnline) {
           break;
         }

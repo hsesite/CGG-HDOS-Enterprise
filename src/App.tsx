@@ -11,6 +11,7 @@ import { LoginScreen } from './components/auth/LoginScreen';
 import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
 import { hseApi } from './core/api';
+import { hdosSync } from './core/sync';
 
 // Module Components
 import { DashboardModule } from './components/modules/DashboardModule';
@@ -72,6 +73,10 @@ export default function App() {
         }
         if (cancelled) return;
 
+        // Load only this authenticated user's offline queue after session refresh.
+        await hdosSync.init();
+        if (cancelled) return;
+
         setBooted(true);
         const user = getCurrentUser();
         setIsAuthenticated(Boolean(user));
@@ -99,6 +104,7 @@ export default function App() {
       setIsAuthenticated(true);
       setCurrentUser(user);
       setCheckingSession(false);
+      void hdosSync.init();
     }
   }
 
@@ -111,6 +117,7 @@ export default function App() {
       setIsAuthenticated(false);
       setCurrentUser(null);
       AuthState.clear();
+      void hdosSync.init();
     }
   }
 
