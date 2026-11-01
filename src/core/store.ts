@@ -824,6 +824,54 @@ export class HDOSCentralStore {
 
     const current = this.picas[index];
     const updated = { ...current, ...updates };
+    const currentStages = current.approvalStages || { foreman: false, spvHse: false, ktt: false };
+    const nextStages = { ...currentStages, ...(updates.approvalStages || {}) };
+    const sessionUser = AuthState.getUser();
+    const isAdminCGG = Boolean(sessionUser?.roles?.includes('Admin CGG'));
+
+    if (!isAdminCGG) {
+      const role = hdosAuth.getCurrentRole();
+      const stageByRole: Record<string, 'foreman' | 'spvHse' | 'ktt'> = {
+        'Foreman': 'foreman',
+        'Foreman Safety': 'foreman',
+        'Supervisor': 'spvHse',
+        'SPV HSE': 'spvHse',
+        'Superintendent': 'spvHse',
+        'KTT': 'ktt',
+        'Project Manager': 'ktt',
+        'PJO': 'ktt',
+      };
+      const allowedStage = stageByRole[role];
+      const stageKeys = ['foreman', 'spvHse', 'ktt'] as const;
+      const changedStages = stageKeys.filter((stage) => nextStages[stage] !== currentStages[stage]);
+
+      if (current.status === 'CLOSED' && updates.status && updates.status !== 'CLOSED') {
+        throw new Error('PICA yang sudah ditutup tidak dapat dibuka kembali.');
+      }
+      if (changedStages.some((stage) => stage !== allowedStage)) {
+        throw new Error('Anda hanya dapat menyetujui tahap PICA sesuai jabatan Anda.');
+      }
+      if (changedStages.some((stage) => currentStages[stage] === true && nextStages[stage] !== true)) {
+        throw new Error('Persetujuan PICA tidak dapat dibatalkan.');
+      }
+      if (changedStages.includes('spvHse') && nextStages.spvHse && !nextStages.foreman) {
+        throw new Error('Persetujuan SPV HSE menunggu persetujuan Foreman.');
+      }
+      if (changedStages.includes('ktt') && nextStages.ktt && !(nextStages.foreman && nextStages.spvHse)) {
+        throw new Error('Persetujuan KTT menunggu persetujuan Foreman dan SPV HSE.');
+      }
+      if (changedStages.length === 0 && updates.status && updates.status !== current.status) {
+        throw new Error('Status PICA tidak dapat diubah tanpa persetujuan tahap yang sah.');
+      }
+
+      const expectedStatus = nextStages.foreman && nextStages.spvHse && nextStages.ktt
+        ? 'CLOSED'
+        : (nextStages.foreman || nextStages.spvHse ? 'PROGRESS' : current.status);
+      if (updates.status && updates.status !== expectedStatus) {
+        throw new Error('Status PICA ditetapkan otomatis sesuai tahapan persetujuan.');
+      }
+      updated.status = expectedStatus;
+    }
 
     if (updated.approvalStages.foreman && updated.approvalStages.spvHse && updated.approvalStages.ktt) {
       updated.status = 'CLOSED';
