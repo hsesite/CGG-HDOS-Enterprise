@@ -78,6 +78,7 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 - [ ] Duplicate create IDs from another tenant return 403 and do not disclose the existing record.
 
 ### Authentication and legacy runtime
+- [ ] Session records carry an absolute expiry based on `CONFIG.SESSION_TTL` (6 hours); expired, malformed, or legacy records without `expiresAt` are rejected and deleted before user lookup.
 - [ ] Updating/deactivating a Contractor or Subkon company master revokes all sessions for that company and its direct Subkon tenants; reactivation cannot revive old sessions.
 - [ ] Any successful user access/role/company/verification update revokes all previously issued persistent sessions for that user ID; reactivation cannot resurrect an old token.
 - [ ] `requireAuth_` trusts only the persistent Script Properties session registry and never falls back to a stale CacheService session after revocation.
