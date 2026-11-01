@@ -203,7 +203,7 @@ function setup() {
 function setupCompaniesSheet_(ss) {
   let sheet = ss.getSheetByName('companies');
   if (!sheet) sheet = ss.insertSheet('companies');
-  const headers = ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status'];
+  const headers = ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry'];
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   } else {
@@ -1533,7 +1533,11 @@ function listCompanyRegistry_() {
       parentCompanyCode: String(rows[i][3] || '').trim().toUpperCase(),
       emailDomains: String(rows[i][4] || '').trim(),
       autoProvision: String(rows[i][5] || '').toUpperCase() === 'TRUE',
-      status: String(rows[i][6] || 'INACTIVE').toUpperCase()
+      status: String(rows[i][6] || 'INACTIVE').toUpperCase(),
+      passportStatus: String(rows[i][7] || 'ACTIVE').toUpperCase(),
+      picName: String(rows[i][8] || '').trim(),
+      picContact: String(rows[i][9] || '').trim(),
+      safetyPassportExpiry: String(rows[i][10] || '').trim()
     });
   }
   return success_(companies);
@@ -1591,7 +1595,14 @@ function upsertCompanyRegistryCore_(payload, actor, auditOut) {
   const rows = sheet.getDataRange().getValues();
   let rowNumber = -1;
   for (let i = 1; i < rows.length; i++) if (String(rows[i][0] || '').trim().toUpperCase() === code) { rowNumber = i + 1; break; }
-  const values = [code, name, role, role === 'Subkon' ? parentCode : '', domains, autoProvision ? 'TRUE' : 'FALSE', status];
+  const existingRow = rowNumber > 0 ? rows[rowNumber - 1] : [];
+  const passportStatus = String(input.passportStatus || existingRow[7] || 'ACTIVE').trim().toUpperCase();
+  if (['ACTIVE', 'WARNING', 'SUSPENDED'].indexOf(passportStatus) === -1) return error_(400, 'Status Safety Passport tidak valid.');
+  const picName = Object.prototype.hasOwnProperty.call(input, 'picName') ? String(input.picName || '').trim() : String(existingRow[8] || '');
+  const picContact = Object.prototype.hasOwnProperty.call(input, 'picContact') ? String(input.picContact || '').trim() : String(existingRow[9] || '');
+  const safetyPassportExpiry = Object.prototype.hasOwnProperty.call(input, 'safetyPassportExpiry') ? String(input.safetyPassportExpiry || '').trim() : String(existingRow[10] || '');
+  if (safetyPassportExpiry && !/^\\d{4}-\\d{2}-\\d{2}$/.test(safetyPassportExpiry)) return error_(400, 'Tanggal masa berlaku Safety Passport harus YYYY-MM-DD.');
+  const values = [code, name, role, role === 'Subkon' ? parentCode : '', domains, autoProvision ? 'TRUE' : 'FALSE', status, passportStatus, picName, picContact, safetyPassportExpiry];
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
   else sheet.appendRow(values);
   auditOut.push({
