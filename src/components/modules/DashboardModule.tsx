@@ -203,6 +203,7 @@ export const DashboardModule: React.FC = () => {
               </tr></thead>
               <tbody className="divide-y divide-white/5">
                 {companyDashboardRows.map((row) => (
+                  <>
                   <tr key={row.code}>
                     <td className="py-2.5 font-semibold text-white">{row.code}</td>
                     <td className="py-2.5 text-right font-mono text-blue-300">{row.inspections}</td>
@@ -217,6 +218,7 @@ export const DashboardModule: React.FC = () => {
                       </div>
                     </td>
                   </tr>
+                  </>
                 ))}
               </tbody>
             </table>
