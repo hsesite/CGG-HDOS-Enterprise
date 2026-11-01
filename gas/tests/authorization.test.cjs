@@ -991,13 +991,32 @@ test('a retried update whose first response was lost is accepted without a secon
     riskMatrix: { likelihood: 1, severity: 2 },
     updatedAt: '2026-11-01T10:00:00.000Z'
   };
+  let writes = 0;
+  let audits = 0;
   const context = {
+    ENTITY_SCHEMAS: { hazards: ['id','title','status','riskMatrix','updatedAt'] },
     isObject_: value => value && typeof value === 'object' && !Array.isArray(value),
+    getSheet_: () => ({ getRange: () => ({ setValues: () => { writes++; } }) }),
+    LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
+    findRecordRow_: () => 2,
+    parseRow_: () => current,
+    isExpectedPicaStateCurrent_: () => true,
+    isExpectedRecordVersionCurrent_: (record, expected) => String(record.updatedAt) === String(expected),
+    httpError_: (status, message) => Object.assign(new Error(message), {status}),
+    buildEntityRow_: (_entity, record) => [record.id,record.title,record.status,record.riskMatrix,record.updatedAt],
+    SpreadsheetApp: { flush: () => {} },
+    logAudit_: () => { audits++; },
   };
   vm.createContext(context);
   vm.runInContext(extractFunction('areUpdateValuesEqual_', 'isUpdatePayloadAlreadyApplied_') +
-    extractFunction('isUpdatePayloadAlreadyApplied_', 'updateRecord_'), context);
-  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, payload), true);
-  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, {...payload, status:'OPEN'}), false);
-  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, {updatedAt:payload.updatedAt}), false);
+    extractFunction('isUpdatePayloadAlreadyApplied_', 'updateRecord_') +
+    extractFunction('updateRecord_', 'parseRow_'), context);
+  const result = context.updateRecord_('hazards','haz-1',payload,{id:'user-1',roles:['Employee']},{},null,'2026-11-01T10:00:00.000Z');
+  assert.equal(result.updatedAt, current.updatedAt);
+  assert.equal(writes, 0);
+  assert.equal(audits, 0);
+  assert.throws(
+    () => context.updateRecord_('hazards','haz-1',{...payload,status:'OPEN'},{id:'user-1',roles:['Employee']},{},null,'2026-11-01T10:00:00.000Z'),
+    error => error.status === 409
+  );
 });
