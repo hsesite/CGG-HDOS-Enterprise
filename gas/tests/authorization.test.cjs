@@ -954,7 +954,7 @@ test('cloud snapshot merge cannot publish stale account data after an account sw
   assert.ok(start >= 0 && end > start);
   const merge = storeSource.slice(start, end);
   assert.match(merge, /const ownerKey = currentUser\?\.id/);
-  assert.match(merge, /if \(!ownerKey \|\| activeOwnerKey\(\) !== ownerKey\) return/);
+  assert.ok(merge.includes('if (!currentUser || !ownerKey || activeOwnerKey() !== ownerKey) return;'));
   assert.match(merge, /hdosSync\.getOwnerSnapshot\(\)/);
   assert.match(merge, /queueMatchesOwner/);
   assert.match(merge, /if \(activeOwnerKey\(\) !== ownerKey\) return/);
