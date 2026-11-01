@@ -1,3 +1,4 @@
+import type { MiningLocationGIS } from './types';
 /**
  * CGG HDOS API Transport Layer
  *
@@ -282,6 +283,18 @@ export const hseApi = {
 
   async upsertCompany(input: { code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains?: string; autoProvision?: boolean; status: 'ACTIVE' | 'INACTIVE' }): Promise<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string }> {
     return request('POST', '/api/companies', input);
+  },
+
+  async listLocations(): Promise<MiningLocationGIS[]> {
+    return request<MiningLocationGIS[]>('GET', '/api/locations');
+  },
+
+  async createLocation(input: Omit<MiningLocationGIS, 'activeHazards' | 'activeInspections' | 'safetyStatus'>): Promise<MiningLocationGIS> {
+    return request<MiningLocationGIS>('POST', '/api/locations', input);
+  },
+
+  async deleteLocation(id: string): Promise<{ id: string; deleted: boolean }> {
+    return request<{ id: string; deleted: boolean }>('DELETE', `/api/locations/${encodeURIComponent(id)}`);
   },
 
   async listUsers(): Promise<ApiUser[]> {
