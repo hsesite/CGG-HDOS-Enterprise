@@ -1411,23 +1411,10 @@ function googleLogin_(payload) {
 }
 
 function isCggEmailAllowed_(email, companyCode) {
+  // All valid, Google-verified email addresses may self-register for any company.
+  // Company existence/status and tenant assignment are validated separately in googleOnboard_.
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return false;
-
-  // Contractor/Subkon onboarding may use any verified Google email; the selected
-  // tenant is still validated against the active company registry below.
-  if (String(companyCode || '').trim().toUpperCase() !== 'CGG') return true;
-
-  // CGG self-registration is restricted to approved corporate domains, with an
-  // exact-address allowlist for personnel who use personal Google accounts.
-  const properties = PropertiesService.getScriptProperties();
-  const configuredDomains = String(properties.getProperty('CGG_EMAIL_DOMAINS') || '').trim();
-  const allowedDomains = (configuredDomains)
-    .toLowerCase().split(/[;,\s]+/).filter(Boolean);
-  const allowedEmails = String(properties.getProperty('CGG_ALLOWED_EMAILS') || '')
-    .toLowerCase().split(/[;,\s]+/).filter(Boolean);
-  const domain = normalizedEmail.split('@').pop();
-  return allowedEmails.indexOf(normalizedEmail) >= 0 || (allowedDomains.length > 0 && allowedDomains.indexOf(domain) >= 0);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
 }
 
 function appendUniqueUser_(email, rowValues) {
