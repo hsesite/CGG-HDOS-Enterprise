@@ -144,6 +144,7 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
     isAdminCGG_: () => false,
     isCompanyScopedRole_: () => true,
     isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV'].includes(role)),
+    findCompanyRegistry_: code => code === 'CGG' ? null : ({status:'ACTIVE',role:'Contractor',parentCompanyCode:''}),
     getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
       ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
       ['SLS','PT SLS','Contractor','','','FALSE','ACTIVE'],
@@ -331,7 +332,9 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
 test('PICA closure is terminal for non-CGG admins and completion date is server-owned', () => {
   const context = {
     isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
-    error_: (status, message) => ({status, message})
+    error_: (status, message) => ({status, message}),
+    Utilities: { formatDate: () => '2026-11-01' },
+    Session: { getScriptTimeZone: () => 'Asia/Jakarta' }
   };
   vm.createContext(context);
   vm.runInContext(extractFunction('enforcePicaClosureRules_', 'createSessionResponse_'), context);
@@ -355,7 +358,7 @@ test('PICA closure is terminal for non-CGG admins and completion date is server-
 test('PICA approval changes are included in the existing audit record', () => {
   assert.ok(source.includes('approvalStageChanges: stageChanges'));
   assert.ok(source.includes('statusFrom: oldStatus'));
-  assert.ok(source.includes('details:\n      details || {}'));
+  assert.match(source, /details:\s*details\s*\|\|\s*\{\}/);
   assert.ok(source.includes('updateRecord_(entity, id, scopedPayload, user, auditDetails)'));
 });
 
