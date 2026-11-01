@@ -37,6 +37,7 @@ const CONFIG = {
   SHEETS: [
     'users',
     'companies',
+    'locations',
     'forms',
     'inspections',
     'hazards',
@@ -56,6 +57,7 @@ const CONFIG = {
 
 const ENTITY_SCHEMAS = {
 
+  locations: ['id', 'name', 'utm', 'lat', 'lng', 'description', 'zoneType', 'activeHazards', 'activeInspections', 'safetyStatus', 'createdAt', 'updatedAt', 'payload'],
   repository: ['id', 'code', 'title', 'status', 'createdAt', 'updatedAt', 'driveFileId', 'fileName', 'mimeType', 'companyCode', 'parentCompanyCode', 'payload'],
   forms: ['id', 'code', 'title', 'status', 'createdAt', 'updatedAt', 'companyCode', 'parentCompanyCode', 'payload'],
 
@@ -238,6 +240,7 @@ function setupDataSheets_(
 ) {
   const names = [
     'repository',
+    'locations',
     'forms',
     'inspections',
     'hazards',
@@ -978,6 +981,82 @@ function handleRoute_(
       mimeType: fileMetadata.mimeType
     });
     return success_({ fileName: file.getName(), mimeType: fileMetadata.mimeType, base64: Utilities.base64Encode(blob.getBytes()) });
+  }
+
+  // ----------------------------------------------------------
+  // CENTRAL MINING AREA MASTER — readable by authenticated users,
+  // writable only by Admin CGG.
+  // ----------------------------------------------------------
+  if (path === '/api/locations' && method === 'GET') {
+    return success_(readAll_('locations'));
+  }
+  if (path === '/api/locations' && method === 'POST') {
+    if (!isAdminCGG_(user)) return error_(403, 'Hanya Admin CGG yang dapat mengubah master Area Kerja.');
+    const input = isObject_(params.payload) ? params.payload : {};
+    const name = String(input.name || '').trim();
+    const zoneType = String(input.zoneType || '').trim().toUpperCase();
+    const allowedZones = ['PIT', 'HAUL_ROAD', 'STOCKPILE', 'PREPARASI', 'NURSERY', 'JETTY', 'ETO', 'SAMPLE_HOUSE', 'PORT', 'FACILITY'];
+    const lat = Number(input.lat);
+    const lng = Number(input.lng);
+    if (name.length < 2 || name.length > 120) return error_(400, 'Nama area wajib 2–120 karakter.');
+    if (allowedZones.indexOf(zoneType) === -1) return error_(400, 'Kategori area tidak valid.');
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) return error_(400, 'Latitude harus berada pada rentang -90 sampai 90.');
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) return error_(400, 'Longitude harus berada pada rentang -180 sampai 180.');
+    const sheet = getSheet_('locations');
+    const lock = LockService.getScriptLock();
+    let item;
+    lock.waitLock(10000);
+    try {
+      const existing = readAll_('locations');
+      const duplicate = existing.some(function(area) {
+        return String(area.name || '').trim().toLocaleLowerCase() === name.toLocaleLowerCase() &&
+          String(area.zoneType || '').toUpperCase() === zoneType;
+      });
+      if (duplicate) return error_(409, 'Area dengan nama dan kategori yang sama sudah terdaftar.');
+      const now = new Date().toISOString();
+      item = {
+        id: String(input.id || Utilities.getUuid()),
+        name: name,
+        utm: String(input.utm || '').trim(),
+        lat: lat,
+        lng: lng,
+        description: String(input.description || '').trim(),
+        zoneType: zoneType,
+        activeHazards: 0,
+        activeInspections: 0,
+        safetyStatus: 'SAFE',
+        createdAt: now,
+        updatedAt: now
+      };
+      if (findRecordRow_(sheet, item.id)) return error_(409, 'ID area sudah digunakan.');
+      sheet.appendRow(buildEntityRow_('locations', item, ENTITY_SCHEMAS.locations));
+      SpreadsheetApp.flush();
+    } finally {
+      lock.releaseLock();
+    }
+    logAudit_(user, 'CREATE', 'locations', item.id, { name: item.name, zoneType: item.zoneType });
+    return success_(item);
+  }
+  const locationDeleteMatch = path.match(/^\\/api\\/locations\\/([^/]+)$/);
+  if (locationDeleteMatch && method === 'DELETE') {
+    if (!isAdminCGG_(user)) return error_(403, 'Hanya Admin CGG yang dapat menghapus master Area Kerja.');
+    const id = decodeURIComponent(locationDeleteMatch[1]);
+    const sheet = getSheet_('locations');
+    const lock = LockService.getScriptLock();
+    let deleted = false;
+    lock.waitLock(10000);
+    try {
+      const rowNumber = findRecordRow_(sheet, id);
+      if (rowNumber) {
+        sheet.deleteRow(rowNumber);
+        SpreadsheetApp.flush();
+        deleted = true;
+      }
+    } finally {
+      lock.releaseLock();
+    }
+    if (deleted) logAudit_(user, 'DELETE', 'locations', id);
+    return success_({ id: id, deleted: deleted });
   }
 
   // ----------------------------------------------------------
