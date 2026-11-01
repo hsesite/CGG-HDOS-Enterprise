@@ -2,7 +2,8 @@ import { query } from './db';
 import { hashPassword } from './auth';
 
 async function main(): Promise<void> {
-  const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@ptcgg.com').trim().toLowerCase();
+  const email = (process.env.SEED_ADMIN_EMAIL ?? '').trim().toLowerCase();
+  if (!email) throw new Error('SEED_ADMIN_EMAIL must be explicitly set to a company-owned administrator address');
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (!password || password.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters');
   const displayName = process.env.SEED_ADMIN_NAME ?? 'HDOS System Administrator';
