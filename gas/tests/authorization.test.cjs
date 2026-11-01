@@ -54,16 +54,27 @@ test('all supervisory roles are accepted and new elevated accounts start unverif
   assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'SPT', 'SPV', 'Project Manager'"));
   assert.ok(source.includes('const roleVerified = false;'));
 });
-test('email validation accepts all verified email domains without allowlisting', () => {
-  const context = {};
+test('CGG self-registration requires an approved corporate domain or exact email allowlist', () => {
+  let properties = { CGG_EMAIL_DOMAINS: '', CGG_ALLOWED_EMAILS: '' };
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({ getProperty: key => properties[key] || '' }) }
+  };
   vm.createContext(context);
   const helperStart = source.indexOf('function isCggEmailAllowed_(');
   const helperEnd = source.indexOf('function googleOnboard_(', helperStart + 1);
   vm.runInContext(source.slice(helperStart, helperEnd), context);
-  for (const email of ['worker@ptcgg.com','staff@gmail.com','person@yahoo.com','user@outlook.com','worker@other-company.co.id']) {
-    assert.equal(context.isCggEmailAllowed_(email), true);
-  }
-  assert.equal(context.isCggEmailAllowed_('not-an-email'), false);
+
+  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com', 'CGG'), true);
+  assert.equal(context.isCggEmailAllowed_('staff@gmail.com', 'CGG'), false);
+  assert.equal(context.isCggEmailAllowed_('person@yahoo.com', 'CGG'), false);
+  assert.equal(context.isCggEmailAllowed_('worker@sls.co.id', 'SLS'), true);
+  assert.equal(context.isCggEmailAllowed_('not-an-email', 'SLS'), false);
+
+  properties = { CGG_EMAIL_DOMAINS: 'ptcgg.com;cgg.co.id', CGG_ALLOWED_EMAILS: 'admin@gmail.com;supervisor@yahoo.com' };
+  assert.equal(context.isCggEmailAllowed_('worker@cgg.co.id', 'CGG'), true);
+  assert.equal(context.isCggEmailAllowed_('admin@gmail.com', 'CGG'), true);
+  assert.equal(context.isCggEmailAllowed_('other@gmail.com', 'CGG'), false);
+  assert.equal(context.isCggEmailAllowed_('worker@other.co.id', 'CGG'), false);
 });
 test('Company Admin can assign an operational role in its own company but cannot verify it', () => {
   const rows = [
