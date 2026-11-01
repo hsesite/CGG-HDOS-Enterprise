@@ -303,24 +303,44 @@ export function extractChecklistItems(
 }
 
 /** Render original office documents for an in-app preview; source files remain unchanged. */
+function escapePreviewHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[character] || character));
+}
+
+/** Render office files as inert text/table markup; untrusted document HTML is never injected. */
 export async function renderDocumentPreviewHtml(file: Blob, fileName: string): Promise<string> {
   const extension = fileName.split('.').pop()?.toLowerCase();
   const buffer = await file.arrayBuffer();
 
   if (extension === 'docx') {
-    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
     if (!result.value.trim()) throw new Error('Isi DOCX tidak dapat ditampilkan.');
-    return result.value;
+    return `<pre>${escapePreviewHtml(result.value)}</pre>`;
   }
 
   if (extension === 'xlsx') {
     const workbook = XLSX.read(buffer, { type: 'array', cellText: true });
     return workbook.SheetNames.map((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
-      return `<section><h2>${sheetName.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char))}</h2>${XLSX.utils.sheet_to_html(sheet)}</section>`;
+      const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        raw: false,
+        defval: '',
+      }) as unknown[][];
+      const visibleRows = rows.slice(0, 200);
+      const table = visibleRows.map((row) =>
+        `<tr>${row.slice(0, 20).map((cell) => `<td>${escapePreviewHtml(cell)}</td>`).join('')}</tr>`
+      ).join('');
+      const truncated = rows.length > 200 || rows.some((row) => row.length > 20);
+      return `<section><h2>${escapePreviewHtml(sheetName)}</h2><table><tbody>${table}</tbody></table>${truncated ? '<p>Pratinjau dibatasi hingga 200 baris dan 20 kolom per sheet.</p>' : ''}</section>`;
     }).join('<hr />');
   }
 
   throw new Error('Pratinjau langsung hanya mendukung DOCX dan XLSX. PDF dibuka menggunakan penampil PDF.');
 }
-
