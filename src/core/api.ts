@@ -299,6 +299,10 @@ export const hseApi = {
     return request<Record<string, unknown>>('POST', '/api/repository', input);
   },
 
+  async previewRepositoryFile(id: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
+    return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/preview`);
+  },
+
   async downloadRepositoryFile(id: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
     return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`);
   },
