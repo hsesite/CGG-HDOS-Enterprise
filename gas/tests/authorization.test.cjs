@@ -192,3 +192,11 @@ test('Repository upload derives parent company from master registry and is idemp
   assert.ok(source.includes("const existingDocument = findRecordRow_(getSheet_('repository'), id);"));
   assert.ok(source.includes("parentCompanyCode: parentCompanyCode"));
 });
+
+
+test('New published forms derive tenant parent from active company registry, not request payload', () => {
+  assert.ok(source.includes("const registeredCompany = companyCode === 'CGG' ? null : findCompanyRegistry_(companyCode);"));
+  assert.ok(source.includes("const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';"));
+  assert.ok(source.includes("parentCompanyCode: parentCompanyCode,"));
+  assert.ok(!source.includes("parentCompanyCode: String(input.parentCompanyCode || user.parentCompanyCode || '')"));
+});
