@@ -3,7 +3,25 @@ import { hdosDB } from './db';
 import { hdosEvents } from './events';
 import { hdosSync } from './sync';
 import { hdosAuth } from './auth';
+import { AuthState } from './auth-state';
 import { useState, useEffect } from 'react';
+
+function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<typeof AuthState.getUser>): boolean {
+  if (!user) return false;
+  const roles = user.roles || [];
+  if (roles.includes('Admin CGG')) return true;
+  const own = String(user.companyCode || '').trim().toUpperCase();
+  if (!own) return false;
+  const company = String(record.companyCode || record.contractorCode || record.ownerCompanyCode || '').trim().toUpperCase();
+  const subkon = String(record.subcontractorCode || record.subkonCode || '').trim().toUpperCase();
+  const parent = String(record.parentCompanyCode || '').trim().toUpperCase();
+  if (['KTT', 'SPT', 'SPV'].some(role => roles.includes(role))) {
+    if (user.roleVerified !== true) return false;
+    return ['SLS', 'VIP'].includes(company) || ['SLS', 'VIP'].includes(parent);
+  }
+  if (user.parentCompanyCode) return company === own || subkon === own;
+  return company === own || subkon === own || parent === own;
+}
 
 function createEntityId(): string {
   if (
@@ -135,6 +153,22 @@ export class HDOSCentralStore {
       await hdosDB.delete('form-definition', form.id);
     }
     this.formDefinitions = storedFormDefinitions.filter((form) => form.sourceDocumentId !== 'doc_1');
+    // IndexedDB is shared by browser profiles, not by HDOS accounts. Apply the
+    // tenant boundary to cached data before exposing it to any module.
+    const currentUser = AuthState.getUser();
+    this.inspections = this.inspections.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
+    this.hazards = this.hazards.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
+    this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
+    this.incidents = this.incidents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
+    this.documents = this.documents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
+    this.formDefinitions = this.formDefinitions.filter(form => isLocalRecordVisible(form as unknown as Record<string, unknown>, currentUser));
+    this.contractors = this.contractors.filter(record => {
+      if (!currentUser) return false;
+      if (currentUser.roles.includes('Admin CGG')) return true;
+      if (['KTT', 'SPT', 'SPV'].some(role => currentUser.roles.includes(role))) return currentUser.roleVerified === true && ['SLS', 'VIP'].includes(record.code.toUpperCase());
+      return record.code.toUpperCase() === String(currentUser.companyCode || '').toUpperCase();
+    });
+
   } catch (err) {
     console.warn('[HDOS Store] IndexedDB fallback', err);
   }
@@ -150,24 +184,24 @@ export class HDOSCentralStore {
   async mergeCloudOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', records: Array<Record<string, unknown>>): Promise<void> {
     const rows = records.filter((record) => record && typeof record.id === 'string' && record.id.trim());
     if (entity === 'inspections') {
-      const remote = rows as unknown as Inspection[];
+      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as Inspection[];
       const ids = new Set(remote.map((record) => record.id));
-      this.inspections = [...remote, ...this.inspections.filter((record) => !ids.has(record.id))];
+      this.inspections = [...remote, ...this.inspections.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
       for (const record of remote) await hdosDB.put('inspection', record);
     } else if (entity === 'hazards') {
-      const remote = rows as unknown as Hazard[];
+      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as Hazard[];
       const ids = new Set(remote.map((record) => record.id));
-      this.hazards = [...remote, ...this.hazards.filter((record) => !ids.has(record.id))];
+      this.hazards = [...remote, ...this.hazards.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
       for (const record of remote) await hdosDB.put('hazard', record);
     } else if (entity === 'picas') {
-      const remote = rows as unknown as PICA[];
+      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as PICA[];
       const ids = new Set(remote.map((record) => record.id));
-      this.picas = [...remote, ...this.picas.filter((record) => !ids.has(record.id))];
+      this.picas = [...remote, ...this.picas.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
       for (const record of remote) await hdosDB.put('pica', record);
     } else {
-      const remote = rows as unknown as Incident[];
+      const remote = rows.filter(record => isLocalRecordVisible(record, AuthState.getUser())) as unknown as Incident[];
       const ids = new Set(remote.map((record) => record.id));
-      this.incidents = [...remote, ...this.incidents.filter((record) => !ids.has(record.id))];
+      this.incidents = [...remote, ...this.incidents.filter((record) => isLocalRecordVisible(record as unknown as Record<string, unknown>, AuthState.getUser()) && !ids.has(record.id))];
       for (const record of remote) await hdosDB.put('incident', record);
     }
     this.notify();
