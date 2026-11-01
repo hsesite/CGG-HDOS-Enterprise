@@ -62,7 +62,7 @@ export const DashboardModule: React.FC = () => {
     if (isOversight) return ['SLS', 'VIP'].includes(recordCompany) || ['SLS', 'VIP'].includes(recordParent) || ['SLS', 'VIP'].includes(recordSubkon) || Boolean(recordCompany && recordParent && ['SLS', 'VIP'].includes(recordParent));
     if (!companyCode) return false;
     if (isSubcontractor) return recordCompany === companyCode || recordSubkon === companyCode;
-    if (isContractor) return recordCompany === companyCode || recordSubkon === companyCode;
+    if (isContractor) return recordSubkon ? recordSubkon === companyCode : recordCompany === companyCode;
     return recordCompany === companyCode || recordSubkon === companyCode;
   };
   const dashboardInspections = store.inspections.filter(recordInDashboardScope);
@@ -209,6 +209,13 @@ export const DashboardModule: React.FC = () => {
                     <td className="py-2.5 text-right font-mono text-red-300">{row.hazards}</td>
                     <td className="py-2.5 text-right font-mono text-amber-300">{row.picas}</td>
                     <td className="py-2.5 text-right font-mono font-bold text-white">{row.total}</td>
+                  </tr>
+                  <tr key={row.code + '-bar'}>
+                    <td colSpan={5} className="pb-2.5">
+                      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 via-amber-400 to-red-400" style={{ width: `${Math.max(0, Math.min(100, row.total / Math.max(1, ...companyDashboardRows.map((item) => item.total)) * 100))}%` }} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
