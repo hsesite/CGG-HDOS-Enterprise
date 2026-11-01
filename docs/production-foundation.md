@@ -1,5 +1,10 @@
 # Production foundation setup
 
+> **LEGACY BACKEND — NOT THE ACTIVE HDOS RUNTIME**
+>
+> This document describes the historical Express.js + PostgreSQL implementation. The current application runtime documented in `README.md` uses GitHub Pages + Google Apps Script + Google Spreadsheet. The legacy Express backend is disabled in production by default and must not be enabled until a separate tenant-isolation and authorization audit is completed.
+>
+
 The repository changes are already applied to `build-29-production-foundation`; no manual code copying is required.
 
 ## One-command database setup
