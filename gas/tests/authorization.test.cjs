@@ -50,27 +50,20 @@ test('Admin CGG retains administrative bypass', () => {
 });
 test('all supervisory roles are accepted and new elevated accounts start unverified', () => {
   assert.ok(source.includes("const companyAdminRoles = ['PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman'"));
-  assert.ok(source.includes("const cggRoles = ['Company Admin', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
-  assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman'"));
+  assert.ok(source.includes("const cggRoles = ['Company Admin', 'KTT', 'SPT', 'SPV', 'Project Manager'"));
+  assert.ok(source.includes("const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'SPT', 'SPV', 'Project Manager'"));
   assert.ok(source.includes('const roleVerified = false;'));
 });
-test('CGG onboarding accepts approved company domains and explicitly allowlisted Gmail only', () => {
-  const context = {
-    PropertiesService: { getScriptProperties: () => ({ getProperty: key => ({
-      CGG_EMAIL_DOMAINS: 'ptcgg.com; corp.cgg.id',
-      CGG_ALLOWED_EMAILS: 'hse.personel@gmail.com; safety.lead@gmail.com'
-    })[key] || '' }) }
-  };
+test('email validation accepts all verified email domains without allowlisting', () => {
+  const context = {};
   vm.createContext(context);
   const helperStart = source.indexOf('function isCggEmailAllowed_(');
   const helperEnd = source.indexOf('function googleOnboard_(', helperStart + 1);
-  assert.notEqual(helperStart, -1);
-  assert.notEqual(helperEnd, -1);
   vm.runInContext(source.slice(helperStart, helperEnd), context);
-  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com'), true);
-  assert.equal(context.isCggEmailAllowed_('hse.personel@gmail.com'), true);
-  assert.equal(context.isCggEmailAllowed_('unknown@gmail.com'), false);
-  assert.equal(context.isCggEmailAllowed_('worker@other-company.com'), false);
+  for (const email of ['worker@ptcgg.com','staff@gmail.com','person@yahoo.com','user@outlook.com','worker@other-company.co.id']) {
+    assert.equal(context.isCggEmailAllowed_(email), true);
+  }
+  assert.equal(context.isCggEmailAllowed_('not-an-email'), false);
 });
 test('Company Admin can assign an operational role in its own company but cannot verify it', () => {
   const rows = [
