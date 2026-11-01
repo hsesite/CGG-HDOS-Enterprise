@@ -1,5 +1,14 @@
 # CGG HDOS Enterprise v3.0 - Production Setup & Testing Guide
 
+> **PENTING — PANDUAN LEGACY, BUKAN PROSEDUR DEPLOYMENT PRODUKSI SAAT INI**
+>
+> Dokumen ini menjelaskan arsitektur lama Build 29 (Express.js + PostgreSQL). Frontend pada branch `main` saat ini menggunakan kontrak Google Apps Script melalui `VITE_GAS_URL` dan `gas/Code.gs`. Panduan Express/PostgreSQL di bawah **tidak kompatibel sebagai prosedur deployment langsung** untuk frontend saat ini.
+>
+> Untuk konfigurasi backend yang saat ini terintegrasi, gunakan `gas/README.md` dan `docs/GAS-AUTH-SETUP.md`. Jangan deploy `server/` sebagai backend produksi multi-tenant sebelum otorisasi tenant, verifikasi jabatan, kontrol unduhan Repository, dan alur approval PICA diimplementasikan serta diuji pada backend tersebut. Kode Express yang ada saat ini belum menerapkan seluruh kontrol itu.
+>
+> Jangan gunakan akun seed ber-role `KTT` sebagai pengganti bootstrap `Admin CGG`. Buat akun administrator sesuai prosedur GAS yang berlaku dan gunakan environment uji terpisah.
+
+
 ## Status Aplikasi
 
 **Build:** `build-29-production-foundation`  
