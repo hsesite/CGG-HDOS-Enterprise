@@ -90,6 +90,11 @@ export class HDOSSyncEngine {
     return { userId: String(user.id), companyCode: String(user.companyCode || ((user.roles || []).includes('Admin CGG') ? 'CGG' : '')).trim().toUpperCase() };
   }
 
+  getOwnerSnapshot(): { userId: string; companyCode: string } | null {
+    const owner = this.getCurrentOwner();
+    return owner ? { ...owner } : null;
+  }
+
   private retryTimer:
     | ReturnType<typeof setTimeout>
     | null = null;
@@ -235,11 +240,14 @@ export class HDOSSyncEngine {
     item: Omit<
       SyncQueueItem,
       'id' | 'timestamp' | 'status' | 'retryCount'
-    >
+    >,
+    ownerOverride?: { userId: string; companyCode: string }
   ): Promise<SyncQueueItem> {
-    const owner = this.getCurrentOwner();
+    const currentOwner = this.getCurrentOwner();
+    const owner = ownerOverride || currentOwner;
     if (!owner) throw new Error('Login ulang diperlukan sebelum menyimpan data ke antrean offline.');
-    if (this.queueOwnerKey !== `${owner.userId}::${owner.companyCode}`) await this.init();
+    if (currentOwner && this.queueOwnerKey !== `${currentOwner.userId}::${currentOwner.companyCode}`) await this.init();
+    const belongsToCurrentOwner = Boolean(currentOwner && currentOwner.userId === owner.userId && currentOwner.companyCode === owner.companyCode);
     const queueItem: SyncQueueItem = {
       id:
         typeof crypto !== 'undefined' &&
@@ -256,32 +264,34 @@ export class HDOSSyncEngine {
       ownerCompanyCode: owner.companyCode,
     };
 
-    this.queue.push(queueItem);
-
     await hdosDB.put(
       'queue',
       queueItem
     );
 
-    hdosEvents.emit(
-      'sync:queue_updated',
-      [...this.queue]
-    );
-
-    this.syncLogs.unshift({
-      time: formatTime(),
-      message:
-        `Queue ditambahkan: [${queueItem.action}] ${queueItem.entity}`,
-      type: 'warning',
-    });
-
-    if (
-      this.isOnline &&
-      hseApi.isAuthenticated
-    ) {
-      setTimeout(() => {
-        void this.triggerSync();
-      }, 100);
+    if (belongsToCurrentOwner) {
+      this.queue.push(queueItem);
+      hdosEvents.emit(
+        'sync:queue_updated',
+        [...this.queue]
+      );
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message:
+          `Queue ditambahkan: [${queueItem.action}] ${queueItem.entity}`,
+        type: 'warning',
+      });
+      if (this.isOnline && hseApi.isAuthenticated) {
+        setTimeout(() => {
+          void this.triggerSync();
+        }, 100);
+      }
+    } else {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: 'Data offline disimpan terpisah untuk akun sebelumnya; data tidak akan dikirim menggunakan sesi akun saat ini.',
+        type: 'warning',
+      });
     }
 
     return queueItem;
