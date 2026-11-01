@@ -130,8 +130,22 @@ export class HDOSSyncEngine {
 
   async init(): Promise<void> {
     const owner = this.getCurrentOwner();
-    this.queueOwnerKey = owner ? `${owner.userId}::${owner.companyCode}` : '';
+    const requestedOwnerKey = owner ? `${owner.userId}::${owner.companyCode}` : '';
+    this.queueOwnerKey = requestedOwnerKey;
     const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+
+    // Account identity can change while IndexedDB is being read (for example,
+    // after a cross-tab login). Never publish a queue snapshot for that stale
+    // identity into the active UI/session.
+    const activeOwner = this.getCurrentOwner();
+    const activeOwnerKey = activeOwner ? `${activeOwner.userId}::${activeOwner.companyCode}` : '';
+    if (activeOwnerKey !== requestedOwnerKey) {
+      this.queue = [];
+      this.queueOwnerKey = '';
+      hdosEvents.emit('sync:queue_updated', []);
+      return;
+    }
+
     let quarantinedCount = 0;
     for (const item of storedQueue) {
       if ((!item.ownerUserId || !item.ownerCompanyCode) && item.retryCount < MAX_RETRIES) {
