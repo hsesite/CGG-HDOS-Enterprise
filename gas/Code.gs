@@ -1291,6 +1291,7 @@ function upsertCompanyRegistry_(payload, actor) {
   const autoProvision = input.autoProvision === true || String(input.autoProvision || '').toUpperCase() === 'TRUE';
   const status = String(input.status || 'ACTIVE').trim().toUpperCase();
   if (!/^[A-Z0-9][A-Z0-9._-]{1,29}$/.test(code)) return error_(400, 'Kode perusahaan harus 2–30 karakter: huruf, angka, titik, garis bawah, atau tanda hubung.');
+  if (code === 'CGG') return error_(400, 'Kode CGG dicadangkan untuk perusahaan pemilik aplikasi dan tidak boleh digunakan sebagai kode kontraktor/Subkon.');
   if (name.length < 2) return error_(400, 'Nama perusahaan minimal 2 karakter.');
   if (['Contractor', 'Subkon'].indexOf(role) === -1) return error_(400, 'Kategori perusahaan harus Contractor atau Subkon.');
   if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) return error_(400, 'Status perusahaan tidak valid.');
@@ -1392,10 +1393,12 @@ function canManageCompany_(actor, targetCompanyCode) {
   const ownCode = String(actor.companyCode || '').trim().toUpperCase();
   const targetCode = String(targetCompanyCode || '').trim().toUpperCase();
   if (!ownCode || !targetCode) return false;
-  if (ownCode === targetCode) return true;
+  if (ownCode === 'CGG' && targetCode === 'CGG') return true;
   const ownCompany = findCompanyRegistry_(ownCode);
+  if (!ownCompany || ownCompany.status !== 'ACTIVE') return false;
+  if (ownCode === targetCode) return true;
   const targetCompany = findCompanyRegistry_(targetCode);
-  return Boolean(ownCompany && ownCompany.role === 'Contractor' && targetCompany && targetCompany.role === 'Subkon' && targetCompany.parentCompanyCode === ownCode);
+  return Boolean(ownCompany.role === 'Contractor' && targetCompany && targetCompany.status === 'ACTIVE' && targetCompany.role === 'Subkon' && targetCompany.parentCompanyCode === ownCode);
 }
 
 function listPublicUsers_() {

@@ -251,3 +251,28 @@ test('Inactive company accounts cannot read or create operational records', () =
   vm.runInContext(source.slice(start,end),context);
   assert.throws(()=>context.applyRecordScope_('hazards',{}, {roles:['Employee'],companyCode:'SLS'}, true),e=>e.status===403);
 });
+
+
+test('CGG tenant code is reserved and cannot be registered as a contractor or subcontractor', () => {
+  const start=source.indexOf('function upsertCompanyRegistry_(');
+  const end=source.indexOf('function findCompanyRegistry_(',start+1);
+  const fn=source.slice(start,end);
+  assert.ok(fn.includes("if (code === 'CGG') return error_(400,"));
+});
+
+test('Company Admin management scope requires active company registrations', () => {
+  const context = {
+    isAdminCGG_: () => false,
+    isCompanyAdmin_: () => true,
+    findCompanyRegistry_: code => code === 'SLS'
+      ? {status:'INACTIVE',role:'Contractor',parentCompanyCode:''}
+      : {status:'ACTIVE',role:'Subkon',parentCompanyCode:'SLS'}
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function canManageCompany_(');
+  const end=source.indexOf('function listPublicUsers_(',start+1);
+  vm.runInContext(source.slice(start,end),context);
+  const actor={roles:['Company Admin'],companyCode:'SLS'};
+  assert.equal(context.canManageCompany_(actor,'SLS'),false);
+  assert.equal(context.canManageCompany_(actor,'BCJ'),false);
+});
