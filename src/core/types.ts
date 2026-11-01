@@ -1,5 +1,7 @@
 export type UserRole =
   | 'KTT'
+  | 'SPT'
+  | 'SPV'
   | 'Project Manager'
   | 'Superintendent'
   | 'Supervisor'
