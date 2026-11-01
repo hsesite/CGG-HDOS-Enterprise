@@ -129,7 +129,8 @@ function createTransportError(): ApiError {
 async function request<T>(
   method: GasRequest['method'],
   path: string,
-  payload?: unknown
+  payload?: unknown,
+  authToken?: string | null
 ): Promise<T> {
   const baseUrl =
     getApiBaseUrl();
@@ -141,7 +142,7 @@ async function request<T>(
   const requestBody: GasRequest = {
     method,
     path,
-    token: getToken(),
+    token: authToken === undefined ? getToken() : authToken,
     payload,
   };
 
@@ -311,8 +312,8 @@ export const hseApi = {
     return request<{ id: string; deleted: boolean }>('DELETE', `/api/repository/${encodeURIComponent(id)}`);
   },
 
-  async deleteOperationalRecord(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string): Promise<{ id: string; deleted: boolean }> {
-    return request<{ id: string; deleted: boolean }>('DELETE', `/api/${entity}/${encodeURIComponent(id)}`);
+  async deleteOperationalRecord(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string, authToken?: string): Promise<{ id: string; deleted: boolean }> {
+    return request<{ id: string; deleted: boolean }>('DELETE', `/api/${entity}/${encodeURIComponent(id)}`, undefined, authToken);
   },
 
   async listOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents'): Promise<Array<Record<string, unknown>>> {
@@ -327,23 +328,33 @@ export const hseApi = {
     return request<Record<string, unknown>>('POST', '/api/forms', input);
   },
 
-  async logout(): Promise<void> {
+  get authToken(): string | null {
+    return getToken();
+  },
+
+  async logout(authToken?: string): Promise<void> {
+    const tokenToRevoke = authToken === undefined ? getToken() : authToken;
     try {
-      if (getToken()) {
+      if (tokenToRevoke) {
         await request<null>(
           'POST',
-          '/api/auth/logout'
+          '/api/auth/logout',
+          undefined,
+          tokenToRevoke
         );
       }
     } finally {
-      setToken(null);
+      // Never clear a newer user's token when revoking an older session.
+      if (authToken === undefined || getToken() === authToken) setToken(null);
     }
   },
 
-  me(): Promise<ApiUser> {
+  me(authToken?: string): Promise<ApiUser> {
     return request<ApiUser>(
       'GET',
-      '/api/me'
+      '/api/me',
+      undefined,
+      authToken
     );
   },
 
@@ -380,12 +391,14 @@ export const hseApi = {
       | 'hazards'
       | 'picas'
       | 'incidents',
-    payload: unknown
+    payload: unknown,
+    authToken?: string
   ): Promise<T> {
     return request<T>(
       'POST',
       `/api/${entity}`,
-      payload
+      payload,
+      authToken
     );
   },
 
@@ -396,12 +409,14 @@ export const hseApi = {
       | 'picas'
       | 'incidents',
     id: string,
-    payload: unknown
+    payload: unknown,
+    authToken?: string
   ): Promise<T> {
     return request<T>(
       'PATCH',
       `/api/${entity}/${encodeURIComponent(id)}`,
-      payload
+      payload,
+      authToken
     );
   },
 };
