@@ -322,6 +322,34 @@ test('tenant activation is enforced for login sessions, including subcontractor 
   assert.equal(context.isUserCompanyActive_({roles:['Admin CGG'],companyCode:''}), true);
 });
 
+test('company master changes revoke sessions for the company and its subcontractors only', () => {
+  const properties = {
+    'session:contractor': JSON.stringify({id:'u1',companyCode:'SLS'}),
+    'session:subkon': JSON.stringify({id:'u2',companyCode:'BCJ',parentCompanyCode:'SLS'}),
+    'session:other': JSON.stringify({id:'u3',companyCode:'VIP',parentCompanyCode:'VIP'}),
+    'session:unrelated': JSON.stringify({id:'u4',companyCode:'CGG'}),
+    'app:setting': 'keep'
+  };
+  const removed = [];
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({
+      getProperties: () => Object.assign({}, properties),
+      deleteProperty: key => { removed.push(key); delete properties[key]; }
+    }) },
+    CacheService: { getScriptCache: () => ({ remove: key => removed.push('cache:' + key) }) }
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('revokeCompanySessions_', 'upsertCompanyRegistryCore_'), context);
+  assert.equal(context.revokeCompanySessions_('sls'), 2);
+  assert.equal(properties['session:contractor'], undefined);
+  assert.equal(properties['session:subkon'], undefined);
+  assert.ok(properties['session:other']);
+  assert.ok(properties['session:unrelated']);
+  assert.equal(properties['app:setting'], 'keep');
+  assert.ok(removed.includes('cache:session:contractor'));
+  assert.ok(removed.includes('cache:session:subkon'));
+});
+
 test('user access changes revoke every persistent session belonging to that user ID', () => {
   const properties = {
     'session:token-a': JSON.stringify({id:'u1',email:'one@example.com'}),
