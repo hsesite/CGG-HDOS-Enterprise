@@ -929,6 +929,13 @@ function handleRoute_(
     const existingRow = findRecordRow_(getSheet_('forms'), safeForm.id);
     if (existingRow) {
       const existing = readOne_('forms', safeForm.id);
+      // A Company Admin may update only a form already visible within its tenant scope.
+      if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) return error_(403, 'Anda tidak memiliki akses untuk memperbarui formulir perusahaan lain.');
+      // Form ownership is immutable for Company Admins; only Admin CGG may move a form between tenants.
+      if (!isAdminCGG_(user)) {
+        safeForm.companyCode = String(existing.companyCode || user.companyCode || '').trim().toUpperCase();
+        safeForm.parentCompanyCode = String(existing.parentCompanyCode || user.parentCompanyCode || '').trim().toUpperCase();
+      }
       return success_(updateRecord_('forms', safeForm.id, Object.assign({}, existing, safeForm, { createdAt: existing.createdAt || safeForm.createdAt || new Date().toISOString() }), user));
     }
     safeForm.createdAt = safeForm.createdAt || new Date().toISOString();
