@@ -47,8 +47,10 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 // This Express/PostgreSQL service is a legacy, non-runtime backend. Production
 // startup is blocked unless an operator explicitly opts in after a separate audit.
-if (config.isProduction && process.env.ENABLE_LEGACY_EXPRESS_BACKEND !== 'true') {
-  throw new Error('Legacy Express/PostgreSQL backend is disabled for production. Use the GitHub Pages + GAS runtime or complete a separate backend security approval.');
+const isNonDevelopmentRuntime = config.isProduction ||
+  (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test');
+if (isNonDevelopmentRuntime && process.env.ENABLE_LEGACY_EXPRESS_BACKEND !== 'true') {
+  throw new Error('Legacy Express/PostgreSQL backend is disabled outside development/test. Use the GitHub Pages + GAS runtime or complete a separate backend security approval.');
 }
 
 const server = app.listen(config.port, '0.0.0.0', () => console.log(`[HDOS API] listening on http://localhost:${config.port}`));
