@@ -889,3 +889,17 @@ test('sync initialization recovers interrupted SYNCING items for the active owne
   assert.match(initMethod, /await hdosDB\.put\('queue', item\)/);
   assert.ok(initMethod.indexOf('this.queue = owner ?') < initMethod.indexOf("if (item.status === 'SYNCING')"), 'owner filter precedes recovery');
 });
+
+
+test('sync initialization recovers interrupted SYNCING items for the active owner only', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const initStart = syncSource.indexOf('async init(): Promise<void>');
+  const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart + 1);
+  const initMethod = syncSource.slice(initStart, initEnd);
+  const ownerFilter = initMethod.indexOf('this.queue = owner ? storedQueue.filter');
+  const recovery = initMethod.indexOf("if (item.status === 'SYNCING')");
+  assert.ok(ownerFilter >= 0 && recovery > ownerFilter, 'owner filter precedes interrupted-item recovery');
+  assert.match(initMethod, /item\.status = 'PENDING'/);
+  assert.match(initMethod, /await hdosDB\.put\('queue', item\)/);
+  assert.match(initMethod, /recoveredCount/);
+});
