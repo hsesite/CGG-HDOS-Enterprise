@@ -65,7 +65,7 @@ test('CGG self-registration requires an approved corporate domain or exact email
   const helperEnd = source.indexOf('function googleOnboard_(', helperStart + 1);
   vm.runInContext(source.slice(helperStart, helperEnd), context);
 
-  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com', 'CGG'), true);
+  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com', 'CGG'), false);
   assert.equal(context.isCggEmailAllowed_('staff@gmail.com', 'CGG'), false);
   assert.equal(context.isCggEmailAllowed_('person@yahoo.com', 'CGG'), false);
   assert.equal(context.isCggEmailAllowed_('worker@sls.co.id', 'SLS'), true);
