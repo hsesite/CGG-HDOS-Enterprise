@@ -33,6 +33,17 @@ interface TemplateDef {
 
 const TEMPLATES: TemplateDef[] = [];
 
+const readImageBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Foto gagal dibaca.'));
+  reader.onload = () => {
+    const value = String(reader.result || '');
+    const comma = value.indexOf(',');
+    resolve(comma >= 0 ? value.slice(comma + 1) : value);
+  };
+  reader.readAsDataURL(file);
+});
+
 export const InspectionModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
@@ -51,6 +62,7 @@ export const InspectionModule: React.FC = () => {
   });
   const [inspectorName, setInspectorName] = useState(currentUser.name);
   const [generalNotes, setGeneralNotes] = useState('');
+  const [inspectionPhoto, setInspectionPhoto] = useState<File | null>(null);
   const [photoAttached, setPhotoAttached] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -131,6 +143,14 @@ export const InspectionModule: React.FC = () => {
   const handleRepositoryFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRepositoryForm) return;
+    if (!inspectionPhoto) {
+      window.alert('Foto bukti pemeriksaan wajib dilampirkan sebelum laporan disimpan.');
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(inspectionPhoto.type) || inspectionPhoto.size > 5 * 1024 * 1024) {
+      window.alert('Foto harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
+      return;
+    }
 
     const items: InspectionItem[] = selectedRepositoryForm.fields
       .slice()
@@ -173,6 +193,11 @@ export const InspectionModule: React.FC = () => {
           gpsCoordinates = undefined;
         }
       }
+      const uploadedPhoto = await hseApi.uploadOperationalPhoto({
+        fileName: inspectionPhoto.name,
+        mimeType: inspectionPhoto.type,
+        fileBase64: await readImageBase64(inspectionPhoto),
+      });
       const newInspection = await createInspectionAction({
         title: selectedRepositoryForm.title,
         templateType: 'WORKSHOP',
@@ -187,6 +212,8 @@ export const InspectionModule: React.FC = () => {
         smkpElement: sourceDoc?.smkpElement || selectedRepositoryForm.category || 'SMKP Document Control',
         scorePercent,
         items,
+        photoFileId: uploadedPhoto.photoFileId,
+        photoUrl: uploadedPhoto.photoUrl,
         notes: generalNotes,
         picaDepartment: picaDepartment.trim() || String(selectedRepositoryForm.department || '').trim(),
         picaPicName: picaPicName.trim(),
@@ -204,6 +231,7 @@ export const InspectionModule: React.FC = () => {
       setSelectedRepositoryFormId('');
       setRepositoryAnswers({});
       setGeneralNotes('');
+      setInspectionPhoto(null);
       setPicaDepartment(''); setPicaPicName(''); setPicaPicEmail(''); setPicaTargetDate(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
     } catch (error) {
       console.error('[InspectionModule] Gagal menyimpan pemeriksaan formulir Repository:', error);
@@ -417,6 +445,10 @@ export const InspectionModule: React.FC = () => {
                   </div>
                 );
               })}
+              <label className="block text-xs text-neutral-300">Foto bukti pemeriksaan * (JPG/PNG/WEBP, maks. 5 MB)
+                <input type="file" accept="image/jpeg,image/png,image/webp" required onChange={(event) => setInspectionPhoto(event.target.files?.[0] || null)} className="mt-2 block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[#42A5F5]/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#8CCBFF]" />
+                <span className="mt-1 block text-[10px] text-neutral-500">{inspectionPhoto ? `Terpilih: ${inspectionPhoto.name}` : 'Lampirkan foto kondisi aktual saat pemeriksaan.'}</span>
+              </label>
               <label className="block text-xs text-neutral-400">Catatan umum pemeriksaan
                 <textarea value={generalNotes} onChange={(event) => setGeneralNotes(event.target.value)} rows={3} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white" />
               </label>
