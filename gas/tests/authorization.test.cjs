@@ -14,7 +14,7 @@ function extractFunction(name, nextName) {
 function loadScope() {
   const context = {
     isAdminCGG_: u => (u.roles || []).includes('Admin CGG'),
-    isReadOnlyController_: u => (u.roles || []).some(r => ['PJO','SPV HSE','Foreman Safety'].includes(r)),
+    isReadOnlyController_: u => (u.roles || []).some(r => ['KTT','SPT','SPV','PJO','SPV HSE','Foreman Safety'].includes(r)),
     requiresRoleVerification_: u => (u.roles || []).some(r => ['KTT','Project Manager','Superintendent','Supervisor','Foreman','SPV HSE','Foreman Safety','PJO'].includes(r)),
     isRecordVisibleToUser_: () => true,
     findCompanyRegistry_: code => (code === 'SLS' || code === 'VIP') ? {status:'ACTIVE',role:'Contractor',parentCompanyCode:''} : null,
