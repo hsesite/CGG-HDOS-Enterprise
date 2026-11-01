@@ -1414,7 +1414,7 @@ function googleOnboard_(payload) {
   const id = Utilities.getUuid();
   const userRow = [id, email, '', displayName, 'Employee', 'ACTIVE', '', '', String(tokenInfo.sub), companyCode, parentCode, '', department, section, false];
   if (!appendUniqueUser_(email, userRow)) return error_(409, 'Email ini sudah terdaftar. Silakan masuk atau hubungi Admin CGG.');
-  logAudit_({ id: 'SYSTEM', email: 'system@hdos.local', roles: ['SYSTEM'] }, 'GOOGLE_SELF_REGISTERED_ACTIVE_ACCOUNT', 'users', id);
+  logAudit_({ id: 'SYSTEM', email: 'system@hdos.local', roles: ['SYSTEM'] }, 'GOOGLE_SELF_REGISTERED_ACTIVE_ACCOUNT', 'users', id, { targetEmail: email, role: 'Employee', companyCode: companyCode, parentCompanyCode: parentCode, status: 'ACTIVE', roleVerified: false });
   return success_({ pending: false, message: 'Akun berhasil dibuat dan langsung aktif. Akun CGG memiliki akses internal sesuai kebijakan perusahaan; akun kontraktor/subkon tetap terbatas pada akses lihat.' });
 }
 
@@ -1486,7 +1486,7 @@ function upsertCompanyRegistry_(payload, actor) {
   const values = [code, name, role, role === 'Subkon' ? parentCode : '', domains, autoProvision ? 'TRUE' : 'FALSE', status];
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
   else sheet.appendRow(values);
-  logAudit_(actor, rowNumber > 0 ? 'COMPANY_MASTER_UPDATED' : 'COMPANY_MASTER_CREATED', 'companies', code);
+  logAudit_(actor, rowNumber > 0 ? 'COMPANY_MASTER_UPDATED' : 'COMPANY_MASTER_CREATED', 'companies', code, { companyName: name, role: role, parentCompanyCode: role === 'Subkon' ? parentCode : '', status: status });
   return success_({ code: code, name: name, role: role, parentCompanyCode: role === 'Subkon' ? parentCode : '', emailDomains: domains, autoProvision: autoProvision, status: status });
 }
 
@@ -1676,7 +1676,7 @@ function createManagedUser_(payload, actor) {
   const user = { id: Utilities.getUuid(), email: email, password: '', displayName: displayName, roles: [role], status: 'ACTIVE', passwordSalt: salt, passwordHash: passwordHash_(password, salt), googleSub: '', companyCode: isInternalCGG ? 'CGG' : companyCode, parentCompanyCode: parentCompanyCode, position: String(input.position || role).trim(), department: String(input.department || '').trim(), section: String(input.section || '').trim(), roleVerified: roleVerified };
   const userRow = [user.id, user.email, '', user.displayName, role, 'ACTIVE', user.passwordHash, user.passwordSalt, '', user.companyCode, user.parentCompanyCode, user.position, user.department, user.section, roleVerified];
   if (!appendUniqueUser_(email, userRow)) return error_(409, 'Email sudah terdaftar.');
-  logAudit_(actor, 'USER_CREATED_' + role.toUpperCase().replace(/ /g, '_'), 'users', user.id);
+  logAudit_(actor, 'USER_CREATED_' + role.toUpperCase().replace(/ /g, '_'), 'users', user.id, { targetEmail: user.email, role: role, companyCode: user.companyCode, status: 'ACTIVE', roleVerified: roleVerified });
   return success_(publicUser_(user));
 }
 
@@ -1699,8 +1699,12 @@ function updateUserAccess_(userId, payload, actor) {
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) !== String(userId)) continue;
-    const nextRole = role || String(rows[i][4] || 'Employee');
-    const existingCompanyCode = String(rows[i][9] || '').trim().toUpperCase();
+    const previousRole = String(rows[i][4] || 'Employee');
+    const previousStatus = String(rows[i][5] || 'ACTIVE');
+    const previousCompanyCode = String(rows[i][9] || '').trim().toUpperCase();
+    const previousRoleVerified = String(rows[i][14] || '').toUpperCase() === 'TRUE' || rows[i][14] === true;
+    const nextRole = role || previousRole;
+    const existingCompanyCode = previousCompanyCode;
     if (!isAdminCGG_(actor) && (!canManageCompany_(actor, existingCompanyCode) || String(rows[i][4] || '') === 'Company Admin')) return error_(403, 'Admin Perusahaan tidak dapat mengelola akun di luar cakupannya atau mengubah Admin Perusahaan.');
     const nextCompany = companyCode === null ? String(rows[i][9] || '') : companyCode;
     const nextParent = parentCompanyCode === null ? String(rows[i][10] || '') : parentCompanyCode;
@@ -1732,7 +1736,17 @@ function updateUserAccess_(userId, payload, actor) {
     sheet.getRange(i + 1, 10, 1, 2).setValues([[storedCompanyCode, storedParentCode]]);
     sheet.getRange(i + 1, 12).setValue(position);
     sheet.getRange(i + 1, 15).setValue(roleVerified);
-    logAudit_(actor, hasVerificationUpdate ? (roleVerified ? 'ROLE_VERIFIED' : 'ROLE_VERIFICATION_REVOKED') : 'USER_ACCESS_UPDATED', 'users', userId);
+    logAudit_(actor, hasVerificationUpdate ? (roleVerified ? 'ROLE_VERIFIED' : 'ROLE_VERIFICATION_REVOKED') : 'USER_ACCESS_UPDATED', 'users', userId, {
+      roleFrom: previousRole,
+      roleTo: nextRole,
+      statusFrom: previousStatus,
+      statusTo: status || previousStatus,
+      companyCodeFrom: previousCompanyCode,
+      companyCodeTo: storedCompanyCode,
+      roleVerifiedFrom: previousRoleVerified,
+      roleVerifiedTo: roleVerified,
+      position: position
+    });
     return success_({ id: String(rows[i][0]), email: String(rows[i][1] || ''), displayName: String(rows[i][3] || ''), roles: [nextRole], status: status || String(rows[i][5] || 'ACTIVE'), companyCode: storedCompanyCode, parentCompanyCode: storedParentCode, position: position, department: String(rows[i][12] || ''), section: String(rows[i][13] || ''), roleVerified: roleVerified });
   }
   return error_(404, 'Akun tidak ditemukan.');
