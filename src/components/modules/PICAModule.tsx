@@ -28,7 +28,9 @@ export const PICAModule: React.FC = () => {
     }).catch((error) => console.warn('[PICAModule] Gagal memuat register pusat:', error));
     return () => { cancelled = true; };
   }, [store, sessionUser?.id, hseApi.baseUrl]);
-  const isControlViewer = ['KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman'].includes(currentUser.role);
+  // Only the explicit Admin CGG role sees the administrative all-stage override.
+  // Every other role receives its own server-authorized sign-off button or a read-only view.
+  const isControlViewer = currentUser.role !== 'Admin CGG';
   const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
