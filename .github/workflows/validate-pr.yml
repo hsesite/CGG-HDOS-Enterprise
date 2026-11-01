@@ -1,7 +1,9 @@
-name: Validate HDOS Pull Requests
+name: Validate HDOS
 # Keep this check separate from the production Pages deployment.
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
