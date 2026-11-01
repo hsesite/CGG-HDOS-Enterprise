@@ -388,3 +388,21 @@ test('Repository preview is tenant-scoped while original download is CGG-only', 
   assert.equal(context.canDownloadRepositoryDocument_({id:'cgg-doc',companyCode:'CGG'},cgg),true);
   assert.equal(context.canDownloadRepositoryDocument_(slsDoc,admin),true);
 });
+
+test('idempotent create returns existing records only within the caller tenant', () => {
+  const context = {
+    findRecordRow_: () => 2,
+    parseRow_: () => ({id:'existing-id',companyCode:'VIP'}),
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    isRecordVisibleToUser_: (record,user) => record.companyCode === user.companyCode,
+    httpError_: (status,message) => Object.assign(new Error(message),{status})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('getExistingRecordForCreate_', 'createRecord_'), context);
+  assert.equal(context.getExistingRecordForCreate_({},'existing-id',{roles:['Employee'],companyCode:'VIP'}).id,'existing-id');
+  assert.throws(
+    () => context.getExistingRecordForCreate_({},'existing-id',{roles:['Employee'],companyCode:'SLS'}),
+    error => error.status === 403
+  );
+  assert.equal(context.getExistingRecordForCreate_({},'existing-id',{roles:['Admin CGG'],companyCode:'CGG'}).id,'existing-id');
+});
