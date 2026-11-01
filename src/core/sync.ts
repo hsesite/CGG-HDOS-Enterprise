@@ -700,15 +700,17 @@ export class HDOSSyncEngine {
         records[0]
       ).join(',');
 
+    const escapeCsvCell = (value: unknown): string => {
+      let text = String(value ?? '');
+      // Prefix formula-like text so Excel/Sheets cannot execute imported cell content.
+      if (typeof value === 'string' && /^[\\s]*[=+\\-@]/.test(text)) text = "'" + text;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+
     const rows =
       records.map((record) =>
         Object.values(record)
-          .map(
-            (value) =>
-              `"${String(
-                value ?? ''
-              ).replace(/"/g, '""')}"`
-          )
+          .map(escapeCsvCell)
           .join(',')
       );
 
