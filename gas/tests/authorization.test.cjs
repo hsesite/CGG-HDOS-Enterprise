@@ -406,3 +406,27 @@ test('idempotent create returns existing records only within the caller tenant',
   );
   assert.equal(context.getExistingRecordForCreate_({},'existing-id',{roles:['Admin CGG'],companyCode:'CGG'}).id,'existing-id');
 });
+
+test('user creation enforces email uniqueness inside a script lock', () => {
+  let locked = false;
+  let released = false;
+  let existing = null;
+  const appended = [];
+  const context = {
+    LockService: { getScriptLock: () => ({
+      waitLock: timeout => { assert.equal(timeout,10000); locked = true; },
+      releaseLock: () => { released = true; }
+    }) },
+    findUserByEmail_: email => existing,
+    getSheet_: () => ({ appendRow: row => appended.push(row) })
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('appendUniqueUser_', 'googleOnboard_'), context);
+  assert.equal(context.appendUniqueUser_('worker@example.com',['id-1','worker@example.com']),true);
+  assert.equal(locked,true);
+  assert.equal(released,true);
+  assert.equal(appended.length,1);
+  existing = {id:'prior-user'};
+  assert.equal(context.appendUniqueUser_('worker@example.com',['id-2','worker@example.com']),false);
+  assert.equal(appended.length,1);
+});
