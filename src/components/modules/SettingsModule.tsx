@@ -179,7 +179,7 @@ export const SettingsModule: React.FC = () => {
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex items-start gap-3 border-b border-white/10 pb-5">
         <div className="rounded-xl border border-[#00E676]/20 bg-[#00E676]/10 p-3"><Settings2 className="h-6 w-6 text-[#00E676]" /></div>
-        <div><h2 className="text-xl font-bold text-white">Pengaturan Sistem</h2><p className="mt-1 text-sm text-neutral-400">Master data untuk area kerja dan kontraktor. Area kerja dan data operasional lokal memakai IndexedDB; master perusahaan disimpan di server HDOS agar menjadi sumber pilihan pendaftaran bersama.</p></div>
+        <div><h2 className="text-xl font-bold text-white">Pengaturan Sistem</h2><p className="mt-1 text-sm text-neutral-400">Master data Area Kerja kini tersimpan terpusat di server HDOS dan dapat digunakan lintas perangkat. Master perusahaan juga dikelola terpusat.</p></div>
       </header>
       <div className="flex flex-wrap gap-2">
         {(isCGGAdmin ? ([{id:'areas',label:'Area Kerja',icon:MapPin},{id:'contractors',label:'Perusahaan',icon:Building2},{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const) : ([{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const)).map(item => {
@@ -205,7 +205,7 @@ export const SettingsModule: React.FC = () => {
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00E676] px-4 py-3 font-semibold text-black disabled:opacity-60"><Plus size={16}/>Simpan Area</button>
         </form>
         <section className="space-y-3"><h3 className="font-semibold text-white">Area Terdaftar ({store.locations.length})</h3>
-          {store.locations.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Belum ada area. Tambahkan area kerja dari formulir ini.</div> : store.locations.map(loc=><div key={loc.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4"><div><div className="font-medium text-white">{loc.name}</div><div className="mt-1 text-xs text-neutral-400">{loc.zoneType} · {loc.utm || 'Koordinat belum diisi'}</div></div><button aria-label={`Hapus area ${loc.name}`} onClick={async()=>{if(confirm(`Hapus area ${loc.name}?`)){await store.deleteLocation(loc.id);setMessage('Area dihapus dari master data lokal.');}}} className="rounded-lg p-2 text-neutral-400 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16}/></button></div>)}
+          {store.locations.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Belum ada area. Tambahkan area kerja dari formulir ini.</div> : store.locations.map(loc=><div key={loc.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4"><div><div className="font-medium text-white">{loc.name}</div><div className="mt-1 text-xs text-neutral-400">{loc.zoneType} · {loc.utm || 'Koordinat belum diisi'}</div></div><button aria-label={`Hapus area ${loc.name}`} onClick={async()=>{if(confirm(`Hapus area ${loc.name}?`)){await store.deleteLocation(loc.id);setMessage('Area berhasil dihapus dari master data pusat.');}}} className="rounded-lg p-2 text-neutral-400 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16}/></button></div>)}
         </section>
       </div>}
       {tab === 'contractors' && <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
