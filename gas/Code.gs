@@ -841,8 +841,19 @@ function handleRoute_(
     const input = isObject_(params.payload) ? params.payload : {};
     const base64 = String(input.fileBase64 || '');
     if (!base64 || base64.length > 14000000) return error_(400, 'Berkas wajib diisi dan maksimal 10 MB.');
-    const companyCode = String(input.companyCode || user.companyCode || 'CGG').trim().toUpperCase();
+    const companyCode = String(isAdminCGG_(user) ? (input.companyCode || user.companyCode || 'CGG') : (user.companyCode || '')).trim().toUpperCase();
+    if (!companyCode) return error_(403, 'Akun belum memiliki perusahaan untuk Repository.');
     if (!isAdminCGG_(user) && companyCode !== String(user.companyCode || '').trim().toUpperCase()) return error_(403, 'Anda hanya dapat mengunggah dokumen untuk perusahaan Anda.');
+    const registeredCompany = companyCode === 'CGG' ? null : findCompanyRegistry_(companyCode);
+    if (companyCode !== 'CGG' && (!registeredCompany || registeredCompany.status !== 'ACTIVE')) return error_(400, 'Perusahaan dokumen tidak terdaftar aktif pada master perusahaan.');
+    const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';
+    const id = String(input.id || Utilities.getUuid());
+    const existingDocument = findRecordRow_(getSheet_('repository'), id);
+    if (existingDocument) {
+      const existing = readOne_('repository', id);
+      if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) return error_(403, 'ID dokumen sudah digunakan di luar cakupan perusahaan Anda.');
+      return success_(existing);
+    }
     const bytes = Utilities.base64Decode(base64);
     const fileName = String(input.fileName || 'document.bin');
     const mimeType = String(input.mimeType || 'application/octet-stream');
@@ -852,8 +863,7 @@ function handleRoute_(
     const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS Repository');
     if (!folderId) props.setProperty('HDOS_REPOSITORY_FOLDER_ID', folder.getId());
     const file = folder.createFile(blob);
-    const id = String(input.id || Utilities.getUuid());
-    const doc = Object.assign({}, input, { id: id, code: String(input.docNumber || input.code || id), driveFileId: file.getId(), fileName: fileName, mimeType: mimeType, fileBase64: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), companyCode: companyCode, parentCompanyCode: String(input.parentCompanyCode || user.parentCompanyCode || '') });
+    const doc = Object.assign({}, input, { id: id, code: String(input.docNumber || input.code || id), driveFileId: file.getId(), fileName: fileName, mimeType: mimeType, fileBase64: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), companyCode: companyCode, parentCompanyCode: parentCompanyCode });
     delete doc.fileBase64;
     return success_(createRecord_('repository', doc, user));
   }
