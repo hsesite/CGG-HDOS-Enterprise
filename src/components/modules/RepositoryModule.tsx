@@ -1305,10 +1305,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                     <p className="text-sm text-neutral-300">Pratinjau DOCX di browser dinonaktifkan agar isi dan tata letak tidak ditampilkan dalam bentuk hasil render yang berbeda. {!isCGGAccount ? 'Akun kontraktor hanya dapat melihat metadata dan pratinjau dokumen, tanpa izin mengunduh berkas.' : 'Unduh berkas asli di bawah, lalu buka berkas tersebut dengan Microsoft Word.'}</p>
                     <p className="text-xs text-neutral-400">Nama file: {originalFileName}</p>
                   </div>
-                  {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-sm font-bold">
+                  {isCGGAccount && <button type="button" onClick={() => selectedDoc && void handleDownloadDoc(selectedDoc)} disabled={downloading} className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#A855F7] hover:bg-purple-600 disabled:opacity-50 text-white text-sm font-bold">
                     <Download className="w-4 h-4" />
-                    Unduh File Asli untuk Microsoft Word
-                  </a>}
+                    {downloading ? 'Menyiapkan unduhan...' : 'Unduh File Asli untuk Microsoft Word'}
+                  </button>}
                 </div>
               ) : originalFileHtml ? (
                 <div className="h-full overflow-auto rounded-lg bg-white text-neutral-900 p-5 sm:p-8">
@@ -1322,14 +1322,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
                   `}</style>
                   <div className="original-office-preview" dangerouslySetInnerHTML={{ __html: originalFileHtml }} />
                   <div className="mt-6 border-t pt-4 text-center">
-                    {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 text-white text-xs font-bold">Unduh File Asli</a>}
+                    {isCGGAccount && <button type="button" onClick={() => selectedDoc && void handleDownloadDoc(selectedDoc)} disabled={downloading} className="inline-flex px-4 py-2 rounded-lg bg-[#A855F7] hover:bg-purple-600 disabled:opacity-50 text-white text-xs font-bold">{downloading ? 'Menyiapkan unduhan...' : 'Unduh File Asli'}</button>}
                   </div>
                 </div>
               ) : (
                 <div className="h-full min-h-48 flex flex-col items-center justify-center gap-3 text-center">
                   <FileText className="w-10 h-10 text-[#A855F7]" />
                   <p className="text-sm text-neutral-300">Menyiapkan pratinjau file...</p>
-                  {isCGGAccount && <a href={originalFileUrl} download={originalFileName} className="px-4 py-2 rounded-lg bg-[#A855F7] text-white text-xs font-bold">Unduh File Asli</a>}
+                  {isCGGAccount && <button type="button" onClick={() => selectedDoc && void handleDownloadDoc(selectedDoc)} disabled={downloading} className="px-4 py-2 rounded-lg bg-[#A855F7] disabled:opacity-50 text-white text-xs font-bold">{downloading ? 'Menyiapkan unduhan...' : 'Unduh File Asli'}</button>}
                 </div>
               )}
             </div>
