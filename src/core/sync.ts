@@ -695,17 +695,15 @@ export class HDOSSyncEngine {
       return;
     }
 
-    const headers =
-      Object.keys(
-        records[0]
-      ).join(',');
-
     const escapeCsvCell = (value: unknown): string => {
       let text = String(value ?? '');
       // Prefix formula-like text so Excel/Sheets cannot execute imported cell content.
       if (typeof value === 'string' && /^[\\s]*[=+\\-@]/.test(text)) text = "'" + text;
       return `"${text.replace(/"/g, '""')}"`;
     };
+
+    const headers =
+      Object.keys(records[0]).map(escapeCsvCell).join(',');
 
     const rows =
       records.map((record) =>
