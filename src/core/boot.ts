@@ -22,9 +22,8 @@ declare global {
 export async function bootHDOS(): Promise<void> {
   console.log('%c[CGG HDOS Enterprise] Booting Master Blueprint v3.0 Core Layer...', 'color: #00E676; font-size: 14px; font-weight: bold;');
 
-  // Initialize subsystems
-  await hdosStore.init();
-  await hdosSync.init();
+  // The application validates the persisted server session before loading
+  // tenant-scoped local data or allowing the offline queue to sync.
 
   // Mount to global namespace according to Core Constitution Locked Rule
   if (typeof window !== 'undefined') {
