@@ -104,7 +104,7 @@ export default function App() {
       setIsAuthenticated(true);
       setCurrentUser(user);
       setCheckingSession(false);
-      void hdosSync.init();
+      void hdosStore.init().then(() => hdosSync.init());
     }
   }
 
@@ -117,7 +117,7 @@ export default function App() {
       setIsAuthenticated(false);
       setCurrentUser(null);
       AuthState.clear();
-      void hdosSync.init();
+      void hdosStore.init().then(() => hdosSync.init());
     }
   }
 
