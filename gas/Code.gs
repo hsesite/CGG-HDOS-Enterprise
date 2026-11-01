@@ -1499,6 +1499,7 @@ function isRecordVisibleToUser_(record, user) {
 
   // KTT/SPT/SPV share one oversight scope: SLS, VIP, and active subcontracts below either contractor.
   if (isOversightRole_(user)) {
+    if (user.roleVerified !== true) return false;
     const allowed = getOversightCompanyCodes_();
     return Boolean(allowed[recordCompany] || allowed[recordSubkon] || allowed[recordParent]);
   }
