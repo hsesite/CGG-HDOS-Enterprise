@@ -1310,6 +1310,12 @@ function handleRoute_(
           approvalStageChanges: stageChanges,
           statusFrom: oldStatus,
           statusTo: nextStatus,
+          assignedToEmail: scopedPayload.assignedToEmail || existingRecord.assignedToEmail || null,
+          hseValidatedBy: scopedPayload.hseValidatedBy || null,
+          hseValidatedRole: scopedPayload.hseValidatedRole || null,
+          hseValidatedAt: scopedPayload.hseValidatedAt || null,
+          rejectionReason: scopedPayload.rejectionReason || null,
+          submittedAt: scopedPayload.submittedAt || null,
           completionDate: scopedPayload.completionDate || null
         };
       }
