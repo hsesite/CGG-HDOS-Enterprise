@@ -679,3 +679,37 @@ test('central mining area master validates coordinates, category, and duplicate 
   assert.ok(source.includes("Area dengan nama dan kategori yang sama sudah terdaftar."));
   assert.ok(source.includes("lock.waitLock(10000)"));
 });
+
+test('operational store queues Inspection, Hazard, generated PICA, Incident, and PICA approvals for central sync', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const inspectionStart = storeSource.indexOf('async addInspection(');
+  const hazardStart = storeSource.indexOf('async addHazard(');
+  const incidentStart = storeSource.indexOf('async addIncident(');
+  const picaUpdateStart = storeSource.indexOf('async updatePICAStatus(');
+  assert.ok(inspectionStart >= 0 && hazardStart > inspectionStart && incidentStart > hazardStart && picaUpdateStart > incidentStart);
+
+  const inspection = storeSource.slice(inspectionStart, hazardStart);
+  const hazard = storeSource.slice(hazardStart, incidentStart);
+  const incident = storeSource.slice(incidentStart, picaUpdateStart);
+  const picaUpdate = storeSource.slice(picaUpdateStart);
+
+  assert.match(inspection, /entity: 'pica'[\s\S]*?action: 'CREATE'/);
+  assert.match(inspection, /entity: 'inspection'[\s\S]*?action: 'CREATE'/);
+  assert.match(hazard, /entity: 'pica'[\s\S]*?action: 'CREATE'/);
+  assert.match(hazard, /entity: 'hazard'[\s\S]*?action: 'CREATE'/);
+  assert.match(incident, /entity: 'incident'[\s\S]*?action: 'CREATE'/);
+  assert.match(picaUpdate, /entity: 'pica'[\s\S]*?action: 'UPDATE'/);
+  assert.match(storeSource, /await hdosSync\.enqueue\(/);
+});
+
+test('GAS operational creates preserve client IDs and are idempotent under a script lock', () => {
+  const createStart = source.indexOf('function createRecord_(');
+  const createEnd = source.indexOf('function isExpectedPicaStateCurrent_(', createStart + 1);
+  assert.ok(createStart >= 0 && createEnd > createStart);
+  const create = source.slice(createStart, createEnd);
+  assert.match(create, /safePayload\.id/);
+  assert.match(create, /getExistingRecordForCreate_\(sheet, id, user\)/);
+  assert.match(create, /getScriptLock\(\)/);
+  assert.match(create, /lock\.waitLock\(\s*10000\s*\)/);
+  assert.match(create, /SpreadsheetApp\.flush\(\)/);
+});
