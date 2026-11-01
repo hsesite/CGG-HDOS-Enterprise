@@ -154,9 +154,15 @@ export default function App() {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      setIsAuthenticated(false);
-      setCurrentUser(null);
-      AuthState.clear();
+      if (hseApi.authToken === null) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        AuthState.clear();
+      } else {
+        const activeUser = getCurrentUser();
+        setIsAuthenticated(Boolean(activeUser));
+        setCurrentUser(activeUser);
+      }
       void hdosStore.init().then(() => hdosSync.init());
     }
   }
