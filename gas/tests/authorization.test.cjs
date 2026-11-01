@@ -835,28 +835,26 @@ test('same-tab login scopes the tenant cache and queue before revealing the auth
 });
 
 
-test('operational create and approval methods persist locally and queue before publishing in-memory success', () => {
+test('operational create and approval methods commit records and queue before publishing in-memory success', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const methods = [
-    ['async addInspection(', 'async addHazard(', ['await hdosDB.put(\'inspection\', newInspection)', 'await hdosSync.enqueue(', 'this.inspections.unshift(newInspection)']],
-    ['async addHazard(', 'async addIncident(', ['await hdosDB.put(\'hazard\', newHazard)', 'await hdosSync.enqueue(', 'this.hazards.unshift(newHazard)']],
-    ['async addIncident(', 'async updatePICAStatus(', ['await hdosDB.put(\'incident\', newInc)', 'await hdosSync.enqueue(', 'this.incidents.unshift(newInc)']],
-    ['async updatePICAStatus(', '}\n\nexport const hdosStore', ['await hdosDB.put(\'pica\', updated)', 'await hdosSync.enqueue(', 'this.picas[index] = updated']]
+    ['async addInspection(', 'async addHazard(', 'this.inspections.unshift(newInspection)'],
+    ['async addHazard(', 'async addIncident(', 'this.hazards.unshift(newHazard)'],
+    ['async addIncident(', 'async updatePICAStatus(', 'this.incidents.unshift(newInc)'],
+    ['async updatePICAStatus(', '}\\n\\nexport const hdosStore', 'this.picas[index] = updated']
   ];
-  for (const [startMarker, endMarker, ordered] of methods) {
+  for (const [startMarker, endMarker, publishMarker] of methods) {
     const start = storeSource.indexOf(startMarker);
     const end = storeSource.indexOf(endMarker, start + 1);
     assert.ok(start >= 0 && end > start, 'method boundaries exist: ' + startMarker);
     const method = storeSource.slice(start, end);
-    let previous = -1;
-    for (const fragment of ordered) {
-      const position = method.indexOf(fragment);
-      assert.ok(position > previous, 'expected persistence/queue/UI order for ' + fragment);
-      previous = position;
-    }
+    const bundlePosition = method.indexOf('await hdosSync.enqueueBatch(');
+    const publishPosition = method.indexOf(publishMarker);
+    assert.ok(bundlePosition >= 0 && publishPosition > bundlePosition, 'bundle commits before UI publish: ' + startMarker);
+    assert.doesNotMatch(method, /hdosDB\\.put\\(/);
+    assert.doesNotMatch(method, /hdosSync\\.enqueue\\(/);
   }
 });
-
 
 test('operational records and matching sync queue entries use one atomic IndexedDB bundle', () => {
   const dbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
