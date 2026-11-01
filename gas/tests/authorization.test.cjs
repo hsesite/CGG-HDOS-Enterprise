@@ -713,3 +713,23 @@ test('GAS operational creates preserve client IDs and are idempotent under a scr
   assert.match(create, /lock\.waitLock\(\s*10000\s*\)/);
   assert.match(create, /SpreadsheetApp\.flush\(\)/);
 });
+
+
+test('operational GET ALL returns a complete unpaginated tenant-filtered snapshot', () => {
+  const routeStart = source.indexOf("path.match(\n      /^\\/api\\/(inspections|hazards|picas|incidents)");
+  const routeEnd = source.indexOf('// GET ONE', routeStart);
+  assert.notEqual(routeStart, -1);
+  assert.notEqual(routeEnd, -1);
+  const getAllRoute = source.slice(routeStart, routeEnd);
+  assert.match(getAllRoute, /const records = readAll_\(entity\)/);
+  assert.match(getAllRoute, /records\.filter\(function\(record\) \{ return isRecordVisibleToUser_\(record, user\); \}\)/);
+
+  const readAllStart = source.indexOf('function readAll_(');
+  const readOneStart = source.indexOf('function readOne_(', readAllStart + 1);
+  assert.notEqual(readAllStart, -1);
+  assert.notEqual(readOneStart, -1);
+  const readAll = source.slice(readAllStart, readOneStart);
+  assert.match(readAll, /const lastRow =\s*sheet\.getLastRow\(\)/);
+  assert.match(readAll, /rowNumber <= lastRow/);
+  assert.doesNotMatch(readAll, /LIMIT|OFFSET|pageToken|nextPage/);
+});
