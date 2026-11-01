@@ -1106,10 +1106,23 @@ function handleRoute_(
       if (entity === 'picas') assertVerifiedRole_(user, 'perubahan status atau persetujuan PICA');
       if (entity !== 'picas') return error_(403, 'Data operasional yang sudah dikirim tidak dapat diedit atau dihapus.');
       const allowedChangedKeys = ['status', 'approvalStages', 'completionDate', 'updatedAt'];
-      const changedKeys = Object.keys(requestedPayload).filter(function(key) { return JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]); });
-      if (changedKeys.some(function(key) { return allowedChangedKeys.indexOf(key) === -1; })) return error_(403, 'PICA hanya dapat diperbarui melalui tahap persetujuan; detail temuan dan tindakan koreksi tidak dapat diedit.');
       const oldStages = existingRecord.approvalStages || {};
       const stages = requestedPayload.approvalStages || oldStages;
+      const hasStageChange = JSON.stringify(stages) !== JSON.stringify(oldStages);
+      if (hasStageChange) {
+        const expectedStatus = stages.foreman === true && stages.spvHse === true && stages.ktt === true
+          ? 'CLOSED'
+          : (stages.foreman === true || stages.spvHse === true ? 'PROGRESS' : String(existingRecord.status || 'OPEN').toUpperCase());
+        if (requestedPayload.status !== undefined && String(requestedPayload.status).toUpperCase() !== expectedStatus) {
+          return error_(403, 'Status PICA ditetapkan otomatis sesuai tahapan persetujuan.');
+        }
+        requestedPayload.status = expectedStatus;
+      }
+      const changedKeys = Object.keys(requestedPayload).filter(function(key) { return JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]); });
+      if (changedKeys.some(function(key) { return allowedChangedKeys.indexOf(key) === -1; })) return error_(403, 'PICA hanya dapat diperbarui melalui tahap persetujuan; detail temuan dan tindakan koreksi tidak dapat diedit.');
+      if (changedKeys.indexOf('status') >= 0 && changedKeys.indexOf('approvalStages') === -1) {
+        return error_(403, 'Status PICA tidak dapat diubah tanpa persetujuan tahap yang sah.');
+      }
       const role = String((user.roles || [])[0] || 'Employee');
       if (Object.prototype.hasOwnProperty.call(requestedPayload, 'approvalStages') && requestedPayload.approvalStages && JSON.stringify(requestedPayload.approvalStages) !== JSON.stringify(oldStages)) {
         assertVerifiedRole_(user, 'persetujuan PICA');
