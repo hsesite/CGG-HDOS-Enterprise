@@ -2641,6 +2641,7 @@ function updateRecord_(
   const safePayload = isObject_(payload) ? payload : {};
   const lock = LockService.getScriptLock();
   let item;
+  let replayedUpdate = false;
 
   lock.waitLock(10000);
   try {
@@ -2649,7 +2650,7 @@ function updateRecord_(
     const old = parseRow_(sheet, rowNumber);
 
     const recordVersionCurrent = isExpectedRecordVersionCurrent_(old, expectedRecordUpdatedAt);
-    const replayedUpdate = !recordVersionCurrent && isUpdatePayloadAlreadyApplied_(old, safePayload);
+    replayedUpdate = !recordVersionCurrent && isUpdatePayloadAlreadyApplied_(old, safePayload);
 
     // A successful update may reach the Spreadsheet while its response is lost.
     // When the same queued payload is replayed against the newer version, accept
