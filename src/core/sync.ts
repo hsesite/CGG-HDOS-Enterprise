@@ -157,6 +157,24 @@ export class HDOSSyncEngine {
       }
     }
     this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode) : [];
+
+    // Recover this owner's interrupted writes after a tab or browser closes.
+    let recoveredCount = 0;
+    for (const item of this.queue) {
+      if (item.status === 'SYNCING') {
+        item.status = 'PENDING';
+        item.error = 'Sinkronisasi sebelumnya terputus. Item dipulihkan dan akan dicoba kembali.';
+        await hdosDB.put('queue', item);
+        recoveredCount += 1;
+      }
+    }
+    if (recoveredCount > 0) {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: `${recoveredCount} item sinkronisasi yang terputus dipulihkan ke antrean.`,
+        type: 'warning',
+      });
+    }
     if (quarantinedCount > 0) {
       this.syncLogs.unshift({ time: formatTime(), message: `${quarantinedCount} item lama ditahan karena tidak memiliki identitas akun pemilik.`, type: 'warning' });
     }
