@@ -607,6 +607,21 @@ test('Repository file validation rejects MIME-spoofed and unsupported uploads', 
   assert.throws(()=>context.getRepositoryFileMetadata_('script.html',[60,115,99,114]),error=>error.status===400);
 });
 
+test('operational updates reject stale record versions to prevent concurrent overwrite', () => {
+  const context = {};
+  vm.createContext(context);
+  const start = source.indexOf('function isExpectedRecordVersionCurrent_(');
+  const end = source.indexOf('function updateRecord_(', start + 1);
+  assert.ok(start >= 0 && end > start);
+  vm.runInContext(source.slice(start, end), context);
+  const current = { updatedAt: '2026-11-01T10:05:00.000Z' };
+  assert.equal(context.isExpectedRecordVersionCurrent_(current, '2026-11-01T10:05:00.000Z'), true);
+  assert.equal(context.isExpectedRecordVersionCurrent_(current, '2026-11-01T10:00:00.000Z'), false);
+  assert.equal(context.isExpectedRecordVersionCurrent_(current, null), true);
+  assert.ok(source.includes('expectedRecordUpdatedAt'));
+  assert.ok(source.includes("throw httpError_(409, 'Data telah diperbarui oleh pengguna lain. Muat ulang data sebelum menyimpan perubahan.')"));
+});
+
 test('PICA updates reject stale approval states to prevent concurrent stage overwrite', () => {
   const context = {};
   vm.createContext(context);
