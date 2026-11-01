@@ -1704,6 +1704,25 @@ function createManagedUser_(payload, actor) {
   return success_(publicUser_(user));
 }
 
+
+function revokeUserSessions_(userId) {
+  const properties = PropertiesService.getScriptProperties();
+  const allProperties = properties.getProperties();
+  const cache = CacheService.getScriptCache();
+  let revokedCount = 0;
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf('session:') !== 0) return;
+    let session = null;
+    try { session = JSON.parse(allProperties[key]); } catch (err) { session = null; }
+    if (session && String(session.id || '') === String(userId)) {
+      properties.deleteProperty(key);
+      cache.remove(key);
+      revokedCount += 1;
+    }
+  });
+  return revokedCount;
+}
+
 function updateUserAccessCore_(userId, payload, actor, auditOut) {
   const input = isObject_(payload) ? payload : {};
   const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
@@ -1790,6 +1809,11 @@ function updateUserAccess_(userId, payload, actor) {
   } finally {
     lock.releaseLock();
   }
+  // Invalidate every previously issued token for this account after the
+  // authoritative user row has been committed. A later reactivation must not
+  // resurrect sessions issued before the access change.
+  if (result && result.success) revokeUserSessions_(userId);
+
   // Audit logging acquires the same script lock, so it must run after the
   // user-row transaction releases its lock.
   if (result && result.success && auditOut.length) {
@@ -2057,9 +2081,14 @@ function findUserByEmail_(email) {
 function requireAuth_(token) {
   if (!token) throw httpError_(401, 'Unauthorized: Token required');
   const properties = PropertiesService.getScriptProperties();
-  let raw = properties.getProperty('session:' + token);
-  if (!raw) raw = CacheService.getScriptCache().get('session:' + token);
-  if (!raw) throw httpError_(401, 'Unauthorized: Session invalid. Silakan masuk kembali.');
+  // Script Properties are the authoritative session registry. Do not fall
+  // back to CacheService: a revoked persistent token must never be revived by
+  // a stale cache entry.
+  const raw = properties.getProperty('session:' + token);
+  if (!raw) {
+    CacheService.getScriptCache().remove('session:' + token);
+    throw httpError_(401, 'Unauthorized: Session invalid. Silakan masuk kembali.');
+  }
   const session = JSON.parse(raw);
   const current = findUserByEmail_(session.email);
   // Bind every session to the immutable user ID captured at issuance. An email
