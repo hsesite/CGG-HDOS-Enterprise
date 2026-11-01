@@ -17,7 +17,7 @@ function loadScope() {
     isReadOnlyController_: u => (u.roles || []).some(r => ['PJO','SPV HSE','Foreman Safety'].includes(r)),
     requiresRoleVerification_: u => (u.roles || []).some(r => ['KTT','Project Manager','Superintendent','Supervisor','Foreman','SPV HSE','Foreman Safety','PJO'].includes(r)),
     isRecordVisibleToUser_: () => true,
-    findCompanyRegistry_: () => null,
+    findCompanyRegistry_: code => (code === 'SLS' || code === 'VIP') ? {status:'ACTIVE',role:'Contractor',parentCompanyCode:''} : null,
     httpError_: (status, message) => Object.assign(new Error(message), {status})
   };
   vm.createContext(context);
@@ -210,4 +210,44 @@ test('Company Admin cannot bypass PICA approval stages or close an unapproved PI
 });
 test('Operational tenant ownership remains immutable during PATCH for non-CGG admins', () => {
   assert.ok(source.includes("['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode'].forEach(function(key)"));
+});
+
+
+test('Oversight scope excludes inactive SLS/VIP roots and their subcontracts', () => {
+  const context = {
+    getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
+      ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
+      ['SLS','PT SLS','Contractor','','','FALSE','INACTIVE'],
+      ['VIP','PT VIP','Contractor','','','FALSE','ACTIVE'],
+      ['BCJ','PT BCJ','Subkon','SLS','','FALSE','ACTIVE'],
+      ['CHN','PT CHN','Subkon','VIP','','FALSE','ACTIVE']
+    ]}) })
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function getOversightCompanyCodes_(');
+  const end=source.indexOf('function isRecordVisibleToUser_(',start+1);
+  vm.runInContext(source.slice(start,end),context);
+  const allowed=context.getOversightCompanyCodes_();
+  assert.equal(Boolean(allowed.SLS),false);
+  assert.equal(Boolean(allowed.BCJ),false);
+  assert.equal(Boolean(allowed.VIP),true);
+  assert.equal(Boolean(allowed.CHN),true);
+});
+
+test('Inactive company accounts cannot read or create operational records', () => {
+  const context = {
+    isAdminCGG_: () => false,
+    isReadOnlyController_: () => false,
+    requiresRoleVerification_: () => false,
+    isCompanyScopedRole_: () => true,
+    isOversightRole_: () => false,
+    findCompanyRegistry_: () => ({status:'INACTIVE',role:'Contractor',parentCompanyCode:''}),
+    httpError_: (status,message) => Object.assign(new Error(message),{status}),
+    getSheet_: () => ({getDataRange:()=>({getValues:()=>[['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],['SLS','PT SLS','Contractor','','','FALSE','INACTIVE']]})})
+  };
+  vm.createContext(context);
+  const start=source.indexOf('function applyRecordScope_(');
+  const end=source.indexOf('function findCompanyUser_(',start+1);
+  vm.runInContext(source.slice(start,end),context);
+  assert.throws(()=>context.applyRecordScope_('hazards',{}, {roles:['Employee'],companyCode:'SLS'}, true),e=>e.status===403);
 });

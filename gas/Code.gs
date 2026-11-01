@@ -1513,15 +1513,23 @@ function isOversightRole_(user) {
 }
 
 function getOversightCompanyCodes_() {
-  const allowed = { SLS: true, VIP: true };
+  const allowed = {};
   const sheet = getSheet_('companies');
   const rows = sheet.getDataRange().getValues();
+  // Oversight roots are only the active SLS/VIP contractor registrations.
+  for (let i = 1; i < rows.length; i++) {
+    const code = String(rows[i][0] || '').trim().toUpperCase();
+    const role = String(rows[i][2] || '').trim();
+    const status = String(rows[i][6] || '').trim().toUpperCase();
+    if ((code === 'SLS' || code === 'VIP') && role === 'Contractor' && status === 'ACTIVE') allowed[code] = true;
+  }
+  // Include only active subcontracts whose registered parent is an active oversight root.
   for (let i = 1; i < rows.length; i++) {
     const code = String(rows[i][0] || '').trim().toUpperCase();
     const parent = String(rows[i][3] || '').trim().toUpperCase();
     const role = String(rows[i][2] || '').trim();
     const status = String(rows[i][6] || '').trim().toUpperCase();
-    if (code && role === 'Subkon' && status === 'ACTIVE' && (parent === 'SLS' || parent === 'VIP')) allowed[code] = true;
+    if (code && role === 'Subkon' && status === 'ACTIVE' && allowed[parent]) allowed[code] = true;
   }
   return allowed;
 }
@@ -1536,7 +1544,17 @@ function isRecordVisibleToUser_(record, user) {
   const recordParent = String(record.parentCompanyCode || '').trim().toUpperCase();
   if (!ownCompany) return false;
 
-  // KTT/SPT/SPV share one oversight scope: SLS, VIP, and active subcontracts below either contractor.
+  // Disabled or orphaned companies must lose access even if their user account remains active.
+  if (!isOversightRole_(user) && ownCompany !== 'CGG') {
+    const ownRegistry = findCompanyRegistry_(ownCompany);
+    if (!ownRegistry || ownRegistry.status !== 'ACTIVE') return false;
+    if (ownRegistry.role === 'Subkon') {
+      const parentRegistry = findCompanyRegistry_(ownRegistry.parentCompanyCode);
+      if (!parentRegistry || parentRegistry.status !== 'ACTIVE' || parentRegistry.role !== 'Contractor') return false;
+    }
+  }
+
+  // KTT/SPT/SPV share one oversight scope: active SLS, VIP, and active subcontracts below either contractor.
   if (isOversightRole_(user)) {
     if (user.roleVerified !== true) return false;
     const allowed = getOversightCompanyCodes_();
@@ -1571,6 +1589,16 @@ function applyRecordScope_(entity, record, user, creating) {
   const ownCompany = String(user.companyCode || '').trim().toUpperCase();
   const parentCompany = String(user.parentCompanyCode || '').trim().toUpperCase();
   if (!ownCompany) throw httpError_(403, 'Akun belum dikaitkan ke perusahaan. Hubungi administrator perusahaan.');
+  if (ownCompany !== 'CGG') {
+    const ownRegistry = findCompanyRegistry_(ownCompany);
+    if (!ownRegistry || ownRegistry.status !== 'ACTIVE') throw httpError_(403, 'Perusahaan akun tidak aktif atau tidak terdaftar pada master perusahaan.');
+    if (ownRegistry.role === 'Subkon') {
+      const parentRegistry = findCompanyRegistry_(ownRegistry.parentCompanyCode);
+      if (!parentRegistry || parentRegistry.status !== 'ACTIVE' || parentRegistry.role !== 'Contractor' || String(user.parentCompanyCode || '').trim().toUpperCase() !== String(ownRegistry.parentCompanyCode || '').trim().toUpperCase()) {
+        throw httpError_(403, 'Relasi perusahaan induk Subkon tidak aktif atau tidak valid.');
+      }
+    }
+  }
   if (requiresRoleVerification_(user) && user.roleVerified !== true && ['inspections', 'hazards'].indexOf(entity) === -1) throw httpError_(403, 'Jabatan belum diverifikasi. Akses sementara hanya untuk laporan Inspeksi dan Hazard.');
   if (role === 'Employee' && ['inspections', 'hazards'].indexOf(entity) === -1) throw httpError_(403, 'Akun umum hanya dapat membuat laporan Inspeksi dan Hazard.');
   if (['Company Admin', 'Contractor', 'Subkon', 'Employee', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC'].indexOf(role) === -1) throw httpError_(403, 'Akses penulisan data ditolak.');
