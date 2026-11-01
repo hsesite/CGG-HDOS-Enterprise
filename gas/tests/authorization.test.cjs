@@ -506,3 +506,31 @@ test('PICA updates reject stale approval states to prevent concurrent stage over
   assert.equal(context.isExpectedPicaStateCurrent_({status:'PROGRESS',approvalStages:{foreman:true,spvHse:true,ktt:false}},expected),false);
   assert.equal(context.isExpectedPicaStateCurrent_({status:'CLOSED',approvalStages:{foreman:true,spvHse:false,ktt:false}},expected),false);
 });
+
+test('login failures are rate-limited per normalized email and can be cleared', () => {
+  const values = new Map();
+  const context = {
+    Utilities: {
+      DigestAlgorithm: {SHA_256:'SHA_256'},
+      Charset: {UTF_8:'UTF_8'},
+      computeDigest: () => [1,2,3],
+      base64EncodeWebSafe: () => 'hashed-email'
+    },
+    CacheService: {getScriptCache: () => ({
+      get: key => values.get(key) || null,
+      put: (key,value,ttl) => { assert.equal(ttl,300); values.set(key,value); },
+      remove: key => values.delete(key)
+    })},
+    LockService: {getScriptLock: () => ({waitLock:ms=>assert.equal(ms,5000),releaseLock:()=>{}})}
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('loginRateLimitKey_', 'isLoginRateLimited_'),context);
+  vm.runInContext(extractFunction('isLoginRateLimited_', 'recordLoginFailure_'),context);
+  vm.runInContext(extractFunction('recordLoginFailure_', 'clearLoginFailures_'),context);
+  vm.runInContext(extractFunction('clearLoginFailures_', 'login_'),context);
+  assert.equal(context.isLoginRateLimited_('Worker@Example.com'),false);
+  for(let i=0;i<10;i++) context.recordLoginFailure_('Worker@Example.com');
+  assert.equal(context.isLoginRateLimited_('worker@example.com'),true);
+  context.clearLoginFailures_('worker@example.com');
+  assert.equal(context.isLoginRateLimited_('worker@example.com'),false);
+});
