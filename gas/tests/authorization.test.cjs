@@ -460,7 +460,7 @@ test('PICA can be submitted by its assigned PIC and closed by one verified HSE v
   assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
   assert.equal(close.hseValidatedBy,'HSE Foreman');
   assert.equal(close.hseValidatedRole,'Foreman Safety');
-  assert.match(close.completionDate,/^\\d{4}-\\d{2}-\\d{2}$/);
+  assert.match(close.completionDate,/^\d{4}-\d{2}-\d{2}$/);
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['KTT'],roleVerified:true}).status,403);
 
   const returned = {status:'PROGRESS',rejectionReason:'Foto belum jelas'};
@@ -768,7 +768,9 @@ test('operational GET ALL returns a complete unpaginated tenant-filtered snapsho
   assert.notEqual(routeEnd, -1);
   const getAllRoute = source.slice(routeStart, routeEnd);
   assert.match(getAllRoute, /const records = readAll_\(entity\)/);
-  assert.match(getAllRoute, /records\.filter\(function\(record\) \{ return isRecordVisibleToUser_\(record, user\); \}\)/);
+  assert.match(getAllRoute, /records\.filter\(function\(record\) \{/);
+  assert.match(getAllRoute, /isRecordVisibleToUser_\(record, user\)/);
+  assert.match(getAllRoute, /assignedToEmail/);
 
   const readAllStart = source.indexOf('function readAll_(');
   const readOneStart = source.indexOf('function readOne_(', readAllStart + 1);
