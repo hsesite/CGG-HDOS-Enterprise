@@ -43,6 +43,8 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 - [ ] Audit rows record stage changes, status transitions, user verification changes, and unique audit sequence codes.
 
 ### Repository document control
+- [ ] Offline repository binaries can only be read, migrated, or downloaded when the current account matches the document uploader and tenant; legacy file blobs may be used only when linked metadata confirms the same owner.
+- [ ] Account switching in one browser cannot expose another account's cached document binary through preview, download, or form generation.
 
 ### Cached-download authorization
 - [ ] When a CGG user has a cached local document and the API is online, download calls the server with the captured session token and produces a `REPOSITORY_DOCUMENT_DOWNLOADED` audit event.
