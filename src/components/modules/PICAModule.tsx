@@ -233,12 +233,12 @@ export const PICAModule: React.FC = () => {
                     <span className="text-xs font-semibold text-emerald-300">PICA sudah ditutup</span>
                   ) : ['Foreman Safety', 'Foreman'].includes(currentUser.role) && !selectedPica.approvalStages.foreman ? (
                     <button onClick={() => handleSignoff('foreman')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap Foreman</button>
-                  ) : ['SPV HSE', 'Supervisor', 'Superintendent'].includes(currentUser.role) && !selectedPica.approvalStages.spvHse ? (
+                  ) : ['SPV HSE', 'Supervisor', 'Superintendent'].includes(currentUser.role) && selectedPica.approvalStages.foreman && !selectedPica.approvalStages.spvHse ? (
                     <button onClick={() => handleSignoff('spvHse')} className="w-full rounded-xl bg-blue-500 px-3 py-2.5 text-sm font-bold text-white">Setujui Tahap SPV HSE</button>
-                  ) : ['KTT', 'Project Manager', 'PJO'].includes(currentUser.role) && !selectedPica.approvalStages.ktt ? (
+                  ) : ['KTT', 'Project Manager', 'PJO'].includes(currentUser.role) && selectedPica.approvalStages.foreman && selectedPica.approvalStages.spvHse && !selectedPica.approvalStages.ktt ? (
                     <button onClick={() => handleSignoff('ktt')} className="w-full rounded-xl bg-[#00E676] px-3 py-2.5 text-sm font-bold text-black">Persetujuan Final / Tutup PICA</button>
                   ) : (
-                    <span className="text-xs text-neutral-400">Tidak ada tahap persetujuan yang dapat Anda lakukan saat ini.</span>
+                    <span className="text-xs text-neutral-400">Menunggu persetujuan tahap sebelumnya atau tidak ada tahap yang sesuai dengan jabatan Anda.</span>
                   )}
                 </div>
               ) : (
