@@ -30,6 +30,11 @@ function getEntityEndpoint(
   }
 }
 
+function compareQueueItemsByTime(a: SyncQueueItem, b: SyncQueueItem): number {
+  const timeOrder = String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
+  return timeOrder || String(a.id).localeCompare(String(b.id));
+}
+
 function getRecordId(
   item: SyncQueueItem
 ): string | null {
@@ -165,7 +170,7 @@ export class HDOSSyncEngine {
         quarantinedCount += 1;
       }
     }
-    this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode) : [];
+    this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode).sort(compareQueueItemsByTime) : [];
 
     // Recover this owner's interrupted writes after a tab or browser closes.
     let recoveredCount = 0;
@@ -312,6 +317,7 @@ export class HDOSSyncEngine {
     if (activeOwner && activeOwner.userId === owner.userId &&
         activeOwner.companyCode === owner.companyCode && this.queueOwnerKey === ownerKey) {
       this.queue.push(...queueItems);
+      this.queue.sort(compareQueueItemsByTime);
       hdosEvents.emit('sync:queue_updated', [...this.queue]);
       this.syncLogs.unshift({
         time: formatTime(),
@@ -373,6 +379,7 @@ export class HDOSSyncEngine {
 
     if (ownerStillCurrent) {
       this.queue.push(queueItem);
+      this.queue.sort(compareQueueItemsByTime);
       hdosEvents.emit(
         'sync:queue_updated',
         [...this.queue]
@@ -478,7 +485,7 @@ export class HDOSSyncEngine {
     const syncToken = hseApi.authToken;
     if (!syncToken) return false;
     if (this.queueOwnerKey !== `${owner.userId}::${owner.companyCode}`) await this.init();
-    this.queue = this.queue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode);
+    this.queue = this.queue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode).sort(compareQueueItemsByTime);
     if (this.isSyncing) {
       return false;
     }
@@ -554,18 +561,21 @@ export class HDOSSyncEngine {
         return false;
       }
 
-      for (
-        const item of [...this.queue]
-      ) {
+      // IndexedDB getAll() is keyed by ID, not insertion time. Explicitly
+      // replay in timestamp order and prevent later writes to a record from
+      // overtaking an earlier write that is still pending or has failed.
+      const blockedRecordIds = new Set<string>();
+      for (const item of [...this.queue].sort(compareQueueItemsByTime)) {
+        const itemRecordId = getRecordId(item);
+        if (itemRecordId && blockedRecordIds.has(itemRecordId)) continue;
         const activeOwner = this.getCurrentOwner();
         if (hseApi.authToken !== syncToken || !activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId || activeOwner.companyCode !== item.ownerCompanyCode || activeOwner.companyCode !== owner.companyCode) break;
         if (!this.isOnline) {
           break;
         }
 
-        if (
-          item.retryCount >= MAX_RETRIES
-        ) {
+        if (item.retryCount >= MAX_RETRIES) {
+          if (itemRecordId) blockedRecordIds.add(itemRecordId);
           continue;
         }
 
@@ -586,6 +596,7 @@ export class HDOSSyncEngine {
             'queue',
             item
           );
+          if (itemRecordId) blockedRecordIds.add(itemRecordId);
 
           this.syncLogs.unshift({
             time: formatTime(),
@@ -672,6 +683,8 @@ export class HDOSSyncEngine {
             'queue',
             item
           );
+
+          if (itemRecordId) blockedRecordIds.add(itemRecordId);
 
           const status =
             error instanceof ApiError
