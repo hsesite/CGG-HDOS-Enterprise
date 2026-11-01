@@ -261,7 +261,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const canDeleteSelectedDoc = Boolean(selectedDoc && sessionUser?.roles?.some((role) => ['Admin CGG', 'Company Admin'].includes(role)));
   const isCGGAccount = canDownloadDocuments(sessionUser);
   const isBasicReadOnlyAccount = Boolean(sessionUser?.roles?.includes('Employee'));
-  const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
+  const isControlReadOnlyAccount = Boolean(sessionUser?.roles?.some((role) => ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role)));
   const isReadOnlyAccount = isBasicReadOnlyAccount || isControlReadOnlyAccount;
   const isCompanyScopedAccount = Boolean(sessionUser?.companyCode);
 
@@ -344,6 +344,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const docCompany = String(doc.companyCode || '').trim().toUpperCase();
     const docParent = String(doc.parentCompanyCode || '').trim().toUpperCase();
     const isGlobalDocument = !docCompany && !docParent;
+    const isOversightAccount = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV'].includes(role));
+    if (isOversightAccount) {
+      return ['SLS', 'VIP'].includes(docCompany) || ['SLS', 'VIP'].includes(docParent);
+    }
     if (isBasicReadOnlyAccount) {
       if (isGlobalDocument || docCompany === companyCode) return true;
       return !parentCompanyCode && docParent === companyCode;
