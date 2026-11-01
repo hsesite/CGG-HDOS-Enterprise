@@ -75,28 +75,13 @@ const INITIAL_WINDOWS: AppWindow[] = [
 export class HDOSCentralStore {
   private assertMutationAllowed(action: 'location' | 'contractor' | 'document' | 'inspection' | 'hazard' | 'incident' | 'pica', updates?: Partial<PICA>): void {
     const role = hdosAuth.getCurrentRole();
-    const isPicaClose = action === 'pica'
-      && updates?.status === 'CLOSED'
-      && updates.approvalStages?.foreman === true
-      && updates.approvalStages?.spvHse === true
-      && updates.approvalStages?.ktt === true;
-    // Reporting is permitted for every operational role. Only repository/admin
-    // mutations remain restricted; PICA can only be closed through its signoff flow.
     if (action === 'pica') {
-      if (isPicaClose) return;
-      const stages = updates?.approvalStages;
-      const keys = updates ? Object.keys(updates) : [];
-      const isStageOnlyUpdate = Boolean(
-        stages &&
-        keys.every((key) => ['approvalStages', 'status', 'updatedAt'].includes(key)) &&
-        ['OPEN', 'PROGRESS', 'CLOSED'].includes(String(updates?.status || 'PROGRESS')) &&
-        Object.values(stages).every((value) => typeof value === 'boolean')
-      );
-      if (isStageOnlyUpdate) return;
-      throw new Error('PICA hanya dapat diperbarui melalui tahapan persetujuan; detail temuan tidak dapat diedit.');
+      const allowedKeys = ['status', 'correctiveAction', 'evidencePhotoUrl', 'submittedAt', 'closeRequestedAt', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'rejectionReason', 'updatedAt'];
+      if (updates && Object.keys(updates).every((key) => allowedKeys.includes(key))) return;
+      throw new Error('Perubahan PICA hanya dapat dilakukan oleh PIC yang ditugaskan atau HSE validator.');
     }
-    if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role) && !['inspection', 'hazard', 'incident', 'pica'].includes(action)) {
-      throw new Error('Akun ini hanya dapat membuat laporan operasional dan melakukan penutupan PICA yang disetujui.');
+    if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role) && !['inspection', 'hazard', 'incident'].includes(action)) {
+      throw new Error('Akun ini hanya dapat membuat laporan operasional.');
     }
     if (role === 'Employee' && !['inspection', 'hazard', 'incident'].includes(action)) {
       throw new Error('Akun umum hanya dapat membuat laporan Inspeksi, Hazard, dan Insiden.');
