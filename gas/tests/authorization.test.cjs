@@ -273,10 +273,14 @@ test('Inactive company accounts cannot read or create operational records', () =
 
 
 test('CGG tenant code is reserved and cannot be registered as a contractor or subcontractor', () => {
-  const start=source.indexOf('function upsertCompanyRegistry_(');
-  const end=source.indexOf('function findCompanyRegistry_(',start+1);
+  const start=source.indexOf('function upsertCompanyRegistryCore_(');
+  const end=source.indexOf('function upsertCompanyRegistry_(',start+1);
   const fn=source.slice(start,end);
+  const wrapperEnd=source.indexOf('function findCompanyRegistry_(',end+1);
+  const wrapper=source.slice(end,wrapperEnd);
   assert.ok(fn.includes("if (code === 'CGG') return error_(400,"));
+  assert.ok(wrapper.includes('LockService.getScriptLock()'));
+  assert.ok(wrapper.indexOf('lock.releaseLock()') < wrapper.indexOf('logAudit_('));
 });
 
 test('Company Admin management scope requires active company registrations', () => {
