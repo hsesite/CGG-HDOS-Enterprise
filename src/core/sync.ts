@@ -1,5 +1,5 @@
 import type { SyncQueueItem } from './types';
-import { hdosDB } from './db';
+import { hdosDB, type StoreName } from './db';
 import { hdosEvents } from './events';
 import { hseApi, ApiError } from './api';
 import { AuthState } from './auth-state';
@@ -248,6 +248,60 @@ export class HDOSSyncEngine {
         void this.triggerSync();
       }, 300);
     }
+  }
+
+  async enqueueBatch(
+    records: Array<{ storeName: StoreName; item: { id: string } }>,
+    items: Array<Omit<SyncQueueItem, 'id' | 'timestamp' | 'status' | 'retryCount'>>
+  ): Promise<SyncQueueItem[]> {
+    const currentOwner = this.getCurrentOwner();
+    if (!currentOwner) throw new Error('Login ulang diperlukan sebelum menyimpan data ke antrean offline.');
+    const ownerKey = `${currentOwner.userId}::${currentOwner.companyCode}`;
+    if (this.queueOwnerKey !== ownerKey) await this.init();
+    const owner = this.getCurrentOwner();
+    if (!owner || owner.userId !== currentOwner.userId || owner.companyCode !== currentOwner.companyCode) {
+      throw new Error('Akun berubah saat penyimpanan berlangsung. Silakan ulangi setelah login.');
+    }
+
+    const queueItems: SyncQueueItem[] = items.map(item => ({
+      id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? `queue_${crypto.randomUUID()}`
+        : `queue_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      status: 'PENDING',
+      retryCount: 0,
+      ...item,
+      ownerUserId: owner.userId,
+      ownerCompanyCode: owner.companyCode,
+    }));
+
+    // Operational records and their queue entries commit together in IndexedDB.
+    await hdosDB.putBundle([
+      ...records,
+      ...queueItems.map(item => ({ storeName: 'queue' as const, item })),
+    ]);
+
+    const activeOwner = this.getCurrentOwner();
+    if (activeOwner && activeOwner.userId === owner.userId &&
+        activeOwner.companyCode === owner.companyCode && this.queueOwnerKey === ownerKey) {
+      this.queue.push(...queueItems);
+      hdosEvents.emit('sync:queue_updated', [...this.queue]);
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: `${queueItems.length} item operasional dan antrean tersimpan bersama.`,
+        type: 'warning',
+      });
+      if (this.isOnline && hseApi.isAuthenticated) {
+        setTimeout(() => { void this.triggerSync(); }, 100);
+      }
+    } else {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: 'Bundle offline disimpan untuk akun pemilik sebelumnya dan tidak diproses oleh sesi akun saat ini.',
+        type: 'warning',
+      });
+    }
+    return queueItems;
   }
 
   async enqueue(
