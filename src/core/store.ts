@@ -181,7 +181,14 @@ export class HDOSCentralStore {
     });
 
   } catch (err) {
-    console.warn('[HDOS Store] IndexedDB fallback', err);
+    console.error('[HDOS Store] Gagal memuat data lokal secara lengkap', err);
+    this.liveFeed.unshift({
+      id: `storage-read-error-${Date.now()}`,
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      category: 'SYSTEM',
+      text: 'Peringatan: pembacaan penyimpanan lokal gagal. Data tidak ditampilkan sebagai data kosong; periksa koneksi/kapasitas penyimpanan browser dan muat ulang.',
+      level: 'warning',
+    });
   }
 
   this.notify();
