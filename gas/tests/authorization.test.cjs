@@ -469,6 +469,30 @@ test('PICA approval changes are included in the existing audit record', () => {
   assert.match(source, /updateRecord_\(entity,\s*id,\s*scopedPayload,\s*user,\s*auditDetails,\s*expectedPicaState,\s*expectedRecordUpdatedAt\)/);
 });
 
+test('central company master returns Contractor Passport profile fields', () => {
+  const context = {
+    getSheet_: () => ({
+      getDataRange: () => ({
+        getValues: () => [
+          ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status','passportStatus','picName','picContact','safetyPassportExpiry'],
+          ['SLS','Sentosa Laju Sejahtera','Contractor','','sls.co.id','FALSE','ACTIVE','WARNING','Budi Safety','08123456789','2027-06-30'],
+          ['SUB1','Subkon Mitra','Subkon','SLS','','FALSE','ACTIVE','ACTIVE','Sari HSE','08111111111','2027-03-31']
+        ]
+      })
+    }),
+    success_: data => ({success:true,data})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('listCompanyRegistry_', 'revokeCompanySessions_'), context);
+  const result = context.listCompanyRegistry_();
+  assert.equal(result.data.length, 2);
+  assert.equal(result.data[0].passportStatus, 'WARNING');
+  assert.equal(result.data[0].picName, 'Budi Safety');
+  assert.equal(result.data[0].picContact, '08123456789');
+  assert.equal(result.data[0].safetyPassportExpiry, '2027-06-30');
+  assert.equal(result.data[1].parentCompanyCode, 'SLS');
+});
+
 test('Repository API strips internal Drive identifiers and file bytes from metadata', () => {
   const context = {};
   vm.createContext(context);
