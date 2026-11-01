@@ -321,11 +321,34 @@ test('tenant activation is enforced for login sessions, including subcontractor 
   assert.equal(context.isUserCompanyActive_({roles:['Admin CGG'],companyCode:''}), true);
 });
 
+test('a session token cannot authenticate a different account reusing the same email', () => {
+  let propertyDeleted = false;
+  let cacheDeleted = false;
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: key => key === 'session:token-reused' ? JSON.stringify({id:'old-user',email:'shared@example.com'}) : null,
+      deleteProperty: key => { if (key === 'session:token-reused') propertyDeleted = true; }
+    }) },
+    CacheService: { getScriptCache: () => ({
+      get: () => null,
+      remove: key => { if (key === 'session:token-reused') cacheDeleted = true; }
+    }) },
+    findUserByEmail_: () => ({id:'new-user',email:'shared@example.com',displayName:'New Account',roles:['Employee'],status:'ACTIVE',companyCode:'CGG'}),
+    isUserCompanyActive_: () => true,
+    httpError_: (status,message) => Object.assign(new Error(message),{status})
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('requireAuth_', 'publicUser_'), context);
+  assert.throws(() => context.requireAuth_('token-reused'), error => error.status === 401);
+  assert.equal(propertyDeleted, true);
+  assert.equal(cacheDeleted, true);
+});
+
 test('an inactive tenant invalidates an otherwise active user session', () => {
   let deleted = false;
   const context = {
     PropertiesService: { getScriptProperties: () => ({
-      getProperty: key => key === 'session:token-1' ? JSON.stringify({email:'worker@sls.co.id'}) : null,
+      getProperty: key => key === 'session:token-1' ? JSON.stringify({id:'u1',email:'worker@sls.co.id'}) : null,
       deleteProperty: key => { if (key === 'session:token-1') deleted = true; }
     }) },
     CacheService: { getScriptCache: () => ({ get: () => null, remove: () => {} }) },
