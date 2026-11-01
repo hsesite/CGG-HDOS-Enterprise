@@ -1178,10 +1178,24 @@ function googleLogin_(payload) {
   return createSessionResponse_(user);
 }
 
-function isCggEmailAllowed_(email) {
-  // Registration accepts any verified Google email domain.
-  // Company identity is selected from the active company registry, never inferred from email domain.
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+function isCggEmailAllowed_(email, companyCode) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return false;
+
+  // Contractor/Subkon onboarding may use any verified Google email; the selected
+  // tenant is still validated against the active company registry below.
+  if (String(companyCode || '').trim().toUpperCase() !== 'CGG') return true;
+
+  // CGG self-registration is restricted to approved corporate domains, with an
+  // exact-address allowlist for personnel who use personal Google accounts.
+  const properties = PropertiesService.getScriptProperties();
+  const configuredDomains = String(properties.getProperty('CGG_EMAIL_DOMAINS') || '').trim();
+  const allowedDomains = (configuredDomains || 'ptcgg.com')
+    .toLowerCase().split(/[;,\\s]+/).filter(Boolean);
+  const allowedEmails = String(properties.getProperty('CGG_ALLOWED_EMAILS') || '')
+    .toLowerCase().split(/[;,\\s]+/).filter(Boolean);
+  const domain = normalizedEmail.split('@').pop();
+  return allowedEmails.indexOf(normalizedEmail) >= 0 || allowedDomains.indexOf(domain) >= 0;
 }
 
 function googleOnboard_(payload) {
@@ -1209,7 +1223,7 @@ function googleOnboard_(payload) {
     return error_(401, 'Identitas Google tidak dapat diverifikasi untuk aplikasi ini.');
   }
   const email = String(tokenInfo.email).trim().toLowerCase();
-  if (!isCggEmailAllowed_(email)) return error_(400, 'Alamat email tidak valid.');
+  if (!isCggEmailAllowed_(email, companyCode)) return error_(403, companyCode === 'CGG' ? 'Email tidak diizinkan untuk pendaftaran personel CGG. Gunakan domain resmi atau minta Admin CGG memasukkan email Anda ke allowlist.' : 'Alamat email tidak valid.');
   const existing = findUserByEmail_(email);
   if (existing) {
     if (existing.status === 'PENDING') return error_(409, 'Profil akun sudah diterima dan sedang menunggu persetujuan Admin CGG.');
