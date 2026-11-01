@@ -690,6 +690,25 @@ function doPost(
 // ROUTING
 // ============================================================
 
+function publicRepositoryDocument_(doc) {
+  if (!doc) return doc;
+  const safe = Object.assign({}, doc);
+  delete safe.driveFileId;
+  delete safe.fileBase64;
+  return safe;
+}
+
+function canPreviewRepositoryDocument_(doc, user) {
+  return Boolean(doc && isRecordVisibleToUser_(doc, user));
+}
+
+function canDownloadRepositoryDocument_(doc, user) {
+  if (!doc) return false;
+  if (isAdminCGG_(user)) return true;
+  const userCompanyCode = String(user.companyCode || '').trim().toUpperCase();
+  return userCompanyCode === 'CGG' && isRecordVisibleToUser_(doc, user);
+}
+
 function handleRoute_(
   method,
   path,
@@ -833,7 +852,7 @@ function handleRoute_(
     const visible = rows.filter(function(doc) {
       if (isAdminCGG_(user)) return true;
       return isRecordVisibleToUser_(doc, user);
-    }).map(function(doc) { return Object.assign({}, doc); });
+    }).map(function(doc) { return publicRepositoryDocument_(doc); });
     return success_(visible);
   }
   if (path === '/api/repository' && method === 'POST') {
@@ -852,7 +871,7 @@ function handleRoute_(
     if (existingDocument) {
       const existing = readOne_('repository', id);
       if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) return error_(403, 'ID dokumen sudah digunakan di luar cakupan perusahaan Anda.');
-      return success_(existing);
+      return success_(publicRepositoryDocument_(existing));
     }
     const bytes = Utilities.base64Decode(base64);
     const fileName = String(input.fileName || 'document.bin');
@@ -865,7 +884,7 @@ function handleRoute_(
     const file = folder.createFile(blob);
     const doc = Object.assign({}, input, { id: id, code: String(input.docNumber || input.code || id), driveFileId: file.getId(), fileName: fileName, mimeType: mimeType, fileBase64: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), companyCode: companyCode, parentCompanyCode: parentCompanyCode });
     delete doc.fileBase64;
-    return success_(createRecord_('repository', doc, user));
+    return success_(publicRepositoryDocument_(createRecord_('repository', doc, user)));
   }
   const repositoryDeleteMatch = path.match(/^\/api\/repository\/([^/]+)$/);
   if (repositoryDeleteMatch && method === 'DELETE') {
@@ -898,14 +917,24 @@ function handleRoute_(
     return success_({ id: documentId, deleted: true });
   }
 
+  const repositoryPreviewMatch = path.match(/^\\/api\\/repository\\/([^/]+)\\/preview$/);
+  if (repositoryPreviewMatch && method === 'GET') {
+    const doc = readOne_('repository', decodeURIComponent(repositoryPreviewMatch[1]));
+    if (!doc) return error_(404, 'Dokumen Repository tidak ditemukan.');
+    if (!canPreviewRepositoryDocument_(doc, user)) return error_(403, 'Anda tidak memiliki akses pratinjau dokumen ini.');
+    const fileId = String(doc.driveFileId || '');
+    if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
+    const file = DriveApp.getFileById(fileId);
+    const blob = file.getBlob();
+    return success_({ fileName: file.getName(), mimeType: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
+  }
+
   const repositoryFileMatch = path.match(/^\/api\/repository\/([^/]+)\/file$/);
   if (repositoryFileMatch && method === 'GET') {
     const doc = readOne_('repository', decodeURIComponent(repositoryFileMatch[1]));
-    // Central policy: only CGG internal users may download controlled documents.
-    // Contractors/subcontractors may view repository metadata but cannot fetch file bytes.
-    const userCompanyCode = String(user.companyCode || '').trim().toUpperCase();
-    if (!isAdminCGG_(user) && userCompanyCode !== 'CGG') return error_(403, 'Unduhan dokumen Repository hanya tersedia untuk personel internal CGG.');
-    if (!isAdminCGG_(user) && !isRecordVisibleToUser_(doc, user)) return error_(403, 'Anda tidak memiliki akses ke dokumen ini.');
+    if (!doc) return error_(404, 'Dokumen Repository tidak ditemukan.');
+    // Download is restricted to CGG internal accounts; preview uses a separate scoped route.
+    if (!canDownloadRepositoryDocument_(doc, user)) return error_(403, 'Unduhan dokumen Repository hanya tersedia untuk personel internal CGG yang memiliki akses ke dokumen ini.');
     const fileId = String(doc.driveFileId || '');
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
