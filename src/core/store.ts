@@ -581,6 +581,7 @@ export class HDOSCentralStore {
 
     const tenantFields = getCurrentTenantFields();
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
+    const createdPicas: PICA[] = [];
 
     // Create one PICA for every failed checklist item so no finding is lost.
     for (const failedItem of failedItems) {
@@ -606,6 +607,7 @@ export class HDOSCentralStore {
       };
 
       failedItem.picaId = picaId;
+      createdPicas.push(picaCreated);
       this.picas.unshift(picaCreated);
       await hdosDB.put('pica', picaCreated);
       hdosEvents.emit('pica:created', picaCreated);
@@ -622,6 +624,24 @@ export class HDOSCentralStore {
 
     this.inspections.unshift(newInspection);
     await hdosDB.put('inspection', newInspection);
+
+    // Queue related PICAs before the inspection so their references exist first
+    // when the cloud records are created. Stable IDs make server retries idempotent.
+    for (const pica of createdPicas) {
+      await hdosSync.enqueue({
+        action: 'CREATE',
+        entity: 'pica',
+        payload: pica,
+        note: `PICA otomatis dari Inspection ${code}`,
+      });
+    }
+    await hdosSync.enqueue({
+      action: 'CREATE',
+      entity: 'inspection',
+      payload: newInspection,
+      note: `Inspection ${code}`,
+    });
+
     this.notify();
     hdosEvents.emit('inspection:created', newInspection);
     return newInspection;
@@ -794,6 +814,20 @@ export class HDOSCentralStore {
       newHazard
     );
 
+    // Persist the linked PICA first, then the Hazard that references it.
+    await hdosSync.enqueue({
+      action: 'CREATE',
+      entity: 'pica',
+      payload: picaCreated,
+      note: `PICA otomatis dari Hazard ${code}`,
+    });
+    await hdosSync.enqueue({
+      action: 'CREATE',
+      entity: 'hazard',
+      payload: newHazard,
+      note: `Hazard ${code}`,
+    });
+
     /*
      * Update location telemetry.
      */
@@ -844,6 +878,12 @@ export class HDOSCentralStore {
 
     this.incidents.unshift(newInc);
     await hdosDB.put('incident', newInc);
+    await hdosSync.enqueue({
+      action: 'CREATE',
+      entity: 'incident',
+      payload: newInc,
+      note: `Incident ${code}`,
+    });
     this.notify();
     hdosEvents.emit('incident:created', newInc);
     return newInc;
@@ -913,6 +953,12 @@ export class HDOSCentralStore {
 
     this.picas[index] = updated;
     await hdosDB.put('pica', updated);
+    await hdosSync.enqueue({
+      action: 'UPDATE',
+      entity: 'pica',
+      payload: updated,
+      note: `Persetujuan PICA ${updated.code}`,
+    });
     this.notify();
     hdosEvents.emit('pica:updated', updated);
     return updated;
