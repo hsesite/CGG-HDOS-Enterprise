@@ -457,3 +457,22 @@ test('missing records fail closed in tenant visibility checks', () => {
   assert.equal(context.isRecordVisibleToUser_(null,{roles:['Admin CGG']}),false);
   assert.equal(context.isRecordVisibleToUser_(undefined,{roles:['Employee'],companyCode:'SLS'}),false);
 });
+
+test('unverified oversight roles behave like crew for own-tenant reporting and visibility', () => {
+  const user={roles:['KTT'],roleVerified:false,companyCode:'CGG',parentCompanyCode:''};
+  assert.equal(applyRecordScope('inspections',{},user,true).companyCode,'CGG');
+  assert.equal(applyRecordScope('hazards',{},user,true).companyCode,'CGG');
+  assert.throws(()=>applyRecordScope('incidents',{},user,true),error=>error.status===403);
+
+  const context={
+    isAdminCGG_:()=>false,
+    isCompanyScopedRole_:()=>true,
+    isOversightRole_:u=>(u.roles||[]).some(role=>['KTT','SPT','SPV'].includes(role)),
+    getOversightCompanyCodes_:()=>({SLS:true,VIP:true}),
+    findCompanyRegistry_:()=>null
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('isRecordVisibleToUser_', 'requiresRoleVerification_'),context);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'CGG'},{...user}),true);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},{...user}),false);
+});
