@@ -216,7 +216,7 @@ export class HDOSCentralStore {
 
     // A cloud response belongs to the identity that initiated it. Never use
     // another account's queue snapshot or publish stale results after a switch.
-    if (!ownerKey || activeOwnerKey() !== ownerKey) return;
+    if (!currentUser || !ownerKey || activeOwnerKey() !== ownerKey) return;
     const queueOwner = hdosSync.getOwnerSnapshot();
     const queueMatchesOwner = Boolean(
       queueOwner &&
@@ -276,7 +276,7 @@ export class HDOSCentralStore {
       return snapshot;
     };
 
-    let snapshot: Array<Record<string, unknown>>;
+    let snapshot: unknown[];
     if (entity === 'inspections') {
       snapshot = await mergeSnapshot('inspection', this.inspections);
     } else if (entity === 'hazards') {
