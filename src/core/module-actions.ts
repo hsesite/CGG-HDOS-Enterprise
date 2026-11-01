@@ -1,5 +1,4 @@
 import { apiIntegration } from './api-integration';
-import { apiSyncQueue } from './sync-queue';
 import { AuditLog } from './audit';
 import type { Inspection, Hazard, PICA, Incident } from './types';
 
