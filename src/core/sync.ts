@@ -362,6 +362,8 @@ export class HDOSSyncEngine {
   async triggerSync(): Promise<boolean> {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
+    const syncToken = hseApi.authToken;
+    if (!syncToken) return false;
     if (this.queueOwnerKey !== `${owner.userId}::${owner.companyCode}`) await this.init();
     this.queue = this.queue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode);
     if (this.isSyncing) {
@@ -415,6 +417,7 @@ export class HDOSSyncEngine {
       // protects the reconnect path when company membership changed while offline.
       const previousProfile = AuthState.getUser();
       const verifiedProfile = await hseApi.me();
+      if (hseApi.authToken !== syncToken) return false;
       const profileChanged = !previousProfile ||
         previousProfile.id !== verifiedProfile.id ||
         String(previousProfile.companyCode || '').trim().toUpperCase() !== String(verifiedProfile.companyCode || '').trim().toUpperCase() ||
@@ -442,7 +445,7 @@ export class HDOSSyncEngine {
         const item of [...this.queue]
       ) {
         const activeOwner = this.getCurrentOwner();
-        if (!activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId || activeOwner.companyCode !== item.ownerCompanyCode || activeOwner.companyCode !== owner.companyCode) break;
+        if (hseApi.authToken !== syncToken || !activeOwner || activeOwner.userId !== item.ownerUserId || activeOwner.userId !== owner.userId || activeOwner.companyCode !== item.ownerCompanyCode || activeOwner.companyCode !== owner.companyCode) break;
         if (!this.isOnline) {
           break;
         }
@@ -500,7 +503,8 @@ export class HDOSSyncEngine {
           ) {
             await hseApi.create(
               endpoint,
-              item.payload
+              item.payload,
+              syncToken
             );
           } else if (
             item.action === 'UPDATE'
@@ -509,13 +513,13 @@ export class HDOSSyncEngine {
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk queue item ${item.id}.`);
             }
-            await hseApi.update(endpoint, recordId, item.payload);
+            await hseApi.update(endpoint, recordId, item.payload, syncToken);
           } else if (item.action === 'DELETE') {
             const recordId = getRecordId(item);
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk penghapusan queue item ${item.id}.`);
             }
-            await hseApi.deleteOperationalRecord(endpoint, recordId);
+            await hseApi.deleteOperationalRecord(endpoint, recordId, syncToken);
           }
 
           await hdosDB.delete(
@@ -566,7 +570,15 @@ export class HDOSSyncEngine {
               type: 'warning',
             });
 
-            continue;
+            // A stale queue request must never log out or clear a newer account.
+            if (hseApi.authToken === syncToken) {
+              try { await hseApi.logout(syncToken); } catch { /* token is cleared locally if still current */ }
+              AuthState.clear();
+              this.queue = [];
+              this.queueOwnerKey = '';
+              hdosEvents.emit('auth:session_invalid', {});
+            }
+            break;
           }
 
           this.syncLogs.unshift({
@@ -615,13 +627,14 @@ export class HDOSSyncEngine {
       return this.queue.length === 0;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        // A revoked/deactivated session must not keep an authenticated queue
-        // owner in memory. Persisted items remain quarantined for a later login.
-        try { await hseApi.logout(); } catch { /* logout clears the local token */ }
-        AuthState.clear();
-        this.queue = [];
-        this.queueOwnerKey = '';
-        hdosEvents.emit('auth:session_invalid', {});
+        // Revoke only the token this sync run captured. Never affect a newer login.
+        if (hseApi.authToken === syncToken) {
+          try { await hseApi.logout(syncToken); } catch { /* token is cleared locally if still current */ }
+          AuthState.clear();
+          this.queue = [];
+          this.queueOwnerKey = '';
+          hdosEvents.emit('auth:session_invalid', {});
+        }
         return false;
       }
 
