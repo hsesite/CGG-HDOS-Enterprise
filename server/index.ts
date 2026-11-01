@@ -45,6 +45,12 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[HDOS API] Unhandled error', error);
   res.status(500).json({ success: false, data: null, message: config.isProduction ? 'Internal server error' : String(error), timestamp: new Date().toISOString() });
 });
+// This Express/PostgreSQL service is a legacy, non-runtime backend. Production
+// startup is blocked unless an operator explicitly opts in after a separate audit.
+if (config.isProduction && process.env.ENABLE_LEGACY_EXPRESS_BACKEND !== 'true') {
+  throw new Error('Legacy Express/PostgreSQL backend is disabled for production. Use the GitHub Pages + GAS runtime or complete a separate backend security approval.');
+}
+
 const server = app.listen(config.port, '0.0.0.0', () => console.log(`[HDOS API] listening on http://localhost:${config.port}`));
 function shutdown(signal: string): void { console.log(`[HDOS API] ${signal} received; shutting down`); server.close(async (error) => { if (error) { console.error('[HDOS API] shutdown failed', error); process.exitCode = 1; } await closeDatabase(); process.exit(); }); }
 process.once('SIGINT', () => shutdown('SIGINT'));
