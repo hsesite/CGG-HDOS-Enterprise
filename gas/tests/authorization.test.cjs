@@ -358,3 +358,33 @@ test('PICA approval changes are included in the existing audit record', () => {
   assert.ok(source.includes('details:\n      details || {}'));
   assert.ok(source.includes('updateRecord_(entity, id, scopedPayload, user, auditDetails)'));
 });
+
+test('Repository API strips internal Drive identifiers and file bytes from metadata', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(extractFunction('publicRepositoryDocument_', 'canPreviewRepositoryDocument_'), context);
+  const safe = context.publicRepositoryDocument_({id:'doc-1',title:'SOP',driveFileId:'drive-secret',fileBase64:'private-bytes',companyCode:'SLS'});
+  assert.equal(safe.id,'doc-1');
+  assert.equal(safe.title,'SOP');
+  assert.equal(Object.prototype.hasOwnProperty.call(safe,'driveFileId'),false);
+  assert.equal(Object.prototype.hasOwnProperty.call(safe,'fileBase64'),false);
+});
+
+test('Repository preview is tenant-scoped while original download is CGG-only', () => {
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    isRecordVisibleToUser_: (doc,user) => Boolean(doc && doc.companyCode === user.companyCode)
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('canPreviewRepositoryDocument_', 'canDownloadRepositoryDocument_'), context);
+  vm.runInContext(extractFunction('canDownloadRepositoryDocument_', 'handleRoute_'), context);
+  const slsDoc={id:'sls-doc',companyCode:'SLS'};
+  const sls={roles:['Employee'],companyCode:'SLS'};
+  const cgg={roles:['Employee'],companyCode:'CGG'};
+  const admin={roles:['Admin CGG'],companyCode:'CGG'};
+  assert.equal(context.canPreviewRepositoryDocument_(slsDoc,sls),true);
+  assert.equal(context.canPreviewRepositoryDocument_(slsDoc,cgg),false);
+  assert.equal(context.canDownloadRepositoryDocument_(slsDoc,sls),false);
+  assert.equal(context.canDownloadRepositoryDocument_({id:'cgg-doc',companyCode:'CGG'},cgg),true);
+  assert.equal(context.canDownloadRepositoryDocument_(slsDoc,admin),true);
+});
