@@ -45,9 +45,9 @@ const canUseLocalDocumentFile = (
   stored &&
   user?.id &&
   doc.ownerUserId &&
-  stored.ownerUserId === user.id &&
+  (!stored.ownerUserId || stored.ownerUserId === user.id) &&
   doc.ownerUserId === user.id &&
-  String(stored.ownerCompanyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase() &&
+  (!stored.ownerCompanyCode || String(stored.ownerCompanyCode).trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase()) &&
   String(doc.companyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase()
 );
 
