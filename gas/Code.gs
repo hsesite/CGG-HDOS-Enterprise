@@ -1234,7 +1234,7 @@ function handleRoute_(
         while (parents.hasNext()) {
           if (parents.next().getId() === expectedFolderId) belongsToTenantFolder = true;
         }
-        if (!expectedFolderId || !belongsToTenantFolder || photoFile.getUrl() !== photoUrl || !String(photoFile.getMimeType() || '').match(/^image\\/(jpeg|png|webp)$/i)) {
+        if (!expectedFolderId || !belongsToTenantFolder || photoFile.getUrl() !== photoUrl || !String(photoFile.getMimeType() || '').match(/^image\/(jpeg|png|webp)$/i)) {
           return error_(403, 'Lampiran foto tidak valid atau bukan milik penyimpanan perusahaan akun ini.');
         }
       } catch (photoError) {
