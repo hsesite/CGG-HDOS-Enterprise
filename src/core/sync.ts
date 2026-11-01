@@ -60,6 +60,14 @@ function getRetryDelay(
     );
 }
 
+function isRetryableSyncError(error: unknown): boolean {
+  // Network failures, rate limits, timeouts and server errors are transient.
+  // Validation, permission and missing-record errors need human correction.
+  const status = error instanceof ApiError ? error.status : 0;
+  return status === 0 || status === 408 || status === 425 ||
+    status === 429 || status >= 500;
+}
+
 function formatTime(): string {
   return new Date().toLocaleTimeString(
     'id-ID',
@@ -402,6 +410,7 @@ export class HDOSSyncEngine {
 
     const pending = this.queue.filter(
       (item) =>
+        item.status === 'PENDING' &&
         item.retryCount < MAX_RETRIES
     );
 
@@ -649,7 +658,10 @@ export class HDOSSyncEngine {
           );
         } catch (error) {
           item.retryCount += 1;
-          item.status = 'CONFLICT';
+          const retryable = isRetryableSyncError(error);
+          item.status = retryable && item.retryCount < MAX_RETRIES
+            ? 'PENDING'
+            : 'CONFLICT';
           item.error =
             error instanceof Error
               ? error.message
@@ -689,7 +701,9 @@ export class HDOSSyncEngine {
           this.syncLogs.unshift({
             time: formatTime(),
             message:
-              `Sync gagal: ${item.entity} — retry ${item.retryCount}/${MAX_RETRIES}.`,
+              retryable && item.retryCount < MAX_RETRIES
+                ? `Gangguan sementara saat sync ${item.entity} — retry ${item.retryCount}/${MAX_RETRIES} akan dijadwalkan.`
+                : `Sync ${item.entity} menjadi konflik (${status || 'network'}). Perlu pemeriksaan atau retry manual.`,
             type: 'warning',
           });
         }
