@@ -1252,6 +1252,18 @@ function isCggEmailAllowed_(email, companyCode) {
   return allowedEmails.indexOf(normalizedEmail) >= 0 || (allowedDomains.length > 0 && allowedDomains.indexOf(domain) >= 0);
 }
 
+function appendUniqueUser_(email, rowValues) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    if (findUserByEmail_(email)) return false;
+    getSheet_('users').appendRow(rowValues);
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function googleOnboard_(payload) {
   const input = isObject_(payload) ? payload : {};
   const credential = String(input.credential || '');
@@ -1278,11 +1290,6 @@ function googleOnboard_(payload) {
   }
   const email = String(tokenInfo.email).trim().toLowerCase();
   if (!isCggEmailAllowed_(email, companyCode)) return error_(403, companyCode === 'CGG' ? 'Email tidak diizinkan untuk pendaftaran personel CGG. Gunakan domain resmi atau minta Admin CGG memasukkan email Anda ke allowlist.' : 'Alamat email tidak valid.');
-  const existing = findUserByEmail_(email);
-  if (existing) {
-    if (existing.status === 'PENDING') return error_(409, 'Profil akun sudah diterima dan sedang menunggu persetujuan Admin CGG.');
-    return error_(409, 'Email ini sudah terdaftar. Silakan masuk atau hubungi Admin CGG.');
-  }
   let parentCode = '';
   if (companyCode === 'CGG') {
     // CGG personnel may register using their own verified Google/Gmail account.
@@ -1306,8 +1313,8 @@ function googleOnboard_(payload) {
   // Self-registration activates an Employee account immediately. The job title is profile metadata only;
   // elevated application roles are assigned separately by Admin CGG, never inferred from free-text fields.
   const id = Utilities.getUuid();
-  const sheet = getSheet_('users');
-  sheet.appendRow([id, email, '', displayName, 'Employee', 'ACTIVE', '', '', String(tokenInfo.sub), companyCode, parentCode, '', department, section, false]);
+  const userRow = [id, email, '', displayName, 'Employee', 'ACTIVE', '', '', String(tokenInfo.sub), companyCode, parentCode, '', department, section, false];
+  if (!appendUniqueUser_(email, userRow)) return error_(409, 'Email ini sudah terdaftar. Silakan masuk atau hubungi Admin CGG.');
   logAudit_({ id: 'SYSTEM', email: 'system@hdos.local', roles: ['SYSTEM'] }, 'GOOGLE_SELF_REGISTERED_ACTIVE_ACCOUNT', 'users', id);
   return success_({ pending: false, message: 'Akun berhasil dibuat dan langsung aktif. Akun CGG memiliki akses internal sesuai kebijakan perusahaan; akun kontraktor/subkon tetap terbatas pada akses lihat.' });
 }
@@ -1562,7 +1569,8 @@ function createManagedUser_(payload, actor) {
   const roleVerified = false;
   const salt = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   const user = { id: Utilities.getUuid(), email: email, password: '', displayName: displayName, roles: [role], status: 'ACTIVE', passwordSalt: salt, passwordHash: passwordHash_(password, salt), googleSub: '', companyCode: isInternalCGG ? 'CGG' : companyCode, parentCompanyCode: parentCompanyCode, position: String(input.position || role).trim(), department: String(input.department || '').trim(), section: String(input.section || '').trim(), roleVerified: roleVerified };
-  getSheet_('users').appendRow([user.id, user.email, '', user.displayName, role, 'ACTIVE', user.passwordHash, user.passwordSalt, '', user.companyCode, user.parentCompanyCode, user.position, user.department, user.section, roleVerified]);
+  const userRow = [user.id, user.email, '', user.displayName, role, 'ACTIVE', user.passwordHash, user.passwordSalt, '', user.companyCode, user.parentCompanyCode, user.position, user.department, user.section, roleVerified];
+  if (!appendUniqueUser_(email, userRow)) return error_(409, 'Email sudah terdaftar.');
   logAudit_(actor, 'USER_CREATED_' + role.toUpperCase().replace(/ /g, '_'), 'users', user.id);
   return success_(publicUser_(user));
 }
