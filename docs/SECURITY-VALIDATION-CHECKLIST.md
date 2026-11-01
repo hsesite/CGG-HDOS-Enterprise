@@ -18,6 +18,8 @@ The GitHub Actions workflow `.github/workflows/ci.yml` runs the same validation 
 Use a separate test spreadsheet and a staging GAS deployment. Do not run destructive scenarios against production data.
 
 ### Identity, registration, and tenant lifecycle
+- [ ] Simultaneous Admin CGG/Company Admin user-access updates serialize without lost role, status, verification, or tenant fields; each successful update has exactly one audit event.
+- [ ] Simultaneous company-master upserts for the same company code do not create duplicate rows or overwrite a newer parent/status relationship; successful changes are audited after the master row is committed.
 
 - [ ] CGG self-registration is denied when neither `CGG_EMAIL_DOMAINS` nor `CGG_ALLOWED_EMAILS` is configured.
 - [ ] CGG self-registration accepts only an explicitly configured corporate domain or exact allowlisted address.
