@@ -66,7 +66,7 @@ class HDOSDatabase {
       } catch (err) {
         console.error('[HDOS DB] Exception opening IndexedDB', err);
         this.initPromise = null;
-        reject(new Error(`Gagal membuka data "${storeName}/${id}" dari IndexedDB.`, { cause: error }));
+        resolve(null);
         return;
       }
 
