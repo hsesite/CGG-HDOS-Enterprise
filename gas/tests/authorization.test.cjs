@@ -693,12 +693,12 @@ test('operational store queues Inspection, Hazard, generated PICA, Incident, and
   const incident = storeSource.slice(incidentStart, picaUpdateStart);
   const picaUpdate = storeSource.slice(picaUpdateStart);
 
-  assert.match(inspection, /entity: 'pica'[\s\S]*?action: 'CREATE'/);
-  assert.match(inspection, /entity: 'inspection'[\s\S]*?action: 'CREATE'/);
-  assert.match(hazard, /entity: 'pica'[\s\S]*?action: 'CREATE'/);
-  assert.match(hazard, /entity: 'hazard'[\s\S]*?action: 'CREATE'/);
-  assert.match(incident, /entity: 'incident'[\s\S]*?action: 'CREATE'/);
-  assert.match(picaUpdate, /entity: 'pica'[\s\S]*?action: 'UPDATE'/);
+  assert.match(inspection, /action: 'CREATE'[\s\S]*?entity: 'pica'/);
+  assert.match(inspection, /action: 'CREATE'[\s\S]*?entity: 'inspection'/);
+  assert.match(hazard, /action: 'CREATE'[\s\S]*?entity: 'pica'/);
+  assert.match(hazard, /action: 'CREATE'[\s\S]*?entity: 'hazard'/);
+  assert.match(incident, /action: 'CREATE'[\s\S]*?entity: 'incident'/);
+  assert.match(picaUpdate, /action: 'UPDATE'[\s\S]*?entity: 'pica'/);
   assert.match(storeSource, /await hdosSync\.enqueue\(/);
 });
 
