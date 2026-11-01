@@ -34,10 +34,26 @@ export const PICAModule: React.FC = () => {
   const [selectedPica, setSelectedPica] = useState<PICA | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
-  const openCount = store.picas.filter((p) => p.status === 'OPEN').length;
-  const progressCount = store.picas.filter((p) => p.status === 'PROGRESS').length;
-  const closedCount = store.picas.filter((p) => p.status === 'CLOSED').length;
-  const overdueCount = store.picas.filter((p) => p.status === 'OVERDUE').length;
+  // Derive aging and overdue state from dates so untouched records remain accurate.
+  const getPicaMetrics = (pica: PICA) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const createdDate = new Date(String(pica.createdAt || '').slice(0, 10) + 'T00:00:00');
+    const targetDate = new Date(String(pica.targetDate || '').slice(0, 10) + 'T00:00:00');
+    const daysAging = Number.isNaN(createdDate.getTime())
+      ? Math.max(0, Number(pica.daysAging) || 0)
+      : Math.max(0, Math.floor((today.getTime() - createdDate.getTime()) / 86400000));
+    const isOverdue = pica.status !== 'CLOSED' && !Number.isNaN(targetDate.getTime()) && targetDate.getTime() < today.getTime();
+    const status: PICA['status'] = pica.status === 'CLOSED'
+      ? 'CLOSED'
+      : isOverdue || pica.status === 'OVERDUE' ? 'OVERDUE' : pica.status;
+    return { daysAging, status };
+  };
+  const picasWithMetrics = store.picas.map((pica) => ({ pica, ...getPicaMetrics(pica) }));
+  const openCount = picasWithMetrics.filter(({ status }) => status === 'OPEN').length;
+  const progressCount = picasWithMetrics.filter(({ status }) => status === 'PROGRESS').length;
+  const closedCount = picasWithMetrics.filter(({ status }) => status === 'CLOSED').length;
+  const overdueCount = picasWithMetrics.filter(({ status }) => status === 'OVERDUE').length;
 
   const handleSignoff = async (stage: 'foreman' | 'spvHse' | 'ktt') => {
     if (!selectedPica) return;
@@ -57,9 +73,9 @@ export const PICAModule: React.FC = () => {
     if (updated) setSelectedPica(updated);
   };
 
-  const filteredPicas = store.picas.filter((p) => {
+  const filteredPicas = picasWithMetrics.filter(({ status }) => {
     if (filterStatus === 'ALL') return true;
-    return p.status === filterStatus;
+    return status === filterStatus;
   });
 
   return (
@@ -130,7 +146,7 @@ export const PICAModule: React.FC = () => {
           </div>
 
           <div className="divide-y divide-white/5">
-            {filteredPicas.map((pica) => {
+            {filteredPicas.map(({ pica, status, daysAging }) => {
               const isSelected = selectedPica?.id === pica.id;
 
               return (
@@ -158,16 +174,16 @@ export const PICAModule: React.FC = () => {
 
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
-                        pica.status === 'CLOSED'
+                        status === 'CLOSED'
                           ? 'bg-emerald-500/20 text-emerald-300'
-                          : pica.status === 'PROGRESS'
+                          : status === 'PROGRESS'
                           ? 'bg-blue-500/20 text-blue-300'
-                          : pica.status === 'OVERDUE'
+                          : status === 'OVERDUE'
                           ? 'bg-red-500/20 text-red-300'
                           : 'bg-amber-500/20 text-amber-300'
                       }`}
                     >
-                      {pica.status}
+                      {status}
                     </span>
                   </div>
 
@@ -181,7 +197,7 @@ export const PICAModule: React.FC = () => {
                     <div className="flex items-center gap-2 font-mono">
                       <span>Target: {pica.targetDate}</span>
                       <span className="px-1.5 py-0.2 rounded bg-white/5 text-neutral-300">
-                        Aging: {pica.daysAging} hari
+                        Aging: {daysAging} hari
                       </span>
                     </div>
                   </div>
