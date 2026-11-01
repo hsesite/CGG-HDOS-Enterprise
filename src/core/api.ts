@@ -345,7 +345,7 @@ export const hseApi = {
       }
     } finally {
       // Never clear a newer user's token when revoking an older session.
-      if (authToken === undefined || getToken() === authToken) setToken(null);
+      if (getToken() === tokenToRevoke) setToken(null);
     }
   },
 
