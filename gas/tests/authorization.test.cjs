@@ -962,3 +962,15 @@ test('cloud snapshot merge cannot publish stale account data after an account sw
   const assign = merge.indexOf('this.inspections = snapshot');
   assert.ok(publish >= 0 && assign > publish, 'identity is rechecked before in-memory publication');
 });
+
+
+test('offline sync replays queue by creation time and blocks later writes to a failed record', () => {
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  assert.match(sync, /function compareQueueItemsByTime\(a: SyncQueueItem, b: SyncQueueItem\)/);
+  assert.match(sync, /storedQueue\.filter\(item => item\.ownerUserId === owner\.userId && item\.ownerCompanyCode === owner\.companyCode\)\.sort\(compareQueueItemsByTime\)/);
+  assert.match(sync, /for \(const item of \[\.\.\.this\.queue\]\.sort\(compareQueueItemsByTime\)\)/);
+  assert.match(sync, /const blockedRecordIds = new Set<string>\(\)/);
+  assert.match(sync, /if \(itemRecordId && blockedRecordIds\.has\(itemRecordId\)\)/);
+  assert.match(sync, /Perubahan ditahan karena sinkronisasi perubahan sebelumnya untuk record ini belum berhasil/);
+  assert.match(sync, /if \(itemRecordId\) blockedRecordIds\.add\(itemRecordId\)/);
+});
