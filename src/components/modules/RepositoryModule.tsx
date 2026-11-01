@@ -798,9 +798,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         );
       }
 
-      const originalBlob = storedFile.blob instanceof Blob
-        ? storedFile.blob
-        : new Blob([storedFile.blob as BlobPart], {
+      if (!storedFile || !(storedFile.blob || storedFile.file)) {
+        throw new Error('Berkas asli tidak tersedia untuk membuat formulir.');
+      }
+      const sourceBlob = storedFile.blob || storedFile.file;
+      const originalBlob = sourceBlob instanceof Blob
+        ? sourceBlob
+        : new Blob([sourceBlob as BlobPart], {
             type: storedFile.mimeType || 'application/octet-stream',
           });
 
