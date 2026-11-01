@@ -1159,7 +1159,7 @@ function handleRoute_(
         }
         requestedPayload.status = expectedStatus;
         if (expectedStatus === 'CLOSED' && String(existingRecord.status || '').toUpperCase() !== 'CLOSED') {
-          requestedPayload.completionDate = new Date().toISOString().slice(0, 10);
+          requestedPayload.completionDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Jakarta', 'yyyy-MM-dd');
         }
       }
       const changedKeys = Object.keys(requestedPayload).filter(function(key) { return JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]); });
@@ -1511,7 +1511,7 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
     if (!(stages.foreman === true && stages.spvHse === true && stages.ktt === true)) {
       return error_(403, 'Penutupan PICA membutuhkan persetujuan Foreman, SPV HSE, dan KTT.');
     }
-    requestedPayload.completionDate = new Date().toISOString().slice(0, 10);
+    requestedPayload.completionDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Jakarta', 'yyyy-MM-dd');
   }
 
   return null;
