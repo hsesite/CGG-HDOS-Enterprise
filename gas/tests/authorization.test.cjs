@@ -851,8 +851,8 @@ test('operational create and approval methods commit records and queue before pu
     const bundlePosition = method.indexOf('await hdosSync.enqueueBatch(');
     const publishPosition = method.indexOf(publishMarker);
     assert.ok(bundlePosition >= 0 && publishPosition > bundlePosition, 'bundle commits before UI publish: ' + startMarker);
-    assert.doesNotMatch(method, /hdosDB\\.put\\(/);
-    assert.doesNotMatch(method, /hdosSync\\.enqueue\\(/);
+    assert.doesNotMatch(method, /hdosDB\.put\(/);
+    assert.doesNotMatch(method, /hdosSync\.enqueue\(/);
   }
 });
 
