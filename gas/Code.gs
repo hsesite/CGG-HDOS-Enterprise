@@ -1527,12 +1527,12 @@ function upsertCompanyRegistry_(payload, actor) {
   try {
     result = upsertCompanyRegistryCore_(payload, actor, auditOut);
     SpreadsheetApp.flush();
+    // Keep tenant changes and session revocation in the same critical section.
+    // This prevents a concurrent reactivation from racing with stale-token revocation.
+    if (result && result.success) revokeCompanySessions_(code);
   } finally {
     lock.releaseLock();
   }
-  // Revoke sessions for this company and its direct subcontractors after the
-  // company master is committed. Reactivating a tenant must not revive old tokens.
-  if (result && result.success) revokeCompanySessions_(code);
 
   // logAudit_ takes the same script lock; append it after the company row is committed.
   if (result && result.success && auditOut.length) {
