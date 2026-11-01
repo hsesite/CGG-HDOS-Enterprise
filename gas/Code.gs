@@ -1712,11 +1712,11 @@ function isRecordVisibleToUser_(record, user) {
   }
 
   // KTT/SPT/SPV share one oversight scope: active SLS, VIP, and active subcontracts below either contractor.
-  if (isOversightRole_(user)) {
-    if (user.roleVerified !== true) return false;
+  if (isOversightRole_(user) && user.roleVerified === true) {
     const allowed = getOversightCompanyCodes_();
     return Boolean(allowed[recordCompany] || allowed[recordSubkon] || allowed[recordParent]);
   }
+  // Unverified supervisory accounts behave like crew and remain within their own tenant.
 
   if (parentCompany) return recordCompany === ownCompany || recordSubkon === ownCompany;
   const ownRegistry = findCompanyRegistry_(ownCompany);
@@ -1741,7 +1741,7 @@ function assertVerifiedRole_(user, actionLabel) {
 function applyRecordScope_(entity, record, user, creating) {
   const roles = user.roles || [];
   if (isAdminCGG_(user)) return record;
-  if (isReadOnlyController_(user)) throw httpError_(403, 'Akun pengawas KTT/SPT/SPV/PJO/SPV HSE/Foreman Safety bersifat baca-saja; gunakan alur persetujuan khusus jika tersedia.');
+  if (isReadOnlyController_(user) && user.roleVerified === true) throw httpError_(403, 'Akun pengawas KTT/SPT/SPV/PJO/SPV HSE/Foreman Safety bersifat baca-saja; gunakan alur persetujuan khusus jika tersedia.');
   const role = String(roles[0] || 'Employee');
   const ownCompany = String(user.companyCode || '').trim().toUpperCase();
   const parentCompany = String(user.parentCompanyCode || '').trim().toUpperCase();
