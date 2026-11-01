@@ -1140,14 +1140,9 @@ function googleLogin_(payload) {
 }
 
 function isCggEmailAllowed_(email) {
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-  const domain = normalizedEmail.split('@').pop() || '';
-  const props = PropertiesService.getScriptProperties();
-  const allowedDomains = String(props.getProperty('CGG_EMAIL_DOMAINS') || 'ptcgg.com')
-    .split(/[;,]/).map(function(value) { return value.trim().toLowerCase().replace(/^@/, ''); }).filter(Boolean);
-  const allowedEmails = String(props.getProperty('CGG_ALLOWED_EMAILS') || '')
-    .split(/[;,]/).map(function(value) { return value.trim().toLowerCase(); }).filter(Boolean);
-  return allowedEmails.indexOf(normalizedEmail) !== -1 || allowedDomains.indexOf(domain) !== -1;
+  // Registration accepts any verified Google email domain.
+  // Company identity is selected from the active company registry, never inferred from email domain.
+  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(email || '').trim());
 }
 
 function googleOnboard_(payload) {
@@ -1175,7 +1170,7 @@ function googleOnboard_(payload) {
     return error_(401, 'Identitas Google tidak dapat diverifikasi untuk aplikasi ini.');
   }
   const email = String(tokenInfo.email).trim().toLowerCase();
-  if (companyCode === 'CGG' && !isCggEmailAllowed_(email)) return error_(403, 'Email CGG belum diizinkan. Admin CGG perlu menambahkan alamat email ke Script Property CGG_ALLOWED_EMAILS atau domain resmi ke CGG_EMAIL_DOMAINS.');
+  if (!isCggEmailAllowed_(email)) return error_(400, 'Alamat email tidak valid.');
   const existing = findUserByEmail_(email);
   if (existing) {
     if (existing.status === 'PENDING') return error_(409, 'Profil akun sudah diterima dan sedang menunggu persetujuan Admin CGG.');
@@ -1344,12 +1339,12 @@ function canPublishForms_(user) {
 
 function isReadOnlyController_(user) {
   const roles = user && user.roles || [];
-  return roles.some(function(role) { return ['PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });
+  return roles.some(function(role) { return ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });
 }
 
 function isCompanyScopedRole_(user) {
   const roles = user && user.roles || [];
-  return roles.some(function(role) { return ['Company Admin', 'Contractor', 'Subkon', 'Employee', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC'].indexOf(role) >= 0; });
+  return roles.some(function(role) { return ['Company Admin', 'Contractor', 'Subkon', 'Employee', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC'].indexOf(role) >= 0; });
 }
 
 function canManageCompany_(actor, targetCompanyCode) {
@@ -1389,8 +1384,8 @@ function createManagedUser_(payload, actor) {
   const company = companyCode && !isInternalCGG ? findCompanyRegistry_(companyCode) : null;
   const parentCompanyCode = company && company.role === 'Subkon' ? company.parentCompanyCode : '';
   const companyAdminRoles = ['PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
-  const cggRoles = ['Company Admin', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
-  const seniorRoles = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
+  const cggRoles = ['Company Admin', 'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+  const seniorRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
   if (displayName.length < 2) return error_(400, 'Nama karyawan minimal 2 karakter.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return error_(400, 'Format email tidak valid.');
   if (password.length < 12) return error_(400, 'Password minimal 12 karakter.');
@@ -1417,7 +1412,7 @@ function createManagedUser_(payload, actor) {
 
 function updateUserAccess_(userId, payload, actor) {
   const input = isObject_(payload) ? payload : {};
-  const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
+  const allowedRoles = ['Company Admin', 'Contractor', 'Subkon', 'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
   const role = input.role === undefined ? null : String(input.role);
   const status = input.status === undefined ? null : String(input.status).toUpperCase();
   const companyCode = input.companyCode === undefined ? null : String(input.companyCode || '').trim().toUpperCase();
@@ -1459,7 +1454,7 @@ function updateUserAccess_(userId, payload, actor) {
     let roleVerified = String(rows[i][14] || '').toUpperCase() === 'TRUE' || rows[i][14] === true;
     if (role !== null && role !== String(rows[i][4] || '')) roleVerified = false;
     if (hasVerificationUpdate) roleVerified = input.roleVerified;
-    if (roleVerified && ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'].indexOf(nextRole) === -1) roleVerified = false;
+    if (roleVerified && ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'].indexOf(nextRole) === -1) roleVerified = false;
     const position = input.position === undefined ? String(rows[i][11] || '') : String(input.position || '').trim();
     if (input.position !== undefined && !isAdminCGG_(actor) && !isCompanyAdmin_(actor)) return error_(403, 'Hanya Admin CGG atau Admin Perusahaan yang dapat menetapkan jabatan dalam cakupannya.');
     sheet.getRange(i + 1, 5).setValue(nextRole);
@@ -1473,6 +1468,25 @@ function updateUserAccess_(userId, payload, actor) {
   return error_(404, 'Akun tidak ditemukan.');
 }
 
+function isOversightRole_(user) {
+  const roles = user && user.roles || [];
+  return roles.some(function(role) { return ['KTT', 'SPT', 'SPV'].indexOf(role) >= 0; });
+}
+
+function getOversightCompanyCodes_() {
+  const allowed = { SLS: true, VIP: true };
+  const sheet = getSheet_('companies');
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const code = String(rows[i][0] || '').trim().toUpperCase();
+    const parent = String(rows[i][3] || '').trim().toUpperCase();
+    const role = String(rows[i][2] || '').trim();
+    const status = String(rows[i][6] || '').trim().toUpperCase();
+    if (code && role === 'Subkon' && status === 'ACTIVE' && (parent === 'SLS' || parent === 'VIP')) allowed[code] = true;
+  }
+  return allowed;
+}
+
 function isRecordVisibleToUser_(record, user) {
   if (isAdminCGG_(user)) return true;
   if (!isCompanyScopedRole_(user)) return false;
@@ -1480,16 +1494,26 @@ function isRecordVisibleToUser_(record, user) {
   const parentCompany = String(user.parentCompanyCode || '').trim().toUpperCase();
   const recordCompany = String(record.companyCode || record.contractorCode || record.ownerCompanyCode || '').trim().toUpperCase();
   const recordSubkon = String(record.subcontractorCode || record.subkonCode || '').trim().toUpperCase();
+  const recordParent = String(record.parentCompanyCode || '').trim().toUpperCase();
   if (!ownCompany) return false;
+
+  // KTT/SPT/SPV share one oversight scope: SLS, VIP, and active subcontracts below either contractor.
+  if (isOversightRole_(user)) {
+    const allowed = getOversightCompanyCodes_();
+    return Boolean(allowed[recordCompany] || allowed[recordSubkon] || allowed[recordParent]);
+  }
+
   if (parentCompany) return recordCompany === ownCompany || recordSubkon === ownCompany;
   const ownRegistry = findCompanyRegistry_(ownCompany);
-  if (ownRegistry && ownRegistry.role === 'Contractor') return recordCompany === ownCompany || recordSubkon === ownCompany || String(record.parentCompanyCode || '').trim().toUpperCase() === ownCompany;
+  if (ownRegistry && ownRegistry.role === 'Contractor') {
+    return recordCompany === ownCompany || recordSubkon === ownCompany || recordParent === ownCompany;
+  }
   return recordCompany === ownCompany || recordSubkon === ownCompany;
 }
 
 function requiresRoleVerification_(user) {
   const roles = user && user.roles || [];
-  const elevatedRoles = ['KTT', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
+  const elevatedRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
   return roles.some(function(role) { return elevatedRoles.indexOf(role) !== -1; });
 }
 
@@ -1502,7 +1526,7 @@ function assertVerifiedRole_(user, actionLabel) {
 function applyRecordScope_(entity, record, user, creating) {
   const roles = user.roles || [];
   if (isAdminCGG_(user)) return record;
-  if (isReadOnlyController_(user)) throw httpError_(403, 'Akun PJO/SPV HSE/Foreman Safety bersifat baca-saja; gunakan tindakan khusus penutupan PICA.');
+  if (isReadOnlyController_(user)) throw httpError_(403, 'Akun pengawas KTT/SPT/SPV/PJO/SPV HSE/Foreman Safety bersifat baca-saja; gunakan alur persetujuan khusus jika tersedia.');
   const role = String(roles[0] || 'Employee');
   const ownCompany = String(user.companyCode || '').trim().toUpperCase();
   const parentCompany = String(user.parentCompanyCode || '').trim().toUpperCase();
