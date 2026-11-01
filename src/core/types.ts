@@ -67,6 +67,10 @@ export interface Inspection {
     utm: string;
   };
   notes?: string;
+  picaDepartment?: string;
+  picaPicName?: string;
+  picaPicEmail?: string;
+  picaTargetDate?: string;
   createdAt: string;
 }
 
@@ -139,9 +143,10 @@ export interface PICA {
   preventiveAction: string;
   picDepartment: string;
   picName: string;
+  assignedToEmail?: string;
   targetDate: string;
   completionDate?: string;
-  status: 'OPEN' | 'PROGRESS' | 'CLOSED' | 'OVERDUE';
+  status: 'OPEN' | 'PROGRESS' | 'WAITING_HSE' | 'CLOSED' | 'OVERDUE';
   daysAging: number;
   approvalStages: {
     foreman: boolean;
@@ -149,6 +154,12 @@ export interface PICA {
     ktt: boolean;
   };
   evidencePhotoUrl?: string;
+  submittedAt?: string;
+  closeRequestedAt?: string;
+  hseValidatedBy?: string;
+  hseValidatedRole?: string;
+  hseValidatedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
 }
 
