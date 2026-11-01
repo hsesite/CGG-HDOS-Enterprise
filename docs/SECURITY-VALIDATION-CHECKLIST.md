@@ -42,6 +42,13 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 
 ### Repository document control
 
+### Cached-download authorization
+- [ ] When a CGG user has a cached local document and the API is online, download calls the server with the captured session token and produces a `REPOSITORY_DOCUMENT_DOWNLOADED` audit event.
+- [ ] If the server returns 401, 403, or 404, a cached local copy is not used as a fallback.
+- [ ] Local cached download fallback is permitted only for a confirmed transport outage (network/503) or when no GAS URL is configured, and only while the captured session token remains unchanged.
+- [ ] Switching accounts while a download request is pending cancels the download rather than using the previous account's response.
+
+
 - [ ] Contractors/Subkon can preview only documents visible to their tenant.
 - [ ] Contractors/Subkon receive HTTP 403 from the original-download endpoint.
 - [ ] CGG users can download only documents visible within their permitted scope; Admin CGG retains administrative access.
