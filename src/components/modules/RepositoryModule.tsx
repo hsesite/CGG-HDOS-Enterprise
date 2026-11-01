@@ -591,7 +591,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       let blob: Blob;
       let fileName = storedFile?.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`;
       if (storedFile && rawFile) {
-        blob = rawFile instanceof Blob ? rawFile : new Blob([rawFile as BlobPart], { type: storedFile.mimeType || doc.fileType });
+        const safePreviewMimeType = doc.fileType === 'PDF'
+          ? 'application/pdf'
+          : doc.fileType === 'XLSX'
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        // Never trust a cached file's MIME type when creating a preview URL.
+        blob = new Blob([rawFile as BlobPart], { type: safePreviewMimeType });
       } else {
         const remote = await hseApi.previewRepositoryFile(doc.id);
         blob = base64ToBlob(remote.base64, remote.mimeType);
