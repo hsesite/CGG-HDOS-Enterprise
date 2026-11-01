@@ -204,6 +204,25 @@ export class HDOSCentralStore {
   async mergeCloudOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', records: Array<Record<string, unknown>>): Promise<void> {
     const rows = records.filter((record) => record && typeof record.id === 'string' && record.id.trim());
     const currentUser = AuthState.getUser();
+    const ownerKey = currentUser?.id
+      ? `${String(currentUser.id)}::${String(currentUser.companyCode || '').trim().toUpperCase()}`
+      : '';
+    const activeOwnerKey = (): string => {
+      const activeUser = AuthState.getUser();
+      return activeUser?.id
+        ? `${String(activeUser.id)}::${String(activeUser.companyCode || '').trim().toUpperCase()}`
+        : '';
+    };
+
+    // A cloud response belongs to the identity that initiated it. Never use
+    // another account's queue snapshot or publish stale results after a switch.
+    if (!ownerKey || activeOwnerKey() !== ownerKey) return;
+    const queueOwner = hdosSync.getOwnerSnapshot();
+    const queueMatchesOwner = Boolean(
+      queueOwner &&
+      queueOwner.userId === String(currentUser.id) &&
+      queueOwner.companyCode === String(currentUser.companyCode || '').trim().toUpperCase()
+    );
     const queueEntity = {
       inspections: 'inspection',
       hazards: 'hazard',
@@ -211,7 +230,7 @@ export class HDOSCentralStore {
       incidents: 'incident',
     }[entity];
     const pendingIds = new Set(
-      hdosSync.getQueue()
+      (queueMatchesOwner ? hdosSync.getQueue() : [])
         .filter((item) => item.entity === queueEntity && item.status !== 'SYNCED')
         .flatMap((item) => {
           const payload = item.payload;
@@ -257,15 +276,24 @@ export class HDOSCentralStore {
       return snapshot;
     };
 
+    let snapshot: Array<Record<string, unknown>>;
     if (entity === 'inspections') {
-      this.inspections = await mergeSnapshot('inspection', this.inspections);
+      snapshot = await mergeSnapshot('inspection', this.inspections);
     } else if (entity === 'hazards') {
-      this.hazards = await mergeSnapshot('hazard', this.hazards);
+      snapshot = await mergeSnapshot('hazard', this.hazards);
     } else if (entity === 'picas') {
-      this.picas = await mergeSnapshot('pica', this.picas);
+      snapshot = await mergeSnapshot('pica', this.picas);
     } else {
-      this.incidents = await mergeSnapshot('incident', this.incidents);
+      snapshot = await mergeSnapshot('incident', this.incidents);
     }
+
+    // IndexedDB writes above are tenant-filtered, but the in-memory store is
+    // shared by the active workspace. Recheck identity immediately before publish.
+    if (activeOwnerKey() !== ownerKey) return;
+    if (entity === 'inspections') this.inspections = snapshot as unknown as Inspection[];
+    else if (entity === 'hazards') this.hazards = snapshot as unknown as Hazard[];
+    else if (entity === 'picas') this.picas = snapshot as unknown as PICA[];
+    else this.incidents = snapshot as unknown as Incident[];
     this.notify();
   }
 
