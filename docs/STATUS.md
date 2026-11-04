@@ -96,6 +96,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Hubungan Contractor–Subkon disimpan pada model passport dan ditampilkan pada kartu perusahaan.
 - [x] Akun Contractor/Company Admin dapat melihat perusahaan sendiri dan subkontraktor terdaftar di bawahnya pada lingkup data yang diizinkan.
 - [x] Personel pengawas CGG yang telah diverifikasi dapat membaca master perusahaan secara lintas kontraktor; field domain email dan auto-provision tidak dikirim pada respons baca-saja.
+- [x] Akun Contractor, Subkon, dan Contractor PIC dapat membaca passport perusahaannya; Contractor induk juga dapat membaca subkon terdaftar di bawahnya tanpa melihat konfigurasi domain atau auto-provision.
 - [x] Lingkup data pengawas backend mengikuti seluruh Contractor aktif beserta Subkon aktif yang terdaftar di bawahnya.
 - [x] Contractor Passport mengikuti pembaruan master secara asinkron sehingga tidak tertahan pada pilihan awal yang kosong.
 - [x] Status perusahaan ditampilkan sesuai status aktual; masa berlaku Safety Passport menampilkan sisa hari atau kondisi kedaluwarsa.
