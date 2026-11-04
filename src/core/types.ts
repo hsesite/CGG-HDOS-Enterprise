@@ -211,6 +211,8 @@ export interface DocumentItem {
   companyCode?: string;
   parentCompanyCode?: string;
   ownerUserId?: string;
+  /** True only when the original binary and metadata are persisted in central Google Drive. */
+  cloudStored?: boolean;
   documentControl?: DocumentControlMetadata;
 }
 
