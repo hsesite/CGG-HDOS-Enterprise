@@ -196,7 +196,9 @@ test('verified CGG oversight can read redacted company master dynamically', () =
   assert.ok(source.includes("!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight && !isCompanyPassportViewer"));
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("autoProvision: false,"));
-  assert.ok(source.includes("return success_(companyData.map(function(company)"));
+  assert.ok(source.includes("return success_(visibleCompanies.map(function(company)"));
+  assert.ok(source.includes("const isCompanyPassportViewer = roles.some(function(role)"));
+  assert.ok(source.includes("company.role === 'Subkon' && parent === ownCode"));
 });
 test('all verified oversight roles are read-only for operational record writes', () => {
   assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety']"));
