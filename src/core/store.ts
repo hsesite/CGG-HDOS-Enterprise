@@ -24,7 +24,7 @@ function isLocalRecordVisible(
   // Match the backend's approved, active Contractor/Subkon scope. The master
   // is supplied by the central company register; never hard-code tenant IDs.
   const oversightRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'];
-  if (user.roleVerified === true && oversightRoles.some(role => roles.includes(role))) {
+  if (own === 'CGG' && user.roleVerified === true && oversightRoles.some(role => roles.includes(role))) {
     return allowedCompanyCodes.has(company) ||
       allowedCompanyCodes.has(subkon) ||
       allowedCompanyCodes.has(parent);
@@ -207,7 +207,7 @@ export class HDOSCentralStore {
       // Verified CGG oversight roles need visibility across the registered
       // contractor and subcontractor master, not a hard-coded company list.
       const oversightRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'];
-      if (currentUser.roleVerified === true && oversightRoles.some(role => currentUser.roles.includes(role))) {
+      if (String(currentUser.companyCode || '').trim().toUpperCase() === 'CGG' && currentUser.roleVerified === true && oversightRoles.some(role => currentUser.roles.includes(role))) {
         return true;
       }
 
