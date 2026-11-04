@@ -58,6 +58,16 @@ function getRecordId(
   return null;
 }
 
+function getLocalStoreName(entity: SyncQueueItem['entity']): StoreName | null {
+  switch (entity) {
+    case 'inspection': return 'inspection';
+    case 'hazard': return 'hazard';
+    case 'pica': return 'pica';
+    case 'incident': return 'incident';
+    default: return null;
+  }
+}
+
 function getRetryDelay(
   retryCount: number
 ): number {
@@ -648,7 +658,30 @@ export class HDOSSyncEngine {
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk queue item ${item.id}.`);
             }
-            await hseApi.update(endpoint, recordId, item.payload, syncToken);
+            const serverRecord = await hseApi.update<Record<string, unknown>>(endpoint, recordId, item.payload, syncToken);
+            const localStoreName = getLocalStoreName(item.entity);
+            const serverUpdatedAt = String(serverRecord?.updatedAt || '');
+            if (localStoreName && serverUpdatedAt) {
+              // The server owns the version timestamp. Carry it forward to the
+              // local record and later queued updates for this same record so
+              // offline edit sequences do not conflict with their own writes.
+              const localRecords = await hdosDB.getAll<Record<string, unknown> & { id: string }>(localStoreName);
+              const localRecord = localRecords.find(record => record.id === recordId);
+              if (localRecord) {
+                await hdosDB.put(localStoreName, { ...localRecord, updatedAt: serverUpdatedAt });
+              }
+
+              const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+              for (const queued of persistedQueue) {
+                if (queued.id === item.id || queued.entity !== item.entity || queued.action !== 'UPDATE' ||
+                    queued.status !== 'PENDING' || getRecordId(queued) !== recordId ||
+                    !queued.payload || typeof queued.payload !== 'object' || Array.isArray(queued.payload)) continue;
+                const nextPayload = { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt };
+                const nextQueued = { ...queued, payload: nextPayload };
+                await hdosDB.put('queue', nextQueued);
+                this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
+              }
+            }
           } else if (item.action === 'DELETE') {
             const recordId = getRecordId(item);
             if (!recordId) {
