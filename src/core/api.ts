@@ -77,6 +77,30 @@ export type ApiUser = {
   roleVerified?: boolean;
 };
 
+export type ContractorFleetOwnership = 'OWNED' | 'RENTAL' | 'LEASED';
+export type ContractorFleetP2HStatus = 'READY' | 'NOT_READY' | 'NOT_CHECKED';
+
+export interface ContractorFleetUnit {
+  id: string;
+  code: string;
+  companyCode: string;
+  parentCompanyCode?: string;
+  unitNumber: string;
+  unitType: string;
+  brand: string;
+  model: string;
+  ownershipType: ContractorFleetOwnership;
+  p2hStatus: ContractorFleetP2HStatus;
+  siaExpiry: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContractorFleetInput = Pick<ContractorFleetUnit,
+  'unitNumber' | 'unitType' | 'brand' | 'model' | 'ownershipType' | 'p2hStatus' | 'siaExpiry'
+> & { status?: 'ACTIVE' | 'INACTIVE' };
+
 export type ContractorComplianceReportStatus = 'SUBMITTED' | 'VERIFIED' | 'RETURNED';
 
 export interface ContractorComplianceReport {
@@ -316,6 +340,18 @@ export const hseApi = {
 
   async upsertCompany(input: { code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains?: string; autoProvision?: boolean; status: 'ACTIVE' | 'INACTIVE'; passportStatus?: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName?: string; picContact?: string; safetyPassportExpiry?: string }): Promise<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string; passportStatus: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName: string; picContact: string; safetyPassportExpiry: string }> {
     return request('POST', '/api/companies', input);
+  },
+
+  async listContractorFleet(): Promise<ContractorFleetUnit[]> {
+    return request<ContractorFleetUnit[]>('GET', '/api/contractor/fleet');
+  },
+
+  async createContractorFleetUnit(input: ContractorFleetInput): Promise<ContractorFleetUnit> {
+    return request<ContractorFleetUnit>('POST', '/api/contractor/fleet', input);
+  },
+
+  async updateContractorFleetUnit(id: string, input: Partial<ContractorFleetInput>): Promise<ContractorFleetUnit> {
+    return request<ContractorFleetUnit>('PATCH', `/api/contractor/fleet/${encodeURIComponent(id)}`, input);
   },
 
   async listContractorComplianceReports(): Promise<ContractorComplianceReport[]> {
