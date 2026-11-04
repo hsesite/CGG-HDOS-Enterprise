@@ -205,12 +205,7 @@ function setupCompaniesSheet_(ss) {
   let sheet = ss.getSheetByName('companies');
   if (!sheet) sheet = ss.insertSheet('companies');
   const headers = ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry'];
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  } else {
-    const existing = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), headers.length)).getValues()[0].map(String);
-    headers.forEach(function(header, index) { if (!existing[index] || existing[index] !== header) sheet.getRange(1, index + 1).setValue(header); });
-  }
+  ensureSheetSchema_(sheet, headers);
   sheet.setFrozenRows(1);
   // Populate this protected master sheet with approved companies and verified corporate email domains.
   // Never put public email domains (gmail.com, yahoo.com, outlook.com) in emailDomains.
@@ -221,12 +216,7 @@ function setupUsersSheet_(ss) {
   if (!sheet) throw new Error('Sheet users tidak ditemukan.');
 
   const headers = ['id', 'email', 'password', 'displayName', 'role', 'status', 'passwordHash', 'passwordSalt', 'googleSub', 'companyCode', 'parentCompanyCode', 'position', 'department', 'section', 'roleVerified'];
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  } else {
-    const existing = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), headers.length)).getValues()[0].map(String);
-    headers.forEach(function(header, index) { if (!existing[index] || existing[index] !== header) sheet.getRange(1, index + 1).setValue(header); });
-  }
+  ensureSheetSchema_(sheet, headers);
   sheet.setFrozenRows(1);
   // Intentionally do not create a hard-coded demo administrator or default password.
   // Bootstrap the first Admin CGG account manually in the protected users sheet.
