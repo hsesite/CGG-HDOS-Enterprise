@@ -84,7 +84,6 @@ export default function App() {
           setIsAuthenticated(true);
           setCurrentUser(getCurrentUser());
           await hdosStore.init();
-          await hdosSync.init();
         } catch (error) {
           if (version !== requestVersion || hseApi.authToken !== token) return;
           if (error instanceof ApiError && error.status === 401) {
@@ -94,7 +93,6 @@ export default function App() {
               setIsAuthenticated(false);
               setCurrentUser(null);
               await hdosStore.init();
-              await hdosSync.init();
             }
           } else {
             // Fail closed on cross-tab account changes if the new session cannot be verified.
@@ -170,7 +168,6 @@ export default function App() {
         // Tenant-filter local records only after the server profile has been
         // refreshed (or a genuine offline fallback has been selected).
         await hdosStore.init();
-        await hdosSync.init();
         if (cancelled) return;
 
         setBooted(true);
@@ -207,7 +204,6 @@ export default function App() {
     setCheckingSession(true);
     try {
       await hdosStore.init();
-      await hdosSync.init();
 
       const activeUser = getCurrentUser();
       if (
