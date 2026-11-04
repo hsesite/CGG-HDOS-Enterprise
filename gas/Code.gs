@@ -872,6 +872,23 @@ function handleRoute_(
     const users = listPublicUsers_();
     return success_(isAdminCGG_(user) ? users : users.filter(function(account) { return canManageCompany_(user, account.companyCode); }));
   }
+  // ----------------------------------------------------------
+  // CONTRACTOR MONTHLY COMPLIANCE REPORTS
+  // ----------------------------------------------------------
+  if (path === '/api/contractor/reports' && method === 'GET') {
+    const reports = readAll_('contractor_reports').filter(function(report) {
+      return isRecordVisibleToUser_(report, user);
+    });
+    return success_(reports);
+  }
+  if (path === '/api/contractor/reports' && method === 'POST') {
+    return createContractorComplianceReport_(params.payload, user);
+  }
+  const contractorReportMatch = path.match(/^\/api\/contractor\/reports\/([^/]+)$/);
+  if (contractorReportMatch && method === 'PATCH') {
+    return updateContractorComplianceReport_(decodeURIComponent(contractorReportMatch[1]), params.payload, user);
+  }
+
   if (path === '/api/companies' && method === 'GET') {
     const isVerifiedCggOversight = isReadOnlyController_(user) &&
       user.roleVerified === true &&
@@ -1714,6 +1731,148 @@ function listCompanyRegistry_() {
     });
   }
   return success_(companies);
+}
+
+
+function normalizeContractorComplianceReport_(payload) {
+  const input = isObject_(payload) ? payload : {};
+  const period = String(input.period || '').trim();
+  if (!/^\\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw httpError_(400, 'Periode laporan wajib menggunakan format YYYY-MM.');
+  const numberFields = [
+    'manpowerCount', 'equipmentCount', 'mcuEligibleCount',
+    'mcuFitCount', 'inductionRequiredCount', 'inductionCompletedCount',
+    'safeHours', 'ltiCount'
+  ];
+  const values = {};
+  numberFields.forEach(function(field) {
+    const value = Number(input[field]);
+    if (!Number.isSafeInteger(value) || value < 0) throw httpError_(400, 'Nilai ' + field + ' wajib berupa bilangan bulat nol atau lebih.');
+    values[field] = value;
+  });
+  if (values.mcuFitCount > values.mcuEligibleCount) throw httpError_(400, 'Jumlah MCU fit tidak boleh melebihi jumlah pekerja yang wajib MCU.');
+  if (values.inductionCompletedCount > values.inductionRequiredCount) throw httpError_(400, 'Jumlah induksi selesai tidak boleh melebihi jumlah pekerja yang wajib induksi.');
+  const remarks = String(input.remarks || '').trim();
+  if (remarks.length > 1000) throw httpError_(400, 'Catatan laporan maksimal 1.000 karakter.');
+  return Object.assign({ period: period, remarks: remarks }, values);
+}
+
+function canSubmitContractorComplianceReport_(user) {
+  const roles = user && user.roles || [];
+  return roles.some(function(role) {
+    return ['Company Admin', 'Contractor', 'Subkon', 'Contractor PIC'].indexOf(role) >= 0;
+  });
+}
+
+function canReviewContractorComplianceReport_(user) {
+  const roles = user && user.roles || [];
+  return isAdminCGG_(user) || (
+    user && user.roleVerified === true &&
+    roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; })
+  );
+}
+
+function createContractorComplianceReport_(payload, user) {
+  if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mengirim laporan bulanan.');
+  const companyCode = String(user.companyCode || '').trim().toUpperCase();
+  if (!companyCode || companyCode === 'CGG') return error_(403, 'Laporan ini hanya untuk perusahaan Contractor dan Subkon yang terdaftar.');
+  const company = findCompanyRegistry_(companyCode);
+  if (!company || company.status !== 'ACTIVE') return error_(403, 'Perusahaan tidak aktif atau tidak terdaftar pada master HDOS.');
+
+  let normalized;
+  try { normalized = normalizeContractorComplianceReport_(payload); }
+  catch (error) { return error_(error.status || 400, error.message || 'Data laporan tidak valid.'); }
+
+  const sheet = getSheet_('contractor_reports');
+  const lock = LockService.getScriptLock();
+  let report;
+  lock.waitLock(10000);
+  try {
+    const existing = readAll_('contractor_reports').find(function(item) {
+      return String(item.companyCode || '').toUpperCase() === companyCode &&
+        String(item.period || '') === normalized.period;
+    });
+    if (existing) return error_(409, 'Laporan perusahaan untuk periode ini sudah ada. Gunakan proses perbaikan jika statusnya dikembalikan.');
+    const now = new Date().toISOString();
+    report = Object.assign({}, normalized, {
+      id: Utilities.getUuid(),
+      code: 'CPR-' + companyCode + '-' + normalized.period,
+      companyCode: companyCode,
+      parentCompanyCode: company.role === 'Subkon' ? String(company.parentCompanyCode || '').trim().toUpperCase() : '',
+      status: 'SUBMITTED',
+      submittedBy: String(user.email || ''),
+      submittedAt: now,
+      reviewNotes: '',
+      reviewedBy: '',
+      reviewedAt: '',
+      createdAt: now,
+      updatedAt: now
+    });
+    sheet.appendRow(buildEntityRow_('contractor_reports', report, ENTITY_SCHEMAS.contractor_reports));
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  logAudit_(user, 'SUBMIT', 'contractor_reports', report.id, { code: report.code, period: report.period, companyCode: companyCode });
+  return success_(report);
+}
+
+function updateContractorComplianceReport_(id, payload, user) {
+  const sheet = getSheet_('contractor_reports');
+  const lock = LockService.getScriptLock();
+  let updated = null;
+  let auditAction = '';
+  lock.waitLock(10000);
+  try {
+    const rowNumber = findRecordRow_(sheet, id);
+    if (!rowNumber) return error_(404, 'Laporan Contractor Passport tidak ditemukan.');
+    const existing = parseRow_(sheet, rowNumber);
+    const input = isObject_(payload) ? payload : {};
+
+    if (canReviewContractorComplianceReport_(user)) {
+      const action = String(input.action || '').trim().toUpperCase();
+      const reviewNotes = String(input.reviewNotes || '').trim();
+      if (['VERIFY', 'RETURN'].indexOf(action) === -1) return error_(400, 'Aksi review harus VERIFY atau RETURN.');
+      if (action === 'RETURN' && !reviewNotes) return error_(400, 'Alasan pengembalian wajib diisi.');
+      if (String(existing.status || '') !== 'SUBMITTED') return error_(409, 'Hanya laporan berstatus SUBMITTED yang dapat direview.');
+      updated = Object.assign({}, existing, {
+        status: action === 'VERIFY' ? 'VERIFIED' : 'RETURNED',
+        reviewNotes: reviewNotes,
+        reviewedBy: String(user.email || ''),
+        reviewedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      auditAction = action === 'VERIFY' ? 'VERIFY' : 'RETURN';
+    } else if (
+      canSubmitContractorComplianceReport_(user) &&
+      String(existing.companyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase() &&
+      String(existing.status || '') === 'RETURNED'
+    ) {
+      let normalized;
+      try { normalized = normalizeContractorComplianceReport_(input); }
+      catch (error) { return error_(error.status || 400, error.message || 'Data laporan tidak valid.'); }
+      if (normalized.period !== String(existing.period || '')) return error_(400, 'Periode laporan tidak dapat diubah saat perbaikan.');
+      updated = Object.assign({}, existing, normalized, {
+        status: 'SUBMITTED',
+        submittedBy: String(user.email || ''),
+        submittedAt: new Date().toISOString(),
+        reviewNotes: '',
+        reviewedBy: '',
+        reviewedAt: '',
+        updatedAt: new Date().toISOString()
+      });
+      auditAction = 'RESUBMIT';
+    } else {
+      return error_(403, 'Akun ini tidak memiliki hak untuk memperbarui laporan tersebut.');
+    }
+
+    sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_reports.length)
+      .setValues([buildEntityRow_('contractor_reports', updated, ENTITY_SCHEMAS.contractor_reports)]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  logAudit_(user, auditAction, 'contractor_reports', id, { code: updated.code, status: updated.status });
+  return success_(updated);
 }
 
 
