@@ -33,6 +33,7 @@ export const ContractorModule: React.FC = () => {
   const [p2hPhotoFile, setP2hPhotoFile] = useState<File | null>(null);
   const [p2hPhotoPreview, setP2hPhotoPreview] = useState('');
   const [p2hPhotoView, setP2hPhotoView] = useState<Record<string, string>>({});
+  const [siaPreview, setSiaPreview] = useState<Record<string, {url: string; mimeType: string; fileName: string}>>({});
   const [p2hDraft, setP2hDraft] = useState<ContractorP2HInput>({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
   const [fleetDraft, setFleetDraft] = useState({
     unitNumber: '', unitType: '', brand: '', model: '',
@@ -121,6 +122,27 @@ export const ContractorModule: React.FC = () => {
     try { setP2hHistory(await hseApi.listContractorP2HHistory(unit.id)); }
     catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Riwayat P2H tidak dapat dimuat.'); }
     finally { setP2hLoading(false); }
+  };
+
+  const uploadSiaDocument = async (unit: ContractorFleetUnit, file: File) => {
+    if (file.size > 10 * 1024 * 1024) { setFleetMessage('Ukuran dokumen SIA maksimal 10 MB.'); return; }
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) { setFleetMessage('Dokumen SIA harus PDF, JPG, atau PNG.'); return; }
+    setFleetBusy(true); setFleetMessage('');
+    try {
+      const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Dokumen SIA tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(file); });
+      await hseApi.uploadContractorSia(unit.id, { fileName: file.name, mimeType: file.type, fileBase64 });
+      setFleetMessage('Dokumen SIA berhasil diunggah dan ditautkan ke unit.');
+      await refreshFleet();
+    } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Unggah dokumen SIA gagal.'); }
+    finally { setFleetBusy(false); }
+  };
+
+  const previewSiaDocument = async (unit: ContractorFleetUnit) => {
+    if (siaPreview[unit.id]) { setSiaPreview(current => { const next = {...current}; delete next[unit.id]; return next; }); return; }
+    try {
+      const file = await hseApi.previewContractorSia(unit.id);
+      setSiaPreview(current => ({...current, [unit.id]: { url: `data:${file.mimeType};base64,${file.base64}`, mimeType: file.mimeType, fileName: file.fileName }}));
+    } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Dokumen SIA tidak dapat dibuka.'); }
   };
 
   const openP2HPhoto = async (record: ContractorP2HRecord) => {
@@ -688,6 +710,8 @@ export const ContractorModule: React.FC = () => {
                       <td className={`px-4 py-3 ${expired ? 'text-red-300' : expiringSoon ? 'text-amber-300' : 'text-neutral-300'}`}>
                         {editable ? <input type="date" defaultValue={unit.siaExpiry || ''} disabled={fleetBusy} onBlur={e => { if (e.target.value !== unit.siaExpiry) void updateFleetUnit(unit,{siaExpiry:e.target.value}); }} className="rounded border border-white/10 bg-neutral-950 px-2 py-1 text-xs text-white" /> : (unit.siaExpiry || 'Belum dicatat')}
                         {expired && <div className="text-[10px]">Kedaluwarsa {Math.abs(expiryDays || 0)} hari lalu</div>}
+                        <div className="mt-1 flex flex-wrap gap-2">{editable && <label className="cursor-pointer text-[10px] text-sky-300 underline">{unit.siaFileName ? 'Ganti SIA' : 'Unggah SIA'}<input type="file" accept="application/pdf,image/jpeg,image/png" disabled={fleetBusy} className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) void uploadSiaDocument(unit, file); e.currentTarget.value = ''; }} /></label>}{unit.siaFileId && <button type="button" onClick={() => void previewSiaDocument(unit)} className="text-[10px] text-sky-300 underline">{siaPreview[unit.id] ? 'Tutup dokumen' : 'Lihat SIA'}</button>}</div>
+                        {siaPreview[unit.id] && <div className="mt-2 rounded border border-white/10 p-2"><div className="mb-2 text-[10px] text-neutral-400">{siaPreview[unit.id].fileName}</div>{siaPreview[unit.id].mimeType === 'application/pdf' ? <iframe title={`Dokumen SIA ${unit.unitNumber}`} src={siaPreview[unit.id].url} className="h-64 w-full rounded bg-white" /> : <img src={siaPreview[unit.id].url} alt={`Dokumen SIA ${unit.unitNumber}`} className="max-h-64 rounded object-contain" />}</div>
                         {expiringSoon && <div className="text-[10px]">Sisa {expiryDays} hari</div>}
                       </td>
                       <td className="px-4 py-3">{unit.status}</td>
