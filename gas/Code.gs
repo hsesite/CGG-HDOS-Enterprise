@@ -885,6 +885,10 @@ function handleRoute_(
     if (!base64 || base64.length > 7000000) return error_(400, 'Foto wajib diisi dan ukuran maksimal 5 MB.');
     const companyCode = String(user.companyCode || '').trim().toUpperCase();
     if (!companyCode) return error_(403, 'Akun belum memiliki perusahaan untuk penyimpanan foto.');
+    if (companyCode !== 'CGG') {
+      const registeredCompany = findCompanyRegistry_(companyCode);
+      if (!registeredCompany || registeredCompany.status !== 'ACTIVE') return error_(403, 'Perusahaan akun belum terdaftar aktif pada master perusahaan.');
+    }
     const bytes = Utilities.base64Decode(base64);
     if (!bytes.length || bytes.length > 5 * 1024 * 1024) return error_(400, 'Ukuran foto melebihi batas 5 MB.');
     const signature = bytes.slice(0, 12).map(function(value) { return (Number(value) + 256) % 256; });
@@ -1294,8 +1298,8 @@ function handleRoute_(
     if (!existingRecord) return error_(404, 'Record not found');
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
     if (entity === 'picas') {
-      const role = String((user.roles || [])[0] || '');
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0);
+      const roles = user.roles || [];
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
       if (!canMonitorPicas && String(existingRecord.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
         return error_(403, 'PICA ini tidak ditugaskan kepada akun Anda.');
       }
