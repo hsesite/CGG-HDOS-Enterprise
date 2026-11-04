@@ -215,11 +215,11 @@ test('New published forms derive tenant parent from active company registry, not
 });
 
 
-test('Company Admin cannot bypass PICA approval stages or close an unapproved PICA', () => {
+test('Company Admin cannot change PICA approval stages or close PICA outside HSE validation', () => {
   assert.ok(source.includes("if (entity === 'picas' && isCompanyAdmin_(user) && !isAdminCGG_(user))"));
   assert.ok(source.includes("return error_(403, 'Admin Perusahaan tidak dapat mengubah tahapan persetujuan PICA.')"));
-  assert.ok(source.includes("if (requestedStatusForCompanyAdmin === 'CLOSED' &&"));
-  assert.ok(source.includes("oldStagesForCompanyAdmin.foreman === true && oldStagesForCompanyAdmin.spvHse === true && oldStagesForCompanyAdmin.ktt === true"));
+  assert.ok(source.includes("if (requestedStatusForCompanyAdmin === 'CLOSED')"));
+  assert.ok(source.includes('Admin Perusahaan tidak dapat menutup PICA. Validasi hanya dapat dilakukan Foreman Safety atau SPV HSE'));
 });
 test('Operational tenant ownership remains immutable during PATCH for non-CGG admins', () => {
   assert.ok(source.includes("['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode'].forEach(function(key)"));
@@ -589,13 +589,13 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
 
 test('PICA register limits non-HSE users to assigned records and enforces PIC/HSE lifecycle', () => {
   assert.ok(source.includes("String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()"));
-  assert.ok(source.includes("const isHSEValidator = ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0 && user.roleVerified === true"));
+  assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
   assert.ok(source.includes("Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA."));
   assert.ok(source.includes("Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE"));
   assert.ok(source.includes("PICA belum diajukan PIC untuk validasi HSE."));
   assert.ok(source.includes("'WAITING_HSE'"));
   assert.ok(source.includes("PICA ini tidak ditugaskan kepada akun Anda."));
-  assert.ok(source.includes("user.roleVerified === true && ['Foreman Safety', 'SPV HSE']"));
+  assert.ok(source.includes("user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; })"));
   assert.ok(source.includes("PICA hasil inspeksi wajib memiliki departemen, nama PIC, dan email akun PIC."));
 });
 test('missing records fail closed in tenant visibility checks', () => {
