@@ -894,8 +894,12 @@ function handleRoute_(
     const isVerifiedCggOversight = isReadOnlyController_(user) &&
       user.roleVerified === true &&
       String(user.companyCode || '').trim().toUpperCase() === 'CGG';
-    if (!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight) {
-      return error_(403, 'Akses master perusahaan hanya tersedia bagi administrator atau personel pengawas CGG yang telah diverifikasi.');
+    const roles = user.roles || [];
+    const isCompanyPassportViewer = roles.some(function(role) {
+      return ['Contractor', 'Subkon', 'Contractor PIC'].indexOf(role) >= 0;
+    });
+    if (!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight && !isCompanyPassportViewer) {
+      return error_(403, 'Akses master perusahaan tidak tersedia untuk akun ini.');
     }
     const response = listCompanyRegistry_();
     if (isAdminCGG_(user)) return response;
@@ -903,9 +907,22 @@ function handleRoute_(
     if (isCompanyAdmin_(user)) {
       return success_(companyData.filter(function(company) { return canManageCompany_(user, company.code); }));
     }
-    // Read-only oversight receives operational passport fields only. Corporate
-    // email domains and auto-provision settings remain private to administrators.
-    return success_(companyData.map(function(company) {
+
+    let visibleCompanies = companyData;
+    if (isCompanyPassportViewer) {
+      const ownCode = String(user.companyCode || '').trim().toUpperCase();
+      const ownRegistry = findCompanyRegistry_(ownCode);
+      visibleCompanies = companyData.filter(function(company) {
+        const code = String(company.code || '').trim().toUpperCase();
+        const parent = String(company.parentCompanyCode || '').trim().toUpperCase();
+        return code === ownCode || Boolean(ownRegistry && ownRegistry.role === 'Contractor' &&
+          company.role === 'Subkon' && parent === ownCode);
+      });
+    }
+
+    // Read-only oversight and contractor passport users receive operational
+    // fields only. Corporate domains and auto-provision settings remain private.
+    return success_(visibleCompanies.map(function(company) {
       return {
         code: company.code,
         name: company.name,
