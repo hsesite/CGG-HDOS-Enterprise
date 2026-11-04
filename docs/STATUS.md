@@ -73,6 +73,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Upload Repository memperbarui metadata lokal dengan respons pusat; penghapusan online meminta konfirmasi backend, sedangkan penghapusan offline masuk antrean.
 - [x] Refresh cloud tersedia manual pada modul Sinkronisasi.
 - [x] Dashboard menampilkan waktu snapshot cloud terakhir dan sumber yang gagal dimuat agar data lokal tidak disalahartikan sebagai data pusat terbaru.
+- [x] Form investigasi insiden menyediakan lima tingkat pertanyaan Why dan tidak lagi mengisi akar penyebab/tindakan dengan asumsi otomatis.
+- [x] Waktu kejadian diwajibkan diisi; timeline awal hanya mencatat laporan yang benar-benar dibuat.
 - [x] Status koneksi modul Sinkronisasi memakai status jaringan perangkat aktual, bukan tombol simulasi.
 - [x] Pemanggilan snapshot cloud duplikat pada modul operasional dihapus; satu store pusat mengelola proses pemuatan.
 - [x] Dashboard membandingkan perusahaan dari master terdaftar, bukan daftar kode statis.
