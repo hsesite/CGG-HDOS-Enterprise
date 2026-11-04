@@ -30,6 +30,9 @@ export const ContractorModule: React.FC = () => {
   const [p2hUnitId, setP2hUnitId] = useState('');
   const [p2hHistory, setP2hHistory] = useState<ContractorP2HRecord[]>([]);
   const [p2hLoading, setP2hLoading] = useState(false);
+  const [p2hPhotoFile, setP2hPhotoFile] = useState<File | null>(null);
+  const [p2hPhotoPreview, setP2hPhotoPreview] = useState('');
+  const [p2hPhotoView, setP2hPhotoView] = useState<Record<string, string>>({});
   const [p2hDraft, setP2hDraft] = useState<ContractorP2HInput>({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
   const [fleetDraft, setFleetDraft] = useState({
     unitNumber: '', unitType: '', brand: '', model: '',
@@ -120,14 +123,27 @@ export const ContractorModule: React.FC = () => {
     finally { setP2hLoading(false); }
   };
 
+  const openP2HPhoto = async (record: ContractorP2HRecord) => {
+    if (p2hPhotoView[record.id]) { setP2hPhotoView(current => { const next = {...current}; delete next[record.id]; return next; }); return; }
+    try { const photo = await hseApi.getContractorP2HPhoto(record.id); setP2hPhotoView(current => ({...current, [record.id]: `data:${photo.mimeType};base64,${photo.base64}`})); }
+    catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Bukti foto tidak dapat dibuka.'); }
+  };
+
   const submitP2HRecord = async (event: React.FormEvent<HTMLFormElement>, unit: ContractorFleetUnit) => {
     event.preventDefault();
     setFleetBusy(true);
     setFleetMessage('');
     try {
-      await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
+      let photoReference: Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> = {};
+      if (p2hPhotoFile) {
+        const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Bukti foto tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(p2hPhotoFile); });
+        const uploaded = await hseApi.uploadOperationalPhoto({ fileName: p2hPhotoFile.name, mimeType: p2hPhotoFile.type, fileBase64 });
+        photoReference = { photoFileId: uploaded.photoFileId, photoFileName: uploaded.fileName, photoMimeType: uploaded.mimeType };
+      }
+      await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, ...photoReference, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
       setFleetMessage('Pemeriksaan P2H berhasil dicatat. Riwayat sebelumnya tetap tersimpan.');
       setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
+      setP2hPhotoFile(null); setP2hPhotoPreview('');
       setP2hHistory(await hseApi.listContractorP2HHistory(unit.id));
       await refreshFleet();
     } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal.'); }
@@ -686,9 +702,13 @@ export const ContractorModule: React.FC = () => {
                         <label className="space-y-1 text-[10px] text-neutral-400">Nama operator *<input required maxLength={120} value={p2hDraft.operatorName} onChange={e => setP2hDraft(current => ({...current,operatorName:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
                         <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2">Temuan pemeriksaan<textarea maxLength={2000} rows={2} value={p2hDraft.findings} onChange={e => setP2hDraft(current => ({...current,findings:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
                         <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2">Tindakan koreksi / pengendalian {p2hDraft.status === 'NOT_READY' ? '*' : ''}<textarea maxLength={2000} required={p2hDraft.status === 'NOT_READY'} rows={2} value={p2hDraft.correctiveAction} onChange={e => setP2hDraft(current => ({...current,correctiveAction:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
+                        <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2 lg:col-span-4">Bukti foto inspeksi (JPG, PNG, WEBP · maks. 5 MB)
+                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file = e.target.files?.[0] || null; if (file && file.size > 5 * 1024 * 1024) { setFleetMessage('Ukuran foto maksimal 5 MB.'); e.target.value = ''; return; } setP2hPhotoFile(file); setP2hPhotoPreview(file ? URL.createObjectURL(file) : ''); }} className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:text-white" />
+                          {p2hPhotoPreview && <img src={p2hPhotoPreview} alt="Pratinjau bukti P2H" className="mt-2 max-h-32 rounded-lg border border-white/10 object-contain" />}
+                        </label>
                         <div className="flex items-end sm:col-span-2 lg:col-span-4"><button type="submit" disabled={fleetBusy} className="rounded bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Simpan Catatan P2H'}</button></div>
                       </form>}
-                      {p2hLoading ? <div className="text-xs text-neutral-400">Memuat riwayat P2H...</div> : p2hHistory.length === 0 ? <div className="text-xs text-neutral-500">Belum terdapat catatan riwayat P2H untuk unit ini.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-[10px]"><thead className="text-neutral-500"><tr><th className="py-2 pr-3">Tanggal</th><th className="py-2 pr-3">Hasil</th><th className="py-2 pr-3">HM</th><th className="py-2 pr-3">Operator</th><th className="py-2 pr-3">Temuan / Tindakan</th><th className="py-2">Pemeriksa</th></tr></thead><tbody className="divide-y divide-white/5">{p2hHistory.map(record => <tr key={record.id} className="text-neutral-300"><td className="py-2 pr-3 whitespace-nowrap">{record.inspectionDate}</td><td className={record.status === 'READY' ? 'py-2 pr-3 text-emerald-300' : 'py-2 pr-3 text-red-300'}>{record.status === 'READY' ? 'Laik operasi' : 'Tidak laik operasi'}</td><td className="py-2 pr-3">{record.hourMeter === '' || record.hourMeter === undefined ? '—' : record.hourMeter}</td><td className="py-2 pr-3">{record.operatorName}</td><td className="py-2 pr-3"><div>{record.findings || 'Tidak ada temuan dicatat'}</div>{record.correctiveAction && <div className="mt-1 text-amber-200">Tindakan: {record.correctiveAction}</div>}</td><td className="py-2">{record.checkedBy || '—'}</td></tr>)}</tbody></table></div>}
+                      {p2hLoading ? <div className="text-xs text-neutral-400">Memuat riwayat P2H...</div> : p2hHistory.length === 0 ? <div className="text-xs text-neutral-500">Belum terdapat catatan riwayat P2H untuk unit ini.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-[10px]"><thead className="text-neutral-500"><tr><th className="py-2 pr-3">Tanggal</th><th className="py-2 pr-3">Hasil</th><th className="py-2 pr-3">HM</th><th className="py-2 pr-3">Operator</th><th className="py-2 pr-3">Temuan / Tindakan</th><th className="py-2">Pemeriksa</th></tr></thead><tbody className="divide-y divide-white/5">{p2hHistory.map(record => <tr key={record.id} className="text-neutral-300"><td className="py-2 pr-3 whitespace-nowrap">{record.inspectionDate}</td><td className={record.status === 'READY' ? 'py-2 pr-3 text-emerald-300' : 'py-2 pr-3 text-red-300'}>{record.status === 'READY' ? 'Laik operasi' : 'Tidak laik operasi'}</td><td className="py-2 pr-3">{record.hourMeter === '' || record.hourMeter === undefined ? '—' : record.hourMeter}</td><td className="py-2 pr-3">{record.operatorName}</td><td className="py-2 pr-3"><div>{record.findings || 'Tidak ada temuan dicatat'}</div>{record.correctiveAction && <div className="mt-1 text-amber-200">Tindakan: {record.correctiveAction}</div>}</td><td className="py-2">{record.checkedBy || '—'}{record.photoFileId && <button type="button" onClick={() => void openP2HPhoto(record)} className="mt-1 block text-sky-300 underline">{p2hPhotoView[record.id] ? 'Tutup foto' : 'Lihat foto'}</button>}</td></tr>{p2hPhotoView[record.id] && <tr><td colSpan={6} className="py-2"><img src={p2hPhotoView[record.id]} alt={`Bukti foto P2H ${record.unitNumber}`} className="max-h-72 rounded-lg border border-white/10 object-contain" /></td></tr>)}</tbody></table></div>}
                     </td></tr>}
                     </React.Fragment>
                   );
