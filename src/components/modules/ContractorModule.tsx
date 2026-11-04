@@ -15,6 +15,7 @@ import { useHDOSStore } from '../../core/store';
 import { ContractorPassport } from '../../core/types';
 import { hseApi, type ContractorComplianceReport, type ContractorComplianceReportInput } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
+import { canDownloadDocuments } from '../../core/access-policy';
 
 export const ContractorModule: React.FC = () => {
   const store = useHDOSStore();
@@ -158,6 +159,31 @@ export const ContractorModule: React.FC = () => {
     .filter(report => report.companyCode.toUpperCase() === selectedCompanyCode ||
       (report.parentCompanyCode || '').toUpperCase() === selectedCompanyCode)
     .sort((a, b) => b.period.localeCompare(a.period));
+
+  const exportComplianceReports = () => {
+    if (!canDownloadDocuments(sessionUser) || selectedCompanyReports.length === 0) return;
+    const rows = [
+      ['Periode', 'Kode Perusahaan', 'Manpower', 'Fleet', 'MCU Wajib', 'MCU Fit', 'Induksi Wajib', 'Induksi Selesai', 'Safe Hours Kumulatif', 'LTI', 'Status', 'Catatan', 'Catatan Review'],
+      ...selectedCompanyReports.map(report => [
+        report.period, report.companyCode, report.manpowerCount, report.equipmentCount,
+        report.mcuEligibleCount, report.mcuFitCount, report.inductionRequiredCount,
+        report.inductionCompletedCount, report.safeHours, report.ltiCount,
+        report.status, report.remarks || '', report.reviewNotes || ''
+      ])
+    ];
+    const csv = '\uFEFF' + rows.map(row => row.map(value =>
+      '"' + String(value ?? '').replace(/"/g, '""') + '"'
+    ).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'HDOS_Contractor_Compliance_' + selectedCompanyCode + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const activeCompanyCount = store.contractors.filter(company => company.status === 'ACTIVE').length;
   const passportExpiry = selectedContractor?.safetyPassportExpiry
@@ -371,6 +397,7 @@ export const ContractorModule: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-neutral-300">{selectedCompanyReports.length} laporan</span>
             <button type="button" onClick={() => void refreshComplianceReports()} disabled={reportsLoading} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-neutral-300 disabled:opacity-50">{reportsLoading ? 'Memuat...' : 'Muat Ulang'}</button>
+            {canDownloadDocuments(sessionUser) && <button type="button" onClick={exportComplianceReports} disabled={selectedCompanyReports.length === 0} className="rounded-lg bg-[#00E676]/15 px-3 py-1.5 text-xs font-semibold text-[#00E676] disabled:opacity-40">Unduh CSV</button>}
           </div>
         </div>
 
