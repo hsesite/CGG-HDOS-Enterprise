@@ -270,97 +270,83 @@ function ensureSheetSchema_(
   sheet,
   desiredHeaders
 ) {
-  const lastRow =
-    sheet.getLastRow();
-
-  const lastColumn =
-    sheet.getLastColumn();
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
 
   let existingHeaders = [];
 
-  if (
-    lastRow >= 1 &&
-    lastColumn >= 1
-  ) {
-    existingHeaders =
-      sheet
-        .getRange(
-          1,
-          1,
-          1,
-          lastColumn
-        )
-        .getValues()[0]
-        .map(
-          function(value) {
-            return String(
-              value || ''
-            ).trim();
-          }
-        );
+  if (lastRow >= 1 && lastColumn >= 1) {
+    existingHeaders = sheet
+      .getRange(1, 1, 1, lastColumn)
+      .getValues()[0]
+      .map(function(value) {
+        return String(value || '').trim();
+      });
   }
 
-
-  // ----------------------------------------------------------
-  // OLD LEGACY SCHEMA
-  //
-  // id | code | payload | status | createdAt | updatedAt
-  // ----------------------------------------------------------
-
-  if (
-    lastRow > 1 &&
-    isLegacySchema_(
-      existingHeaders
-    )
-  ) {
-    migrateLegacyEntityRows_(
-      sheet,
-      existingHeaders,
-      desiredHeaders
-    );
-
+  // Legacy six-column records use the dedicated payload migration.
+  if (lastRow > 1 && isLegacySchema_(existingHeaders)) {
+    migrateLegacyEntityRows_(sheet, existingHeaders, desiredHeaders);
     return;
   }
 
-
-  // ----------------------------------------------------------
-  // EMPTY SHEET
-  // ----------------------------------------------------------
-
-  if (
-    lastRow === 0 ||
-    existingHeaders.length === 0
-  ) {
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        desiredHeaders.length
-      )
-      .setValues([
-        desiredHeaders
-      ]);
-
+  // Empty sheets receive the canonical schema directly.
+  if (lastRow === 0 || existingHeaders.length === 0) {
+    sheet.getRange(1, 1, 1, desiredHeaders.length).setValues([desiredHeaders]);
     sheet.setFrozenRows(1);
     return;
   }
 
+  // Reconcile normalized schemas by header name, never by blindly replacing
+  // the header row. This prevents old values being relabelled as other fields
+  // when columns were added or reordered between application versions.
+  const sourceIndexes = desiredHeaders.map(function(header) {
+    return existingHeaders.indexOf(header);
+  });
+  const mappedIndexes = new Set(
+    sourceIndexes.filter(function(index) { return index >= 0; })
+  );
+  const mergedHeaders = desiredHeaders.slice();
 
-  // ----------------------------------------------------------
-  // EXISTING NORMALIZED SHEET
-  // ----------------------------------------------------------
+  // Preserve unknown/legacy columns at the end instead of silently discarding
+  // data that may have been written by a newer or customized deployment.
+  existingHeaders.forEach(function(header, index) {
+    if (mappedIndexes.has(index)) return;
+    let preservedHeader = header || ('legacy_column_' + (index + 1));
+    if (mergedHeaders.indexOf(preservedHeader) >= 0) {
+      preservedHeader += '_legacy_' + (index + 1);
+    }
+    mergedHeaders.push(preservedHeader);
+    sourceIndexes.push(index);
+  });
 
-  sheet
-    .getRange(
-      1,
-      1,
-      1,
-      desiredHeaders.length
-    )
-    .setValues([
-      desiredHeaders
-    ]);
+  const schemaMatches =
+    mergedHeaders.length === lastColumn &&
+    mergedHeaders.every(function(header, index) {
+      return header === existingHeaders[index];
+    });
+
+  if (!schemaMatches) {
+    let remappedRows = [];
+    if (lastRow > 1) {
+      const existingRows = sheet
+        .getRange(2, 1, lastRow - 1, lastColumn)
+        .getValues();
+
+      remappedRows = existingRows.map(function(row) {
+        return sourceIndexes.map(function(sourceIndex) {
+          return sourceIndex >= 0 ? row[sourceIndex] : '';
+        });
+      });
+    }
+
+    sheet.getRange(1, 1, 1, mergedHeaders.length).setValues([mergedHeaders]);
+
+    if (remappedRows.length > 0) {
+      sheet.getRange(2, 1, remappedRows.length, mergedHeaders.length)
+        .setValues(remappedRows);
+    }
+  }
 
   sheet.setFrozenRows(1);
 }
