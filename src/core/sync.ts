@@ -520,8 +520,24 @@ export class HDOSSyncEngine {
     if (!owner) return false;
     const syncToken = hseApi.authToken;
     if (!syncToken) return false;
-    if (this.queueOwnerKey !== `${owner.userId}::${owner.companyCode}`) await this.init();
-    this.queue = this.queue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode).sort(compareQueueItemsByTime);
+    const requestedOwnerKey = `${owner.userId}::${owner.companyCode}`;
+    if (this.isSyncing) return false;
+    if (this.queueOwnerKey !== requestedOwnerKey) await this.init();
+
+    // init() performs asynchronous IndexedDB reads. Re-check both the login
+    // identity and queue scope after it resolves before touching in-memory data.
+    const activeOwner = this.getCurrentOwner();
+    if (!activeOwner ||
+        activeOwner.userId !== owner.userId ||
+        activeOwner.companyCode !== owner.companyCode ||
+        hseApi.authToken !== syncToken ||
+        this.queueOwnerKey !== requestedOwnerKey) {
+      return false;
+    }
+    this.queue = this.queue.filter(item =>
+      item.ownerUserId === owner.userId &&
+      item.ownerCompanyCode === owner.companyCode
+    ).sort(compareQueueItemsByTime);
     if (this.isSyncing) {
       return false;
     }
