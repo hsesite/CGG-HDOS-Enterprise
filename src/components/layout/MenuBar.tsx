@@ -102,7 +102,7 @@ export const MenuBar: React.FC = () => {
       {/* Zone 2: Mining Operational Status Center */}
       <div className="hidden lg:flex items-center gap-3 text-neutral-300">
         <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 font-mono text-[11px]">
-          <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse" />
+          <span className={`w-2 h-2 rounded-full ${store.safeHours > 0 ? "bg-[#00E676]" : "bg-neutral-500"}`} />
           <span className="text-neutral-400">Safe Hours:</span>
           <span className="font-semibold text-[#00E676] tabular-nums">
             {store.safeHours > 0 ? `${store.safeHours.toLocaleString('id-ID')} Jam` : '—'}
