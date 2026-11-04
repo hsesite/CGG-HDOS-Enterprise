@@ -36,8 +36,10 @@ export const ContractorModule: React.FC = () => {
   const ownCompanyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const canSubmitReport = Boolean(sessionUser && ownCompanyCode && ownCompanyCode !== 'CGG' &&
     sessionRoles.some(role => ['Company Admin', 'Contractor', 'Subkon', 'Contractor PIC'].includes(role)));
-  const canReviewReport = Boolean(sessionUser?.roleVerified === true &&
-    (sessionRoles.includes('Admin CGG') || sessionRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role))));
+  const canReviewReport = Boolean(sessionUser && (
+    sessionRoles.includes('Admin CGG') ||
+    (sessionUser.roleVerified === true && sessionRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role)))
+  ));
 
   const selectedCompanyCode = String(selectedContractor?.code || '').trim().toUpperCase();
   const selectedCompanyPicas = store.picas.filter((pica) => {
