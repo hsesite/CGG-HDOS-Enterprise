@@ -231,7 +231,51 @@ export const ContractorModule: React.FC = () => {
             Rincian jenis unit, nomor lambung, status P2H, dan masa berlaku SIA belum tersedia pada data Contractor Passport. Informasi operasional tidak ditampilkan sebelum dicatat dan diverifikasi.
           </p>
         </div>
+
       </div>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+          <div>
+            <h4 className="flex items-center gap-2 text-sm font-bold text-white"><AlertTriangle className="h-4 w-4 text-amber-400" />Register PICA Perusahaan</h4>
+            <p className="mt-1 text-xs text-neutral-400">Daftar tindak lanjut yang terkait dengan perusahaan terpilih, termasuk subkontraktor di bawahnya.</p>
+          </div>
+          <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-mono text-neutral-300">{selectedCompanyPicas.length} total · {actualActivePicaCount} aktif</span>
+        </div>
+        {selectedCompanyPicas.length === 0 ? (
+          <div className="px-5 py-10 text-center text-xs text-neutral-400">Belum ada PICA yang tercatat untuk perusahaan ini.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-left text-xs">
+              <thead className="bg-white/5 text-neutral-400">
+                <tr>
+                  <th className="px-5 py-3 font-medium">Nomor PICA</th>
+                  <th className="px-5 py-3 font-medium">Sumber Temuan</th>
+                  <th className="px-5 py-3 font-medium">PIC</th>
+                  <th className="px-5 py-3 font-medium">Target</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {selectedCompanyPicas.map(pica => {
+                  const targetDate = pica.targetDate ? new Date(pica.targetDate.slice(0, 10) + 'T00:00:00') : null;
+                  const isOverdue = pica.status !== 'CLOSED' && targetDate !== null && !Number.isNaN(targetDate.getTime()) && targetDate < today;
+                  const statusLabel = isOverdue ? 'OVERDUE' : pica.status;
+                  return (
+                    <tr key={pica.id} className="text-neutral-300">
+                      <td className="px-5 py-3 font-mono text-white">{pica.code}</td>
+                      <td className="px-5 py-3">{pica.source} · {pica.sourceRefCode}</td>
+                      <td className="px-5 py-3">{pica.picName || 'Belum ditetapkan'}</td>
+                      <td className="px-5 py-3 font-mono">{pica.targetDate || '—'}</td>
+                      <td className="px-5 py-3"><span className={`rounded px-2 py-1 text-[10px] font-semibold ${statusLabel === 'CLOSED' ? 'bg-emerald-500/15 text-emerald-300' : statusLabel === 'OVERDUE' ? 'bg-red-500/15 text-red-300' : 'bg-amber-500/15 text-amber-300'}`}>{statusLabel}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 };
