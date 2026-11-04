@@ -105,6 +105,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Perusahaan Contractor/Subkon mengirim laporan; Foreman Safety/SPV HSE terverifikasi atau Admin CGG dapat memverifikasi atau mengembalikan dengan catatan.
 - [x] Laporan yang dikembalikan dapat diperbaiki dan dikirim ulang oleh perusahaan pemilik.
 - [x] KPI MCU, induksi, Safe Hours, manpower, dan fleet pada Passport mengambil data dari laporan terakhir yang sudah diverifikasi; data yang belum diverifikasi tidak dipakai sebagai KPI.
+- [x] Ekspor CSV laporan Contractor Passport hanya tersedia untuk akun internal CGG; akun Contractor/Subkon tetap tidak mendapatkan fungsi unduh.
 - [x] Data MCU dibatasi pada agregat; tidak ada kolom diagnosis atau data medis individu pada laporan ini.
 - [ ] Register rinci peralatan/fleet (nomor lambung, jenis unit, P2H, SIA) dan sumber dokumen pendukung masih perlu dibangun.
 - [ ] Bukti dokumen pendukung laporan, verifikasi sumber data, dan laporan tren historis masih perlu dilengkapi.
