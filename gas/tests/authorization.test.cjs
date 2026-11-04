@@ -192,7 +192,7 @@ test('unverified KTT, SPT, and SPV cannot view cross-company records', () => {
   assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},{roles:['KTT'],companyCode:'CGG',roleVerified:false}),false);
 });
 test('verified CGG oversight can read redacted company master dynamically', () => {
-  assert.ok(source.includes("const isVerifiedCggOversight = isReadOnlyController_(user)"));
+  assert.ok(source.includes("const isVerifiedCggOversight = user.roleVerified === true"));
   assert.ok(source.includes("!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight && !isCompanyPassportViewer"));
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("autoProvision: false,"));
