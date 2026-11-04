@@ -113,12 +113,11 @@ Frontend memakai field `roleVerified` dari respons pengguna. Untuk memastikan ke
 ## Model otoritas lintas perusahaan (revisi November 2026)
 
 - **Admin CGG**: full access seluruh perusahaan, master perusahaan, akun, konfigurasi, dan modul.
-- **KTT, SPT, SPV**: satu cakupan pengawasan yang sama untuk data PT SLS, PT VIP, dan semua perusahaan berstatus aktif dengan kategori Subkon yang parentCompanyCode-nya SLS atau VIP. Ketiga role ini bersifat baca/periksa untuk data operasional; tidak memperoleh hak tulis operasional melalui endpoint CRUD umum.
-- **SLS**: hanya data SLS dan subkon aktif yang terdaftar di bawah SLS.
-- **VIP**: hanya data VIP dan subkon aktif yang terdaftar di bawah VIP.
-- **Subkon**: hanya data milik perusahaan Subkon itu sendiri.
-- Perusahaan baru ditambahkan oleh Admin CGG ke master perusahaan. Penambahan subkon cukup mengisi parentCompanyCode ke SLS atau VIP; tidak perlu perubahan kode untuk setiap nama subkon.
+- **KTT, SPT, SPV, PJO, SPV HSE, Foreman Safety**: role pengawasan baca-saja lintas seluruh Contractor aktif dan Subkon aktif yang terdaftar di bawah Contractor aktif pada sheet `companies`. Daftar perusahaan tidak dikunci pada kode SLS/VIP; penambahan perusahaan aktif pada master otomatis memperbarui cakupan.
+- **Contractor / Company Admin**: hanya perusahaan sendiri dan Subkon aktif yang terdaftar di bawahnya.
+- **Subkon**: hanya data milik perusahaan sendiri; relasi parent harus sesuai master perusahaan.
+- **Employee dan akun yang belum diverifikasi**: akses dasar sesuai matriks role dan tenant masing-masing.
+- Status perusahaan nonaktif atau relasi induk yang tidak valid harus menghilangkan akses pada request berikutnya.
 - Setiap data operasional dan dokumen wajib memiliki metadata kepemilikan perusahaan yang benar. Data tanpa metadata tenant tidak boleh otomatis ditampilkan lintas perusahaan.
-- KTT/SPT/SPV wajib ditetapkan sebagai role aplikasi oleh Admin CGG dan roleVerified harus true sebelum akses modul tambahan dibuka.
-- Dashboard harus menggunakan cakupan data yang sama dengan backend. Tampilan agregat Owner/otoritas hanya menghitung data SLS, VIP, dan subkon dalam cakupan tersebut; dashboard SLS/VIP hanya menghitung perusahaan sendiri beserta subkonnya; dashboard Subkon hanya menghitung perusahaannya sendiri.
-- Pendaftaran menerima email domain apa pun yang terverifikasi Google. Domain email bukan dasar penentuan tenant maupun pemberian role.
+- Cakupan frontend, cache IndexedDB, Dashboard, Repository, dan backend harus mengikuti daftar perusahaan aktif dari master yang sama. Backend tetap menjadi otoritas akhir untuk setiap request.
+- Pendaftaran menerima email domain apa pun yang terverifikasi Google untuk perusahaan yang diizinkan. Domain email bukan dasar pemberian role atau kewenangan.
