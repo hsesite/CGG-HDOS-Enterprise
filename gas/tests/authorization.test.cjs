@@ -1343,3 +1343,13 @@ test('contractor compliance report endpoints enforce submit, review, and view ro
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("contractor_reports: ["));
 });
+
+
+test('Contractor Passport master read is limited to own company hierarchy and redacts provisioning data', () => {
+  assert.ok(source.includes("const isCompanyPassportViewer = roles.some(function(role)"));
+  assert.ok(source.includes("['Contractor', 'Subkon', 'Contractor PIC'].indexOf(role) >= 0"));
+  assert.ok(source.includes("return code === ownCode || Boolean(ownRegistry && ownRegistry.role === 'Contractor'"));
+  assert.ok(source.includes("company.role === 'Subkon' && parent === ownCode"));
+  assert.ok(source.includes("emailDomains: '',"));
+  assert.ok(source.includes("autoProvision: false,"));
+});
