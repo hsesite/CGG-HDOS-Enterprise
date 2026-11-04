@@ -20,6 +20,7 @@ export const IncidentModule: React.FC = () => {
   const canEditInvestigation = isAdminCGG || (isVerified && assignedRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role)));
   const canReviewIncident = isAdminCGG || (isVerified && assignedRoles.some(role => ['KTT', 'SPT', 'SPV'].includes(role)));
   const canCloseIncident = isAdminCGG || (isVerified && assignedRoles.includes('KTT'));
+  const selectedIncidentReadyForReview = Boolean(selectedIncident && (selectedIncident.fiveWhyAnalysis || []).filter(item => String(item || '').trim()).length >= 5 && String(selectedIncident.rootCause || '').trim() && (selectedIncident.correctiveActions || []).some(item => String(item || '').trim()));
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
 
@@ -287,7 +288,7 @@ export const IncidentModule: React.FC = () => {
                     <label className="block text-[11px] text-neutral-300">Catatan review KTT / SPT / SPV
                       <textarea rows={2} value={reviewNotesDraft} onChange={event => setReviewNotesDraft(event.target.value)} className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-white" placeholder="Catatan hasil review (opsional)"/>
                     </label>
-                    <button type="button" onClick={() => void handleReviewIncident()} className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-black">Setujui Hasil Investigasi</button>
+                    <button type="button" disabled={!selectedIncidentReadyForReview} onClick={() => void handleReviewIncident()} className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-40">Setujui Hasil Investigasi</button>
                   </div>
                 )}
 
@@ -296,6 +297,8 @@ export const IncidentModule: React.FC = () => {
                     <button type="button" onClick={() => void handleCloseIncident()} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-black">Tutup Insiden</button>
                   </div>
                 )}
+
+                {selectedIncident.reviewNotes && <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-3 text-xs text-cyan-100"><strong>Catatan Review:</strong> {selectedIncident.reviewNotes}</div>}
 
                 {/* Root Cause & Corrective Actions */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
