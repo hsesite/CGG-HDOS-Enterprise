@@ -2149,8 +2149,9 @@ function uploadContractorSia_(fleetId, payload, user) {
 }
 
 function previewContractorSia_(fleetId, user) {
-  let unit;
-  try { unit = contractorFleetUnitForOwner_(fleetId, user); } catch (error) { return error_(error.status || 400, error.message); }
+  const unit = readOne_('contractor_fleet', fleetId);
+  if (!unit) return error_(404, 'Unit fleet tidak ditemukan.');
+  if (!canViewContractorComplianceReports_(user) || !isRecordVisibleToUser_(unit, user)) return error_(403, 'Anda tidak memiliki akses ke dokumen SIA unit ini.');
   if (!unit.siaFileId) return error_(404, 'Dokumen SIA belum dilampirkan.');
   const file = DriveApp.getFileById(String(unit.siaFileId));
   const blob = file.getBlob();
