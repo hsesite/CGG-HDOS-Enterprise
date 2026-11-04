@@ -157,6 +157,7 @@ export interface PICA {
     ktt: boolean;
   };
   evidencePhotoUrl?: string;
+  evidencePhotoFileId?: string;
   submittedAt?: string;
   closeRequestedAt?: string;
   hseValidatedBy?: string;
