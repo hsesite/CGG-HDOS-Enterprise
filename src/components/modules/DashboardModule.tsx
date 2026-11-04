@@ -337,7 +337,7 @@ export const DashboardModule: React.FC = () => {
 
         {/* Recharts Responsive Canvas */}
         <div className="w-full h-64 sm:h-76 md:h-80 pt-1 -ml-2 sm:ml-0">
-          {activeTrendData.length === 0 ? <div className="flex h-full items-center justify-center text-xs text-neutral-500">Belum ada data historis untuk periode ini.</div> : <ResponsiveContainer width="100%" height="100%">
+          {activeTrendData.every((item) => item.inspections + item.hazards + item.incidents + item.picas === 0) ? <div className="flex h-full items-center justify-center text-xs text-neutral-500">Belum ada data aktual pada periode ini.</div> : <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={activeTrendData}
               margin={{ top: 12, right: 12, left: -10, bottom: 0 }}
