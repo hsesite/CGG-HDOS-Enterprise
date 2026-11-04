@@ -2031,6 +2031,7 @@ function updateContractorFleetUnit_(id, payload, user) {
     const now = new Date().toISOString();
     const p2hChanged = normalized.p2hStatus !== String(existing.p2hStatus || 'NOT_CHECKED');
     updated = Object.assign({}, existing, normalized, {
+      code: 'FLT-' + String(existing.companyCode || '').trim().toUpperCase() + '-' + normalized.unitNumber.replace(/[^A-Z0-9-]/g, '-'),
       updatedAt: now,
       ...(p2hChanged ? {
         p2hLastCheckedAt: normalized.p2hStatus === 'NOT_CHECKED' ? '' : now,
