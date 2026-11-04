@@ -463,11 +463,12 @@ test('PICA can be submitted by its assigned PIC and closed by one verified HSE v
 
   const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',companyCode:'CGG',completionDate:''};
   const close = {status:'CLOSED'};
-  assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
+  assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Employee','Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
   assert.equal(close.hseValidatedBy,'HSE Foreman');
   assert.equal(close.hseValidatedRole,'Foreman Safety');
   assert.match(close.completionDate,/^\d{4}-\d{2}-\d{2}$/);
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['KTT'],roleVerified:true}).status,403);
+  assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['Employee','Foreman Safety'],roleVerified:false}).status,403);
 
   const returned = {status:'PROGRESS',rejectionReason:'Foto belum jelas'};
   assert.equal(context.enforcePicaClosureRules_(waiting,returned,{roles:['SPV HSE'],roleVerified:true}),null);
