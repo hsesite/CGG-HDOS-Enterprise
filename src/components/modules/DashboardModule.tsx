@@ -61,7 +61,7 @@ export const DashboardModule: React.FC = () => {
     if (isOversight) { const allowed = new Set(store.contractors.flatMap(company => [company.code, company.parentCompanyCode || '']).map(code => String(code).trim().toUpperCase()).filter(Boolean)); return allowed.has(recordCompany) || allowed.has(recordParent) || allowed.has(recordSubkon); }
     if (!companyCode) return false;
     if (isSubcontractor) return recordCompany === companyCode || recordSubkon === companyCode;
-    if (isContractor) return recordSubkon ? recordSubkon === companyCode : recordCompany === companyCode;
+    if (isContractor) return recordCompany === companyCode || recordParent === companyCode || recordSubkon === companyCode;
     return recordCompany === companyCode || recordSubkon === companyCode;
   };
   const dashboardInspections = store.inspections.filter(recordInDashboardScope);
