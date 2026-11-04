@@ -1943,7 +1943,7 @@ function normalizeContractorFleetInput_(payload, existing) {
   if (brand.length > 80 || model.length > 80) throw httpError_(400, 'Merek dan model maksimal 80 karakter.');
   if (['OWNED', 'RENTAL', 'LEASED'].indexOf(ownershipType) === -1) throw httpError_(400, 'Status kepemilikan unit tidak valid.');
   if (['READY', 'NOT_READY', 'NOT_CHECKED'].indexOf(p2hStatus) === -1) throw httpError_(400, 'Status P2H tidak valid.');
-  if (siaExpiry && !/^\\d{4}-\\d{2}-\\d{2}$/.test(siaExpiry)) throw httpError_(400, 'Tanggal SIA harus menggunakan format YYYY-MM-DD.');
+  if (siaExpiry && !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(siaExpiry)) throw httpError_(400, 'Tanggal SIA harus menggunakan format YYYY-MM-DD.');
   if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) throw httpError_(400, 'Status unit tidak valid.');
 
   return {
