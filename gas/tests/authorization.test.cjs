@@ -1117,3 +1117,61 @@ test('normalized sheet schema migration maps values by header and preserves unkn
   assert.equal(rows[1][5], '');
   assert.equal(rows[1][6], 'retain-me');
 });
+
+
+test('normalized row parser restores nested Hazard and PICA fields from canonical payload', () => {
+  const context = {};
+  vm.createContext(context);
+  const start = source.indexOf('function parseRowValues_(');
+  const end = source.indexOf('function parseRow_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+
+  const hazard = context.parseRowValues_('hazards',
+    ['id', 'severity', 'likelihood', 'riskScore', 'riskLevel', 'payload'],
+    ['h-1', 4, 3, 12, 'HIGH', JSON.stringify({ title: 'Guardrail damage', riskMatrix: { severity: 2, likelihood: 2, score: 4, level: 'LOW' } })]
+  );
+  assert.equal(hazard.title, 'Guardrail damage');
+  assert.deepEqual(JSON.parse(JSON.stringify(hazard.riskMatrix)), { severity: 4, likelihood: 3, score: 12, level: 'HIGH' });
+
+  const pica = context.parseRowValues_('picas',
+    ['id', 'foremanApproval', 'spvHseApproval', 'kttApproval', 'payload'],
+    ['p-1', true, false, false, JSON.stringify({ findingDescription: 'Missing berm', approvalStages: { foreman: false, spvHse: true, ktt: true } })]
+  );
+  assert.equal(pica.findingDescription, 'Missing berm');
+  assert.deepEqual(JSON.parse(JSON.stringify(pica.approvalStages)), { foreman: true, spvHse: true, ktt: true });
+});
+
+test('readAll reads the full register once instead of issuing per-row Spreadsheet reads', () => {
+  const values = [
+    ['id', 'code', 'status', 'payload'],
+    ['h-1', 'HAZ-2026-001', 'OPEN', JSON.stringify({ title: 'First hazard' })],
+    ['', '', '', ''],
+    ['h-2', 'HAZ-2026-002', 'CLOSED', JSON.stringify({ title: 'Second hazard' })]
+  ];
+  let rangeReads = 0;
+  const sheet = {
+    getLastRow: () => values.length,
+    getLastColumn: () => values[0].length,
+    getName: () => 'hazards',
+    getRange: () => ({ getValues: () => { rangeReads += 1; return values; } })
+  };
+  const context = { getSheet_: () => sheet };
+  vm.createContext(context);
+  const parseStart = source.indexOf('function parseRowValues_(');
+  const parseEnd = source.indexOf('function parseRow_(', parseStart + 1);
+  const readStart = source.indexOf('function readAll_(');
+  const readEnd = source.indexOf('// ============================================================\\n// CRUD — READ ONE', readStart + 1);
+  assert.notEqual(parseStart, -1);
+  assert.notEqual(parseEnd, -1);
+  assert.notEqual(readStart, -1);
+  assert.notEqual(readEnd, -1);
+  vm.runInContext(source.slice(parseStart, parseEnd) + source.slice(readStart, readEnd), context);
+
+  const records = context.readAll_('hazards');
+  assert.equal(rangeReads, 1);
+  assert.equal(records.length, 2);
+  assert.equal(records[0].title, 'First hazard');
+  assert.equal(records[1].title, 'Second hazard');
+});
