@@ -897,6 +897,23 @@ function handleRoute_(
     return updateContractorComplianceReport_(decodeURIComponent(contractorReportMatch[1]), params.payload, user);
   }
 
+  // ----------------------------------------------------------
+  // CONTRACTOR FLEET REGISTER
+  // ----------------------------------------------------------
+  if (path === '/api/contractor/fleet' && method === 'GET') {
+    if (!canViewContractorComplianceReports_(user)) return error_(403, 'Akun ini tidak memiliki akses ke register fleet kontraktor.');
+    return success_(readAll_('contractor_fleet').filter(function(unit) {
+      return isRecordVisibleToUser_(unit, user);
+    }));
+  }
+  if (path === '/api/contractor/fleet' && method === 'POST') {
+    return createContractorFleetUnit_(params.payload, user);
+  }
+  const contractorFleetMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)$/);
+  if (contractorFleetMatch && method === 'PATCH') {
+    return updateContractorFleetUnit_(decodeURIComponent(contractorFleetMatch[1]), params.payload, user);
+  }
+
   if (path === '/api/companies' && method === 'GET') {
     const roles = user.roles || [];
     const isVerifiedCggOversight = user.roleVerified === true &&
@@ -1905,6 +1922,111 @@ function updateContractorComplianceReport_(id, payload, user) {
     lock.releaseLock();
   }
   logAudit_(user, auditAction, 'contractor_reports', id, { code: updated.code, status: updated.status });
+  return success_(updated);
+}
+
+
+function normalizeContractorFleetInput_(payload, existing) {
+  const input = isObject_(payload) ? payload : {};
+  const current = existing || {};
+  const unitNumber = String(input.unitNumber !== undefined ? input.unitNumber : current.unitNumber || '').trim().toUpperCase();
+  const unitType = String(input.unitType !== undefined ? input.unitType : current.unitType || '').trim();
+  const brand = String(input.brand !== undefined ? input.brand : current.brand || '').trim();
+  const model = String(input.model !== undefined ? input.model : current.model || '').trim();
+  const ownershipType = String(input.ownershipType !== undefined ? input.ownershipType : current.ownershipType || 'OWNED').trim().toUpperCase();
+  const p2hStatus = String(input.p2hStatus !== undefined ? input.p2hStatus : current.p2hStatus || 'NOT_CHECKED').trim().toUpperCase();
+  const siaExpiry = String(input.siaExpiry !== undefined ? input.siaExpiry : current.siaExpiry || '').trim();
+  const status = String(input.status !== undefined ? input.status : current.status || 'ACTIVE').trim().toUpperCase();
+
+  if (unitNumber.length < 2 || unitNumber.length > 50) throw httpError_(400, 'Nomor lambung/unit wajib 2–50 karakter.');
+  if (unitType.length < 2 || unitType.length > 80) throw httpError_(400, 'Jenis unit wajib 2–80 karakter.');
+  if (brand.length > 80 || model.length > 80) throw httpError_(400, 'Merek dan model maksimal 80 karakter.');
+  if (['OWNED', 'RENTAL', 'LEASED'].indexOf(ownershipType) === -1) throw httpError_(400, 'Status kepemilikan unit tidak valid.');
+  if (['READY', 'NOT_READY', 'NOT_CHECKED'].indexOf(p2hStatus) === -1) throw httpError_(400, 'Status P2H tidak valid.');
+  if (siaExpiry && !/^\\d{4}-\\d{2}-\\d{2}$/.test(siaExpiry)) throw httpError_(400, 'Tanggal SIA harus menggunakan format YYYY-MM-DD.');
+  if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) throw httpError_(400, 'Status unit tidak valid.');
+
+  return {
+    unitNumber: unitNumber,
+    unitType: unitType,
+    brand: brand,
+    model: model,
+    ownershipType: ownershipType,
+    p2hStatus: p2hStatus,
+    siaExpiry: siaExpiry,
+    status: status
+  };
+}
+
+function createContractorFleetUnit_(payload, user) {
+  if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mendaftarkan unit.');
+  const companyCode = String(user.companyCode || '').trim().toUpperCase();
+  if (!companyCode || companyCode === 'CGG') return error_(403, 'Register fleet ini hanya untuk perusahaan Contractor dan Subkon.');
+  const company = findCompanyRegistry_(companyCode);
+  if (!company || company.status !== 'ACTIVE') return error_(403, 'Perusahaan tidak aktif atau tidak terdaftar pada master HDOS.');
+  let normalized;
+  try { normalized = normalizeContractorFleetInput_(payload); }
+  catch (error) { return error_(error.status || 400, error.message || 'Data unit tidak valid.'); }
+
+  const sheet = getSheet_('contractor_fleet');
+  const lock = LockService.getScriptLock();
+  let unit;
+  lock.waitLock(10000);
+  try {
+    const duplicate = readAll_('contractor_fleet').some(function(item) {
+      return String(item.companyCode || '').trim().toUpperCase() === companyCode &&
+        String(item.unitNumber || '').trim().toUpperCase() === normalized.unitNumber;
+    });
+    if (duplicate) return error_(409, 'Nomor lambung/unit sudah terdaftar pada perusahaan ini.');
+    const now = new Date().toISOString();
+    unit = Object.assign({}, normalized, {
+      id: Utilities.getUuid(),
+      code: 'FLT-' + companyCode + '-' + normalized.unitNumber.replace(/[^A-Z0-9-]/g, '-'),
+      companyCode: companyCode,
+      parentCompanyCode: company.role === 'Subkon' ? String(company.parentCompanyCode || '').trim().toUpperCase() : '',
+      createdAt: now,
+      updatedAt: now
+    });
+    sheet.appendRow(buildEntityRow_('contractor_fleet', unit, ENTITY_SCHEMAS.contractor_fleet));
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  logAudit_(user, 'CREATE', 'contractor_fleet', unit.id, { code: unit.code, unitNumber: unit.unitNumber, companyCode: companyCode });
+  return success_(unit);
+}
+
+function updateContractorFleetUnit_(id, payload, user) {
+  const sheet = getSheet_('contractor_fleet');
+  const lock = LockService.getScriptLock();
+  let updated = null;
+  lock.waitLock(10000);
+  try {
+    const rowNumber = findRecordRow_(sheet, id);
+    if (!rowNumber) return error_(404, 'Unit fleet tidak ditemukan.');
+    const existing = parseRow_(sheet, rowNumber);
+    if (!isRecordVisibleToUser_(existing, user)) return error_(403, 'Unit berada di luar cakupan perusahaan akun Anda.');
+    const ownCompany = String(user.companyCode || '').trim().toUpperCase();
+    if (!isAdminCGG_(user) && (!canSubmitContractorComplianceReport_(user) || ownCompany !== String(existing.companyCode || '').trim().toUpperCase())) {
+      return error_(403, 'Akun ini tidak memiliki hak untuk mengubah register unit.');
+    }
+    let normalized;
+    try { normalized = normalizeContractorFleetInput_(payload, existing); }
+    catch (error) { return error_(error.status || 400, error.message || 'Data unit tidak valid.'); }
+    const duplicate = readAll_('contractor_fleet').some(function(item) {
+      return item.id !== id &&
+        String(item.companyCode || '').trim().toUpperCase() === String(existing.companyCode || '').trim().toUpperCase() &&
+        String(item.unitNumber || '').trim().toUpperCase() === normalized.unitNumber;
+    });
+    if (duplicate) return error_(409, 'Nomor lambung/unit sudah digunakan unit lain pada perusahaan ini.');
+    updated = Object.assign({}, existing, normalized, { updatedAt: new Date().toISOString() });
+    sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
+      .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  logAudit_(user, 'UPDATE', 'contractor_fleet', id, { code: updated.code, p2hStatus: updated.p2hStatus, status: updated.status });
   return success_(updated);
 }
 
