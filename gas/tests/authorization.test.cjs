@@ -1468,3 +1468,12 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
   assert.match(apiSource, /body\?\.status \|\|\s*\(response\.ok \? 502 : \(response\.status \|\| 500\)\)/);
   assert.match(apiSource, /idempotent CREATE/);
 });
+
+test('Contractor Passport clears tenant-scoped registers and ignores stale responses on account changes', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+  assert.match(moduleSource, /const sessionScopeKey = sessionUser/);
+  assert.match(moduleSource, /setComplianceReports\(\[\]\);[\s\S]*?\}, \[sessionScopeKey\]\);/);
+  assert.match(moduleSource, /setFleetUnits\(\[\]\);[\s\S]*?setP2hHistory\(\[\]\);[\s\S]*?\}, \[sessionScopeKey\]\);/);
+  assert.match(moduleSource, /if \(active\) setComplianceReports\(reports\)/);
+  assert.match(moduleSource, /if \(active\) setFleetUnits\(units\)/);
+});
