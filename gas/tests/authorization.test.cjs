@@ -1070,3 +1070,50 @@ test('a retried update whose first response was lost is accepted without a secon
     error => error.status === 409
   );
 });
+
+
+test('normalized sheet schema migration maps values by header and preserves unknown columns', () => {
+  const rows = [
+    ['id','payload','status','createdAt','updatedAt','legacyNote'],
+    ['haz-1','{"severity":3}','OPEN','2026-11-01T00:00:00.000Z','2026-11-01T01:00:00.000Z','retain-me']
+  ];
+  const sheet = {
+    getLastRow: () => rows.length,
+    getLastColumn: () => rows[0].length,
+    getRange: (row, column, rowCount, columnCount) => ({
+      getValues: () => Array.from({ length: rowCount }, (_, rowOffset) =>
+        Array.from({ length: columnCount }, (_, columnOffset) =>
+          (rows[row - 1 + rowOffset] || [])[column - 1 + columnOffset] ?? ''
+        )
+      ),
+      setValues: values => values.forEach((newRow, rowOffset) => {
+        const targetRow = row - 1 + rowOffset;
+        while (rows.length <= targetRow) rows.push([]);
+        newRow.forEach((value, columnOffset) => {
+          rows[targetRow][column - 1 + columnOffset] = value;
+        });
+      })
+    }),
+    setFrozenRows: () => {}
+  };
+  const context = {
+    isLegacySchema_: headers => headers.length === 6 &&
+      headers[0] === 'id' && headers[1] === 'code' &&
+      headers[2] === 'payload' && headers[3] === 'status' &&
+      headers[4] === 'createdAt' && headers[5] === 'updatedAt',
+    migrateLegacyEntityRows_: () => { throw new Error('legacy path should not run'); }
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('ensureSheetSchema_', 'isLegacySchema_'), context);
+
+  context.ensureSheetSchema_(sheet, ['id','status','createdAt','updatedAt','payload','newField']);
+
+  assert.deepEqual(rows[0], ['id','status','createdAt','updatedAt','payload','newField','legacyNote']);
+  assert.equal(rows[1][0], 'haz-1');
+  assert.equal(rows[1][1], 'OPEN');
+  assert.equal(rows[1][2], '2026-11-01T00:00:00.000Z');
+  assert.equal(rows[1][3], '2026-11-01T01:00:00.000Z');
+  assert.equal(rows[1][4], '{"severity":3}');
+  assert.equal(rows[1][5], '');
+  assert.equal(rows[1][6], 'retain-me');
+});
