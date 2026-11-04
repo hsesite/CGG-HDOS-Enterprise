@@ -33,7 +33,7 @@ export const DashboardModule: React.FC = () => {
   const roles = sessionUser?.roles || [];
   const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const isOwnerAdmin = roles.includes('Admin CGG');
-  const isOversight = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
+  const isOversight = companyCode === 'CGG' && sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
   const isContractor = store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor');
   const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
   const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan CGG' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
