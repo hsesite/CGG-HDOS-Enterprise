@@ -2212,10 +2212,28 @@ function createContractorP2HRecord_(fleetId, payload, user) {
       correctiveAction: correctiveAction, checkedBy: String(user.email || ''), photoFileId: photoFileId,
       photoFileName: String(input.photoFileName || '').slice(0, 180), photoMimeType: photoMimeType, createdAt: now
     };
-    historySheet.appendRow(buildEntityRow_('contractor_p2h_history', record, ENTITY_SCHEMAS.contractor_p2h_history));
-    const updated = Object.assign({}, unit, { p2hStatus: status, p2hLastCheckedAt: now, p2hCheckedBy: String(user.email || ''), updatedAt: now });
-    sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
-    SpreadsheetApp.flush();
+    // Treat the append-only history row and fleet's latest P2H status as one
+    // logical write. Preserve the previous fleet row and remove a partially
+    // written history row if either spreadsheet operation fails.
+    const historyRowNumber = historySheet.getLastRow() + 1;
+    const originalFleetValues = sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).getValues()[0];
+    try {
+      historySheet.getRange(historyRowNumber, 1, 1, ENTITY_SCHEMAS.contractor_p2h_history.length)
+        .setValues([buildEntityRow_('contractor_p2h_history', record, ENTITY_SCHEMAS.contractor_p2h_history)]);
+      const updated = Object.assign({}, unit, { p2hStatus: status, p2hLastCheckedAt: now, p2hCheckedBy: String(user.email || ''), updatedAt: now });
+      sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
+        .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
+      SpreadsheetApp.flush();
+    } catch (writeError) {
+      try {
+        if (historySheet.getLastRow() >= historyRowNumber) historySheet.deleteRow(historyRowNumber);
+        sheet.getRange(rowNumber, 1, 1, originalFleetValues.length).setValues([originalFleetValues]);
+        SpreadsheetApp.flush();
+      } catch (rollbackError) {
+        throw httpError_(500, 'Pencatatan P2H mengalami kegagalan dan pemulihan otomatis tidak tuntas. Periksa riwayat P2H dan status unit sebelum mencoba kembali.');
+      }
+      throw httpError_(500, 'Pencatatan P2H gagal disimpan. Data awal telah dipulihkan; silakan coba kembali.');
+    }
   } finally {
     lock.releaseLock();
   }
