@@ -117,7 +117,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] UI Contractor Passport menyediakan panel riwayat P2H per unit dan form pencatatan untuk perusahaan pemilik; catatan lama tetap ditampilkan dan tidak dapat ditimpa.
 - [x] Form P2H mendukung upload bukti foto JPG/PNG/WEBP maksimal 5 MB ke Google Drive; backend memvalidasi folder penyimpanan sesuai perusahaan pemilik unit dan endpoint pratinjau memeriksa cakupan akses.
 - [x] Register fleet menyediakan unggah/ganti dan pratinjau dokumen SIA PDF/JPG/PNG maksimal 10 MB, disimpan di Google Drive per perusahaan dan ditautkan ke unit.
-- [ ] Endpoint dan UI bukti P2H/SIA belum dinyatakan teruji pada deployment GAS aktif; validasi hak akses dan siklus penggantian file harus masuk uji menyeluruh.
+- [x] Penggantian dokumen SIA menyimpan referensi Drive baru ke register fleet dan melakukan flush sebelum file lama dipindahkan ke sampah; kegagalan penulisan mencoba memulihkan baris sebelumnya dan membersihkan file baru.
+- [ ] Endpoint dan UI bukti P2H/SIA belum dinyatakan teruji pada deployment GAS aktif; validasi hak akses, rollback Spreadsheet, dan siklus penggantian file harus masuk uji menyeluruh.
 - [ ] Bukti dokumen pendukung laporan, verifikasi sumber data, dan laporan tren historis masih perlu dilengkapi.
 
 ## Pengujian dan deployment
