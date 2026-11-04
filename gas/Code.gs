@@ -880,23 +880,6 @@ function handleRoute_(
     return success_(isAdminCGG_(user) ? users : users.filter(function(account) { return canManageCompany_(user, account.companyCode); }));
   }
   // ----------------------------------------------------------
-  // CONTRACTOR FLEET REGISTER
-  // ----------------------------------------------------------
-  if (path === '/api/contractor/fleet' && method === 'GET') {
-    if (!canViewContractorComplianceReports_(user)) return error_(403, 'Akun ini tidak memiliki akses ke register fleet kontraktor.');
-    return success_(readAll_('contractor_fleet').filter(function(item) {
-      return isRecordVisibleToUser_(item, user);
-    }));
-  }
-  if (path === '/api/contractor/fleet' && method === 'POST') {
-    return createContractorFleetRecord_(params.payload, user);
-  }
-  const contractorFleetMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)$/);
-  if (contractorFleetMatch && method === 'PATCH') {
-    return updateContractorFleetRecord_(decodeURIComponent(contractorFleetMatch[1]), params.payload, user);
-  }
-
-  // ----------------------------------------------------------
   // CONTRACTOR MONTHLY COMPLIANCE REPORTS
   // ----------------------------------------------------------
   if (path === '/api/contractor/reports' && method === 'GET') {
@@ -1792,115 +1775,6 @@ function listCompanyRegistry_() {
   return success_(companies);
 }
 
-
-function normalizeContractorFleetRecord_(payload) {
-  const input = isObject_(payload) ? payload : {};
-  const unitNumber = String(input.unitNumber || '').trim().toUpperCase();
-  const unitType = String(input.unitType || '').trim();
-  const brand = String(input.brand || '').trim();
-  const model = String(input.model || '').trim();
-  const ownershipType = String(input.ownershipType || 'OWNED').trim().toUpperCase();
-  const p2hStatus = String(input.p2hStatus || 'NOT_RECORDED').trim().toUpperCase();
-  const siaExpiry = String(input.siaExpiry || '').trim();
-  const status = String(input.status || 'ACTIVE').trim().toUpperCase();
-
-  if (!/^[A-Z0-9][A-Z0-9 ./_-]{1,39}$/.test(unitNumber)) {
-    throw httpError_(400, 'Nomor lambung wajib 2–40 karakter dan hanya berisi huruf, angka, spasi, titik, garis miring, atau tanda hubung.');
-  }
-  if (!unitType || unitType.length > 80) throw httpError_(400, 'Jenis unit wajib diisi maksimal 80 karakter.');
-  if (brand.length > 80 || model.length > 80) throw httpError_(400, 'Merek dan model maksimal 80 karakter.');
-  if (['OWNED', 'RENTAL'].indexOf(ownershipType) === -1) throw httpError_(400, 'Status kepemilikan harus OWNED atau RENTAL.');
-  if (['FIT', 'NOT_FIT', 'NOT_RECORDED'].indexOf(p2hStatus) === -1) throw httpError_(400, 'Status P2H tidak valid.');
-  if (siaExpiry && !/^\d{4}-\d{2}-\d{2}$/.test(siaExpiry)) throw httpError_(400, 'Masa berlaku SIA harus menggunakan format YYYY-MM-DD.');
-  if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) throw httpError_(400, 'Status unit harus ACTIVE atau INACTIVE.');
-
-  return {
-    unitNumber: unitNumber,
-    unitType: unitType,
-    brand: brand,
-    model: model,
-    ownershipType: ownershipType,
-    p2hStatus: p2hStatus,
-    siaExpiry: siaExpiry,
-    status: status
-  };
-}
-
-function createContractorFleetRecord_(payload, user) {
-  if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya administrator perusahaan atau PIC Contractor/Subkon yang dapat mengelola register fleet.');
-  const companyCode = String(user.companyCode || '').trim().toUpperCase();
-  if (!companyCode || companyCode === 'CGG') return error_(403, 'Register fleet hanya untuk perusahaan Contractor dan Subkon.');
-  const company = findCompanyRegistry_(companyCode);
-  if (!company || company.status !== 'ACTIVE') return error_(403, 'Perusahaan tidak aktif atau tidak terdaftar pada master HDOS.');
-
-  let normalized;
-  try { normalized = normalizeContractorFleetRecord_(payload); }
-  catch (error) { return error_(error.status || 400, error.message || 'Data fleet tidak valid.'); }
-
-  const sheet = getSheet_('contractor_fleet');
-  const lock = LockService.getScriptLock();
-  let record = null;
-  lock.waitLock(10000);
-  try {
-    const duplicate = readAll_('contractor_fleet').find(function(item) {
-      return String(item.companyCode || '').trim().toUpperCase() === companyCode &&
-        String(item.unitNumber || '').trim().toUpperCase() === normalized.unitNumber;
-    });
-    if (duplicate) return error_(409, 'Nomor lambung sudah terdaftar pada perusahaan ini.');
-    const now = new Date().toISOString();
-    const id = Utilities.getUuid();
-    record = Object.assign({}, normalized, {
-      id: id,
-      code: 'FLT-' + companyCode + '-' + id.slice(0, 8).toUpperCase(),
-      companyCode: companyCode,
-      parentCompanyCode: company.role === 'Subkon' ? String(company.parentCompanyCode || '').trim().toUpperCase() : '',
-      createdAt: now,
-      updatedAt: now
-    });
-    sheet.appendRow(buildEntityRow_('contractor_fleet', record, ENTITY_SCHEMAS.contractor_fleet));
-    SpreadsheetApp.flush();
-  } finally {
-    lock.releaseLock();
-  }
-  logAudit_(user, 'CREATE', 'contractor_fleet', record.id, { code: record.code, unitNumber: record.unitNumber, companyCode: companyCode });
-  return success_(record);
-}
-
-function updateContractorFleetRecord_(id, payload, user) {
-  if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Akun ini tidak memiliki hak untuk memperbarui register fleet.');
-  const sheet = getSheet_('contractor_fleet');
-  const lock = LockService.getScriptLock();
-  let updated = null;
-  lock.waitLock(10000);
-  try {
-    const rowNumber = findRecordRow_(sheet, id);
-    if (!rowNumber) return error_(404, 'Data fleet tidak ditemukan.');
-    const existing = parseRow_(sheet, rowNumber);
-    if (!isRecordVisibleToUser_(existing, user) ||
-        String(existing.companyCode || '').trim().toUpperCase() !== String(user.companyCode || '').trim().toUpperCase()) {
-      return error_(403, 'Data fleet hanya dapat diperbarui oleh perusahaan pemiliknya.');
-    }
-    const company = findCompanyRegistry_(String(user.companyCode || '').trim().toUpperCase());
-    if (!company || company.status !== 'ACTIVE') return error_(403, 'Perusahaan tidak aktif atau tidak terdaftar pada master HDOS.');
-    let normalized;
-    try { normalized = normalizeContractorFleetRecord_(Object.assign({}, existing, isObject_(payload) ? payload : {})); }
-    catch (error) { return error_(error.status || 400, error.message || 'Data fleet tidak valid.'); }
-    const duplicate = readAll_('contractor_fleet').find(function(item) {
-      return item.id !== id &&
-        String(item.companyCode || '').trim().toUpperCase() === String(existing.companyCode || '').trim().toUpperCase() &&
-        String(item.unitNumber || '').trim().toUpperCase() === normalized.unitNumber;
-    });
-    if (duplicate) return error_(409, 'Nomor lambung sudah digunakan unit lain pada perusahaan ini.');
-    updated = Object.assign({}, existing, normalized, { updatedAt: new Date().toISOString() });
-    sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
-      .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
-    SpreadsheetApp.flush();
-  } finally {
-    lock.releaseLock();
-  }
-  logAudit_(user, 'UPDATE', 'contractor_fleet', id, { code: updated.code, unitNumber: updated.unitNumber, status: updated.status });
-  return success_(updated);
-}
 
 function normalizeContractorComplianceReport_(payload) {
   const input = isObject_(payload) ? payload : {};
