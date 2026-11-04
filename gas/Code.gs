@@ -188,7 +188,7 @@ const ENTITY_SCHEMAS = {
   contractor_p2h_history: [
     'id', 'code', 'fleetId', 'companyCode', 'parentCompanyCode', 'unitNumber',
     'inspectionDate', 'status', 'hourMeter', 'operatorName', 'findings',
-    'correctiveAction', 'checkedBy', 'createdAt', 'payload'
+    'correctiveAction', 'checkedBy', 'photoFileId', 'photoFileName', 'photoMimeType', 'createdAt', 'payload'
   ]
 };
 
@@ -926,6 +926,17 @@ function handleRoute_(
     return success_(readAll_('contractor_p2h_history').filter(function(item) { return item.fleetId === fleetId && isRecordVisibleToUser_(item, user); }).sort(function(a,b) { return String(b.inspectionDate || '').localeCompare(String(a.inspectionDate || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')); }));
   }
   if (contractorP2hMatch && method === 'POST') return createContractorP2HRecord_(decodeURIComponent(contractorP2hMatch[1]), params.payload, user);
+
+  const p2hPhotoMatch = path.match(/^\/api\/contractor\/p2h\/([^/]+)\/photo$/);
+  if (p2hPhotoMatch && method === 'GET') {
+    const record = readOne_('contractor_p2h_history', decodeURIComponent(p2hPhotoMatch[1]));
+    if (!record) return error_(404, 'Catatan P2H tidak ditemukan.');
+    if (!isRecordVisibleToUser_(record, user)) return error_(403, 'Anda tidak memiliki akses ke bukti foto P2H ini.');
+    if (!record.photoFileId) return error_(404, 'Bukti foto tidak tersedia.');
+    const photo = DriveApp.getFileById(String(record.photoFileId));
+    const blob = photo.getBlob();
+    return success_({ fileName: record.photoFileName || photo.getName(), mimeType: record.photoMimeType || blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
+  }
 
   const contractorFleetMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)$/);
   if (contractorFleetMatch && method === 'PATCH') {
@@ -2101,6 +2112,10 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     if (['READY', 'NOT_READY'].indexOf(status) === -1) return error_(400, 'Status hasil P2H wajib dipilih.');
     if (!operatorName || operatorName.length > 120) return error_(400, 'Nama operator wajib diisi maksimal 120 karakter.');
     if (findings.length > 2000 || correctiveAction.length > 2000) return error_(400, 'Temuan dan tindakan koreksi maksimal 2.000 karakter.');
+    const photoFileId = String(input.photoFileId || '').trim();
+    const photoMimeType = String(input.photoMimeType || '').toLowerCase();
+    if (photoFileId && ['image/jpeg', 'image/png', 'image/webp'].indexOf(photoMimeType) < 0) return error_(400, 'Tipe bukti foto P2H tidak valid.');
+    if (photoFileId && !/^[-_a-zA-Z0-9]{10,}$/.test(photoFileId)) return error_(400, 'Referensi bukti foto P2H tidak valid.');
     if (hourMeter !== '' && (!Number.isFinite(hourMeter) || hourMeter < 0 || hourMeter > 100000000)) return error_(400, 'Hour meter harus berupa angka positif yang valid.');
     if (status === 'NOT_READY' && !correctiveAction) return error_(400, 'Tindakan pengendalian wajib dicatat untuk unit yang tidak laik operasi.');
     const now = new Date().toISOString();
@@ -2109,7 +2124,8 @@ function createContractorP2HRecord_(fleetId, payload, user) {
       fleetId: fleetId, companyCode: unit.companyCode, parentCompanyCode: unit.parentCompanyCode || '',
       unitNumber: unit.unitNumber, inspectionDate: inspectionDate, status: status,
       hourMeter: hourMeter, operatorName: operatorName, findings: findings,
-      correctiveAction: correctiveAction, checkedBy: String(user.email || ''), createdAt: now
+      correctiveAction: correctiveAction, checkedBy: String(user.email || ''), photoFileId: photoFileId,
+      photoFileName: String(input.photoFileName || '').slice(0, 180), photoMimeType: photoMimeType, createdAt: now
     };
     historySheet.appendRow(buildEntityRow_('contractor_p2h_history', record, ENTITY_SCHEMAS.contractor_p2h_history));
     const updated = Object.assign({}, unit, { p2hStatus: status, p2hLastCheckedAt: now, p2hCheckedBy: String(user.email || ''), updatedAt: now });
