@@ -969,7 +969,9 @@ export class HDOSCentralStore {
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
     const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((assignedRole) => ['Foreman Safety', 'SPV HSE'].includes(assignedRole));
-    const updated: PICA = { ...current, ...updates, approvalStages: current.approvalStages || { foreman: false, spvHse: false, ktt: false } };
+    const persistedPicas = await hdosDB.getAll<PICA>('pica');
+    const persistedVersion = persistedPicas.find(pica => pica.id === id)?.updatedAt;
+    const updated: PICA = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt, approvalStages: current.approvalStages || { foreman: false, spvHse: false, ktt: false } };
 
     if (updates.status === 'WAITING_HSE') {
       if (!isAssignedPIC) throw new Error('Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA.');
