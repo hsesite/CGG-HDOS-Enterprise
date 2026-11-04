@@ -64,13 +64,13 @@ export const SyncModule: React.FC = () => {
       setLogs(current => [{
         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         message: 'Snapshot database pusat berhasil diminta; data yang masih antre tetap dipertahankan.',
-        type: 'success',
+        type: 'success' as const,
       }, ...current].slice(0, 100));
     } catch (error) {
       setLogs(current => [{
         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         message: error instanceof Error ? `Refresh database pusat gagal: ${error.message}` : 'Refresh database pusat gagal.',
-        type: 'warning',
+        type: 'warning' as const,
       }, ...current].slice(0, 100));
     } finally {
       setRefreshingCloud(false);
