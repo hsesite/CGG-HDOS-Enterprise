@@ -893,8 +893,13 @@ test('same-tab login scopes the tenant cache and queue before revealing the auth
   assert.ok(start >= 0 && end > start);
   const handler = appSource.slice(start, end);
   assert.ok(handler.indexOf('await hdosStore.init()') >= 0);
-  assert.ok(handler.indexOf('await hdosSync.init()') > handler.indexOf('await hdosStore.init()'));
-  assert.ok(handler.indexOf('setIsAuthenticated(true)') > handler.indexOf('await hdosSync.init()'));
+  assert.ok(handler.indexOf('setIsAuthenticated(true)') > handler.indexOf('await hdosStore.init()'));
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const storeInitStart = storeSource.indexOf('async init(): Promise<void>');
+  const queueInit = storeSource.indexOf('await hdosSync.init()', storeInitStart);
+  const localLoad = storeSource.indexOf('// Preserve all operational offline data', storeInitStart);
+  assert.ok(storeInitStart >= 0 && queueInit > storeInitStart && localLoad > queueInit,
+    'the active account queue is loaded before local workspace hydration');
   assert.match(handler, /hseApi\.authToken !== loginToken/);
   assert.match(handler, /activeUser\.id !== user\.id/);
   assert.match(handler, /setIsAuthenticated\(false\)/);
