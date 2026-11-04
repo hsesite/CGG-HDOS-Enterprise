@@ -90,6 +90,18 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Backend menyediakan backup Spreadsheet pusat ke Google Drive, log hasil backup, dan pemasangan trigger harian pukul 02:00 sesuai timezone Apps Script.
 - [x] Audit trail pusat dapat dibaca melalui endpoint khusus Admin CGG dan ditampilkan pada Pengaturan → Audit Trail (maksimal 500 aktivitas terbaru).
 
+### Pengembangan lanjutan Contractor Passport (4 November 2026)
+
+- [x] Daftar perusahaan pada Contractor Passport mengikuti master perusahaan terdaftar, tidak lagi dibatasi kode SLS/VIP di frontend.
+- [x] Hubungan Contractor–Subkon disimpan pada model passport dan ditampilkan pada kartu perusahaan.
+- [x] Akun Contractor/Company Admin dapat melihat perusahaan sendiri dan subkontraktor terdaftar di bawahnya pada lingkup data yang diizinkan.
+- [x] Personel pengawas CGG yang telah diverifikasi dapat membaca master perusahaan secara lintas kontraktor; field domain email dan auto-provision tidak dikirim pada respons baca-saja.
+- [x] Lingkup data pengawas backend mengikuti seluruh Contractor aktif beserta Subkon aktif yang terdaftar di bawahnya.
+- [x] Contractor Passport mengikuti pembaruan master secara asinkron sehingga tidak tertahan pada pilihan awal yang kosong.
+- [x] Status perusahaan ditampilkan sesuai status aktual; masa berlaku Safety Passport menampilkan sisa hari atau kondisi kedaluwarsa.
+- [x] Register PICA per perusahaan menampilkan nomor, sumber temuan, PIC, target, dan status overdue berdasarkan tanggal target.
+- [ ] Register manpower, peralatan/fleet, MCU, induksi, dan Safe Hours beserta sumber data dan alur verifikasinya masih perlu dibangun.
+
 ## Pengujian dan deployment
 
 - [x] Workflow deployment menjalankan typecheck frontend sebelum build.
