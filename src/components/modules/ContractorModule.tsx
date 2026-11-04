@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { ContractorPassport } from '../../core/types';
-import { hseApi, type ContractorComplianceReport, type ContractorComplianceReportInput } from '../../core/api';
+import { hseApi, type ContractorComplianceReport, type ContractorComplianceReportInput, type ContractorFleetUnit, type ContractorFleetInput } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
 import { canDownloadDocuments } from '../../core/access-policy';
 
@@ -22,7 +22,17 @@ export const ContractorModule: React.FC = () => {
   const sessionUser = getCurrentUser();
   const [selectedContractor, setSelectedContractor] = useState<ContractorPassport | undefined>(store.contractors[0]);
   const [complianceReports, setComplianceReports] = useState<ContractorComplianceReport[]>([]);
+  const [fleetUnits, setFleetUnits] = useState<ContractorFleetUnit[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [fleetLoading, setFleetLoading] = useState(false);
+  const [fleetBusy, setFleetBusy] = useState(false);
+  const [fleetMessage, setFleetMessage] = useState('');
+  const [fleetDraft, setFleetDraft] = useState({
+    unitNumber: '', unitType: '', brand: '', model: '',
+    ownershipType: 'OWNED' as ContractorFleetInput['ownershipType'],
+    p2hStatus: 'NOT_CHECKED' as ContractorFleetInput['p2hStatus'],
+    siaExpiry: ''
+  });
   const [reportBusy, setReportBusy] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
   const [editingReportId, setEditingReportId] = useState('');
@@ -75,6 +85,58 @@ export const ContractorModule: React.FC = () => {
       .finally(() => { if (active) setReportsLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setFleetLoading(true);
+    hseApi.listContractorFleet()
+      .then(units => { if (active) setFleetUnits(units); })
+      .catch(error => { if (active) setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.'); })
+      .finally(() => { if (active) setFleetLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const refreshFleet = async () => {
+    setFleetLoading(true);
+    try {
+      setFleetUnits(await hseApi.listContractorFleet());
+    } catch (error) {
+      setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.');
+    } finally {
+      setFleetLoading(false);
+    }
+  };
+
+  const submitFleetUnit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFleetBusy(true);
+    setFleetMessage('');
+    const payload: ContractorFleetInput = { ...fleetDraft };
+    try {
+      await hseApi.createContractorFleetUnit(payload);
+      setFleetDraft({unitNumber:'',unitType:'',brand:'',model:'',ownershipType:'OWNED',p2hStatus:'NOT_CHECKED',siaExpiry:''});
+      setFleetMessage('Unit berhasil ditambahkan ke register fleet.');
+      await refreshFleet();
+    } catch (error) {
+      setFleetMessage(error instanceof Error ? error.message : 'Unit gagal didaftarkan.');
+    } finally {
+      setFleetBusy(false);
+    }
+  };
+
+  const updateFleetUnit = async (unit: ContractorFleetUnit, updates: Partial<ContractorFleetInput>) => {
+    setFleetBusy(true);
+    setFleetMessage('');
+    try {
+      await hseApi.updateContractorFleetUnit(unit.id, updates);
+      setFleetMessage('Data unit berhasil diperbarui.');
+      await refreshFleet();
+    } catch (error) {
+      setFleetMessage(error instanceof Error ? error.message : 'Data unit gagal diperbarui.');
+    } finally {
+      setFleetBusy(false);
+    }
+  };
 
   const refreshComplianceReports = async () => {
     setReportsLoading(true);
@@ -160,6 +222,11 @@ export const ContractorModule: React.FC = () => {
     .filter(report => report.companyCode.toUpperCase() === selectedCompanyCode ||
       (report.parentCompanyCode || '').toUpperCase() === selectedCompanyCode)
     .sort((a, b) => b.period.localeCompare(a.period));
+  const selectedCompanyFleet = fleetUnits
+    .filter(unit => unit.companyCode.toUpperCase() === selectedCompanyCode ||
+      (unit.parentCompanyCode || '').toUpperCase() === selectedCompanyCode)
+    .sort((a, b) => a.companyCode.localeCompare(b.companyCode) || a.unitNumber.localeCompare(b.unitNumber));
+  const activeFleetCount = selectedCompanyFleet.filter(unit => unit.status === 'ACTIVE').length;
 
   const exportComplianceReports = () => {
     if (!canDownloadDocuments(sessionUser) || selectedCompanyReports.length === 0) return;
