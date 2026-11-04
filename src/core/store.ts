@@ -362,7 +362,7 @@ export class HDOSCentralStore {
           await hdosDB.delete('photos', `document-file-${local.id}`);
         }
       }
-      if (!isSameSession()) return;
+      if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
       this.documents = merged;
       this.formDefinitions = this.formDefinitions.filter(form =>
         merged.some(document => document.id === form.sourceDocumentId)
