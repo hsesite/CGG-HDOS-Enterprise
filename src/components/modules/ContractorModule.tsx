@@ -27,7 +27,8 @@ export const ContractorModule: React.FC = () => {
   const [reportMessage, setReportMessage] = useState('');
   const [editingReportId, setEditingReportId] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
-  const currentPeriod = new Date().toISOString().slice(0, 7);
+  const localNow = new Date();
+  const currentPeriod = localNow.getFullYear() + '-' + String(localNow.getMonth() + 1).padStart(2, '0');
   const [reportDraft, setReportDraft] = useState({
     period: currentPeriod, manpowerCount: '', equipmentCount: '',
     mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '',
@@ -178,7 +179,7 @@ export const ContractorModule: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'HDOS_Contractor_Compliance_' + selectedCompanyCode + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+    link.download = 'HDOS_Contractor_Compliance_' + selectedCompanyCode + '_' + localNow.getFullYear() + '-' + String(localNow.getMonth() + 1).padStart(2, '0') + '-' + String(localNow.getDate()).padStart(2, '0') + '.csv';
     document.body.appendChild(link);
     link.click();
     link.remove();
