@@ -1197,3 +1197,14 @@ test('users and companies master setup use safe header-based schema reconciliati
   assert.doesNotMatch(companiesSetup, /headers\.forEach\(function\(header, index\)/);
   assert.doesNotMatch(usersSetup, /headers\.forEach\(function\(header, index\)/);
 });
+
+
+test('central database supports auditable Google Drive backup and daily trigger installation', () => {
+  assert.match(source, /backup_logs:\s*\[/);
+  assert.match(source, /function createDatabaseBackup\(\)/);
+  assert.match(source, /makeCopy\(fileName, folder\)/);
+  assert.match(source, /logSheet\.appendRow\(\[backupId, createdAt, backupFile\.getId\(\), backupFile\.getName\(\), 'SUCCESS'/);
+  assert.match(source, /function installDailyDatabaseBackupTrigger\(\)/);
+  assert.match(source, /everyDays\(1\)\.atHour\(2\)/);
+  assert.match(source, /HDOS_BACKUP_FOLDER_ID/);
+});
