@@ -76,7 +76,7 @@ export class HDOSCentralStore {
   private assertMutationAllowed(action: 'location' | 'contractor' | 'document' | 'inspection' | 'hazard' | 'incident' | 'pica', updates?: Partial<PICA>): void {
     const role = hdosAuth.getCurrentRole();
     if (action === 'pica') {
-      const allowedKeys = ['status', 'correctiveAction', 'evidencePhotoUrl', 'submittedAt', 'closeRequestedAt', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'rejectionReason', 'updatedAt'];
+      const allowedKeys = ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'rejectionReason', 'updatedAt'];
       if (updates && Object.keys(updates).every((key) => allowedKeys.includes(key))) return;
       throw new Error('Perubahan PICA hanya dapat dilakukan oleh PIC yang ditugaskan atau HSE validator.');
     }
@@ -785,13 +785,13 @@ export class HDOSCentralStore {
     const role = hdosAuth.getCurrentRole();
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
-    const isHSEValidator = ['Foreman', 'Foreman Safety', 'SPV HSE'].includes(role);
+    const isHSEValidator = ['Foreman Safety', 'SPV HSE'].includes(role);
     const updated: PICA = { ...current, ...updates, approvalStages: current.approvalStages || { foreman: false, spvHse: false, ktt: false } };
 
     if (updates.status === 'WAITING_HSE') {
       if (!isAssignedPIC) throw new Error('Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA.');
       if (!String(updates.correctiveAction || current.correctiveAction || '').trim()) throw new Error('Tindakan perbaikan wajib diisi.');
-      if (!String(updates.evidencePhotoUrl || current.evidencePhotoUrl || '').trim()) throw new Error('Foto bukti penyelesaian wajib dilampirkan.');
+      if (!String(updates.evidencePhotoUrl || current.evidencePhotoUrl || '').trim() || !String(updates.evidencePhotoFileId || current.evidencePhotoFileId || '').trim()) throw new Error('Foto bukti penyelesaian wajib diunggah ke Google Drive.');
       updated.status = 'WAITING_HSE';
       updated.submittedAt = new Date().toISOString();
       updated.closeRequestedAt = updated.submittedAt;
