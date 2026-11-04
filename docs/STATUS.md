@@ -100,7 +100,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Contractor Passport mengikuti pembaruan master secara asinkron sehingga tidak tertahan pada pilihan awal yang kosong.
 - [x] Status perusahaan ditampilkan sesuai status aktual; masa berlaku Safety Passport menampilkan sisa hari atau kondisi kedaluwarsa.
 - [x] Register PICA per perusahaan menampilkan nomor, sumber temuan, PIC, target, dan status overdue berdasarkan tanggal target.
-- [ ] Register manpower, peralatan/fleet, MCU, induksi, dan Safe Hours beserta sumber data dan alur verifikasinya masih perlu dibangun.
+- [x] Backend menyediakan register laporan kepatuhan bulanan pada Spreadsheet pusat dengan satu laporan per perusahaan/periode.
+- [x] Laporan bulanan menyimpan agregat manpower, jumlah fleet, cakupan dan hasil MCU, cakupan dan penyelesaian induksi, Safe Hours kumulatif, serta LTI periode.
+- [x] Perusahaan Contractor/Subkon mengirim laporan; Foreman Safety/SPV HSE terverifikasi atau Admin CGG dapat memverifikasi atau mengembalikan dengan catatan.
+- [x] Laporan yang dikembalikan dapat diperbaiki dan dikirim ulang oleh perusahaan pemilik.
+- [x] KPI MCU, induksi, Safe Hours, manpower, dan fleet pada Passport mengambil data dari laporan terakhir yang sudah diverifikasi; data yang belum diverifikasi tidak dipakai sebagai KPI.
+- [x] Data MCU dibatasi pada agregat; tidak ada kolom diagnosis atau data medis individu pada laporan ini.
+- [ ] Register rinci peralatan/fleet (nomor lambung, jenis unit, P2H, SIA) dan sumber dokumen pendukung masih perlu dibangun.
+- [ ] Bukti dokumen pendukung laporan, verifikasi sumber data, dan laporan tren historis masih perlu dilengkapi.
 
 ## Pengujian dan deployment
 
