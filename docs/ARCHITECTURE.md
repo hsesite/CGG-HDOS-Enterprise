@@ -23,7 +23,9 @@ Frontend di GitHub Pages bersifat statis. Ia tidak menjalankan Express atau Post
 - `src/core/store.ts`: state pusat dan persistence untuk entitas lokal.
 - `src/core/db.ts`: IndexedDB dengan fallback localStorage untuk data yang dapat diserialisasi. Blob dokumen harus disimpan di IndexedDB; fallback JSON tidak mempertahankan binary.
 - `src/core/api.ts`: transport GAS, token sesi, dan kontrak API client.
-- `src/core/sync.ts`: antrean lokal, retry, dan status konflik.
+- `src/core/sync.ts`: antrean lokal, retry, status konflik, dan replay penghapusan Repository offline.
+- `src/core/store.ts`: inisialisasi antrean sesuai akun aktif, hydration snapshot cloud untuk Inspection/Hazard/PICA/Incident, Repository, dan formulir terbit; merge operasional mempertahankan perubahan lokal yang belum tersinkron.
+- `SyncModule`: refresh snapshot cloud secara manual melalui **Ambil Data Pusat**; indikator koneksi menunjukkan status jaringan perangkat yang sebenarnya.
 - `src/core/auth-utils.ts` / `auth-state.ts`: alur login dan cache sesi frontend.
 - `src/components/modules/RepositoryModule.tsx`: kontrol dokumen dan file asli lokal.
 - `src/components/mobile/IOSMobileSimulator.tsx`: simulasi UI perangkat untuk preview, bukan bukti bahwa UI sudah lolos uji di ponsel fisik.
@@ -69,8 +71,10 @@ Entity lain yang diketik pada antrean belum otomatis berarti sudah didukung clou
 
 - Metadata disimpan pada store IndexedDB `repository`.
 - File asli disimpan pada store `photos` dengan key `document-file-<id>`.
-- File lokal tidak otomatis menjadi file Google Drive.
-- Browser storage dapat dibersihkan pengguna/browser; dokumen penting perlu strategi cloud storage dan backup teruji sebelum produksi.
+- Upload Repository melalui GAS menyimpan binary ke folder Google Drive pusat dan metadata ke Spreadsheet; respons publik hanya menampilkan flag `cloudStored`, bukan ID file Drive.
+- Preview dan download melewati otorisasi server. Akun kontraktor/Subkon hanya dapat preview; unduhan dibatasi untuk akun CGG/Admin CGG sesuai aturan backend.
+- Penghapusan dokumen cloud meminta konfirmasi backend saat online dan masuk antrean sinkronisasi saat offline.
+- File lokal yang belum memiliki salinan cloud tetap dipertahankan sebagai cache/offline; browser storage dapat dibersihkan pengguna/browser sehingga dokumen penting tetap memerlukan backup cloud teruji.
 - Proses unggah harus gagal dengan jelas jika file binary tidak dapat disimpan, dan metadata yang tidak memiliki file harus dihindari.
 
 ## Deployment
