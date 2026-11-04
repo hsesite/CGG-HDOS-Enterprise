@@ -1767,7 +1767,7 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
       let belongsToTenantFolder = false;
       const parents = evidenceFile.getParents();
       while (parents.hasNext()) if (parents.next().getId() === expectedFolderId) belongsToTenantFolder = true;
-      if (!expectedFolderId || !belongsToTenantFolder || evidenceFile.getUrl() !== String(requestedPayload.evidencePhotoUrl || existingRecord.evidencePhotoUrl || '') || !/^image\\/(jpeg|png|webp)$/i.test(evidenceFile.getMimeType())) return error_(403, 'Foto bukti tidak valid atau bukan milik penyimpanan perusahaan ini.');
+      if (!expectedFolderId || !belongsToTenantFolder || evidenceFile.getUrl() !== String(requestedPayload.evidencePhotoUrl || existingRecord.evidencePhotoUrl || '') || !/^image\/(jpeg|png|webp)$/i.test(evidenceFile.getMimeType())) return error_(403, 'Foto bukti tidak valid atau bukan milik penyimpanan perusahaan ini.');
     } catch (evidenceError) {
       return error_(400, 'Foto bukti tidak ditemukan di Google Drive. Unggah ulang sebelum mengajukan PICA.');
     }
