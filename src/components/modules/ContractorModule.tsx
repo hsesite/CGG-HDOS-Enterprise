@@ -108,6 +108,10 @@ export const ContractorModule: React.FC = () => {
                   <div>
                     <h4 className="text-xs font-bold text-white leading-tight">{c.companyName}</h4>
                     <div className="text-[10px] text-neutral-400 mt-0.5 font-mono">Kode Mitra: {c.code}</div>
+                    <div className="mt-1 text-[10px] text-neutral-500">
+                      {c.companyRole || 'Perusahaan'}
+                      {c.parentCompanyCode ? ` · Induk: ${c.parentCompanyCode}` : ''}
+                    </div>
                   </div>
                 </div>
 
@@ -142,11 +146,13 @@ export const ContractorModule: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white">{selectedContractor.companyName}</h3>
+                <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] text-neutral-300">{selectedContractor.companyRole || 'Perusahaan'}</span>
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${selectedContractor.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300' : selectedContractor.status === 'WARNING' ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
                   Status: {selectedContractor.status}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">
+                {selectedContractor.parentCompanyCode && <span>Perusahaan Induk: <strong className="text-white">{selectedContractor.parentCompanyCode}</strong></span>}
                 <span>PIC Safety: <strong className="text-white">{selectedContractor.picName}</strong></span>
                 <span>·</span>
                 <span className="flex items-center gap-1 font-mono text-neutral-300">
