@@ -21,7 +21,7 @@ Deployment GitHub Pages tidak otomatis menerapkan perubahan pada backend GAS. Ik
 1. Pilih fungsi `setup` di editor Apps Script.
 2. Jalankan satu kali menggunakan akun pengelola database.
 3. Berikan izin Spreadsheet dan Google Drive yang diminta.
-4. Pastikan sheet `users`, `companies`, `locations`, `forms`, `inspections`, `hazards`, `picas`, `incidents`, `audit_logs`, dan `backup_logs` terbentuk.
+4. Pastikan sheet `users`, `companies`, `locations`, `forms`, `inspections`, `hazards`, `picas`, `incidents`, `audit_logs`, `backup_logs`, `contractor_reports`, dan `contractor_fleet` terbentuk.
 5. Periksa header setiap sheet.
 
 `setup()` menyiapkan struktur sheet. Fungsi ini tidak membuat akun Admin CGG otomatis. Jangan menganggapnya sebagai migrasi data produksi tanpa backup.
@@ -72,6 +72,8 @@ Gunakan akun dan data uji yang disetujui untuk memeriksa:
 - Isolasi data CGG, kontraktor, dan subkontraktor.
 - Inspeksi dan Hazard dengan lampiran foto.
 - PICA: penugasan PIC, bukti foto, pengajuan, pengembalian, validasi HSE.
+- Contractor Passport: laporan bulanan, verifikasi HSE, perbaikan laporan, dan ekspor CSV khusus CGG.
+- Fleet Contractor/Subkon: nomor unit unik, status P2H, pencatat dan waktu P2H, masa berlaku SIA, serta perubahan status unit.
 - Sinkronisasi offline-online, retry, dan pencegahan duplikasi.
 - Repository: upload, preview, download, dan delete sesuai kewenangan.
 - Audit log dan pemulihan setelah koneksi terputus.
