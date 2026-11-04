@@ -270,7 +270,8 @@ function setupDataSheets_(
     'audit_logs',
     'backup_logs',
     'contractor_reports',
-    'contractor_fleet'
+    'contractor_fleet',
+    'contractor_p2h_history'
   ];
 
   names.forEach(
