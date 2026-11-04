@@ -88,7 +88,7 @@ export const ContractorModule: React.FC = () => {
   // company changes. Clear the previous tenant's data immediately and ignore
   // late responses from requests started by the previous session.
   const sessionScopeKey = sessionUser
-    ? `${sessionUser.id}::${String(sessionUser.companyCode || '').trim().toUpperCase()}`
+    ? `${sessionUser.id}::${String(sessionUser.companyCode || '').trim().toUpperCase()}::${sessionUser.roleVerified === true ? 'verified' : 'unverified'}::${[...(sessionUser.roles || [])].sort().join(',')}`
     : 'anonymous';
 
   useEffect(() => {
