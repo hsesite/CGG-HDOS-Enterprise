@@ -12,7 +12,6 @@ import { getCurrentUser, logoutUser } from './core/auth-utils';
 import { AuthState } from './core/auth-state';
 import { ApiError, hseApi } from './core/api';
 import { hdosEvents } from './core/events';
-import { hdosSync } from './core/sync';
 import { hdosStore } from './core/store';
 
 // Module Components
@@ -72,7 +71,7 @@ export default function App() {
         AuthState.clear();
         setIsAuthenticated(false);
         setCurrentUser(null);
-        void hdosStore.init().then(() => hdosSync.init());
+        void hdosStore.init();
         return;
       }
 
@@ -236,7 +235,7 @@ export default function App() {
         setIsAuthenticated(Boolean(activeUser));
         setCurrentUser(activeUser);
       }
-      void hdosStore.init().then(() => hdosSync.init());
+      void hdosStore.init();
     }
   }
 
