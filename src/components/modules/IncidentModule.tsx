@@ -1,27 +1,18 @@
 import React, { useState } from 'react';
 import {
   ShieldAlert,
-  Flame,
-  Plus,
   Clock,
-  Calendar,
-  AlertOctagon,
-  FileCheck,
-  CheckCircle,
   HelpCircle,
-  ArrowRight,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { Incident, MiningArea } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { createIncidentAction } from '../../core/module-actions';
-import { hseApi } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
 
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
-  const sessionUser = getCurrentUser();
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
 
