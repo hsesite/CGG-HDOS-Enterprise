@@ -37,6 +37,9 @@ export const DashboardModule: React.FC = () => {
   const isContractor = companyCode === 'SLS' || companyCode === 'VIP';
   const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
   const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan KTT / SPT / SPV' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
+  const cloudRefreshLabel = store.lastCloudRefreshAt ? new Date(store.lastCloudRefreshAt).toLocaleString('id-ID') : 'Belum ada snapshot cloud pada sesi ini';
+  const cloudRefreshWarning = store.cloudRefreshFailedSources.length > 0 ? ` · Sumber gagal: ${store.cloudRefreshFailedSources.join(', ')}` : '';
+
   const dashboardDescription = isOwnerAdmin
     ? 'Konsolidasi seluruh perusahaan dan wilayah dalam HDOS.'
     : isOversight
@@ -126,7 +129,7 @@ export const DashboardModule: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <header className="apple-glass-card rounded-2xl border border-[#00E676]/20 p-5 space-y-1"><h2 className="text-lg font-bold text-white">{dashboardTitle}</h2><p className="text-xs text-neutral-400">{dashboardDescription}</p><p className="text-[10px] text-neutral-500">Cakupan data mengikuti otorisasi perusahaan pada server.</p></header>
+      <header className="apple-glass-card rounded-2xl border border-[#00E676]/20 p-5 space-y-1"><h2 className="text-lg font-bold text-white">{dashboardTitle}</h2><p className="text-xs text-neutral-400">{dashboardDescription}</p><p className="text-[10px] text-neutral-500">Cakupan data mengikuti otorisasi perusahaan pada server.</p><p className="text-[10px] text-neutral-500">Snapshot database pusat terakhir: {cloudRefreshLabel}{cloudRefreshWarning}</p></header>
 
       {/* Executive KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
