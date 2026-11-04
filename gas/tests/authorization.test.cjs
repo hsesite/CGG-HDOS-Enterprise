@@ -195,7 +195,7 @@ test('verified CGG oversight can read redacted company master dynamically', () =
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("autoProvision: false,"));
   assert.ok(source.includes("return success_(visibleCompanies.map(function(company)"));
-  assert.ok(source.includes("isOversightRole_(user) && user.roleVerified === true && ownCompany === 'CGG'"));
+  assert.ok(source.includes("const isCggOversight = isOversightRole_(user) && user.roleVerified === true && ownCompany === 'CGG'"));
   assert.ok(source.includes("String(user.companyCode || '').trim().toUpperCase() === 'CGG'"));
   assert.ok(source.includes("const isCompanyPassportViewer = roles.some(function(role)"));
   assert.ok(source.includes("company.role === 'Subkon' && parent === ownCode"));
@@ -1438,4 +1438,25 @@ test('contractor fleet API applies company-scoped read and write rules', () => {
   assert.ok(source.includes("'FLT-' + String(existing.companyCode"));
   assert.ok(source.includes("ownCompany === 'CGG'"));
 
+});
+
+
+test('verified oversight roles assigned to a contractor tenant do not bypass inactive-company restrictions', () => {
+  const context = {
+    isAdminCGG_: () => false,
+    isCompanyScopedRole_: () => true,
+    isOversightRole_: user => (user.roles || []).includes('Foreman Safety'),
+    findCompanyRegistry_: () => ({ status: 'INACTIVE', role: 'Contractor', parentCompanyCode: '' }),
+    getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
+      ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
+      ['SLS','PT SLS','Contractor','','','FALSE','INACTIVE']
+    ]}) })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function getOversightCompanyCodes_(');
+  const end = source.indexOf('function requiresRoleVerification_(', start + 1);
+  vm.runInContext(source.slice(start, end), context);
+  assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'}, {
+    roles:['Foreman Safety'], companyCode:'SLS', roleVerified:true
+  }), false);
 });
