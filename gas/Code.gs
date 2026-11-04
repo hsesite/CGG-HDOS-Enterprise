@@ -113,6 +113,7 @@ const ENTITY_SCHEMAS = {
     'spvHseApproval',
     'kttApproval',
     'evidencePhotoUrl',
+    'evidencePhotoFileId',
     'createdAt',
     'updatedAt',
     'payload'
@@ -1333,8 +1334,8 @@ function handleRoute_(
       const allowedKeys = nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')
         ? ['status', 'rejectionReason', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'updatedAt']
         : nextStatus === 'WAITING_HSE'
-          ? ['status', 'correctiveAction', 'evidencePhotoUrl', 'submittedAt', 'closeRequestedAt', 'rejectionReason', 'updatedAt']
-          : ['status', 'correctiveAction', 'evidencePhotoUrl', 'updatedAt'];
+          ? ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'rejectionReason', 'updatedAt']
+          : ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'updatedAt'];
       const changedKeys = Object.keys(requestedPayload).filter(function(key) {
         return JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]);
       });
@@ -1756,7 +1757,20 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
     if (!isAssignedPIC) return error_(403, 'Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA.');
     if (['OPEN', 'PROGRESS'].indexOf(oldStatus) === -1) return error_(409, 'Status PICA tidak dapat diajukan dari status saat ini.');
     if (!String(requestedPayload.correctiveAction || existingRecord.correctiveAction || '').trim()) return error_(400, 'Tindakan perbaikan wajib diisi.');
-    if (!String(requestedPayload.evidencePhotoUrl || existingRecord.evidencePhotoUrl || '').trim()) return error_(400, 'Bukti foto penyelesaian wajib dilampirkan.');
+    if (!String(requestedPayload.evidencePhotoUrl || existingRecord.evidencePhotoUrl || '').trim() || !String(requestedPayload.evidencePhotoFileId || existingRecord.evidencePhotoFileId || '').trim()) return error_(400, 'Foto bukti penyelesaian wajib diunggah ke Drive.');
+    try {
+      const evidenceFileId = String(requestedPayload.evidencePhotoFileId || existingRecord.evidencePhotoFileId || '').trim();
+      const evidenceFile = DriveApp.getFileById(evidenceFileId);
+      const companyCode = String(existingRecord.companyCode || user.companyCode || 'CGG').trim().toUpperCase();
+      const folderKey = 'HDOS_PHOTO_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
+      const expectedFolderId = PropertiesService.getScriptProperties().getProperty(folderKey);
+      let belongsToTenantFolder = false;
+      const parents = evidenceFile.getParents();
+      while (parents.hasNext()) if (parents.next().getId() === expectedFolderId) belongsToTenantFolder = true;
+      if (!expectedFolderId || !belongsToTenantFolder || evidenceFile.getUrl() !== String(requestedPayload.evidencePhotoUrl || existingRecord.evidencePhotoUrl || '') || !/^image\\/(jpeg|png|webp)$/i.test(evidenceFile.getMimeType())) return error_(403, 'Foto bukti tidak valid atau bukan milik penyimpanan perusahaan ini.');
+    } catch (evidenceError) {
+      return error_(400, 'Foto bukti tidak ditemukan di Google Drive. Unggah ulang sebelum mengajukan PICA.');
+    }
     requestedPayload.submittedAt = new Date().toISOString();
     requestedPayload.closeRequestedAt = requestedPayload.submittedAt;
     requestedPayload.rejectionReason = '';
