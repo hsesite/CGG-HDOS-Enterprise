@@ -1355,6 +1355,9 @@ function handleRoute_(
         }
         requestedPayload.reviewedBy = String(user.displayName || user.email || 'KTT');
         requestedPayload.reviewedAt = new Date().toISOString();
+      } else if (nextIncidentStatus === 'CLOSED' && oldIncidentStatus === 'CLOSED') {
+        if (!isAdmin && !isKTT) return error_(403, 'Penutupan insiden hanya dapat dilakukan KTT terverifikasi atau Admin CGG.');
+        if (changedIncidentKeys.some(function(key) { return key !== 'status'; })) return error_(403, 'Insiden yang sudah ditutup tidak dapat diubah.');
       } else if (nextIncidentStatus === 'CLOSED') {
         if (!isAdmin && !isKTT) return error_(403, 'Penutupan insiden hanya dapat dilakukan KTT terverifikasi atau Admin CGG.');
         if (oldIncidentStatus !== 'REVIEWED_KTT') return error_(409, 'Insiden harus direview terlebih dahulu sebelum ditutup.');
