@@ -113,6 +113,9 @@ export interface ContractorFleetUnit {
   p2hLastCheckedAt?: string;
   p2hCheckedBy?: string;
   siaExpiry: string;
+  siaFileId?: string;
+  siaFileName?: string;
+  siaMimeType?: string;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
   updatedAt: string;
@@ -385,6 +388,14 @@ export const hseApi = {
 
   async updateContractorFleetUnit(id: string, input: Partial<ContractorFleetInput>): Promise<ContractorFleetUnit> {
     return request<ContractorFleetUnit>('PATCH', `/api/contractor/fleet/${encodeURIComponent(id)}`, input);
+  },
+
+  async uploadContractorSia(fleetId: string, input: { fileName: string; mimeType: string; fileBase64: string }): Promise<{ id: string; siaFileName: string; siaMimeType: string; updatedAt: string }> {
+    return request('POST', `/api/contractor/fleet/${encodeURIComponent(fleetId)}/sia`, input);
+  },
+
+  async previewContractorSia(fleetId: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
+    return request('GET', `/api/contractor/fleet/${encodeURIComponent(fleetId)}/sia`);
   },
 
   async listContractorComplianceReports(): Promise<ContractorComplianceReport[]> {
