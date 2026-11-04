@@ -26,6 +26,8 @@ Frontend di GitHub Pages bersifat statis. Ia tidak menjalankan Express atau Post
 - `src/core/sync.ts`: antrean lokal, retry, status konflik, dan replay penghapusan Repository offline.
 - `src/core/store.ts`: inisialisasi antrean sesuai akun aktif, hydration snapshot cloud untuk Inspection/Hazard/PICA/Incident, Repository, dan formulir terbit; merge operasional mempertahankan perubahan lokal yang belum tersinkron.
 - `SyncModule`: refresh snapshot cloud secara manual melalui **Ambil Data Pusat**; indikator koneksi menunjukkan status jaringan perangkat yang sebenarnya.
+- `SettingsModule`: audit trail pusat hanya untuk Admin CGG; daftar menampilkan maksimal 500 aktivitas terbaru.
+- `gas/Code.gs`: backup Spreadsheet ke folder Google Drive khusus dan trigger harian pukul 02:00 berdasarkan timezone project; hasilnya dicatat di `backup_logs`.
 - `src/core/auth-utils.ts` / `auth-state.ts`: alur login dan cache sesi frontend.
 - `src/components/modules/RepositoryModule.tsx`: kontrol dokumen dan file asli lokal.
 - `src/components/mobile/IOSMobileSimulator.tsx`: simulasi UI perangkat untuk preview, bukan bukti bahwa UI sudah lolos uji di ponsel fisik.
