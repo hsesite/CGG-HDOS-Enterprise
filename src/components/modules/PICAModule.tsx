@@ -23,15 +23,6 @@ export const PICAModule: React.FC = () => {
   const isHSEValidator = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE'].includes(role));
 
   useEffect(() => {
-    let cancelled = false;
-    if (!hseApi.baseUrl || !sessionUser) return;
-    void hseApi.listOperationalRecords('picas').then(async (records) => {
-      if (!cancelled) await store.mergeCloudOperationalRecords('picas', records);
-    }).catch((error) => console.warn('[PICAModule] Gagal memuat register pusat:', error));
-    return () => { cancelled = true; };
-  }, [store, sessionUser?.id, hseApi.baseUrl]);
-
-  useEffect(() => {
     if (!selectedPica) return;
     setCorrectiveAction(selectedPica.correctiveAction || '');
     setEvidencePhotoUrl(selectedPica.evidencePhotoUrl || '');
