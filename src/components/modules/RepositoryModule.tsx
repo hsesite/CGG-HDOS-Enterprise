@@ -362,9 +362,10 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const docCompany = String(doc.companyCode || '').trim().toUpperCase();
     const docParent = String(doc.parentCompanyCode || '').trim().toUpperCase();
     const isGlobalDocument = !docCompany && !docParent;
-    const isOversightAccount = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV'].includes(role));
+    const isOversightAccount = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
     if (isOversightAccount) {
-      return ['SLS', 'VIP'].includes(docCompany) || ['SLS', 'VIP'].includes(docParent);
+      const allowedCompanyCodes = new Set(store.contractors.flatMap(company => [company.code, company.parentCompanyCode || '']).map(code => String(code).trim().toUpperCase()).filter(Boolean));
+      return allowedCompanyCodes.has(docCompany) || allowedCompanyCodes.has(docParent);
     }
     if (isBasicReadOnlyAccount) {
       if (isGlobalDocument || docCompany === companyCode) return true;
