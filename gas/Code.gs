@@ -1188,8 +1188,8 @@ function handleRoute_(
     return success_(records.filter(function(record) {
       if (!isRecordVisibleToUser_(record, user)) return false;
       if (entity !== 'picas') return true;
-      const role = String((user.roles || [])[0] || '');
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0);
+      const roles = user.roles || [];
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
       return canMonitorPicas || String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase();
     }));
   }
@@ -1204,8 +1204,8 @@ function handleRoute_(
     if (!record) return error_(404, 'Record not found');
     if (!isRecordVisibleToUser_(record, user)) return error_(403, 'Anda tidak memiliki akses ke data ini.');
     if (entity === 'picas') {
-      const role = String((user.roles || [])[0] || '');
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0);
+      const roles = user.roles || [];
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
       if (!canMonitorPicas && String(record.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
         return error_(403, 'PICA ini tidak ditugaskan kepada akun Anda.');
       }
@@ -1325,10 +1325,10 @@ function handleRoute_(
     }
     if (!isPrivilegedEditor) {
       if (entity !== 'picas') return error_(403, 'Data operasional yang sudah dikirim tidak dapat diedit atau dihapus.');
-      const role = String((user.roles || [])[0] || 'Employee');
+      const roles = user.roles || [];
       const email = String(user.email || '').trim().toLowerCase();
       const isAssignedPIC = Boolean(existingRecord.assignedToEmail && String(existingRecord.assignedToEmail).trim().toLowerCase() === email);
-      const isHSEValidator = ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0 && user.roleVerified === true;
+      const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true;
       const oldStatus = String(existingRecord.status || 'OPEN').toUpperCase();
       const nextStatus = String(requestedPayload.status || oldStatus).toUpperCase();
       const allowedKeys = nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')
@@ -1741,11 +1741,12 @@ function isPicaApprovalSequenceValid_(stages, stageKey) {
 function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
   const oldStatus = String(existingRecord && existingRecord.status || '').trim().toUpperCase();
   const nextStatus = String(requestedPayload.status || oldStatus).trim().toUpperCase();
-  const role = String((user.roles || [])[0] || 'Employee');
+  const roles = user.roles || [];
+  const role = roles.indexOf('Foreman Safety') >= 0 ? 'Foreman Safety' : roles.indexOf('SPV HSE') >= 0 ? 'SPV HSE' : String(roles[0] || 'Employee');
   const email = String(user.email || '').trim().toLowerCase();
   const assignedEmail = String(existingRecord.assignedToEmail || '').trim().toLowerCase();
   const isAssignedPIC = Boolean(assignedEmail && assignedEmail === email);
-  const isHSEValidator = ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0 && user.roleVerified === true;
+  const isHSEValidator = roles.some(function(candidateRole) { return ['Foreman Safety', 'SPV HSE'].indexOf(candidateRole) >= 0; }) && user.roleVerified === true;
 
   if (oldStatus === 'CLOSED' && nextStatus !== 'CLOSED') return error_(403, 'PICA yang sudah ditutup tidak dapat dibuka kembali.');
   if (Object.prototype.hasOwnProperty.call(requestedPayload, 'completionDate') &&
