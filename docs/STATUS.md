@@ -73,6 +73,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Refresh cloud tersedia manual pada modul Sinkronisasi.
 - [x] Status koneksi modul Sinkronisasi memakai status jaringan perangkat aktual, bukan tombol simulasi.
 - [x] Pemanggilan snapshot cloud duplikat pada modul operasional dihapus; satu store pusat mengelola proses pemuatan.
+- [x] Dashboard membandingkan perusahaan dari master terdaftar, bukan daftar kode statis.
+- [x] Tren harian 7/14/30 hari dihitung dari tanggal aktual Inspection, Hazard, Incident, dan PICA.
+- [x] KPI overdue PICA dihitung dari target date; Hazard kritis hanya menghitung temuan yang masih terbuka.
+- [x] Contractor Passport menghitung PICA aktif dari register operasional dalam cakupan perusahaan; manpower, MCU, dan KPI tanpa sumber tetap ditampilkan sebagai belum tersedia.
 
 ## Pengujian dan deployment
 
