@@ -876,6 +876,7 @@ function handleRoute_(
   // CONTRACTOR MONTHLY COMPLIANCE REPORTS
   // ----------------------------------------------------------
   if (path === '/api/contractor/reports' && method === 'GET') {
+    if (!canViewContractorComplianceReports_(user)) return error_(403, 'Akun ini tidak memiliki akses ke laporan kepatuhan kontraktor.');
     const reports = readAll_('contractor_reports').filter(function(report) {
       return isRecordVisibleToUser_(report, user);
     });
@@ -1771,6 +1772,10 @@ function canReviewContractorComplianceReport_(user) {
   );
 }
 
+function canViewContractorComplianceReports_(user) {
+  return isAdminCGG_(user) || canReviewContractorComplianceReport_(user) || canSubmitContractorComplianceReport_(user);
+}
+
 function createContractorComplianceReport_(payload, user) {
   if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mengirim laporan bulanan.');
   const companyCode = String(user.companyCode || '').trim().toUpperCase();
@@ -1831,6 +1836,7 @@ function updateContractorComplianceReport_(id, payload, user) {
     if (canReviewContractorComplianceReport_(user)) {
       const action = String(input.action || '').trim().toUpperCase();
       const reviewNotes = String(input.reviewNotes || '').trim();
+      if (reviewNotes.length > 1000) return error_(400, 'Catatan review maksimal 1.000 karakter.');
       if (['VERIFY', 'RETURN'].indexOf(action) === -1) return error_(400, 'Aksi review harus VERIFY atau RETURN.');
       if (action === 'RETURN' && !reviewNotes) return error_(400, 'Alasan pengembalian wajib diisi.');
       if (String(existing.status || '') !== 'SUBMITTED') return error_(409, 'Hanya laporan berstatus SUBMITTED yang dapat direview.');
