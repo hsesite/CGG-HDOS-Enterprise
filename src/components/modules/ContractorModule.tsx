@@ -610,6 +610,7 @@ export const ContractorModule: React.FC = () => {
               <input type="date" value={fleetDraft.siaExpiry} onChange={e => setFleetDraft(current => ({...current,siaExpiry:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" />
             </label>
             <div className="flex items-end"><button type="submit" disabled={fleetBusy} className="w-full rounded-lg bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Daftarkan Unit'}</button></div>
+            <p className="text-[10px] text-neutral-500 sm:col-span-2 lg:col-span-4">Status P2H dicatat oleh akun perusahaan dan waktu serta akun pencatat direkam. Bukti inspeksi P2H dan dokumen SIA belum dilampirkan pada register ini.</p>
           </form>
         )}
         {canSubmitReport && ownCompanyCode !== selectedCompanyCode && (
