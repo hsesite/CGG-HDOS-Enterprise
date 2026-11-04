@@ -1181,7 +1181,7 @@ test('readAll reads the full register once instead of issuing per-row Spreadshee
 test('users and companies master setup use safe header-based schema reconciliation', () => {
   const companiesStart = source.indexOf('function setupCompaniesSheet_(ss) {');
   const usersStart = source.indexOf('function setupUsersSheet_(ss) {');
-  const dataSetupStart = source.indexOf('// ============================================================\\n// DATA SHEET SETUP', usersStart);
+  const dataSetupStart = source.indexOf('function setupDataSheets_(', usersStart);
   assert.notEqual(companiesStart, -1);
   assert.notEqual(usersStart, -1);
   assert.notEqual(dataSetupStart, -1);
