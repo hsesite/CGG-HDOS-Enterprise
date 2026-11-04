@@ -1469,6 +1469,14 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
   assert.match(apiSource, /idempotent CREATE/);
 });
 
+test('Sync initialization revalidates tenant after asynchronous queue recovery before publishing', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  assert.match(syncSource, /const finalOwner = this\.getCurrentOwner\(\);/);
+  assert.match(syncSource, /finalOwnerKey !== requestedOwnerKey \|\| this\.queueOwnerKey !== requestedOwnerKey/);
+  assert.match(syncSource, /this\.queue = \[\];\s*this\.queueOwnerKey = '';\s*hdosEvents\.emit\('sync:queue_updated', \[\]\);\s*return;/);
+  assert.ok(syncSource.indexOf('const finalOwner = this.getCurrentOwner();') < syncSource.indexOf("hdosEvents.emit(\n      'sync:queue_updated',\n      [...this.queue]"));
+});
+
 test('Contractor Passport clears tenant-scoped registers and ignores stale responses on account changes', () => {
   const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
   assert.match(moduleSource, /const sessionScopeKey = sessionUser/);
