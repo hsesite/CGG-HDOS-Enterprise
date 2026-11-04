@@ -1322,6 +1322,45 @@ function handleRoute_(
       const closureError = enforcePicaClosureRules_(existingRecord, requestedPayload, user);
       if (closureError) return closureError;
     }
+    if (entity === 'incidents') {
+      const roles = user.roles || [];
+      const oldIncidentStatus = String(existingRecord.status || 'INVESTIGATING').toUpperCase();
+      const nextIncidentStatus = String(requestedPayload.status || oldIncidentStatus).toUpperCase();
+      const changedIncidentKeys = Object.keys(requestedPayload).filter(function(key) {
+        return key !== 'updatedAt' && JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]);
+      });
+      const isAdmin = isAdminCGG_(user);
+      const isVerified = user.roleVerified === true;
+      const isInvestigator = isVerified && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; });
+      const isReviewer = isVerified && roles.some(function(role) { return ['KTT', 'SPT', 'SPV'].indexOf(role) >= 0; });
+      const isKTT = isVerified && roles.indexOf('KTT') >= 0;
+
+      if (isCompanyAdmin_(user) && !isAdmin) return error_(403, 'Admin Perusahaan tidak dapat mengubah hasil investigasi atau keputusan insiden.');
+      if (nextIncidentStatus === 'INVESTIGATING' && oldIncidentStatus === 'INVESTIGATING') {
+        const allowedInvestigationFields = ['fiveWhyAnalysis', 'rootCause', 'correctiveActions', 'timeline'];
+        if (!isAdmin && !isInvestigator) return error_(403, 'Pembaruan investigasi hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
+        if (changedIncidentKeys.some(function(key) { return allowedInvestigationFields.indexOf(key) === -1; })) return error_(403, 'Perubahan field investigasi tidak diizinkan.');
+      } else if (nextIncidentStatus === 'REVIEWED_KTT') {
+        if (!isAdmin && !isReviewer) return error_(403, 'Review insiden hanya dapat dilakukan KTT/SPT/SPV terverifikasi.');
+        if (oldIncidentStatus !== 'INVESTIGATING') return error_(409, 'Insiden harus dalam status Investigating sebelum direview.');
+        const whys = Array.isArray(requestedPayload.fiveWhyAnalysis) ? requestedPayload.fiveWhyAnalysis : (existingRecord.fiveWhyAnalysis || []);
+        const rootCause = String(requestedPayload.rootCause || existingRecord.rootCause || '').trim();
+        const actions = Array.isArray(requestedPayload.correctiveActions) ? requestedPayload.correctiveActions : (existingRecord.correctiveActions || []);
+        if (whys.filter(function(item) { return String(item || '').trim(); }).length < 5 || !rootCause || !actions.some(function(item) { return String(item || '').trim(); })) {
+          return error_(400, 'Review memerlukan lima tahapan Why, akar penyebab, dan tindakan koreksi yang lengkap.');
+        }
+        requestedPayload.reviewedBy = String(user.displayName || user.email || 'KTT');
+        requestedPayload.reviewedAt = new Date().toISOString();
+      } else if (nextIncidentStatus === 'CLOSED') {
+        if (!isAdmin && !isKTT) return error_(403, 'Penutupan insiden hanya dapat dilakukan KTT terverifikasi atau Admin CGG.');
+        if (oldIncidentStatus !== 'REVIEWED_KTT') return error_(409, 'Insiden harus direview terlebih dahulu sebelum ditutup.');
+        requestedPayload.closedBy = String(user.displayName || user.email || 'KTT');
+        requestedPayload.closedAt = new Date().toISOString();
+      } else {
+        return error_(400, 'Transisi status insiden tidak valid.');
+      }
+    }
+
     const isPrivilegedEditor = isAdminCGG_(user) || isCompanyAdmin_(user);
     // Company Admin may manage PICA details in its tenant, but cannot bypass the
     // operational approval chain or directly mark a PICA closed.
@@ -1341,7 +1380,9 @@ function handleRoute_(
       }
     }
     if (!isPrivilegedEditor) {
-      if (entity !== 'picas') return error_(403, 'Data operasional yang sudah dikirim tidak dapat diedit atau dihapus.');
+      if (entity !== 'picas' && entity !== 'incidents') return error_(403, 'Data operasional yang sudah dikirim tidak dapat diedit atau dihapus.');
+      if (entity === 'incidents') { /* Incident-specific role and state checks were applied above. */ }
+      if (entity === 'picas') {
       const roles = user.roles || [];
       const email = String(user.email || '').trim().toLowerCase();
       const isAssignedPIC = Boolean(existingRecord.assignedToEmail && String(existingRecord.assignedToEmail).trim().toLowerCase() === email);
@@ -1361,6 +1402,7 @@ function handleRoute_(
         if (!isAssignedPIC) return error_(403, 'Hanya PIC yang ditugaskan dapat memperbarui tindak lanjut PICA.');
       } else if (nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')) {
         if (!isHSEValidator) return error_(403, 'Aksi ini hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
+      }
       }
     }
     const scopedPayload = (!isPrivilegedEditor && entity === 'picas')
