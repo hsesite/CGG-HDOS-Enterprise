@@ -1176,3 +1176,19 @@ test('readAll reads the full register once instead of issuing per-row Spreadshee
   assert.equal(records[0].title, 'First hazard');
   assert.equal(records[1].title, 'Second hazard');
 });
+
+
+test('users and companies master setup use safe header-based schema reconciliation', () => {
+  const companiesStart = source.indexOf('function setupCompaniesSheet_(ss) {');
+  const usersStart = source.indexOf('function setupUsersSheet_(ss) {');
+  const dataSetupStart = source.indexOf('// ============================================================\\n// DATA SHEET SETUP', usersStart);
+  assert.notEqual(companiesStart, -1);
+  assert.notEqual(usersStart, -1);
+  assert.notEqual(dataSetupStart, -1);
+  const companiesSetup = source.slice(companiesStart, usersStart);
+  const usersSetup = source.slice(usersStart, dataSetupStart);
+  assert.match(companiesSetup, /ensureSheetSchema_\(sheet, headers\)/);
+  assert.match(usersSetup, /ensureSheetSchema_\(sheet, headers\)/);
+  assert.doesNotMatch(companiesSetup, /headers\.forEach\(function\(header, index\)/);
+  assert.doesNotMatch(usersSetup, /headers\.forEach\(function\(header, index\)/);
+});
