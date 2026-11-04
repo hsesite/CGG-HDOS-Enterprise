@@ -265,10 +265,20 @@ async function request<T>(
     );
   }
 
-  const raw =
-    await response
-      .text()
-      .catch(() => '');
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (error) {
+    // The server may already have committed a write even when the browser
+    // cannot read its response. Treat this as transient so idempotent CREATE
+    // requests can safely be replayed instead of becoming permanent conflicts.
+    throw new ApiError(
+      0,
+      error instanceof Error
+        ? `Respons Google Apps Script gagal dibaca: ${error.message}`
+        : 'Respons Google Apps Script gagal dibaca.'
+    );
+  }
 
   let body:
     | ApiEnvelope<T>
@@ -280,8 +290,10 @@ async function request<T>(
         ? (JSON.parse(raw) as ApiEnvelope<T>)
         : null;
   } catch (error) {
+    // A successful HTTP status with an unreadable/non-JSON body does not prove
+    // that the server rejected the write. Use a retryable gateway status.
     throw new ApiError(
-      response.status || 502,
+      response.ok ? 502 : (response.status || 502),
       'Respons Google Apps Script tidak valid.'
     );
   }
@@ -292,8 +304,7 @@ async function request<T>(
   ) {
     throw new ApiError(
       body?.status ||
-        response.status ||
-        500,
+        (response.ok ? 502 : (response.status || 500)),
       body?.message ||
         `API request failed (${response.status})`
     );
