@@ -142,7 +142,7 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
   const context = {
     isAdminCGG_: () => false,
     isCompanyScopedRole_: () => true,
-    isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV'].includes(role)),
+    isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV','PJO','SPV HSE','Foreman Safety'].includes(role)),
     findCompanyRegistry_: code => code === 'CGG' ? null : ({status:'ACTIVE',role:'Contractor',parentCompanyCode:''}),
     getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
       ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
@@ -150,7 +150,11 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
       ['VIP','PT VIP','Contractor','','','FALSE','ACTIVE'],
       ['BCJ','PT BCJ','Subkon','SLS','','FALSE','ACTIVE'],
       ['CHN','PT CHN','Subkon','VIP','','FALSE','ACTIVE'],
-      ['OTHER','Other Subkon','Subkon','OTHERCO','','FALSE','ACTIVE']
+      ['NUS','PT Nusantara','Contractor','','','FALSE','ACTIVE'],
+      ['DTA','PT Duta','Subkon','NUS','','FALSE','ACTIVE'],
+      ['OTHER','Other Subkon','Subkon','OTHERCO','','FALSE','ACTIVE'],
+      ['NUS','PT Nusantara','Contractor','','','FALSE','ACTIVE'],
+      ['DTA','PT Duta','Subkon','NUS','','FALSE','ACTIVE']
     ]}) })
   };
   vm.createContext(context);
@@ -158,13 +162,15 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
   const end=source.indexOf('function requiresRoleVerification_(',start+1);
   assert.notEqual(start,-1); assert.notEqual(end,-1);
   vm.runInContext(source.slice(start,end),context);
-  for (const role of ['KTT','SPT','SPV']) {
+  for (const role of ['KTT','SPT','SPV','PJO','SPV HSE','Foreman Safety']) {
     const user={roles:[role],companyCode:'CGG',roleVerified:true};
     assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'BCJ',parentCompanyCode:'SLS'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'CHN',parentCompanyCode:'VIP'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'OTHER'},user),false);
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'NUS'},user),true);
+    assert.equal(context.isRecordVisibleToUser_({companyCode:'DTA',parentCompanyCode:'NUS'},user),true);
   }
 });
 test('unverified KTT, SPT, and SPV cannot view cross-company records', () => {
@@ -184,6 +190,13 @@ test('unverified KTT, SPT, and SPV cannot view cross-company records', () => {
   const end=source.indexOf('function requiresRoleVerification_(',start+1);
   vm.runInContext(source.slice(start,end),context);
   assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},{roles:['KTT'],companyCode:'CGG',roleVerified:false}),false);
+});
+test('verified CGG oversight can read redacted company master dynamically', () => {
+  assert.ok(source.includes("const isVerifiedCggOversight = isReadOnlyController_(user)"));
+  assert.ok(source.includes("if (!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight)"));
+  assert.ok(source.includes("emailDomains: '',"));
+  assert.ok(source.includes("autoProvision: false,"));
+  assert.ok(source.includes("return success_(companyData.map(function(company)"));
 });
 test('all verified oversight roles are read-only for operational record writes', () => {
   assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety']"));
@@ -226,7 +239,7 @@ test('Operational tenant ownership remains immutable during PATCH for non-CGG ad
 });
 
 
-test('Oversight scope excludes inactive SLS/VIP roots and their subcontracts', () => {
+test('Oversight scope follows all active Contractor roots and excludes inactive roots', () => {
   const context = {
     getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
       ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
@@ -245,6 +258,8 @@ test('Oversight scope excludes inactive SLS/VIP roots and their subcontracts', (
   assert.equal(Boolean(allowed.BCJ),false);
   assert.equal(Boolean(allowed.VIP),true);
   assert.equal(Boolean(allowed.CHN),true);
+  assert.equal(Boolean(allowed.NUS),true);
+  assert.equal(Boolean(allowed.DTA),true);
 });
 
 test('Inactive company accounts cannot read or create operational records', () => {
