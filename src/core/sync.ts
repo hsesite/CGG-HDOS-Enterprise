@@ -645,11 +645,27 @@ export class HDOSSyncEngine {
             item.action === 'CREATE'
           ) {
             if (endpoint === 'repository') throw new Error('Upload Repository harus melalui alur unggah berkas khusus.');
-            await hseApi.create(
-              endpoint,
-              item.payload,
-              syncToken
-            );
+            const serverRecord = await hseApi.create<Record<string, unknown>>(endpoint, item.payload, syncToken);
+            const localStoreName = getLocalStoreName(item.entity);
+            const serverUpdatedAt = String(serverRecord?.updatedAt || '');
+            if (localStoreName && serverUpdatedAt) {
+              const localRecords = await hdosDB.getAll<Record<string, unknown> & { id: string }>(localStoreName);
+              const localRecord = localRecords.find(record => record.id === getRecordId(item));
+              if (localRecord) await hdosDB.put(localStoreName, { ...localRecord, updatedAt: serverUpdatedAt });
+
+              // A user may edit a new record again before its CREATE reaches the
+              // server. Advance those pending UPDATEs to the server's first version.
+              const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+              for (const queued of persistedQueue) {
+                if (queued.id === item.id || queued.entity !== item.entity || queued.action !== 'UPDATE' ||
+                    queued.status !== 'PENDING' || getRecordId(queued) !== getRecordId(item) ||
+                    !queued.payload || typeof queued.payload !== 'object' || Array.isArray(queued.payload)) continue;
+                const nextPayload = { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt };
+                const nextQueued = { ...queued, payload: nextPayload };
+                await hdosDB.put('queue', nextQueued);
+                this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
+              }
+            }
           } else if (
             item.action === 'UPDATE'
           ) {
