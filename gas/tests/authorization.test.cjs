@@ -1286,8 +1286,8 @@ test('dashboard and repository access follow the registered company master', () 
   assert.match(dashboardSource, /new Set\(store\.contractors\.flatMap/);
   assert.match(repositorySource, /new Set\(store\.contractors\.flatMap/);
   assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
-  assert.doesNotMatch(dashboardSource, /\['SLS',\s*'VIP'\]/);
-  assert.doesNotMatch(repositorySource, /\['SLS',\s*'VIP'\]/);
+  assert.equal(dashboardSource.includes("['SLS', 'VIP']"), false);
+  assert.equal(repositorySource.includes("['SLS', 'VIP']"), false);
 });
 
 test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
