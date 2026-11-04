@@ -66,6 +66,37 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 - [ ] Preview and download actions are written to the audit log.
 - [ ] Confirm that preview-only is a UI access policy, not DRM: any bytes delivered to a browser can technically be copied.
 
+### Incident investigation and approvals
+
+- [ ] Foreman Safety/SPV HSE terverifikasi dapat menyimpan lima tahapan Why, akar penyebab, dan tindakan koreksi selama status INVESTIGATING.
+- [ ] Akun Crew, Contractor PIC, dan Company Admin tidak dapat mengubah hasil investigasi.
+- [ ] KTT/SPT/SPV terverifikasi dapat mereview hanya setelah lima Why, akar penyebab, dan tindakan koreksi lengkap.
+- [ ] Hanya KTT terverifikasi atau Admin CGG yang dapat menutup insiden setelah status REVIEWED_KTT.
+- [ ] Transisi review/closure menyimpan reviewedBy/reviewedAt/closedBy/closedAt dan satu audit event.
+- [ ] Retry setelah respons review/closure hilang bersifat idempotent dan tidak menggandakan audit event.
+
+### Cloud hydration, Repository delete, and data freshness
+
+- [ ] Saat login, queue akun aktif dimuat sebelum snapshot cloud; pending create/update tidak tertimpa snapshot yang lebih lama.
+- [ ] Snapshot Inspection, Hazard, PICA, Incident, Repository, dan formulir terbit hanya memuat tenant yang diizinkan.
+- [ ] Pending DELETE Repository tidak muncul kembali dari snapshot cloud saat offline.
+- [ ] Delete Repository online menghapus file Drive dan metadata pusat; kegagalan server tidak menghapus metadata lokal.
+- [ ] Delete Repository offline masuk antrean, tetap tersembunyi setelah reload, lalu terhapus di Drive setelah koneksi pulih.
+- [ ] Dashboard menunjukkan waktu snapshot pusat dan sumber yang gagal dimuat; status tidak membawa timestamp dari akun sebelumnya.
+- [ ] Kode referensi yang dibuat serentak dari dua perangkat tidak bertabrakan.
+- [ ] Rangkaian CREATE lalu beberapa UPDATE offline pada record yang sama disinkronkan berurutan dengan versi updatedAt server terbaru.
+
+### Backup, audit trail, dashboard, and GIS
+
+- [ ] `createDatabaseBackup()` membuat salinan Spreadsheet penuh di folder backup terproteksi dan menulis satu log SUCCESS.
+- [ ] Kegagalan Drive membuat log FAILED dan tidak dilaporkan sebagai backup berhasil.
+- [ ] `installDailyDatabaseBackupTrigger()` tidak memasang trigger harian ganda.
+- [ ] Restore dari backup dilakukan di Spreadsheet staging dan seluruh sheet/header/record diverifikasi sebelum prosedur pemulihan produksi disetujui.
+- [ ] Audit trail hanya dapat dibaca Admin CGG dan menampilkan paling banyak 500 aktivitas terbaru.
+- [ ] Dashboard trend 7/14/30 hari cocok dengan tanggal aktual record, bukan angka sintetis.
+- [ ] Dashboard company comparison hanya memakai perusahaan dari master perusahaan pusat.
+- [ ] GIS plot hanya memetakan koordinat valid dan tidak menganggap koordinat 0,0 sebagai lokasi kerja.
+
 ### Offline sync and account switching
 
 - [ ] Offline queue items remain bound to their original user ID and company code.
