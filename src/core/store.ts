@@ -796,18 +796,16 @@ export class HDOSCentralStore {
 
   async addInspection(inspection: Omit<Inspection, 'id' | 'code' | 'createdAt'>): Promise<Inspection> {
     this.assertMutationAllowed('inspection');
-    const count = this.inspections.length + 1;
-    const code = `INS-2026-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
+    const code = `INS-${new Date().getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const tenantFields = getCurrentTenantFields();
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
     const createdPicas: PICA[] = [];
 
     for (const failedItem of failedItems) {
-      const picaCount = this.picas.length + createdPicas.length + 1;
-      const picaCode = `PICA-${new Date().getFullYear()}-${String(picaCount).padStart(3, '0')}`;
       const picaId = createEntityId();
+      const picaCode = `PICA-${new Date().getFullYear()}-${picaId.slice(0, 8).toUpperCase()}`;
       const picaCreated: PICA = {
         ...tenantFields, id: picaId, code: picaCode, source: 'INSPECTION',
         sourceRefCode: code,
@@ -851,17 +849,16 @@ export class HDOSCentralStore {
     hazard: Omit<Hazard, 'id' | 'code' | 'createdAt'>
   ): Promise<Hazard> {
     this.assertMutationAllowed('hazard');
-    const count = this.hazards.length + 1;
     const year = new Date().getFullYear();
-    const code = `HAZ-${year}-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
+    const code = `HAZ-${year}-${id.slice(0, 8).toUpperCase()}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const targetDays: Record<Hazard['riskMatrix']['level'], number> = { LOW: 30, MEDIUM: 14, HIGH: 7, CRITICAL: 1 };
     const picaTarget = new Date();
     if (hazard.riskMatrix.level === 'CRITICAL') picaTarget.setTime(picaTarget.getTime() + 86400000);
     else picaTarget.setDate(picaTarget.getDate() + targetDays[hazard.riskMatrix.level]);
     const picaId = createEntityId();
-    const picaCode = `PICA-${year}-${String(this.picas.length + 1).padStart(3, '0')}`;
+    const picaCode = `PICA-${year}-${picaId.slice(0, 8).toUpperCase()}`;
     const tenantFields = getCurrentTenantFields();
     const picaCreated: PICA = {
       ...tenantFields, id: picaId, code: picaCode, source: 'HAZARD', sourceRefCode: code,
@@ -898,9 +895,8 @@ export class HDOSCentralStore {
   }
   async addIncident(incident: Omit<Incident, 'id' | 'code' | 'createdAt'>): Promise<Incident> {
     this.assertMutationAllowed('incident');
-    const count = this.incidents.length + 1;
-    const code = `INC-2026-${String(count).padStart(3, '0')}`;
     const id = createEntityId();
+    const code = `INC-${new Date().getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const newInc: Incident = { ...incident, ...getCurrentTenantFields(), id, code, createdAt: now };
 
