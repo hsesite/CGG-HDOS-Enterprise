@@ -1288,3 +1288,45 @@ test('frontend local tenant visibility follows registered contractor scope, not 
   assert.doesNotMatch(storeSource, /\['SLS',\s*'VIP'\]\.includes\((?:company|parent)\)/);
   assert.match(storeSource, /private getAllowedCompanyCodes\(\): Set<string>/);\n  assert.match(storeSource, /const allowedCompanyCodes = this\.getAllowedCompanyCodes\(\)/);
 });
+
+
+test('contractor compliance report validates reporting period and aggregate counts', () => {
+  const context = {
+    isObject_: value => value !== null && typeof value === 'object' && !Array.isArray(value),
+    httpError_: (status, message) => Object.assign(new Error(message), { status })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function normalizeContractorComplianceReport_(');
+  const end = source.indexOf('function canSubmitContractorComplianceReport_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+  const valid = context.normalizeContractorComplianceReport_({
+    period: '2026-11', manpowerCount: 120, equipmentCount: 35,
+    mcuEligibleCount: 100, mcuFitCount: 96,
+    inductionRequiredCount: 120, inductionCompletedCount: 118,
+    safeHours: 250000, ltiCount: 0, remarks: 'Rekap bulan November'
+  });
+  assert.equal(valid.period, '2026-11');
+  assert.equal(valid.manpowerCount, 120);
+  assert.throws(() => context.normalizeContractorComplianceReport_({
+    period: '2026-13', manpowerCount: 1, equipmentCount: 1,
+    mcuEligibleCount: 1, mcuFitCount: 1, inductionRequiredCount: 1,
+    inductionCompletedCount: 1, safeHours: 1, ltiCount: 0
+  }), error => error.status === 400);
+  assert.throws(() => context.normalizeContractorComplianceReport_({
+    period: '2026-11', manpowerCount: 1, equipmentCount: 1,
+    mcuEligibleCount: 2, mcuFitCount: 3, inductionRequiredCount: 1,
+    inductionCompletedCount: 1, safeHours: 1, ltiCount: 0
+  }), error => error.status === 400);
+});
+
+test('contractor compliance report endpoints enforce submit, review, and view roles', () => {
+  assert.ok(source.includes("if (path === '/api/contractor/reports' && method === 'GET')"));
+  assert.ok(source.includes("if (path === '/api/contractor/reports' && method === 'POST')"));
+  assert.ok(source.includes("const contractorReportMatch = path.match(/^\\/api\\/contractor\\/reports\\/([^/]+)$/)"));
+  assert.ok(source.includes("['Company Admin', 'Contractor', 'Subkon', 'Contractor PIC']"));
+  assert.ok(source.includes("['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0"));
+  assert.ok(source.includes("emailDomains: '',"));
+  assert.ok(source.includes("contractor_reports: ["));
+});
