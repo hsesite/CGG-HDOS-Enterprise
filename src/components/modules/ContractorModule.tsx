@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { ContractorPassport } from '../../core/types';
-import { hseApi, type ContractorComplianceReport, type ContractorComplianceReportInput, type ContractorFleetUnit, type ContractorFleetInput } from '../../core/api';
+import { hseApi, type ContractorComplianceReport, type ContractorComplianceReportInput, type ContractorFleetUnit, type ContractorFleetInput, type ContractorP2HRecord, type ContractorP2HInput } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
 import { canDownloadDocuments } from '../../core/access-policy';
 
@@ -27,6 +27,10 @@ export const ContractorModule: React.FC = () => {
   const [fleetLoading, setFleetLoading] = useState(false);
   const [fleetBusy, setFleetBusy] = useState(false);
   const [fleetMessage, setFleetMessage] = useState('');
+  const [p2hUnitId, setP2hUnitId] = useState('');
+  const [p2hHistory, setP2hHistory] = useState<ContractorP2HRecord[]>([]);
+  const [p2hLoading, setP2hLoading] = useState(false);
+  const [p2hDraft, setP2hDraft] = useState<ContractorP2HInput>({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
   const [fleetDraft, setFleetDraft] = useState({
     unitNumber: '', unitType: '', brand: '', model: '',
     ownershipType: 'OWNED' as ContractorFleetInput['ownershipType'],
@@ -105,6 +109,29 @@ export const ContractorModule: React.FC = () => {
     } finally {
       setFleetLoading(false);
     }
+  };
+
+  const openP2HHistory = async (unit: ContractorFleetUnit) => {
+    if (p2hUnitId === unit.id) { setP2hUnitId(''); setP2hHistory([]); return; }
+    setP2hUnitId(unit.id);
+    setP2hLoading(true);
+    try { setP2hHistory(await hseApi.listContractorP2HHistory(unit.id)); }
+    catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Riwayat P2H tidak dapat dimuat.'); }
+    finally { setP2hLoading(false); }
+  };
+
+  const submitP2HRecord = async (event: React.FormEvent<HTMLFormElement>, unit: ContractorFleetUnit) => {
+    event.preventDefault();
+    setFleetBusy(true);
+    setFleetMessage('');
+    try {
+      await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
+      setFleetMessage('Pemeriksaan P2H berhasil dicatat. Riwayat sebelumnya tetap tersimpan.');
+      setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
+      setP2hHistory(await hseApi.listContractorP2HHistory(unit.id));
+      await refreshFleet();
+    } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal.'); }
+    finally { setFleetBusy(false); }
   };
 
   const submitFleetUnit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -610,7 +637,7 @@ export const ContractorModule: React.FC = () => {
               <input type="date" value={fleetDraft.siaExpiry} onChange={e => setFleetDraft(current => ({...current,siaExpiry:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" />
             </label>
             <div className="flex items-end"><button type="submit" disabled={fleetBusy} className="w-full rounded-lg bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Daftarkan Unit'}</button></div>
-            <p className="text-[10px] text-neutral-500 sm:col-span-2 lg:col-span-4">Status P2H dicatat oleh akun perusahaan dan waktu serta akun pencatat direkam. Bukti inspeksi P2H dan dokumen SIA belum dilampirkan pada register ini.</p>
+            <p className="text-[10px] text-neutral-500 sm:col-span-2 lg:col-span-4">Riwayat P2H disimpan sebagai catatan terpisah yang tidak menimpa pemeriksaan sebelumnya. Dokumen bukti inspeksi dan lampiran SIA masih dalam tahap pengembangan.</p>
           </form>
         )}
         {canSubmitReport && ownCompanyCode !== selectedCompanyCode && (
@@ -647,8 +674,21 @@ export const ContractorModule: React.FC = () => {
                         {expiringSoon && <div className="text-[10px]">Sisa {expiryDays} hari</div>}
                       </td>
                       <td className="px-4 py-3">{unit.status}</td>
-                      <td className="px-4 py-3">{editable && <button type="button" disabled={fleetBusy} onClick={() => void updateFleetUnit(unit,{status:unit.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'})} className="rounded bg-white/5 px-2 py-1 text-[10px] text-neutral-300">{unit.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}</button>}</td>
+                      <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><button type="button" disabled={p2hLoading} onClick={() => void openP2HHistory(unit)} className="rounded bg-sky-400/10 px-2 py-1 text-[10px] text-sky-200">{p2hUnitId === unit.id ? 'Tutup Riwayat' : 'Riwayat P2H'}</button>{editable && <button type="button" disabled={fleetBusy} onClick={() => void updateFleetUnit(unit,{status:unit.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'})} className="rounded bg-white/5 px-2 py-1 text-[10px] text-neutral-300">{unit.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}</button>}</div></td>
                     </tr>
+                    {p2hUnitId === unit.id && <tr><td colSpan={7} className="bg-neutral-950/70 px-4 py-4">
+                      <div className="mb-3 flex items-center justify-between"><div className="text-xs font-semibold text-white">Riwayat Pemeriksaan P2H · {unit.unitNumber}</div><div className="text-[10px] text-neutral-500">{p2hHistory.length} catatan tersimpan</div></div>
+                      {editable && <form onSubmit={event => void submitP2HRecord(event, unit)} className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-white/10 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <label className="space-y-1 text-[10px] text-neutral-400">Tanggal pemeriksaan *<input required type="date" value={p2hDraft.inspectionDate} onChange={e => setP2hDraft(current => ({...current,inspectionDate:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
+                        <label className="space-y-1 text-[10px] text-neutral-400">Hasil P2H *<select value={p2hDraft.status} onChange={e => setP2hDraft(current => ({...current,status:e.target.value as ContractorP2HInput['status']}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white"><option value="READY">Laik operasi</option><option value="NOT_READY">Tidak laik operasi</option></select></label>
+                        <label className="space-y-1 text-[10px] text-neutral-400">Hour meter<input type="number" min="0" step="0.1" value={p2hDraft.hourMeter} onChange={e => setP2hDraft(current => ({...current,hourMeter:e.target.value === '' ? '' : Number(e.target.value)}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
+                        <label className="space-y-1 text-[10px] text-neutral-400">Nama operator *<input required maxLength={120} value={p2hDraft.operatorName} onChange={e => setP2hDraft(current => ({...current,operatorName:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
+                        <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2">Temuan pemeriksaan<textarea maxLength={2000} rows={2} value={p2hDraft.findings} onChange={e => setP2hDraft(current => ({...current,findings:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
+                        <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2">Tindakan koreksi / pengendalian {p2hDraft.status === 'NOT_READY' ? '*' : ''}<textarea maxLength={2000} required={p2hDraft.status === 'NOT_READY'} rows={2} value={p2hDraft.correctiveAction} onChange={e => setP2hDraft(current => ({...current,correctiveAction:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
+                        <div className="flex items-end sm:col-span-2 lg:col-span-4"><button type="submit" disabled={fleetBusy} className="rounded bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Simpan Catatan P2H'}</button></div>
+                      </form>}
+                      {p2hLoading ? <div className="text-xs text-neutral-400">Memuat riwayat P2H...</div> : p2hHistory.length === 0 ? <div className="text-xs text-neutral-500">Belum terdapat catatan riwayat P2H untuk unit ini.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-[10px]"><thead className="text-neutral-500"><tr><th className="py-2 pr-3">Tanggal</th><th className="py-2 pr-3">Hasil</th><th className="py-2 pr-3">HM</th><th className="py-2 pr-3">Operator</th><th className="py-2 pr-3">Temuan / Tindakan</th><th className="py-2">Pemeriksa</th></tr></thead><tbody className="divide-y divide-white/5">{p2hHistory.map(record => <tr key={record.id} className="text-neutral-300"><td className="py-2 pr-3 whitespace-nowrap">{record.inspectionDate}</td><td className={record.status === 'READY' ? 'py-2 pr-3 text-emerald-300' : 'py-2 pr-3 text-red-300'}>{record.status === 'READY' ? 'Laik operasi' : 'Tidak laik operasi'}</td><td className="py-2 pr-3">{record.hourMeter === '' || record.hourMeter === undefined ? '—' : record.hourMeter}</td><td className="py-2 pr-3">{record.operatorName}</td><td className="py-2 pr-3"><div>{record.findings || 'Tidak ada temuan dicatat'}</div>{record.correctiveAction && <div className="mt-1 text-amber-200">Tindakan: {record.correctiveAction}</div>}</td><td className="py-2">{record.checkedBy || '—'}</td></tr>)}</tbody></table></div>}
+                    </td></tr>}
                   );
                 })}
               </tbody>
