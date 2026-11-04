@@ -628,7 +628,9 @@ export const ContractorModule: React.FC = () => {
               <tbody className="divide-y divide-white/5">
                 {selectedCompanyFleet.map(unit => {
                   const expiry = unit.siaExpiry ? new Date(unit.siaExpiry.slice(0,10) + 'T00:00:00') : null;
-                  const expired = expiry !== null && !Number.isNaN(expiry.getTime()) && expiry < today;
+                  const expiryDays = expiry !== null && !Number.isNaN(expiry.getTime()) ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000) : null;
+                  const expired = expiryDays !== null && expiryDays < 0;
+                  const expiringSoon = expiryDays !== null && expiryDays >= 0 && expiryDays <= 30;
                   const editable = canSubmitReport && unit.companyCode.toUpperCase() === ownCompanyCode;
                   return (
                     <tr key={unit.id} className="text-neutral-300">
@@ -639,9 +641,10 @@ export const ContractorModule: React.FC = () => {
                         {editable ? <select value={unit.p2hStatus} disabled={fleetBusy} onChange={e => void updateFleetUnit(unit,{p2hStatus:e.target.value as ContractorFleetInput['p2hStatus']})} className="rounded border border-white/10 bg-neutral-950 px-2 py-1 text-xs text-white"><option value="NOT_CHECKED">Belum diperiksa</option><option value="READY">Siap operasi</option><option value="NOT_READY">Tidak laik operasi</option></select> : <span className={unit.p2hStatus === 'READY' ? 'text-emerald-300' : unit.p2hStatus === 'NOT_READY' ? 'text-red-300' : 'text-amber-300'}>{unit.p2hStatus === 'READY' ? 'Siap operasi' : unit.p2hStatus === 'NOT_READY' ? 'Tidak laik operasi' : 'Belum diperiksa'}</span>}
                         {unit.p2hLastCheckedAt && <div className="mt-1 text-[10px] text-neutral-500">{new Date(unit.p2hLastCheckedAt).toLocaleDateString('id-ID')} · {unit.p2hCheckedBy || 'Akun tidak tercatat'}</div>}
                       </td>
-                      <td className={`px-4 py-3 ${expired ? 'text-red-300' : 'text-neutral-300'}`}>
+                      <td className={`px-4 py-3 ${expired ? 'text-red-300' : expiringSoon ? 'text-amber-300' : 'text-neutral-300'}`}>
                         {editable ? <input type="date" defaultValue={unit.siaExpiry || ''} disabled={fleetBusy} onBlur={e => { if (e.target.value !== unit.siaExpiry) void updateFleetUnit(unit,{siaExpiry:e.target.value}); }} className="rounded border border-white/10 bg-neutral-950 px-2 py-1 text-xs text-white" /> : (unit.siaExpiry || 'Belum dicatat')}
-                        {expired && <div className="text-[10px]">Kedaluwarsa</div>}
+                        {expired && <div className="text-[10px]">Kedaluwarsa {Math.abs(expiryDays || 0)} hari lalu</div>}
+                        {expiringSoon && <div className="text-[10px]">Sisa {expiryDays} hari</div>}
                       </td>
                       <td className="px-4 py-3">{unit.status}</td>
                       <td className="px-4 py-3">{editable && <button type="button" disabled={fleetBusy} onClick={() => void updateFleetUnit(unit,{status:unit.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'})} className="rounded bg-white/5 px-2 py-1 text-[10px] text-neutral-300">{unit.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}</button>}</td>
