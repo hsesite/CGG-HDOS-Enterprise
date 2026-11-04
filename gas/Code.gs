@@ -45,7 +45,8 @@ const CONFIG = {
     'incidents',
     'audit_logs',
     'backup_logs',
-    'contractor_reports'
+    'contractor_reports',
+    'contractor_fleet'
   ],
 
   SESSION_TTL:
@@ -176,6 +177,11 @@ const ENTITY_SCHEMAS = {
   contractor_reports: [
     'id', 'code', 'period', 'companyCode', 'parentCompanyCode',
     'status', 'createdAt', 'updatedAt', 'payload'
+  ],
+  contractor_fleet: [
+    'id', 'code', 'companyCode', 'parentCompanyCode', 'unitNumber',
+    'unitType', 'brand', 'model', 'ownershipType', 'p2hStatus',
+    'siaExpiry', 'status', 'createdAt', 'updatedAt', 'payload'
   ]
 };
 
@@ -256,7 +262,8 @@ function setupDataSheets_(
     'incidents',
     'audit_logs',
     'backup_logs',
-    'contractor_reports'
+    'contractor_reports',
+    'contractor_fleet'
   ];
 
   names.forEach(
