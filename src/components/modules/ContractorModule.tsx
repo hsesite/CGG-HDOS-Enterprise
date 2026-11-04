@@ -13,10 +13,32 @@ import {
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { ContractorPassport } from '../../core/types';
+import { hseApi, type ContractorComplianceReport, type ContractorComplianceReportInput } from '../../core/api';
+import { getCurrentUser } from '../../core/auth-utils';
 
 export const ContractorModule: React.FC = () => {
   const store = useHDOSStore();
+  const sessionUser = getCurrentUser();
   const [selectedContractor, setSelectedContractor] = useState<ContractorPassport | undefined>(store.contractors[0]);
+  const [complianceReports, setComplianceReports] = useState<ContractorComplianceReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
+  const [editingReportId, setEditingReportId] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+  const currentPeriod = new Date().toISOString().slice(0, 7);
+  const [reportDraft, setReportDraft] = useState({
+    period: currentPeriod, manpowerCount: '', equipmentCount: '',
+    mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '',
+    inductionCompletedCount: '', safeHours: '', ltiCount: '0', remarks: ''
+  });
+  const sessionRoles = sessionUser?.roles || [];
+  const ownCompanyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
+  const canSubmitReport = Boolean(sessionUser && ownCompanyCode && ownCompanyCode !== 'CGG' &&
+    sessionRoles.some(role => ['Company Admin', 'Contractor', 'Subkon', 'Contractor PIC'].includes(role)));
+  const canReviewReport = Boolean(sessionUser?.roleVerified === true &&
+    (sessionRoles.includes('Admin CGG') || sessionRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role))));
+
   const selectedCompanyCode = String(selectedContractor?.code || '').trim().toUpperCase();
   const selectedCompanyPicas = store.picas.filter((pica) => {
     const record = pica as unknown as Record<string, unknown>;
@@ -39,6 +61,101 @@ export const ContractorModule: React.FC = () => {
         || store.contractors[0];
     });
   }, [store.contractors]);
+
+  useEffect(() => {
+    let active = true;
+    setReportsLoading(true);
+    hseApi.listContractorComplianceReports()
+      .then(reports => { if (active) setComplianceReports(reports); })
+      .catch(error => { if (active) setReportMessage(error instanceof Error ? error.message : 'Laporan kepatuhan tidak dapat dimuat.'); })
+      .finally(() => { if (active) setReportsLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const refreshComplianceReports = async () => {
+    setReportsLoading(true);
+    try {
+      setComplianceReports(await hseApi.listContractorComplianceReports());
+    } catch (error) {
+      setReportMessage(error instanceof Error ? error.message : 'Laporan kepatuhan tidak dapat dimuat.');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const submitComplianceReport = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setReportBusy(true);
+    setReportMessage('');
+    const payload: ContractorComplianceReportInput = {
+      period: reportDraft.period,
+      manpowerCount: Number(reportDraft.manpowerCount),
+      equipmentCount: Number(reportDraft.equipmentCount),
+      mcuEligibleCount: Number(reportDraft.mcuEligibleCount),
+      mcuFitCount: Number(reportDraft.mcuFitCount),
+      inductionRequiredCount: Number(reportDraft.inductionRequiredCount),
+      inductionCompletedCount: Number(reportDraft.inductionCompletedCount),
+      safeHours: Number(reportDraft.safeHours),
+      ltiCount: Number(reportDraft.ltiCount),
+      remarks: reportDraft.remarks.trim()
+    };
+    try {
+      if (editingReportId) await hseApi.updateContractorComplianceReport(editingReportId, payload);
+      else await hseApi.submitContractorComplianceReport(payload);
+      setEditingReportId('');
+      setReportDraft({ period: currentPeriod, manpowerCount: '', equipmentCount: '', mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '', inductionCompletedCount: '', safeHours: '', ltiCount: '0', remarks: '' });
+      setReportMessage('Laporan berhasil dikirim dan menunggu verifikasi HSE.');
+      await refreshComplianceReports();
+    } catch (error) {
+      setReportMessage(error instanceof Error ? error.message : 'Laporan gagal disimpan.');
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
+  const reviewComplianceReport = async (report: ContractorComplianceReport, action: 'VERIFY' | 'RETURN') => {
+    if (action === 'RETURN' && !reviewNotes.trim()) {
+      setReportMessage('Alasan pengembalian wajib diisi.');
+      return;
+    }
+    setReportBusy(true);
+    setReportMessage('');
+    try {
+      await hseApi.updateContractorComplianceReport(report.id, { action, reviewNotes: reviewNotes.trim() });
+      setReviewNotes('');
+      setReportMessage(action === 'VERIFY' ? 'Laporan diverifikasi.' : 'Laporan dikembalikan kepada perusahaan untuk diperbaiki.');
+      await refreshComplianceReports();
+    } catch (error) {
+      setReportMessage(error instanceof Error ? error.message : 'Review laporan gagal disimpan.');
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
+  const startReportCorrection = (report: ContractorComplianceReport) => {
+    setEditingReportId(report.id);
+    setReportDraft({
+      period: report.period,
+      manpowerCount: String(report.manpowerCount),
+      equipmentCount: String(report.equipmentCount),
+      mcuEligibleCount: String(report.mcuEligibleCount),
+      mcuFitCount: String(report.mcuFitCount),
+      inductionRequiredCount: String(report.inductionRequiredCount),
+      inductionCompletedCount: String(report.inductionCompletedCount),
+      safeHours: String(report.safeHours),
+      ltiCount: String(report.ltiCount),
+      remarks: report.remarks || ''
+    });
+    setReportMessage('Perbaiki data sesuai catatan HSE, lalu kirim ulang laporan.');
+  };
+
+  const selectedVerifiedReport = complianceReports
+    .filter(report => report.companyCode.toUpperCase() === selectedCompanyCode && report.status === 'VERIFIED')
+    .sort((a, b) => b.period.localeCompare(a.period))[0];
+  const selectedCompanyReports = complianceReports
+    .filter(report => report.companyCode.toUpperCase() === selectedCompanyCode ||
+      (report.parentCompanyCode || '').toUpperCase() === selectedCompanyCode)
+    .sort((a, b) => b.period.localeCompare(a.period));
 
   const activeCompanyCount = store.contractors.filter(company => company.status === 'ACTIVE').length;
   const passportExpiry = selectedContractor?.safetyPassportExpiry
