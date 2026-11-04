@@ -152,9 +152,7 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
       ['CHN','PT CHN','Subkon','VIP','','FALSE','ACTIVE'],
       ['NUS','PT Nusantara','Contractor','','','FALSE','ACTIVE'],
       ['DTA','PT Duta','Subkon','NUS','','FALSE','ACTIVE'],
-      ['OTHER','Other Subkon','Subkon','OTHERCO','','FALSE','ACTIVE'],
-      ['NUS','PT Nusantara','Contractor','','','FALSE','ACTIVE'],
-      ['DTA','PT Duta','Subkon','NUS','','FALSE','ACTIVE']
+      ['OTHER','Other Subkon','Subkon','OTHERCO','','FALSE','ACTIVE']
     ]}) })
   };
   vm.createContext(context);
