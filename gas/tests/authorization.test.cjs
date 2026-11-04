@@ -1352,3 +1352,41 @@ test('Contractor Passport master read is limited to own company hierarchy and re
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("autoProvision: false,"));
 });
+
+
+test('contractor fleet register schema, API, tenant ownership, and input validation are defined', () => {
+  assert.ok(source.includes("'contractor_fleet'"));
+  assert.ok(source.includes("function createContractorFleetUnit_(payload, user)"));
+  assert.ok(source.includes("function updateContractorFleetUnit_(id, payload, user)"));
+  assert.ok(source.includes("function normalizeContractorFleetInput_(payload, existing)"));
+  assert.ok(source.includes("parentCompanyCode: company.role === 'Subkon' ? String(company.parentCompanyCode || '').trim().toUpperCase() : ''"));
+  assert.ok(source.includes("ownCompany !== String(existing.companyCode || '').trim().toUpperCase()"));
+  assert.ok(source.includes("path === '/api/contractor/fleet' && method === 'GET'"));
+
+  const context = {
+    isObject_: value => value && typeof value === 'object' && !Array.isArray(value),
+    httpError_: (status, message) => Object.assign(new Error(message), { status })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function normalizeContractorFleetInput_(');
+  const end = source.indexOf('function createContractorFleetUnit_(', start + 1);
+  assert.ok(start >= 0 && end > start);
+  vm.runInContext(source.slice(start, end), context);
+
+  const normalized = context.normalizeContractorFleetInput_({
+    unitNumber: 'DT-001',
+    unitType: 'Dump Truck',
+    brand: 'XCMG',
+    model: 'XDE400',
+    ownershipType: 'LEASED',
+    p2hStatus: 'READY',
+    siaExpiry: '2027-05-10'
+  });
+  assert.equal(normalized.unitNumber, 'DT-001');
+  assert.equal(normalized.ownershipType, 'LEASED');
+  assert.equal(normalized.p2hStatus, 'READY');
+  assert.throws(() => context.normalizeContractorFleetInput_({
+    unitNumber: 'DT-002', unitType: 'Dump Truck', ownershipType: 'UNKNOWN',
+    p2hStatus: 'READY', siaExpiry: ''
+  }), error => error.status === 400);
+});
