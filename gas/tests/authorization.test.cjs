@@ -440,22 +440,28 @@ test('PICA can be submitted by its assigned PIC and closed by one verified HSE v
   const context = {
     error_: (status, message) => ({status, message}),
     Utilities: { formatDate: () => '2026-11-01' },
-    Session: { getScriptTimeZone: () => 'Asia/Jakarta' }
+    Session: { getScriptTimeZone: () => 'Asia/Jakarta' },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: () => 'tenant-folder' }) },
+    DriveApp: { getFileById: () => ({
+      getUrl: () => 'https://drive.example/evidence.jpg',
+      getMimeType: () => 'image/jpeg',
+      getParents: () => ({ hasNext: () => true, next: () => ({ getId: () => 'tenant-folder' }) })
+    }) }
   };
   vm.createContext(context);
   vm.runInContext(extractFunction('enforcePicaClosureRules_', 'createSessionResponse_'), context);
 
-  const open = {status:'PROGRESS',assignedToEmail:'pic@example.com',completionDate:''};
-  const submit = {status:'WAITING_HSE',correctiveAction:'Guardrail repaired',evidencePhotoUrl:'https://drive.example/evidence.jpg'};
+  const open = {status:'PROGRESS',assignedToEmail:'pic@example.com',companyCode:'CGG',completionDate:''};
+  const submit = {status:'WAITING_HSE',correctiveAction:'Guardrail repaired',evidencePhotoUrl:'https://drive.example/evidence.jpg',evidencePhotoFileId:'photo-1'};
   assert.equal(context.enforcePicaClosureRules_(open,submit,{roles:['Employee'],email:'pic@example.com',roleVerified:false}),null);
   assert.ok(submit.submittedAt);
   assert.ok(submit.closeRequestedAt);
 
-  const noPhoto = {status:'WAITING_HSE',correctiveAction:'Done'};
+  const noPhoto = {status:'WAITING_HSE',correctiveAction:'Done',evidencePhotoUrl:'https://drive.example/evidence.jpg'};
   assert.equal(context.enforcePicaClosureRules_(open,noPhoto,{roles:['Employee'],email:'pic@example.com'}).status,400);
-  assert.equal(context.enforcePicaClosureRules_(open,{status:'WAITING_HSE',correctiveAction:'Done',evidencePhotoUrl:'x'},{roles:['Employee'],email:'other@example.com'}).status,403);
+  assert.equal(context.enforcePicaClosureRules_(open,{status:'WAITING_HSE',correctiveAction:'Done',evidencePhotoUrl:'x',evidencePhotoFileId:'photo-1'},{roles:['Employee'],email:'other@example.com'}).status,403);
 
-  const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',completionDate:''};
+  const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',companyCode:'CGG',completionDate:''};
   const close = {status:'CLOSED'};
   assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
   assert.equal(close.hseValidatedBy,'HSE Foreman');
