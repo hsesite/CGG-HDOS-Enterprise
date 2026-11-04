@@ -1286,6 +1286,7 @@ test('dashboard and repository access follow the registered company master', () 
   assert.match(dashboardSource, /store\.contractors\.some\(company => company\.code\.toUpperCase\(\) === companyCode/);
   assert.match(dashboardSource, /new Set\(store\.contractors\.flatMap/);
   assert.ok(dashboardSource.includes('recordParent === companyCode'));
+  assert.ok(dashboardSource.includes("const isOversight = companyCode === 'CGG'"));
   assert.match(repositorySource, /new Set\(store\.contractors\.flatMap/);
   assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'/);
   assert.equal(dashboardSource.includes("['SLS', 'VIP']"), false);
@@ -1294,6 +1295,8 @@ test('dashboard and repository access follow the registered company master', () 
 
 test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  assert.match(storeSource, /if \(own === 'CGG' && user\.roleVerified === true && oversightRoles\.some/);
+  assert.match(storeSource, /String\(currentUser\.companyCode \|\| ''\)\.trim\(\)\.toUpperCase\(\) === 'CGG'/);
   assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
   assert.match(storeSource, /'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'/);
   assert.match(storeSource, /allowedCompanyCodes\.has\(company\)/);
