@@ -1944,6 +1944,12 @@ function normalizeContractorFleetInput_(payload, existing) {
   if (['OWNED', 'RENTAL', 'LEASED'].indexOf(ownershipType) === -1) throw httpError_(400, 'Status kepemilikan unit tidak valid.');
   if (['READY', 'NOT_READY', 'NOT_CHECKED'].indexOf(p2hStatus) === -1) throw httpError_(400, 'Status P2H tidak valid.');
   if (siaExpiry && !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(siaExpiry)) throw httpError_(400, 'Tanggal SIA harus menggunakan format YYYY-MM-DD.');
+  if (siaExpiry) {
+    const expiryDate = new Date(siaExpiry + 'T00:00:00Z');
+    if (Number.isNaN(expiryDate.getTime()) || expiryDate.toISOString().slice(0, 10) !== siaExpiry) {
+      throw httpError_(400, 'Tanggal SIA bukan tanggal kalender yang valid.');
+    }
+  }
   if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) throw httpError_(400, 'Status unit tidak valid.');
 
   return {
