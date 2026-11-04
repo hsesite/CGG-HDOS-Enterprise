@@ -182,7 +182,7 @@ const ENTITY_SCHEMAS = {
   contractor_fleet: [
     'id', 'code', 'companyCode', 'parentCompanyCode', 'unitNumber',
     'unitType', 'brand', 'model', 'ownershipType', 'p2hStatus',
-    'p2hLastCheckedAt', 'p2hCheckedBy', 'siaExpiry', 'status',
+    'p2hLastCheckedAt', 'p2hCheckedBy', 'siaExpiry', 'siaFileId', 'siaFileName', 'siaMimeType', 'status',
     'createdAt', 'updatedAt', 'payload'
   ],
   contractor_p2h_history: [
@@ -916,6 +916,10 @@ function handleRoute_(
   if (path === '/api/contractor/fleet' && method === 'POST') {
     return createContractorFleetUnit_(params.payload, user);
   }
+  const contractorSiaMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)\/sia$/);
+  if (contractorSiaMatch && method === 'POST') return uploadContractorSia_(decodeURIComponent(contractorSiaMatch[1]), params.payload, user);
+  if (contractorSiaMatch && method === 'GET') return previewContractorSia_(decodeURIComponent(contractorSiaMatch[1]), user);
+
   const contractorP2hMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)\/p2h$/);
   if (contractorP2hMatch && method === 'GET') {
     if (!canViewContractorComplianceReports_(user)) return error_(403, 'Akun ini tidak memiliki akses ke riwayat P2H.');
@@ -1974,6 +1978,11 @@ function normalizeContractorFleetInput_(payload, existing) {
   const p2hStatus = String(input.p2hStatus !== undefined ? input.p2hStatus : current.p2hStatus || 'NOT_CHECKED').trim().toUpperCase();
   const siaExpiry = String(input.siaExpiry !== undefined ? input.siaExpiry : current.siaExpiry || '').trim();
   const status = String(input.status !== undefined ? input.status : current.status || 'ACTIVE').trim().toUpperCase();
+  const siaFileId = String(input.siaFileId !== undefined ? input.siaFileId : current.siaFileId || '').trim();
+  const siaFileName = String(input.siaFileName !== undefined ? input.siaFileName : current.siaFileName || '').trim();
+  const siaMimeType = String(input.siaMimeType !== undefined ? input.siaMimeType : current.siaMimeType || '').trim().toLowerCase();
+  if (siaFileId && !/^[-_a-zA-Z0-9]{10,}$/.test(siaFileId)) throw httpError_(400, 'Referensi dokumen SIA tidak valid.');
+  if (siaFileId && ['application/pdf', 'image/jpeg', 'image/png'].indexOf(siaMimeType) < 0) throw httpError_(400, 'Dokumen SIA harus PDF, JPG, atau PNG.');
 
   if (unitNumber.length < 2 || unitNumber.length > 50) throw httpError_(400, 'Nomor lambung/unit wajib 2–50 karakter.');
   if (unitType.length < 2 || unitType.length > 80) throw httpError_(400, 'Jenis unit wajib 2–80 karakter.');
@@ -1997,6 +2006,9 @@ function normalizeContractorFleetInput_(payload, existing) {
     ownershipType: ownershipType,
     p2hStatus: p2hStatus,
     siaExpiry: siaExpiry,
+    siaFileId: siaFileId,
+    siaFileName: siaFileName,
+    siaMimeType: siaMimeType,
     status: status
   };
 }
@@ -2084,6 +2096,67 @@ function updateContractorFleetUnit_(id, payload, user) {
   return success_(updated);
 }
 
+
+function contractorFleetUnitForOwner_(fleetId, user) {
+  const unit = readOne_('contractor_fleet', fleetId);
+  if (!unit) throw httpError_(404, 'Unit fleet tidak ditemukan.');
+  const companyCode = String(user.companyCode || '').trim().toUpperCase();
+  if (!isRecordVisibleToUser_(unit, user) || companyCode !== String(unit.companyCode || '').trim().toUpperCase()) throw httpError_(403, 'Dokumen hanya dapat dikelola oleh perusahaan pemilik unit.');
+  return unit;
+}
+
+function uploadContractorSia_(fleetId, payload, user) {
+  if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC perusahaan pemilik unit yang dapat mengunggah SIA.');
+  let unit;
+  try { unit = contractorFleetUnitForOwner_(fleetId, user); } catch (error) { return error_(error.status || 400, error.message); }
+  const input = isObject_(payload) ? payload : {};
+  const mimeType = String(input.mimeType || '').toLowerCase();
+  if (['application/pdf', 'image/jpeg', 'image/png'].indexOf(mimeType) < 0) return error_(400, 'Dokumen SIA harus PDF, JPG, atau PNG.');
+  const base64 = String(input.fileBase64 || '');
+  if (!base64 || base64.length > 14000000) return error_(400, 'Dokumen SIA wajib diisi dan maksimal 10 MB.');
+  let bytes;
+  try { bytes = Utilities.base64Decode(base64); } catch (error) { return error_(400, 'Isi berkas SIA tidak valid.'); }
+  if (!bytes.length || bytes.length > 10 * 1024 * 1024) return error_(400, 'Ukuran dokumen SIA maksimal 10 MB.');
+  const sig = bytes.slice(0, 8).map(function(value) { return (Number(value) + 256) % 256; });
+  const valid = mimeType === 'application/pdf' ? sig[0] === 0x25 && sig[1] === 0x50 && sig[2] === 0x44 && sig[3] === 0x46
+    : mimeType === 'image/jpeg' ? sig[0] === 0xFF && sig[1] === 0xD8 && sig[2] === 0xFF
+    : sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4E && sig[3] === 0x47;
+  if (!valid) return error_(400, 'Isi dokumen tidak sesuai dengan tipe berkas.');
+  const companyCode = String(unit.companyCode || '').trim().toUpperCase();
+  const props = PropertiesService.getScriptProperties();
+  const folderKey = 'HDOS_SIA_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
+  let folderId = props.getProperty(folderKey);
+  const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS SIA - ' + companyCode);
+  if (!folderId) props.setProperty(folderKey, folder.getId());
+  const safeName = String(input.fileName || 'SIA').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+  const file = folder.createFile(Utilities.newBlob(bytes, mimeType, safeName));
+  const sheet = getSheet_('contractor_fleet');
+  const lock = LockService.getScriptLock();
+  let updated;
+  lock.waitLock(10000);
+  try {
+    const row = findRecordRow_(sheet, fleetId);
+    if (!row) { file.setTrashed(true); return error_(404, 'Unit fleet tidak ditemukan.'); }
+    const latest = parseRow_(sheet, row);
+    if (String(latest.companyCode || '').trim().toUpperCase() !== companyCode) { file.setTrashed(true); return error_(403, 'Kepemilikan unit berubah. Unggah dokumen dibatalkan.'); }
+    const oldFileId = String(latest.siaFileId || '');
+    updated = Object.assign({}, latest, { siaFileId: file.getId(), siaFileName: safeName, siaMimeType: mimeType, updatedAt: new Date().toISOString() });
+    sheet.getRange(row, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
+    if (oldFileId && oldFileId !== file.getId()) { try { DriveApp.getFileById(oldFileId).setTrashed(true); } catch (cleanupError) { logAudit_(user, 'CONTRACTOR_SIA_OLD_FILE_CLEANUP_FAILED', 'contractor_fleet', fleetId, { oldFileId: oldFileId }); } }
+  } finally { lock.releaseLock(); }
+  logAudit_(user, 'CONTRACTOR_SIA_UPLOADED', 'contractor_fleet', fleetId, { companyCode: companyCode, fileName: safeName, mimeType: mimeType, size: bytes.length });
+  return success_({ id: updated.id, siaFileName: updated.siaFileName, siaMimeType: updated.siaMimeType, updatedAt: updated.updatedAt });
+}
+
+function previewContractorSia_(fleetId, user) {
+  let unit;
+  try { unit = contractorFleetUnitForOwner_(fleetId, user); } catch (error) { return error_(error.status || 400, error.message); }
+  if (!unit.siaFileId) return error_(404, 'Dokumen SIA belum dilampirkan.');
+  const file = DriveApp.getFileById(String(unit.siaFileId));
+  const blob = file.getBlob();
+  logAudit_(user, 'CONTRACTOR_SIA_PREVIEWED', 'contractor_fleet', fleetId, { fileName: unit.siaFileName || file.getName() });
+  return success_({ fileName: unit.siaFileName || file.getName(), mimeType: unit.siaMimeType || blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
+}
 
 function createContractorP2HRecord_(fleetId, payload, user) {
   if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mencatat P2H.');
