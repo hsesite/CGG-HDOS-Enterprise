@@ -1244,3 +1244,19 @@ test('successful sync advances server version for later queued updates of the sa
   assert.match(syncSource, /nextPayload = \{[\s\S]{0,160}updatedAt: serverUpdatedAt/);
   assert.match(syncSource, /hdosDB\.put\(localStoreName, \{ \.\.\.localRecord, updatedAt: serverUpdatedAt \}\)/);
 });
+
+
+test('operational reference codes are year-scoped and unique across client devices', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  assert.match(storeSource, /INS-\$\{new Date\(\)\.getFullYear\(\)\}-\$\{id\.slice\(0, 8\)\.toUpperCase\(\)\}/);
+  assert.match(storeSource, /HAZ-\$\{year\}-\$\{id\.slice\(0, 8\)\.toUpperCase\(\)\}/);
+  assert.match(storeSource, /INC-\$\{new Date\(\)\.getFullYear\(\)\}-\$\{id\.slice\(0, 8\)\.toUpperCase\(\)\}/);
+});
+
+test('a queued update after CREATE inherits the server-created updatedAt version', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  assert.match(syncSource, /hseApi\.create<Record<string, unknown>>/);
+  assert.match(syncSource, /A user may edit a new record again before its CREATE reaches the server/);
+  assert.match(syncSource, /queued\.action !== 'UPDATE'/);
+  assert.match(syncSource, /updatedAt: serverUpdatedAt/);
+});
