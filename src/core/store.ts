@@ -206,7 +206,7 @@ export class HDOSCentralStore {
 
       // Verified CGG oversight roles need visibility across the registered
       // contractor and subcontractor master, not a hard-coded company list.
-      const oversightRoles = ['KTT', 'SPT', 'SPV', 'SPV HSE', 'Foreman Safety', 'PJO'];
+      const oversightRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'];
       if (currentUser.roleVerified === true && oversightRoles.some(role => currentUser.roles.includes(role))) {
         return true;
       }
