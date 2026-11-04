@@ -1284,6 +1284,7 @@ test('dashboard and repository access follow the registered company master', () 
   const repositorySource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
   assert.match(dashboardSource, /store\.contractors\.some\(company => company\.code\.toUpperCase\(\) === companyCode/);
   assert.match(dashboardSource, /new Set\(store\.contractors\.flatMap/);
+  assert.ok(dashboardSource.includes('recordParent === companyCode'));
   assert.match(repositorySource, /new Set\(store\.contractors\.flatMap/);
   assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
   assert.equal(dashboardSource.includes("['SLS', 'VIP']"), false);
