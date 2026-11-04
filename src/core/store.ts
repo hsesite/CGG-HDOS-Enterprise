@@ -944,7 +944,9 @@ export class HDOSCentralStore {
       if (Object.keys(updates).some(key => !allowedKeys.includes(key))) throw new Error('Field yang dikirim tidak diizinkan untuk pembaruan investigasi.');
     }
 
-    const updated: Incident = { ...current, ...updates };
+    const persistedIncidents = await hdosDB.getAll<Incident>('incident');
+    const persistedVersion = persistedIncidents.find(incident => incident.id === id)?.updatedAt;
+    const updated: Incident = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt };
     await hdosSync.enqueueBatch(
       [{ storeName: 'incident', item: updated }],
       [{ action: 'UPDATE', entity: 'incident', payload: updated, note: `Pembaruan investigasi insiden ${updated.code}` }]
