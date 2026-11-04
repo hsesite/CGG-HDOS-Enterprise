@@ -146,3 +146,4 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 
 - [x] Upload foto operasional dan pencatatan P2H tidak lagi mengembalikan kegagalan hanya karena audit log gagal setelah data/file utama tersimpan; hal ini mencegah retry klien membuat file foto atau catatan P2H duplikat pada kegagalan audit saja.
 - [x] Retry manual hanya mengaktifkan ulang item milik akun/perusahaan yang sedang aktif dan memiliki endpoint cloud; item entity yang belum didukung tetap ditahan sebagai konflik konfigurasi, bukan dikirim berulang.
+- [x] `triggerSync()` memeriksa ulang identitas pengguna, token sesi, dan scope antrean setelah inisialisasi IndexedDB asinkron; sinkronisasi dibatalkan jika akun berubah selama pembacaan antrean.
