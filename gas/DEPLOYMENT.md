@@ -21,10 +21,20 @@ Deployment GitHub Pages tidak otomatis menerapkan perubahan pada backend GAS. Ik
 1. Pilih fungsi `setup` di editor Apps Script.
 2. Jalankan satu kali menggunakan akun pengelola database.
 3. Berikan izin Spreadsheet dan Google Drive yang diminta.
-4. Pastikan sheet `users`, `companies`, `locations`, `forms`, `inspections`, `hazards`, `picas`, `incidents`, dan `audit_logs` terbentuk.
+4. Pastikan sheet `users`, `companies`, `locations`, `forms`, `inspections`, `hazards`, `picas`, `incidents`, `audit_logs`, dan `backup_logs` terbentuk.
 5. Periksa header setiap sheet.
 
 `setup()` menyiapkan struktur sheet. Fungsi ini tidak membuat akun Admin CGG otomatis. Jangan menganggapnya sebagai migrasi data produksi tanpa backup.
+
+## 4. Aktifkan backup database otomatis
+
+1. Pada **Project Settings**, pastikan timezone project adalah `Asia/Makassar` (WITA) atau timezone operasional yang ditetapkan perusahaan.
+2. Jalankan fungsi `createDatabaseBackup()` secara manual satu kali dan berikan izin Google Drive.
+3. Pastikan folder **CGG HDOS Database Backups** terbentuk di Google Drive dan sheet `backup_logs` mencatat status `SUCCESS`.
+4. Setelah backup pertama berhasil, jalankan `installDailyDatabaseBackupTrigger()` satu kali.
+5. Trigger membuat backup harian sekitar pukul 02:00 sesuai timezone project. Setiap backup dicatat pada `backup_logs`.
+6. Batasi akses folder backup hanya kepada pengelola database. Lakukan kebijakan retensi dan uji pemulihan secara berkala; backup yang berhasil dibuat belum membuktikan proses restore sudah teruji.
+
 
 ## 4. Siapkan akun dan master perusahaan
 
