@@ -218,6 +218,18 @@ export class HDOSSyncEngine {
       });
     }
 
+    // Recovery writes above are asynchronous too. Re-check the active
+    // identity immediately before publishing this snapshot so a cross-tab
+    // account switch cannot expose the previous tenant's queue in the new UI.
+    const finalOwner = this.getCurrentOwner();
+    const finalOwnerKey = finalOwner ? `${finalOwner.userId}::${finalOwner.companyCode}` : '';
+    if (finalOwnerKey !== requestedOwnerKey || this.queueOwnerKey !== requestedOwnerKey) {
+      this.queue = [];
+      this.queueOwnerKey = '';
+      hdosEvents.emit('sync:queue_updated', []);
+      return;
+    }
+
     hdosEvents.emit(
       'sync:queue_updated',
       [...this.queue]
