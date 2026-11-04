@@ -615,7 +615,26 @@ export class HDOSCentralStore {
     // Keep completed inspection records intact; only remove the repository entry
     // and its generated form definition. Inspection history remains available.
     const relatedForms = this.formDefinitions.filter((form) => form.sourceDocumentId === documentId);
+
+    if (existing.cloudStored) {
+      if (hseApi.baseUrl && hseApi.isAuthenticated) {
+        // Online deletion is acknowledged by the central API before local metadata
+        // is removed, so permission or Drive errors cannot silently hide the file.
+        await hseApi.deleteRepositoryDocument(documentId);
+      } else {
+        // Offline deletion is durable and replayed with the same tenant session
+        // when connectivity returns. The central Drive file is not discarded locally.
+        await hdosSync.enqueueBatch([], [{
+          action: 'DELETE',
+          entity: 'repository',
+          payload: { id: documentId },
+          note: `Penghapusan dokumen Repository ${existing.docNumber}`,
+        }]);
+      }
+    }
+
     await hdosDB.delete('repository', documentId);
+    await hdosDB.delete('photos', `document-file-${documentId}`);
     for (const form of relatedForms) {
       await hdosDB.delete('form-definition', form.id);
     }
