@@ -1315,9 +1315,8 @@ function handleRoute_(
         return error_(403, 'Admin Perusahaan tidak dapat mengubah tahapan persetujuan PICA.');
       }
       const requestedStatusForCompanyAdmin = String(requestedPayload.status || existingRecord.status || '').toUpperCase();
-      if (requestedStatusForCompanyAdmin === 'CLOSED' &&
-          !(oldStagesForCompanyAdmin.foreman === true && oldStagesForCompanyAdmin.spvHse === true && oldStagesForCompanyAdmin.ktt === true)) {
-        return error_(403, 'Penutupan PICA membutuhkan seluruh tahap verifikasi.');
+      if (requestedStatusForCompanyAdmin === 'CLOSED') {
+        return error_(403, 'Admin Perusahaan tidak dapat menutup PICA. Validasi hanya dapat dilakukan Foreman Safety atau SPV HSE yang telah diverifikasi.');
       }
       if (['OPEN', 'PROGRESS', 'CLOSED'].indexOf(requestedStatusForCompanyAdmin) === -1) {
         return error_(403, 'Status PICA tidak valid.');
