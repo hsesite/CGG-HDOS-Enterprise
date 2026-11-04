@@ -587,6 +587,13 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true,ktt:true},'ktt'),true);
 });
 
+test('PICA PATCH accepts any verified HSE role in a multi-role account', () => {
+  assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));"));
+  assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
+});
+test('operational photo upload requires an active registered tenant', () => {
+  assert.ok(source.includes("const registeredCompany = findCompanyRegistry_(companyCode);\n      if (!registeredCompany || registeredCompany.status !== 'ACTIVE') return error_(403, 'Perusahaan akun belum terdaftar aktif pada master perusahaan.');"));
+});
 test('PICA register limits non-HSE users to assigned records and enforces PIC/HSE lifecycle', () => {
   assert.ok(source.includes("String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
