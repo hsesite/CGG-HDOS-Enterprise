@@ -75,9 +75,14 @@ export const DashboardModule: React.FC = () => {
   const totalInspections = completedInspections.length;
   const complianceScore = totalInspections > 0 ? completedInspections.reduce((total, record) => total + Number(record.scorePercent || 0), 0) / totalInspections : null;
   const openHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED').length;
-  const criticalHazards = dashboardHazards.filter((h) => h.riskMatrix.level === 'CRITICAL').length;
+  const criticalHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED' && h.riskMatrix.level === 'CRITICAL').length;
   const activePicas = dashboardPicas.filter((p) => p.status !== 'CLOSED').length;
-  const overduePicas = dashboardPicas.filter((p) => p.status === 'OVERDUE').length;
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const overduePicas = dashboardPicas.filter((p) =>
+    p.status !== 'CLOSED' && p.status !== 'WAITING_HSE' &&
+    Boolean(p.targetDate) && String(p.targetDate).slice(0, 10) < todayKey
+  ).length;
 
   const [timeRange, setTimeRange] = useState<'7D' | '14D' | '30D'>('30D');
 
@@ -85,10 +90,10 @@ export const DashboardModule: React.FC = () => {
   // The company bucket prefers subcontractorCode so subkon activity is not
   // incorrectly attributed to its parent contractor.
   const companyDashboardRows = isOwnerAdmin
-    ? ['CGG', 'SLS', 'KIJA', 'VIP', 'BCJ', 'CHN', 'PAR', 'ARL'].map((code) => {
+    ? [...new Set(['CGG', ...store.contractors.map((company) => company.code.trim().toUpperCase()).filter(Boolean)])].map((code) => {
         const ownedBy = (record: unknown) => {
           const item = record as Record<string, unknown>;
-          return String(item.subcontractorCode || item.subkonCode || item.companyCode || item.contractorCode || '').trim().toUpperCase() || 'CGG';
+          return String(item.subcontractorCode || item.subkonCode || item.companyCode || item.contractorCode || '').trim().toUpperCase();
         };
         const inspections = dashboardInspections.filter((record) => ownedBy(record) === code).length;
         const hazards = dashboardHazards.filter((record) => ownedBy(record) === code).length;
@@ -98,8 +103,32 @@ export const DashboardModule: React.FC = () => {
     : [];
 
 
-  // Historical trends are not synthesized. Show only records with a real source.
-  const activeTrendData = useMemo(() => [], [dashboardInspections, dashboardHazards]);
+  // Build daily activity from actual records in the selected period; never synthesize values.
+  const activeTrendData = useMemo(() => {
+    const days = Number(timeRange.replace('D', ''));
+    const todayLocal = new Date();
+    todayLocal.setHours(0, 0, 0, 0);
+    const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const buckets = new Map<string, { date: string; inspections: number; hazards: number; incidents: number; picas: number }>();
+    for (let offset = days - 1; offset >= 0; offset -= 1) {
+      const date = new Date(todayLocal);
+      date.setDate(todayLocal.getDate() - offset);
+      const key = dateKey(date);
+      buckets.set(key, { date: key.slice(5).replace('-', '/'), inspections: 0, hazards: 0, incidents: 0, picas: 0 });
+    }
+    const add = (records: Array<{ date?: string; createdAt?: string }>, metric: 'inspections' | 'hazards' | 'incidents' | 'picas') => {
+      records.forEach(record => {
+        const key = String(record.date || record.createdAt || '').slice(0, 10);
+        const bucket = buckets.get(key);
+        if (bucket) bucket[metric] += 1;
+      });
+    };
+    add(dashboardInspections, 'inspections');
+    add(dashboardHazards, 'hazards');
+    add(store.incidents.filter(recordInDashboardScope), 'incidents');
+    add(dashboardPicas, 'picas');
+    return [...buckets.values()];
+  }, [timeRange, dashboardInspections, dashboardHazards, dashboardPicas, store.incidents]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -194,7 +223,7 @@ export const DashboardModule: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-white">Rekapitulasi Data HSE per Perusahaan</h3>
-              <p className="text-[11px] text-neutral-400">Cakupan data: CGG, SLS, KIJA, VIP, BCJ, CHN, PAR, dan ARL.</p>
+              <p className="text-[11px] text-neutral-400">Cakupan perusahaan mengikuti master perusahaan pusat yang terdaftar.</p>
             </div>
             <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">Khusus Admin CGG</span>
           </div>
