@@ -13,6 +13,13 @@ import { getCurrentUser } from '../../core/auth-utils';
 export const IncidentModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
+  const sessionUser = getCurrentUser();
+  const assignedRoles = sessionUser?.roles || [];
+  const isAdminCGG = assignedRoles.includes('Admin CGG');
+  const isVerified = sessionUser?.roleVerified === true;
+  const canEditInvestigation = isAdminCGG || (isVerified && assignedRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role)));
+  const canReviewIncident = isAdminCGG || (isVerified && assignedRoles.some(role => ['KTT', 'SPT', 'SPV'].includes(role)));
+  const canCloseIncident = isAdminCGG || (isVerified && assignedRoles.includes('KTT'));
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
 
@@ -32,6 +39,64 @@ export const IncidentModule: React.FC = () => {
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fiveWhyDraft, setFiveWhyDraft] = useState(store.incidents[0]?.fiveWhyAnalysis.join('\\n') || '');
+  const [rootCauseDraft, setRootCauseDraft] = useState(store.incidents[0]?.rootCause || '');
+  const [correctiveActionsDraft, setCorrectiveActionsDraft] = useState(store.incidents[0]?.correctiveActions.join('\\n') || '');
+  const [reviewNotesDraft, setReviewNotesDraft] = useState('');
+
+  const selectIncident = (incident: Incident) => {
+    setSelectedIncident(incident);
+    setFiveWhyDraft((incident.fiveWhyAnalysis || []).join('\\n'));
+    setRootCauseDraft(incident.rootCause || '');
+    setCorrectiveActionsDraft((incident.correctiveActions || []).join('\\n'));
+    setReviewNotesDraft(incident.reviewNotes || '');
+  };
+
+  const handleSaveInvestigation = async () => {
+    if (!selectedIncident) return;
+    const fiveWhyAnalysis = fiveWhyDraft.split(/\\r?\\n/).map(item => item.trim()).filter(Boolean);
+    const correctiveActions = correctiveActionsDraft.split(/\\r?\\n/).map(item => item.trim()).filter(Boolean);
+    if (fiveWhyAnalysis.length < 5 || !rootCauseDraft.trim() || correctiveActions.length === 0) {
+      window.alert('Lengkapi lima tahapan Why, akar penyebab, dan minimal satu tindakan koreksi.');
+      return;
+    }
+    try {
+      const updated = await store.updateIncident(selectedIncident.id, {
+        fiveWhyAnalysis,
+        rootCause: rootCauseDraft.trim(),
+        correctiveActions,
+      });
+      if (updated) setSelectedIncident(updated);
+      window.alert('Data investigasi berhasil disimpan dan masuk antrean sinkronisasi.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Data investigasi gagal disimpan.');
+    }
+  };
+
+  const handleReviewIncident = async () => {
+    if (!selectedIncident) return;
+    try {
+      const updated = await store.updateIncident(selectedIncident.id, {
+        status: 'REVIEWED_KTT',
+        reviewNotes: reviewNotesDraft.trim(),
+      });
+      if (updated) setSelectedIncident(updated);
+      window.alert('Review insiden berhasil dicatat.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Review insiden gagal disimpan.');
+    }
+  };
+
+  const handleCloseIncident = async () => {
+    if (!selectedIncident || !window.confirm('Tutup insiden ini? Pastikan hasil investigasi dan tindakan koreksi telah diverifikasi.')) return;
+    try {
+      const updated = await store.updateIncident(selectedIncident.id, { status: 'CLOSED' });
+      if (updated) setSelectedIncident(updated);
+      window.alert('Insiden berhasil ditandai CLOSED dan masuk antrean sinkronisasi.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Insiden gagal ditutup.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +131,9 @@ export const IncidentModule: React.FC = () => {
 
     setSubmitting(false);
     setSelectedIncident(newInc);
+    setFiveWhyDraft(fiveWhyAnalysis.join('\\n'));
+    setRootCauseDraft(rootCause.trim());
+    setCorrectiveActionsDraft(correctiveAction.trim());
     setActiveTab('list');
   };
 
@@ -115,7 +183,7 @@ export const IncidentModule: React.FC = () => {
               {store.incidents.map((inc) => (
                 <div
                   key={inc.id}
-                  onClick={() => setSelectedIncident(inc)}
+                  onClick={() => selectIncident(inc)}
                   className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
                     selectedIncident?.id === inc.id
                       ? 'bg-red-500/15 border-red-500/40'
@@ -159,8 +227,10 @@ export const IncidentModule: React.FC = () => {
                   <div className="text-right text-xs">
                     <div className="text-neutral-400 font-mono">{selectedIncident.date} · {selectedIncident.time}</div>
                     <div className="text-emerald-400 text-[11px] font-semibold mt-1">
-                      {selectedIncident.smkpReportSubmitted ? '✓ Laporan Form Minerba Terkirim' : 'Menunggu Review KTT'}
+                      Status: {selectedIncident.status}
                     </div>
+                    {selectedIncident.reviewedBy && <div className="text-[10px] text-neutral-500 mt-1">Direview: {selectedIncident.reviewedBy} · {selectedIncident.reviewedAt ? new Date(selectedIncident.reviewedAt).toLocaleString('id-ID') : ''}</div>}
+                    {selectedIncident.closedBy && <div className="text-[10px] text-neutral-500 mt-1">Ditutup: {selectedIncident.closedBy} · {selectedIncident.closedAt ? new Date(selectedIncident.closedAt).toLocaleString('id-ID') : ''}</div>}
                   </div>
                 </div>
 
@@ -195,6 +265,37 @@ export const IncidentModule: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
+                {canEditInvestigation && selectedIncident.status === 'INVESTIGATING' && (
+                  <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 space-y-3">
+                    <h4 className="text-xs font-bold text-amber-200">Pembaruan Hasil Investigasi</h4>
+                    <label className="block text-[11px] text-neutral-300">Lima tahapan Why (satu jawaban per baris)
+                      <textarea rows={5} value={fiveWhyDraft} onChange={event => setFiveWhyDraft(event.target.value)} className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-white" placeholder="1. Mengapa kejadian terjadi?&#10;2. Mengapa penyebab tersebut muncul?&#10;3. Mengapa pengendalian gagal?&#10;4. Mengapa sistem memungkinkan?&#10;5. Pengendalian sistemik apa yang harus diperbaiki?"/>
+                    </label>
+                    <label className="block text-[11px] text-neutral-300">Akar penyebab
+                      <textarea rows={2} value={rootCauseDraft} onChange={event => setRootCauseDraft(event.target.value)} className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-white"/>
+                    </label>
+                    <label className="block text-[11px] text-neutral-300">Tindakan koreksi dan pencegahan (satu tindakan per baris)
+                      <textarea rows={3} value={correctiveActionsDraft} onChange={event => setCorrectiveActionsDraft(event.target.value)} className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-white"/>
+                    </label>
+                    <button type="button" onClick={() => void handleSaveInvestigation()} className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-bold text-black">Simpan Hasil Investigasi</button>
+                  </div>
+                )}
+
+                {canReviewIncident && selectedIncident.status === 'INVESTIGATING' && (
+                  <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-4 space-y-3">
+                    <label className="block text-[11px] text-neutral-300">Catatan review KTT / SPT / SPV
+                      <textarea rows={2} value={reviewNotesDraft} onChange={event => setReviewNotesDraft(event.target.value)} className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-white" placeholder="Catatan hasil review (opsional)"/>
+                    </label>
+                    <button type="button" onClick={() => void handleReviewIncident()} className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-black">Setujui Hasil Investigasi</button>
+                  </div>
+                )}
+
+                {canCloseIncident && selectedIncident.status === 'REVIEWED_KTT' && (
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => void handleCloseIncident()} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-black">Tutup Insiden</button>
+                  </div>
+                )}
 
                 {/* Root Cause & Corrective Actions */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
