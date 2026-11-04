@@ -198,11 +198,10 @@ test('verified CGG oversight can read redacted company master dynamically', () =
   assert.ok(source.includes("const isCompanyPassportViewer = roles.some(function(role)"));
   assert.ok(source.includes("company.role === 'Subkon' && parent === ownCode"));
 });
-test('all verified oversight roles are read-only for operational record writes', () => {
-  assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety']"));
-  for (const role of ['KTT','SPT','SPV']) {
-    assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'Project Manager'"));
-  }
+test('verified oversight reader scope is separate from operational write-controller roles', () => {
+  assert.ok(source.includes("return roles.some(function(role) { return ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });"));
+  assert.ok(source.includes("return roles.some(function(role) { return ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });"));
+  assert.ok(source.includes("roles.indexOf('Project Manager') >= 0"));
 });
 
 
