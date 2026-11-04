@@ -40,23 +40,23 @@ export const IncidentModule: React.FC = () => {
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [fiveWhyDraft, setFiveWhyDraft] = useState(store.incidents[0]?.fiveWhyAnalysis.join('\\n') || '');
+  const [fiveWhyDraft, setFiveWhyDraft] = useState(store.incidents[0]?.fiveWhyAnalysis.join('\n') || '');
   const [rootCauseDraft, setRootCauseDraft] = useState(store.incidents[0]?.rootCause || '');
-  const [correctiveActionsDraft, setCorrectiveActionsDraft] = useState(store.incidents[0]?.correctiveActions.join('\\n') || '');
+  const [correctiveActionsDraft, setCorrectiveActionsDraft] = useState(store.incidents[0]?.correctiveActions.join('\n') || '');
   const [reviewNotesDraft, setReviewNotesDraft] = useState('');
 
   const selectIncident = (incident: Incident) => {
     setSelectedIncident(incident);
-    setFiveWhyDraft((incident.fiveWhyAnalysis || []).join('\\n'));
+    setFiveWhyDraft((incident.fiveWhyAnalysis || []).join('\n'));
     setRootCauseDraft(incident.rootCause || '');
-    setCorrectiveActionsDraft((incident.correctiveActions || []).join('\\n'));
+    setCorrectiveActionsDraft((incident.correctiveActions || []).join('\n'));
     setReviewNotesDraft(incident.reviewNotes || '');
   };
 
   const handleSaveInvestigation = async () => {
     if (!selectedIncident) return;
-    const fiveWhyAnalysis = fiveWhyDraft.split(/\\r?\\n/).map(item => item.trim()).filter(Boolean);
-    const correctiveActions = correctiveActionsDraft.split(/\\r?\\n/).map(item => item.trim()).filter(Boolean);
+    const fiveWhyAnalysis = fiveWhyDraft.split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+    const correctiveActions = correctiveActionsDraft.split(/\r?\n/).map(item => item.trim()).filter(Boolean);
     if (fiveWhyAnalysis.length < 5 || !rootCauseDraft.trim() || correctiveActions.length === 0) {
       window.alert('Lengkapi lima tahapan Why, akar penyebab, dan minimal satu tindakan koreksi.');
       return;
@@ -132,7 +132,7 @@ export const IncidentModule: React.FC = () => {
 
     setSubmitting(false);
     setSelectedIncident(newInc);
-    setFiveWhyDraft(fiveWhyAnalysis.join('\\n'));
+    setFiveWhyDraft(fiveWhyAnalysis.join('\n'));
     setRootCauseDraft(rootCause.trim());
     setCorrectiveActionsDraft(correctiveAction.trim());
     setActiveTab('list');
