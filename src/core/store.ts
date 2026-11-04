@@ -7,7 +7,11 @@ import { AuthState } from './auth-state';
 import { hseApi } from './api';
 import { useState, useEffect } from 'react';
 
-function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<typeof AuthState.getUser>): boolean {
+function isLocalRecordVisible(
+  record: Record<string, unknown>,
+  user: ReturnType<typeof AuthState.getUser>,
+  allowedCompanyCodes: ReadonlySet<string> = new Set<string>(),
+): boolean {
   if (!user) return false;
   const roles = user.roles || [];
   if (roles.includes('Admin CGG')) return true;
@@ -16,9 +20,16 @@ function isLocalRecordVisible(record: Record<string, unknown>, user: ReturnType<
   const company = String(record.companyCode || record.contractorCode || record.ownerCompanyCode || '').trim().toUpperCase();
   const subkon = String(record.subcontractorCode || record.subkonCode || '').trim().toUpperCase();
   const parent = String(record.parentCompanyCode || '').trim().toUpperCase();
-  if (user.roleVerified === true && ['KTT', 'SPT', 'SPV'].some(role => roles.includes(role))) {
-    return ['SLS', 'VIP'].includes(company) || ['SLS', 'VIP'].includes(parent);
+
+  // Match the backend's approved, active Contractor/Subkon scope. The master
+  // is supplied by the central company register; never hard-code tenant IDs.
+  const oversightRoles = ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'];
+  if (user.roleVerified === true && oversightRoles.some(role => roles.includes(role))) {
+    return allowedCompanyCodes.has(company) ||
+      allowedCompanyCodes.has(subkon) ||
+      allowedCompanyCodes.has(parent);
   }
+
   // Unverified supervisory accounts use the same own-tenant cache scope as crew.
   if (user.parentCompanyCode) return company === own || subkon === own;
   return company === own || subkon === own || parent === own;
@@ -175,11 +186,15 @@ export class HDOSCentralStore {
         console.warn('[HDOS Store] Master kontraktor pusat tidak tersedia; memakai cache lokal.', error);
       }
     }
-    this.inspections = this.inspections.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
-    this.hazards = this.hazards.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
-    this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
-    this.incidents = this.incidents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
-    this.documents = this.documents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser));
+    const allowedCompanyCodes = new Set(this.contractors.flatMap(company => [
+      String(company.code || '').trim().toUpperCase(),
+      String(company.parentCompanyCode || '').trim().toUpperCase(),
+    ]).filter(Boolean));
+    this.inspections = this.inspections.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
+    this.hazards = this.hazards.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
+    this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
+    this.incidents = this.incidents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
+    this.documents = this.documents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
     this.formDefinitions = this.formDefinitions.filter(form => this.documents.some(document => document.id === form.sourceDocumentId));
     this.contractors = this.contractors.filter(record => {
       if (!currentUser) return false;
@@ -273,10 +288,10 @@ export class HDOSCentralStore {
       current: T[],
     ): Promise<T[]> => {
       const visibleLocal = current.filter((record) =>
-        isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser)
+        isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))
       );
       const remote = rows.filter((record) =>
-        isLocalRecordVisible(record, currentUser)
+        isLocalRecordVisible(record, currentUser, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))
       ) as unknown as T[];
       const remoteIds = new Set(remote.map((record) => record.id));
       const merged = new Map<string, T>(remote.map((record) => [record.id, record]));
@@ -376,7 +391,7 @@ export class HDOSCentralStore {
           Boolean(record && typeof record.id === 'string' && record.id.trim())
         )
         .filter(record => !pendingRepositoryDeletes.has(record.id))
-        .filter(record => isLocalRecordVisible(record, user)) as unknown as DocumentItem[];
+        .filter(record => isLocalRecordVisible(record, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))) as unknown as DocumentItem[];
       const remoteById = new Map(remote.map(document => [document.id, document]));
       const localOffline = this.documents.filter(document =>
         isLocalRecordVisible(document as unknown as Record<string, unknown>, user) &&
