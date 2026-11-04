@@ -14,6 +14,8 @@ export const PICAModule: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ALL' | 'CLOSED'>('ACTIVE');
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [evidencePhotoUrl, setEvidencePhotoUrl] = useState('');
+  const [evidencePhotoFileId, setEvidencePhotoFileId] = useState('');
+  const [evidencePhotoFile, setEvidencePhotoFile] = useState<File | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [busy, setBusy] = useState(false);
   const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
@@ -32,6 +34,8 @@ export const PICAModule: React.FC = () => {
     if (!selectedPica) return;
     setCorrectiveAction(selectedPica.correctiveAction || '');
     setEvidencePhotoUrl(selectedPica.evidencePhotoUrl || '');
+    setEvidencePhotoFileId(selectedPica.evidencePhotoFileId || '');
+    setEvidencePhotoFile(null);
     setRejectionReason('');
   }, [selectedPica?.id, selectedPica?.updatedAt]);
 
@@ -56,21 +60,41 @@ export const PICAModule: React.FC = () => {
   const waitingCount = picas.filter(({ status }) => status === 'WAITING_HSE').length;
   const closedCount = picas.filter(({ status }) => status === 'CLOSED').length;
 
+  const uploadEvidenceIfSelected = async () => {
+    if (!evidencePhotoFile) return { evidencePhotoUrl, evidencePhotoFileId };
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(evidencePhotoFile.type) || evidencePhotoFile.size > 5 * 1024 * 1024) {
+      throw new Error('Foto harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Foto gagal dibaca.'));
+      reader.onload = () => { const value = String(reader.result || ''); const comma = value.indexOf(','); resolve(comma >= 0 ? value.slice(comma + 1) : value); };
+      reader.readAsDataURL(evidencePhotoFile);
+    });
+    const uploaded = await hseApi.uploadOperationalPhoto({ fileName: evidencePhotoFile.name, mimeType: evidencePhotoFile.type, fileBase64: dataUrl });
+    setEvidencePhotoUrl(uploaded.photoUrl);
+    setEvidencePhotoFileId(uploaded.photoFileId);
+    setEvidencePhotoFile(null);
+    return { evidencePhotoUrl: uploaded.photoUrl, evidencePhotoFileId: uploaded.photoFileId };
+  };
+
   const savePICProgress = async () => {
     if (!selectedPica) return;
     setBusy(true);
     try {
-      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'PROGRESS', correctiveAction, evidencePhotoUrl });
+      const evidence = await uploadEvidenceIfSelected();
+      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'PROGRESS', correctiveAction, ...evidence });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal menyimpan tindakan PIC.'); }
     finally { setBusy(false); }
   };
   const submitForHSE = async () => {
     if (!selectedPica) return;
-    if (!correctiveAction.trim() || !evidencePhotoUrl.trim()) { window.alert('Tindakan perbaikan dan tautan bukti foto wajib diisi.'); return; }
+    if (!correctiveAction.trim() || (!evidencePhotoUrl.trim() && !evidencePhotoFile)) { window.alert('Tindakan perbaikan dan foto bukti wajib diisi.'); return; }
     setBusy(true);
     try {
-      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'WAITING_HSE', correctiveAction, evidencePhotoUrl });
+      const evidence = await uploadEvidenceIfSelected();
+      const updated = await store.updatePICAStatus(selectedPica.id, { status: 'WAITING_HSE', correctiveAction, ...evidence });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal mengajukan PICA.'); }
     finally { setBusy(false); }
@@ -120,7 +144,12 @@ export const PICAModule: React.FC = () => {
           <div className="border-b border-white/10 pb-3"><p className="text-xs font-bold text-amber-300">{selectedPica.code}</p><p className="text-sm font-semibold text-white mt-1">{selectedPica.picDepartment} · {selectedPica.picName}</p><p className="text-[10px] text-neutral-400">Akun PIC: {selectedPica.assignedToEmail || 'Belum ditautkan'}</p></div>
           <div><p className="text-[10px] text-neutral-400">Temuan</p><p className="text-xs text-white mt-1">{selectedPica.findingDescription}</p></div>
           <div><p className="text-[10px] text-neutral-400">Tindakan perbaikan</p><textarea value={correctiveAction} onChange={(e) => setCorrectiveAction(e.target.value)} disabled={!isPIC(selectedPica) || selectedPica.status === 'CLOSED' || selectedPica.status === 'WAITING_HSE'} rows={4} className="w-full mt-1 p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white disabled:opacity-60" /></div>
-          <div><p className="text-[10px] text-neutral-400">Bukti foto penyelesaian (tautan)</p><input value={evidencePhotoUrl} onChange={(e) => setEvidencePhotoUrl(e.target.value)} disabled={!isPIC(selectedPica) || selectedPica.status === 'CLOSED' || selectedPica.status === 'WAITING_HSE'} placeholder="Tautan foto bukti dari Repository/Drive" className="w-full mt-1 p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white disabled:opacity-60" /></div>
+          <div>
+            <p className="text-[10px] text-neutral-400">Foto bukti penyelesaian *</p>
+            {evidencePhotoUrl && <a href={evidencePhotoUrl} target="_blank" rel="noreferrer" className="inline-flex mt-2 text-xs text-blue-300 underline">Lihat foto bukti tersimpan</a>}
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setEvidencePhotoFile(e.target.files?.[0] || null)} disabled={!isPIC(selectedPica) || selectedPica.status === 'CLOSED' || selectedPica.status === 'WAITING_HSE'} className="w-full mt-2 text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-400/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-amber-200 disabled:opacity-60" />
+            <p className="mt-1 text-[10px] text-neutral-500">{evidencePhotoFile ? `Foto dipilih: ${evidencePhotoFile.name}` : 'Pilih foto JPG, PNG, atau WEBP (maks. 5 MB). Foto akan diunggah ke Google Drive saat disimpan.'}</p>
+          </div>
           {selectedPica.rejectionReason && <p className="text-xs text-red-300 bg-red-500/10 p-2 rounded-lg">Dikembalikan HSE: {selectedPica.rejectionReason}</p>}
           {selectedPica.status === 'WAITING_HSE' && <p className="text-xs text-purple-300 bg-purple-500/10 p-2 rounded-lg">Menunggu validasi HSE.</p>}
           {selectedPica.status === 'CLOSED' && <p className="text-xs text-emerald-300 bg-emerald-500/10 p-2 rounded-lg">Closed oleh {selectedPica.hseValidatedBy || 'HSE'} ({selectedPica.hseValidatedRole || '-'}) pada {selectedPica.completionDate || '-'}</p>}
