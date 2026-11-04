@@ -226,6 +226,8 @@ export interface ContractorPassport {
   id: string;
   code: string; // e.g. SLS, VIP, BUMA, PAMA
   companyName: string;
+  companyRole?: 'Contractor' | 'Subkon';
+  parentCompanyCode?: string;
   picName: string;
   picContact: string;
   manpowerCount: number;
