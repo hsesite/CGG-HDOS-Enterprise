@@ -445,7 +445,7 @@ test('PICA can be submitted by its assigned PIC and closed by one verified HSE v
     DriveApp: { getFileById: () => ({
       getUrl: () => 'https://drive.example/evidence.jpg',
       getMimeType: () => 'image/jpeg',
-      getParents: () => ({ hasNext: () => true, next: () => ({ getId: () => 'tenant-folder' }) })
+      getParents: () => { let parentRead = false; return { hasNext: () => !parentRead, next: () => { parentRead = true; return { getId: () => 'tenant-folder' }; } }; }
     }) }
   };
   vm.createContext(context);
