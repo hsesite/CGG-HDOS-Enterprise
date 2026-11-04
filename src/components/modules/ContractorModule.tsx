@@ -611,6 +611,7 @@ export const ContractorModule: React.FC = () => {
                       <td className="px-4 py-3">{unit.ownershipType === 'OWNED' ? 'Milik perusahaan' : unit.ownershipType === 'RENTAL' ? 'Sewa' : 'Leasing'}</td>
                       <td className="px-4 py-3">
                         {editable ? <select value={unit.p2hStatus} disabled={fleetBusy} onChange={e => void updateFleetUnit(unit,{p2hStatus:e.target.value as ContractorFleetInput['p2hStatus']})} className="rounded border border-white/10 bg-neutral-950 px-2 py-1 text-xs text-white"><option value="NOT_CHECKED">Belum diperiksa</option><option value="READY">Siap operasi</option><option value="NOT_READY">Tidak laik operasi</option></select> : <span className={unit.p2hStatus === 'READY' ? 'text-emerald-300' : unit.p2hStatus === 'NOT_READY' ? 'text-red-300' : 'text-amber-300'}>{unit.p2hStatus === 'READY' ? 'Siap operasi' : unit.p2hStatus === 'NOT_READY' ? 'Tidak laik operasi' : 'Belum diperiksa'}</span>}
+                        {unit.p2hLastCheckedAt && <div className="mt-1 text-[10px] text-neutral-500">{new Date(unit.p2hLastCheckedAt).toLocaleDateString('id-ID')} · {unit.p2hCheckedBy || 'Akun tidak tercatat'}</div>}
                       </td>
                       <td className={`px-4 py-3 ${expired ? 'text-red-300' : 'text-neutral-300'}`}>{unit.siaExpiry || 'Belum dicatat'}{expired && <div className="text-[10px]">Kedaluwarsa</div>}</td>
                       <td className="px-4 py-3">{unit.status}</td>
