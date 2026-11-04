@@ -97,7 +97,7 @@ export interface ContractorP2HRecord {
   createdAt: string;
 }
 
-export type ContractorP2HInput = Pick<ContractorP2HRecord, 'inspectionDate' | 'status' | 'hourMeter' | 'operatorName' | 'findings' | 'correctiveAction'>;
+export type ContractorP2HInput = Pick<ContractorP2HRecord, 'inspectionDate' | 'status' | 'hourMeter' | 'operatorName' | 'findings' | 'correctiveAction'> & Partial<Pick<ContractorP2HRecord, 'photoFileId' | 'photoFileName' | 'photoMimeType'>>;
 
 export interface ContractorFleetUnit {
   id: string;
@@ -373,6 +373,10 @@ export const hseApi = {
 
   async createContractorP2HRecord(fleetId: string, input: ContractorP2HInput): Promise<ContractorP2HRecord> {
     return request<ContractorP2HRecord>('POST', `/api/contractor/fleet/${encodeURIComponent(fleetId)}/p2h`, input);
+  },
+
+  async getContractorP2HPhoto(recordId: string): Promise<{ fileName: string; mimeType: string; base64: string }> {
+    return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/contractor/p2h/${encodeURIComponent(recordId)}/photo`);
   },
 
   async createContractorFleetUnit(input: ContractorFleetInput): Promise<ContractorFleetUnit> {
