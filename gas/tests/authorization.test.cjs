@@ -1279,6 +1279,17 @@ test('a queued update after CREATE inherits the server-created updatedAt version
 });
 
 
+test('dashboard and repository access follow the registered company master', () => {
+  const dashboardSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'DashboardModule.tsx'), 'utf8');
+  const repositorySource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
+  assert.match(dashboardSource, /store\.contractors\.some\(company => company\.code\.toUpperCase\(\) === companyCode/);
+  assert.match(dashboardSource, /new Set\(store\.contractors\.flatMap/);
+  assert.match(repositorySource, /new Set\(store\.contractors\.flatMap/);
+  assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
+  assert.doesNotMatch(dashboardSource, /\['SLS',\s*'VIP'\]/);
+  assert.doesNotMatch(repositorySource, /\['SLS',\s*'VIP'\]/);
+});
+
 test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
