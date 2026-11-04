@@ -1162,7 +1162,7 @@ test('readAll reads the full register once instead of issuing per-row Spreadshee
   const parseStart = source.indexOf('function parseRowValues_(');
   const parseEnd = source.indexOf('function parseRow_(', parseStart + 1);
   const readStart = source.indexOf('function readAll_(');
-  const readEnd = source.indexOf('// ============================================================\\n// CRUD — READ ONE', readStart + 1);
+  const readEnd = source.indexOf('function readOne_(', readStart + 1);
   assert.notEqual(parseStart, -1);
   assert.notEqual(parseEnd, -1);
   assert.notEqual(readStart, -1);
