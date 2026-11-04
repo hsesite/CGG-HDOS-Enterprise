@@ -1223,3 +1223,24 @@ test('central audit trail is readable only by Admin CGG and returns bounded rece
   assert.match(route, /email: row\.email/);
   assert.match(route, /details: isObject_\(row\.details\)/);
 });
+
+
+test('incident investigation updates, KTT review, and closure are role- and state-gated', () => {
+  const incidentRuleStart = source.indexOf("if (entity === 'incidents') {", source.indexOf('const isPrivilegedEditor') - 7000);
+  assert.notEqual(incidentRuleStart, -1);
+  const route = source.slice(incidentRuleStart, source.indexOf('const isPrivilegedEditor', incidentRuleStart));
+  assert.match(route, /Foreman Safety.*SPV HSE/);
+  assert.match(route, /KTT.*SPT.*SPV/);
+  assert.match(route, /whys\.filter[\s\S]{0,180}length < 5/);
+  assert.match(route, /oldIncidentStatus !== 'REVIEWED_KTT'/);
+  assert.match(route, /oldIncidentStatus === 'CLOSED'/);
+  assert.match(route, /isKTT/);
+});
+
+test('successful sync advances server version for later queued updates of the same record', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  assert.match(syncSource, /serverUpdatedAt/);
+  assert.match(syncSource, /queued\.status !== 'PENDING'/);
+  assert.match(syncSource, /nextPayload = \{[\s\S]{0,160}updatedAt: serverUpdatedAt/);
+  assert.match(syncSource, /hdosDB\.put\(localStoreName, \{ \.\.\.localRecord, updatedAt: serverUpdatedAt \}\)/);
+});
