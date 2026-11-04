@@ -466,27 +466,51 @@ export class HDOSSyncEngine {
     });
   }
   async retryFailedItems(): Promise<number> {
+    const owner = this.getCurrentOwner();
+    if (!owner) return 0;
+    const ownerKey = `${owner.userId}::${owner.companyCode}`;
+    if (this.queueOwnerKey !== ownerKey) return 0;
+
     let resetCount = 0;
+    const skippedCount = 0;
 
-    for (const item of this.queue) {
-      if (item.retryCount >= MAX_RETRIES) {
-        item.retryCount = 0;
-        item.status = 'PENDING';
-        item.error = undefined;
-
-        await hdosDB.put('queue', item);
-        resetCount += 1;
+    for (const item of [...this.queue]) {
+      const activeOwner = this.getCurrentOwner();
+      if (!activeOwner || activeOwner.userId !== owner.userId ||
+          activeOwner.companyCode !== owner.companyCode ||
+          this.queueOwnerKey !== ownerKey) {
+        // An account switch during a manual retry must never rewrite another
+        // tenant's queue state.
+        break;
       }
+
+      if (item.ownerUserId !== owner.userId ||
+          item.ownerCompanyCode !== owner.companyCode ||
+          item.retryCount < MAX_RETRIES) continue;
+
+      // An unsupported entity is a configuration gap, not a transient
+      // failure. Keep it quarantined until its cloud endpoint is implemented.
+      if (!getEntityEndpoint(item.entity)) continue;
+
+      item.retryCount = 0;
+      item.status = 'PENDING';
+      item.error = undefined;
+
+      await hdosDB.put('queue', item);
+      this.queue = this.queue.map(current => current.id === item.id ? item : current);
+      resetCount += 1;
     }
 
     if (resetCount > 0) {
       this.syncLogs.unshift({
         time: formatTime(),
-        message: `${resetCount} item gagal diaktifkan kembali untuk retry manual.`,
+        message: `${resetCount} item gagal yang didukung endpoint diaktifkan kembali untuk retry manual.`,
         type: 'info',
       });
-
       hdosEvents.emit('sync:queue_updated', [...this.queue]);
+      if (this.isOnline && hseApi.isAuthenticated) {
+        setTimeout(() => { void this.triggerSync(); }, 100);
+      }
     }
 
     return resetCount;
