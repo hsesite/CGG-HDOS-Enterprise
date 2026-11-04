@@ -113,7 +113,7 @@ Frontend memakai field `roleVerified` dari respons pengguna. Untuk memastikan ke
 ## Model otoritas lintas perusahaan (revisi November 2026)
 
 - **Admin CGG**: full access seluruh perusahaan, master perusahaan, akun, konfigurasi, dan modul.
-- **KTT, SPT, SPV, PJO, SPV HSE, Foreman Safety**: role pengawasan baca-saja lintas seluruh Contractor aktif dan Subkon aktif yang terdaftar di bawah Contractor aktif pada sheet `companies`. Daftar perusahaan tidak dikunci pada kode SLS/VIP; penambahan perusahaan aktif pada master otomatis memperbarui cakupan.
+- **KTT, SPT, SPV, Project Manager, PJO, SPV HSE, Foreman Safety**: role pengawasan baca-saja lintas seluruh Contractor aktif dan Subkon aktif yang terdaftar di bawah Contractor aktif pada sheet `companies`. Daftar perusahaan tidak dikunci pada kode SLS/VIP; penambahan perusahaan aktif pada master otomatis memperbarui cakupan.
 - **Contractor / Company Admin**: hanya perusahaan sendiri dan Subkon aktif yang terdaftar di bawahnya.
 - **Subkon**: hanya data milik perusahaan sendiri; relasi parent harus sesuai master perusahaan.
 - **Employee dan akun yang belum diverifikasi**: akses dasar sesuai matriks role dan tenant masing-masing.
