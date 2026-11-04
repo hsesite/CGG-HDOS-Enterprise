@@ -532,10 +532,20 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
             fileBase64: await fileToBase64(selectedFile),
           });
           // Keep the local index aligned with the authoritative Drive metadata.
-          await store.updateDocument(newDoc.id, {
-            ...(cloudDocument as Partial<DocumentItem>),
-            cloudStored: true,
-          });
+          try {
+            await store.updateDocument(newDoc.id, {
+              ...(cloudDocument as Partial<DocumentItem>),
+              cloudStored: true,
+            });
+          } catch (localIndexError) {
+            // Avoid leaving an orphaned Drive object if the local metadata index
+            // cannot be committed after the central upload has succeeded.
+            try { await hseApi.deleteRepositoryDocument(newDoc.id); }
+            catch (cleanupError) {
+              console.error('[RepositoryModule] Dokumen cloud perlu rekonsiliasi karena rollback Drive gagal:', cleanupError);
+            }
+            throw localIndexError;
+          }
         }
       } catch (storageError) {
         // Roll back the repository record if the original binary could not be saved.
