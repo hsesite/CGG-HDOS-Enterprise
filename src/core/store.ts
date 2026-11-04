@@ -105,6 +105,8 @@ export class HDOSCentralStore {
     temp: null, humidity: null, wbgt: null, heatStressLevel: null, rainMm: null, pitStatus: null,
   };
   public liveFeed: Array<{ id: string; time: string; category: string; text: string; level: string }> = [];
+  public lastCloudRefreshAt: string | null = null;
+  public cloudRefreshFailedSources: string[] = [];
 
   private listeners: Set<() => void> = new Set();
   private maxZIndex: number = 20;
@@ -400,7 +402,11 @@ export class HDOSCentralStore {
       refreshed.push('forms');
     }
 
-    if (isSameSession()) this.notify();
+    if (isSameSession()) {
+      if (refreshed.length > 0) this.lastCloudRefreshAt = new Date().toISOString();
+      this.cloudRefreshFailedSources = [...failed];
+      this.notify();
+    }
     return { refreshed, failed };
   }
 
