@@ -866,11 +866,35 @@ function handleRoute_(
     return success_(isAdminCGG_(user) ? users : users.filter(function(account) { return canManageCompany_(user, account.companyCode); }));
   }
   if (path === '/api/companies' && method === 'GET') {
-    if (!isAdminCGG_(user) && !isCompanyAdmin_(user)) return error_(403, 'Hanya Admin CGG atau Admin Perusahaan yang dapat melihat master perusahaan.');
+    const isVerifiedCggOversight = isReadOnlyController_(user) &&
+      user.roleVerified === true &&
+      String(user.companyCode || '').trim().toUpperCase() === 'CGG';
+    if (!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight) {
+      return error_(403, 'Akses master perusahaan hanya tersedia bagi administrator atau personel pengawas CGG yang telah diverifikasi.');
+    }
     const response = listCompanyRegistry_();
     if (isAdminCGG_(user)) return response;
     const companyData = response.data || [];
-    return success_(companyData.filter(function(company) { return canManageCompany_(user, company.code); }));
+    if (isCompanyAdmin_(user)) {
+      return success_(companyData.filter(function(company) { return canManageCompany_(user, company.code); }));
+    }
+    // Read-only oversight receives operational passport fields only. Corporate
+    // email domains and auto-provision settings remain private to administrators.
+    return success_(companyData.map(function(company) {
+      return {
+        code: company.code,
+        name: company.name,
+        role: company.role,
+        parentCompanyCode: company.parentCompanyCode,
+        emailDomains: '',
+        autoProvision: false,
+        status: company.status,
+        passportStatus: company.passportStatus,
+        picName: company.picName,
+        picContact: company.picContact,
+        safetyPassportExpiry: company.safetyPassportExpiry
+      };
+    }));
   }
   if (path === '/api/companies' && method === 'POST') {
     if (!isAdminCGG_(user)) return error_(403, 'Hanya Admin CGG yang dapat menambah atau mengubah master perusahaan.');
@@ -2137,19 +2161,20 @@ function updateUserAccess_(userId, payload, actor) {
 
 function isOversightRole_(user) {
   const roles = user && user.roles || [];
-  return roles.some(function(role) { return ['KTT', 'SPT', 'SPV'].indexOf(role) >= 0; });
+  return roles.some(function(role) { return ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });
 }
 
 function getOversightCompanyCodes_() {
   const allowed = {};
   const sheet = getSheet_('companies');
   const rows = sheet.getDataRange().getValues();
-  // Oversight roots are only the active SLS/VIP contractor registrations.
+  // Oversight scope follows every active Contractor in the approved master,
+  // so onboarding a new contractor never requires a source-code change.
   for (let i = 1; i < rows.length; i++) {
     const code = String(rows[i][0] || '').trim().toUpperCase();
     const role = String(rows[i][2] || '').trim();
     const status = String(rows[i][6] || '').trim().toUpperCase();
-    if ((code === 'SLS' || code === 'VIP') && role === 'Contractor' && status === 'ACTIVE') allowed[code] = true;
+    if (code && role === 'Contractor' && status === 'ACTIVE') allowed[code] = true;
   }
   // Include only active subcontracts whose registered parent is an active oversight root.
   for (let i = 1; i < rows.length; i++) {
@@ -2183,7 +2208,7 @@ function isRecordVisibleToUser_(record, user) {
     }
   }
 
-  // KTT/SPT/SPV share one oversight scope: active SLS, VIP, and active subcontracts below either contractor.
+  // Verified CGG oversight roles share one scope: all active Contractors and their active registered Subkon.
   if (isOversightRole_(user) && user.roleVerified === true) {
     const allowed = getOversightCompanyCodes_();
     return Boolean(allowed[recordCompany] || allowed[recordSubkon] || allowed[recordParent]);
