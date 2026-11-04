@@ -30,9 +30,9 @@ export const IncidentModule: React.FC = () => {
   const [type, setType] = useState<Incident['type']>('Near Miss');
   const [location, setLocation] = useState<MiningArea>('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState('10:00 WITA');
+  const [time, setTime] = useState('');
   const [victimsCount, setVictimsCount] = useState(0);
-  const [damageCostEst, setDamageCostEst] = useState('Rp 0');
+  const [damageCostEst, setDamageCostEst] = useState('');
   const [fiveWhy1, setFiveWhy1] = useState('');
   const [fiveWhy2, setFiveWhy2] = useState('');
   const [fiveWhy3, setFiveWhy3] = useState('');
@@ -65,12 +65,11 @@ export const IncidentModule: React.FC = () => {
       status: 'INVESTIGATING',
       reporter: currentUser.name,
       timeline: [
-        { time: `${time}`, event: `Kejadian ${type} teridentifikasi di ${location}.` },
-        { time: '10 menit pasca kejadian', event: 'First responder & tim safety mengamankan perimeter.' },
+        { time: `${time}`, event: `Laporan awal kejadian ${type} dicatat di ${location}.` },
       ],
       fiveWhyAnalysis,
-      rootCause: rootCause || 'Kurangnya kepatuhan prosedur operasional standar.',
-      correctiveActions: [correctiveAction || 'Briefing ulang SOP kepada regu kerja terkait.'],
+      rootCause: rootCause.trim(),
+      correctiveActions: correctiveAction.trim() ? [correctiveAction.trim()] : [],
       smkpReportSubmitted: false,
     });
 
@@ -290,6 +289,8 @@ export const IncidentModule: React.FC = () => {
               <label className="block text-xs font-medium text-neutral-300 mb-1">Waktu Kejadian</label>
               <input
                 type="text"
+                required
+                placeholder="Contoh: 10:35 WITA"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs focus:outline-none focus:border-red-500"
