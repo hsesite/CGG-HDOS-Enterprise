@@ -937,6 +937,13 @@ function handleRoute_(
     if (isCompanyPassportViewer) {
       const ownCode = String(user.companyCode || '').trim().toUpperCase();
       const ownRegistry = findCompanyRegistry_(ownCode);
+      if (!ownRegistry || ownRegistry.status !== 'ACTIVE') return error_(403, 'Perusahaan akun tidak aktif atau tidak terdaftar pada master HDOS.');
+      if (ownRegistry.role === 'Subkon') {
+        const parentRegistry = findCompanyRegistry_(ownRegistry.parentCompanyCode);
+        if (!parentRegistry || parentRegistry.status !== 'ACTIVE' || parentRegistry.role !== 'Contractor') {
+          return error_(403, 'Perusahaan induk Subkon tidak aktif atau tidak valid.');
+        }
+      }
       visibleCompanies = companyData.filter(function(company) {
         const code = String(company.code || '').trim().toUpperCase();
         const parent = String(company.parentCompanyCode || '').trim().toUpperCase();
