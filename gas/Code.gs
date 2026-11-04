@@ -2189,6 +2189,16 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     const photoMimeType = String(input.photoMimeType || '').toLowerCase();
     if (photoFileId && ['image/jpeg', 'image/png', 'image/webp'].indexOf(photoMimeType) < 0) return error_(400, 'Tipe bukti foto P2H tidak valid.');
     if (photoFileId && !/^[-_a-zA-Z0-9]{10,}$/.test(photoFileId)) return error_(400, 'Referensi bukti foto P2H tidak valid.');
+    if (photoFileId) {
+      try {
+        const photoFolderId = PropertiesService.getScriptProperties().getProperty('HDOS_PHOTO_FOLDER_' + String(unit.companyCode || '').replace(/[^A-Z0-9_-]/g, '_'));
+        const photoFile = DriveApp.getFileById(photoFileId);
+        const parents = photoFile.getParents();
+        let belongsToCompanyFolder = false;
+        while (parents.hasNext()) if (parents.next().getId() === photoFolderId) belongsToCompanyFolder = true;
+        if (!photoFolderId || !belongsToCompanyFolder) return error_(403, 'Bukti foto harus berasal dari folder foto perusahaan pemilik unit.');
+      } catch (photoError) { return error_(400, 'Bukti foto P2H tidak dapat diverifikasi.'); }
+    }
     if (hourMeter !== '' && (!Number.isFinite(hourMeter) || hourMeter < 0 || hourMeter > 100000000)) return error_(400, 'Hour meter harus berupa angka positif yang valid.');
     if (status === 'NOT_READY' && !correctiveAction) return error_(400, 'Tindakan pengendalian wajib dicatat untuk unit yang tidak laik operasi.');
     const now = new Date().toISOString();
