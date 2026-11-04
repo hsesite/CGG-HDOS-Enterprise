@@ -112,6 +112,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Register rinci fleet terpusat pada sheet `contractor_fleet`: nomor lambung unik per perusahaan, jenis unit, merek/model, kepemilikan, status P2H, masa berlaku SIA, status aktif/nonaktif, dan audit trail; Contractor/Subkon hanya mengelola unit milik perusahaannya sendiri.
 - [x] Ekspor CSV laporan kepatuhan dan register fleet dibatasi untuk akun internal CGG; akun Contractor/Subkon tidak memperoleh fungsi unduh.
 - [x] Backend riwayat P2H append-only per unit: tanggal pemeriksaan, status laik/tidak laik, hour meter, nama operator, temuan, tindakan koreksi, pemeriksa, dan audit trail; hasil terbaru memperbarui status P2H pada register fleet.
+- [x] Setup database memasukkan `contractor_p2h_history` ke proses rekonsiliasi header sehingga sheet baru maupun sheet lama diproses dengan schema kanonis.
+- [x] Penulisan riwayat P2H dan pembaruan status terakhir fleet memiliki mekanisme rollback untuk mencegah data parsial jika salah satu operasi Spreadsheet gagal.
 - [x] UI Contractor Passport menyediakan panel riwayat P2H per unit dan form pencatatan untuk perusahaan pemilik; catatan lama tetap ditampilkan dan tidak dapat ditimpa.
 - [x] Form P2H mendukung upload bukti foto JPG/PNG/WEBP maksimal 5 MB ke Google Drive; backend memvalidasi folder penyimpanan sesuai perusahaan pemilik unit dan endpoint pratinjau memeriksa cakupan akses.
 - [x] Register fleet menyediakan unggah/ganti dan pratinjau dokumen SIA PDF/JPG/PNG maksimal 10 MB, disimpan di Google Drive per perusahaan dan ditautkan ke unit.
