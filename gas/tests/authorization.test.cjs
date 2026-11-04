@@ -1390,3 +1390,42 @@ test('contractor fleet register schema, API, tenant ownership, and input validat
     p2hStatus: 'READY', siaExpiry: ''
   }), error => error.status === 400);
 });
+
+
+test('contractor fleet input validates unit identity, P2H state, ownership, and SIA expiry', () => {
+  const context = {
+    isObject_: value => value !== null && typeof value === 'object' && !Array.isArray(value),
+    httpError_: (status, message) => Object.assign(new Error(message), { status })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function normalizeContractorFleetInput_(');
+  const end = source.indexOf('function createContractorFleetUnit_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+  const valid = context.normalizeContractorFleetInput_({
+    unitNumber: 'DT-001', unitType: 'Dump Truck', brand: 'XCMG',
+    model: 'DH400', ownershipType: 'RENTAL', p2hStatus: 'READY',
+    siaExpiry: '2027-06-30'
+  });
+  assert.equal(valid.unitNumber, 'DT-001');
+  assert.equal(valid.p2hStatus, 'READY');
+  assert.throws(() => context.normalizeContractorFleetInput_({
+    unitNumber: 'DT-002', unitType: 'Dump Truck', ownershipType: 'OWNED',
+    p2hStatus: 'UNKNOWN', siaExpiry: ''
+  }), error => error.status === 400);
+  assert.throws(() => context.normalizeContractorFleetInput_({
+    unitNumber: 'DT-003', unitType: 'Dump Truck', ownershipType: 'OWNED',
+    p2hStatus: 'READY', siaExpiry: '2027-02-31'
+  }), error => error.status === 400);
+});
+
+test('contractor fleet API applies company-scoped read and write rules', () => {
+  assert.ok(source.includes("if (path === '/api/contractor/fleet' && method === 'GET')"));
+  assert.ok(source.includes("if (path === '/api/contractor/fleet' && method === 'POST')"));
+  assert.ok(source.includes("const contractorFleetMatch = path.match(/^\\/api\\/contractor\\/fleet\\/([^/]+)$/)"));
+  assert.ok(source.includes("return isRecordVisibleToUser_(unit, user);"));
+  assert.ok(source.includes("String(item.companyCode || '').trim().toUpperCase() === companyCode"));
+  assert.ok(source.includes("String(existing.companyCode || '').trim().toUpperCase()"));
+  assert.ok(source.includes("logAudit_(user, 'CREATE', 'contractor_fleet'"));
+});
