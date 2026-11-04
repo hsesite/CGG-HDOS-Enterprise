@@ -1277,3 +1277,14 @@ test('a queued update after CREATE inherits the server-created updatedAt version
   assert.match(syncSource, /queued\.action !== 'UPDATE'/);
   assert.match(syncSource, /updatedAt: serverUpdatedAt/);
 });
+
+
+test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
+  assert.match(storeSource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
+  assert.match(storeSource, /allowedCompanyCodes\.has\(company\)/);
+  assert.match(storeSource, /allowedCompanyCodes\.has\(subkon\)/);
+  assert.doesNotMatch(storeSource, /\['SLS',\s*'VIP'\]\.includes\((?:company|parent)\)/);
+  assert.match(storeSource, /const allowedCompanyCodes = new Set\(this\.contractors\.flatMap/);
+});
