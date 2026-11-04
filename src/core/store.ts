@@ -334,7 +334,7 @@ export class HDOSCentralStore {
         console.warn(`[HDOS Store] Snapshot cloud ${entities[index]} belum tersedia; cache lokal dipertahankan.`, result.reason);
         continue;
       }
-      if (!isSameSession()) return;
+      if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
       await this.mergeCloudOperationalRecords(entities[index], result.value);
       refreshed.push(entities[index]);
     }
