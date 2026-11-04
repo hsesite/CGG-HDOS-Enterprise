@@ -43,7 +43,8 @@ const CONFIG = {
     'hazards',
     'picas',
     'incidents',
-    'audit_logs'
+    'audit_logs',
+    'backup_logs'
   ],
 
   SESSION_TTL:
@@ -159,6 +160,16 @@ const ENTITY_SCHEMAS = {
     'status',
     'createdAt',
     'updatedAt'
+  ],
+
+  backup_logs: [
+    'id',
+    'createdAt',
+    'fileId',
+    'fileName',
+    'status',
+    'triggeredBy',
+    'message'
   ]
 };
 
@@ -237,7 +248,8 @@ function setupDataSheets_(
     'hazards',
     'picas',
     'incidents',
-    'audit_logs'
+    'audit_logs',
+    'backup_logs'
   ];
 
   names.forEach(
@@ -3319,6 +3331,56 @@ function clearOperationalDataForCleanStart() {
   return result;
 }
 
+
+/**
+ * Create a full Google Drive copy of the central HDOS Spreadsheet.
+ * Run manually for an immediate backup, or install the daily trigger below.
+ */
+function createDatabaseBackup() {
+  const spreadsheet = getSpreadsheet_();
+  const properties = PropertiesService.getScriptProperties();
+  const configuredFolderId = properties.getProperty('HDOS_BACKUP_FOLDER_ID');
+  let folder;
+  if (configuredFolderId) {
+    folder = DriveApp.getFolderById(configuredFolderId);
+  } else {
+    folder = DriveApp.createFolder('CGG HDOS Database Backups');
+    properties.setProperty('HDOS_BACKUP_FOLDER_ID', folder.getId());
+  }
+
+  const timeZone = Session.getScriptTimeZone() || 'Asia/Makassar';
+  const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyyMMdd_HHmmss');
+  const fileName = 'CGG_HDOS_DB_BACKUP_' + timestamp;
+  const logSheet = getSheet_('backup_logs');
+  const backupId = Utilities.getUuid();
+  const createdAt = new Date().toISOString();
+
+  try {
+    const backupFile = DriveApp.getFileById(spreadsheet.getId()).makeCopy(fileName, folder);
+    logSheet.appendRow([backupId, createdAt, backupFile.getId(), backupFile.getName(), 'SUCCESS', 'SCRIPT', 'Database Spreadsheet berhasil dicadangkan ke Google Drive.']);
+    SpreadsheetApp.flush();
+    Logger.log('Backup HDOS berhasil: ' + backupFile.getId());
+    return { success: true, fileId: backupFile.getId(), fileName: backupFile.getName(), createdAt: createdAt };
+  } catch (error) {
+    logSheet.appendRow([backupId, createdAt, '', fileName, 'FAILED', 'SCRIPT', String(error && error.message || error)]);
+    SpreadsheetApp.flush();
+    throw error;
+  }
+}
+
+/**
+ * Install or replace the daily 02:00 backup trigger.
+ * The hour uses the Apps Script project's configured timezone.
+ */
+function installDailyDatabaseBackupTrigger() {
+  const handler = 'createDatabaseBackup';
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === handler) ScriptApp.deleteTrigger(trigger);
+  });
+  const trigger = ScriptApp.newTrigger(handler).timeBased().everyDays(1).atHour(2).create();
+  Logger.log('Backup harian HDOS terpasang pada pukul 02:00 timezone project. Trigger: ' + trigger.getUniqueId());
+  return trigger.getUniqueId();
+}
 
 /**
  * Jalankan fungsi ini secara manual dari editor Apps Script satu kali
