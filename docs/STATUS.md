@@ -112,7 +112,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Register rinci fleet terpusat pada sheet `contractor_fleet`: nomor lambung unik per perusahaan, jenis unit, merek/model, kepemilikan, status P2H, masa berlaku SIA, status aktif/nonaktif, dan audit trail; Contractor/Subkon hanya mengelola unit milik perusahaannya sendiri.
 - [x] Ekspor CSV laporan kepatuhan dan register fleet dibatasi untuk akun internal CGG; akun Contractor/Subkon tidak memperoleh fungsi unduh.
 - [x] Backend riwayat P2H append-only per unit: tanggal pemeriksaan, status laik/tidak laik, hour meter, nama operator, temuan, tindakan koreksi, pemeriksa, dan audit trail; hasil terbaru memperbarui status P2H pada register fleet.
-- [ ] UI riwayat P2H dan lampiran bukti dokumen SIA masih perlu dikembangkan; endpoint riwayat P2H belum dinyatakan teruji pada deployment GAS aktif.
+- [x] UI Contractor Passport menyediakan panel riwayat P2H per unit dan form pencatatan untuk perusahaan pemilik; catatan lama tetap ditampilkan dan tidak dapat ditimpa.
+- [ ] Lampiran bukti dokumen SIA dan bukti foto inspeksi P2H masih perlu dikembangkan; endpoint dan UI P2H belum dinyatakan teruji pada deployment GAS aktif.
 - [ ] Bukti dokumen pendukung laporan, verifikasi sumber data, dan laporan tren historis masih perlu dilengkapi.
 
 ## Pengujian dan deployment
