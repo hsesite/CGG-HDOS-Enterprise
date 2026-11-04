@@ -34,7 +34,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Operasi DELETE yang belum didukung ditahan sebagai konflik.
 - [x] UI tidak lagi menyamakan antrean kosong dengan bukti bahwa semua data telah tersinkron.
 - [ ] CRUD cloud end-to-end untuk inspections, hazards, picas, incidents.
-- [ ] Idempotency dan pencegahan duplikasi saat respons hilang setelah server memproses request.
+- [x] Idempotency CREATE berbasis ID klien dengan pemeriksaan ulang di dalam Script Lock; retry setelah respons hilang tidak membuat record kedua.
+- [x] Respons cloud kosong/tidak valid atau gagal dibaca diklasifikasikan sebagai gangguan gateway/transien agar request dapat di-retry secara aman; respons HTTP gagal tetap mengikuti status dan pesan backend.
 - [x] Implementasi pull/refresh snapshot cloud untuk Inspection, Hazard, PICA, Incident, Repository, dan formulir terbit; merge menjaga perubahan lokal yang masih antre.
 - [x] Tombol manual **Ambil Data Pusat** pada modul Sinkronisasi.
 - [x] Penghapusan dokumen Repository offline disimpan sebagai antrean dan diproses saat online.
