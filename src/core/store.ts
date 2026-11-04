@@ -785,7 +785,7 @@ export class HDOSCentralStore {
     const role = hdosAuth.getCurrentRole();
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
-    const isHSEValidator = ['Foreman Safety', 'SPV HSE'].includes(role);
+    const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((assignedRole) => ['Foreman Safety', 'SPV HSE'].includes(assignedRole));
     const updated: PICA = { ...current, ...updates, approvalStages: current.approvalStages || { foreman: false, spvHse: false, ktt: false } };
 
     if (updates.status === 'WAITING_HSE') {
