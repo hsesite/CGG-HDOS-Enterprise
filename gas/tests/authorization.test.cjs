@@ -888,7 +888,7 @@ test('offline sync queue is bound to the authenticated user and company before r
 
   // Cloud snapshots must not erase local records still waiting in this tenant's
   // queue, and must not expose another tenant's cached operational records.
-  assert.match(storeSource, /isLocalRecordVisible\(record as unknown as Record<string, unknown>, currentUser\)/);
+  assert.match(storeSource, /isLocalRecordVisible\(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes\)/);
   assert.match(storeSource, /pendingIds\.has\(local\.id\)/);
   assert.match(storeSource, /if \(!remoteIds\.has\(local\.id\) && !pendingIds\.has\(local\.id\)\)/);
 });
