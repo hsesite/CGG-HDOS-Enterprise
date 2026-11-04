@@ -17,6 +17,13 @@ import { ContractorPassport } from '../../core/types';
 export const ContractorModule: React.FC = () => {
   const store = useHDOSStore();
   const [selectedContractor, setSelectedContractor] = useState<ContractorPassport | undefined>(store.contractors[0]);
+  const selectedCompanyCode = String(selectedContractor?.code || '').trim().toUpperCase();
+  const selectedCompanyPicas = store.picas.filter((pica) => {
+    const operatingCompany = String(pica.subcontractorCode || pica.subkonCode || pica.companyCode || pica.contractorCode || '').trim().toUpperCase();
+    const parentCompany = String(pica.parentCompanyCode || '').trim().toUpperCase();
+    return operatingCompany === selectedCompanyCode || parentCompany === selectedCompanyCode;
+  });
+  const actualActivePicaCount = selectedCompanyPicas.filter(pica => pica.status !== 'CLOSED').length;
 
   if (store.contractors.length === 0 || !selectedContractor) {
     return (
@@ -87,11 +94,11 @@ export const ContractorModule: React.FC = () => {
               <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] border-t border-white/5 pt-2 font-mono">
                 <div>
                   <span className="text-neutral-400">KPI Safety:</span>{' '}
-                  <strong className="text-[#00E676]">{c.kpiSafetyScore}%</strong>
+                  <strong className="text-[#00E676]">{c.kpiSafetyScore > 0 ? `${c.kpiSafetyScore}%` : '—'}</strong>
                 </div>
                 <div>
                   <span className="text-neutral-400">Manpower:</span>{' '}
-                  <strong className="text-white">{c.manpowerCount} org</strong>
+                  <strong className="text-white">{c.manpowerCount > 0 ? `${c.manpowerCount} org` : 'Belum tersedia'}</strong>
                 </div>
               </div>
             </div>
@@ -153,7 +160,7 @@ export const ContractorModule: React.FC = () => {
             <div className="text-2xl font-bold text-white font-mono mt-1">
               {selectedContractor.inductionRatePercent > 0 ? `${selectedContractor.inductionRatePercent}%` : '—'}
             </div>
-            <div className="text-[10px] text-neutral-400 mt-1">Data kelulusan belum diinput</div>
+            <div className="text-[10px] text-neutral-400 mt-1">Belum ada sumber data MCU terintegrasi</div>
           </div>
 
           <div className="p-4 rounded-xl bg-white/5 border border-white/10">
@@ -173,7 +180,7 @@ export const ContractorModule: React.FC = () => {
               <AlertTriangle className="w-4 h-4 text-red-400" />
             </div>
             <div className="text-2xl font-bold text-amber-400 font-mono mt-1">
-              {selectedContractor.activePicaCount > 0 ? selectedContractor.activePicaCount : '—'}
+              {actualActivePicaCount > 0 ? actualActivePicaCount : '0'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">Sedang ditindaklanjuti</div>
           </div>
