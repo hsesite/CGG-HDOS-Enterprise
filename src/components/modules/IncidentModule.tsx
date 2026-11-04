@@ -28,7 +28,7 @@ export const IncidentModule: React.FC = () => {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<Incident['type']>('Near Miss');
   const [location, setLocation] = useState<MiningArea>('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; });
   const [time, setTime] = useState('');
   const [victimsCount, setVictimsCount] = useState(0);
   const [damageCostEst, setDamageCostEst] = useState('');
@@ -135,6 +135,7 @@ export const IncidentModule: React.FC = () => {
     setFiveWhyDraft(fiveWhyAnalysis.join('\n'));
     setRootCauseDraft(rootCause.trim());
     setCorrectiveActionsDraft(correctiveAction.trim());
+    setReviewNotesDraft('');
     setActiveTab('list');
   };
 
