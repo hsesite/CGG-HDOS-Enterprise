@@ -36,7 +36,7 @@ export const DashboardModule: React.FC = () => {
   const isOversight = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
   const isContractor = store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor');
   const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
-  const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan KTT / SPT / SPV' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
+  const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan CGG' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
   const cloudRefreshLabel = store.lastCloudRefreshAt ? new Date(store.lastCloudRefreshAt).toLocaleString('id-ID') : 'Belum ada snapshot cloud pada sesi ini';
   const cloudRefreshWarning = store.cloudRefreshFailedSources.length > 0 ? ` · Sumber gagal: ${store.cloudRefreshFailedSources.join(', ')}` : '';
 
