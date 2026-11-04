@@ -822,8 +822,8 @@ function handleRoute_(
   // ----------------------------------------------------------
   if (path === '/api/audit' && method === 'GET') {
     if (!isAdminCGG_(user)) return error_(403, 'Audit trail hanya dapat diakses Admin CGG.');
-    const rows = readAll_('audit_logs');
-    const recent = rows.slice(-500).reverse().map(function(row) {
+    const rows = readRecentAuditLogs_(500);
+    const recent = rows.map(function(row) {
       return {
         id: row.id,
         code: row.code,
@@ -2426,6 +2426,25 @@ function getSheet_(
 // ============================================================
 // CRUD — READ ALL
 // ============================================================
+
+function readRecentAuditLogs_(limit) {
+  const sheet = getSheet_('audit_logs');
+  const lastRow = sheet.getLastRow();
+  const columnCount = sheet.getLastColumn();
+  if (lastRow < 2 || columnCount < 1) return [];
+  const headers = sheet.getRange(1, 1, 1, columnCount).getValues()[0].map(function(value) {
+    return String(value || '').trim();
+  });
+  const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 500));
+  const startRow = Math.max(2, lastRow - safeLimit + 1);
+  const values = sheet.getRange(startRow, 1, lastRow - startRow + 1, columnCount).getValues();
+  return values.filter(function(row) {
+    return row[0] !== '' && row[0] !== null && row[0] !== undefined;
+  }).map(function(row) {
+    return parseRowValues_(sheet.getName(), headers, row);
+  }).reverse();
+}
+
 
 function readAll_(
   entity
