@@ -1297,7 +1297,8 @@ test('frontend local tenant visibility follows registered contractor scope, not 
   assert.match(storeSource, /allowedCompanyCodes\.has\(company\)/);
   assert.match(storeSource, /allowedCompanyCodes\.has\(subkon\)/);
   assert.doesNotMatch(storeSource, /\['SLS',\s*'VIP'\]\.includes\((?:company|parent)\)/);
-  assert.match(storeSource, /private getAllowedCompanyCodes\(\): Set<string>/);\n  assert.match(storeSource, /const allowedCompanyCodes = this\.getAllowedCompanyCodes\(\)/);
+  assert.match(storeSource, /private getAllowedCompanyCodes\(\): Set<string>/);
+  assert.match(storeSource, /const allowedCompanyCodes = this\.getAllowedCompanyCodes\(\)/);
 });
 
 
