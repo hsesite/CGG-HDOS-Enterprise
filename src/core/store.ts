@@ -946,10 +946,19 @@ export class HDOSCentralStore {
 
     const persistedIncidents = await hdosDB.getAll<Incident>('incident');
     const persistedVersion = persistedIncidents.find(incident => incident.id === id)?.updatedAt;
-    const updated: Incident = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt };
+    const serverPayload: Incident = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt };
+    const updated: Incident = { ...serverPayload };
+    if (updates.status === 'REVIEWED_KTT') {
+      updated.reviewedBy = user?.displayName || user?.email || 'Reviewer';
+      updated.reviewedAt = new Date().toISOString();
+    }
+    if (updates.status === 'CLOSED') {
+      updated.closedBy = user?.displayName || user?.email || 'KTT';
+      updated.closedAt = new Date().toISOString();
+    }
     await hdosSync.enqueueBatch(
       [{ storeName: 'incident', item: updated }],
-      [{ action: 'UPDATE', entity: 'incident', payload: updated, note: `Pembaruan investigasi insiden ${updated.code}` }]
+      [{ action: 'UPDATE', entity: 'incident', payload: serverPayload, note: `Pembaruan investigasi insiden ${updated.code}` }]
     );
     this.incidents[index] = updated;
     this.notify();
