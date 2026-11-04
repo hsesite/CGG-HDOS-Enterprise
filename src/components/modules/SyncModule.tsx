@@ -51,11 +51,6 @@ export const SyncModule: React.FC = () => {
     };
   }, []);
 
-  const handleToggleOnline = () => {
-    const s = hdosSync.toggleOnlineSimulation();
-    setOnline(s);
-  };
-
   const handleTriggerSync = async () => {
     await hdosSync.retryFailedItems();
     await hdosSync.triggerSync();
@@ -111,18 +106,19 @@ export const SyncModule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Online / Offline Switch */}
-          <button
-            onClick={handleToggleOnline}
-            className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+          {/* Actual browser connectivity; no production simulation switch. */}
+          <div
+            role="status"
+            aria-live="polite"
+            className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
               online
                 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                 : 'bg-amber-500/20 border-amber-500/40 text-amber-300'
             }`}
           >
             {online ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4 animate-pulse" />}
-            <span>Mode: {online ? 'Online (Terkoneksi)' : 'Offline (Area Blankspot Pit)'}</span>
-          </button>
+            <span>Koneksi perangkat: {online ? 'Online' : 'Offline'}</span>
+          </div>
 
           <button
             onClick={handleRefreshCloud}
