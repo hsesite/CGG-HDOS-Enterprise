@@ -122,6 +122,13 @@ export class HDOSCentralStore {
   private listeners: Set<() => void> = new Set();
   private maxZIndex: number = 20;
 
+  private getAllowedCompanyCodes(): Set<string> {
+    return new Set(this.contractors.flatMap(company => [
+      String(company.code || '').trim().toUpperCase(),
+      String(company.parentCompanyCode || '').trim().toUpperCase(),
+    ]).filter(Boolean));
+  }
+
   async init(): Promise<void> {
   try {
     // Never carry another account's freshness indicator across a workspace switch.
@@ -186,10 +193,7 @@ export class HDOSCentralStore {
         console.warn('[HDOS Store] Master kontraktor pusat tidak tersedia; memakai cache lokal.', error);
       }
     }
-    const allowedCompanyCodes = new Set(this.contractors.flatMap(company => [
-      String(company.code || '').trim().toUpperCase(),
-      String(company.parentCompanyCode || '').trim().toUpperCase(),
-    ]).filter(Boolean));
+    const allowedCompanyCodes = this.getAllowedCompanyCodes();
     this.inspections = this.inspections.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
     this.hazards = this.hazards.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
     this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
@@ -288,10 +292,10 @@ export class HDOSCentralStore {
       current: T[],
     ): Promise<T[]> => {
       const visibleLocal = current.filter((record) =>
-        isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))
+        isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, this.getAllowedCompanyCodes())
       );
       const remote = rows.filter((record) =>
-        isLocalRecordVisible(record, currentUser, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))
+        isLocalRecordVisible(record, currentUser, this.getAllowedCompanyCodes())
       ) as unknown as T[];
       const remoteIds = new Set(remote.map((record) => record.id));
       const merged = new Map<string, T>(remote.map((record) => [record.id, record]));
@@ -391,10 +395,10 @@ export class HDOSCentralStore {
           Boolean(record && typeof record.id === 'string' && record.id.trim())
         )
         .filter(record => !pendingRepositoryDeletes.has(record.id))
-        .filter(record => isLocalRecordVisible(record, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))) as unknown as DocumentItem[];
+        .filter(record => isLocalRecordVisible(record, user, this.getAllowedCompanyCodes())) as unknown as DocumentItem[];
       const remoteById = new Map(remote.map(document => [document.id, document]));
       const localOffline = this.documents.filter(document =>
-        isLocalRecordVisible(document as unknown as Record<string, unknown>, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean))) &&
+        isLocalRecordVisible(document as unknown as Record<string, unknown>, user, this.getAllowedCompanyCodes()) &&
         !remoteById.has(document.id) &&
         document.cloudStored !== true
       );
@@ -402,7 +406,7 @@ export class HDOSCentralStore {
       for (const document of remote) await hdosDB.put('repository', document);
       const remoteIds = new Set(remote.map(document => document.id));
       for (const local of this.documents) {
-        if (isLocalRecordVisible(local as unknown as Record<string, unknown>, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean))) &&
+        if (isLocalRecordVisible(local as unknown as Record<string, unknown>, user, this.getAllowedCompanyCodes()) &&
             local.cloudStored === true && !remoteIds.has(local.id)) {
           await hdosDB.delete('repository', local.id);
           await hdosDB.delete('photos', `document-file-${local.id}`);
