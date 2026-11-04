@@ -228,6 +228,30 @@ export const ContractorModule: React.FC = () => {
     .sort((a, b) => a.companyCode.localeCompare(b.companyCode) || a.unitNumber.localeCompare(b.unitNumber));
   const activeFleetCount = selectedCompanyFleet.filter(unit => unit.status === 'ACTIVE').length;
 
+  const exportFleetCsv = () => {
+    if (!canDownloadDocuments(sessionUser) || selectedCompanyFleet.length === 0) return;
+    const rows = [
+      ['Kode Perusahaan', 'Nomor Unit', 'Jenis Unit', 'Merek', 'Model', 'Kepemilikan', 'Status P2H', 'Waktu P2H Terakhir', 'Dicatat Oleh', 'Masa Berlaku SIA', 'Status Unit'],
+      ...selectedCompanyFleet.map(unit => [
+        unit.companyCode, unit.unitNumber, unit.unitType, unit.brand, unit.model,
+        unit.ownershipType, unit.p2hStatus, unit.p2hLastCheckedAt || '',
+        unit.p2hCheckedBy || '', unit.siaExpiry || '', unit.status
+      ])
+    ];
+    const csv = '\uFEFF' + rows.map(row => row.map(value =>
+      '"' + String(value ?? '').replace(/"/g, '""') + '"'
+    ).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'HDOS_Contractor_Fleet_' + selectedCompanyCode + '_' + localNow.getFullYear() + '-' + String(localNow.getMonth() + 1).padStart(2, '0') + '-' + String(localNow.getDate()).padStart(2, '0') + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const exportComplianceReports = () => {
     if (!canDownloadDocuments(sessionUser) || selectedCompanyReports.length === 0) return;
     const rows = [
@@ -553,6 +577,7 @@ export const ContractorModule: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-neutral-300">{activeFleetCount} unit aktif · {selectedCompanyFleet.length} total</span>
             <button type="button" onClick={() => void refreshFleet()} disabled={fleetLoading} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-neutral-300 disabled:opacity-50">{fleetLoading ? 'Memuat...' : 'Muat Ulang'}</button>
+            {canDownloadDocuments(sessionUser) && <button type="button" onClick={exportFleetCsv} disabled={selectedCompanyFleet.length === 0} className="rounded-lg bg-[#00E676]/15 px-3 py-1.5 text-xs font-semibold text-[#00E676] disabled:opacity-40">Unduh CSV</button>}
           </div>
         </div>
 
