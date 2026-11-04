@@ -634,6 +634,7 @@ export class HDOSSyncEngine {
           if (
             item.action === 'CREATE'
           ) {
+            if (endpoint === 'repository') throw new Error('Upload Repository harus melalui alur unggah berkas khusus.');
             await hseApi.create(
               endpoint,
               item.payload,
@@ -642,6 +643,7 @@ export class HDOSSyncEngine {
           } else if (
             item.action === 'UPDATE'
           ) {
+            if (endpoint === 'repository') throw new Error('Perubahan metadata Repository harus melalui alur kontrol dokumen khusus.');
             const recordId = getRecordId(item);
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk queue item ${item.id}.`);
