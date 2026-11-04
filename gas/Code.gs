@@ -1832,6 +1832,7 @@ function updateContractorComplianceReport_(id, payload, user) {
     if (!rowNumber) return error_(404, 'Laporan Contractor Passport tidak ditemukan.');
     const existing = parseRow_(sheet, rowNumber);
     const input = isObject_(payload) ? payload : {};
+    if (!isRecordVisibleToUser_(existing, user)) return error_(403, 'Laporan ini berada di luar cakupan perusahaan akun Anda.');
 
     if (canReviewContractorComplianceReport_(user)) {
       const action = String(input.action || '').trim().toUpperCase();
