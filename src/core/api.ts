@@ -80,6 +80,25 @@ export type ApiUser = {
 export type ContractorFleetOwnership = 'OWNED' | 'RENTAL' | 'LEASED';
 export type ContractorFleetP2HStatus = 'READY' | 'NOT_READY' | 'NOT_CHECKED';
 
+export interface ContractorP2HRecord {
+  id: string;
+  code: string;
+  fleetId: string;
+  companyCode: string;
+  parentCompanyCode?: string;
+  unitNumber: string;
+  inspectionDate: string;
+  status: Exclude<ContractorFleetP2HStatus, 'NOT_CHECKED'>;
+  hourMeter?: number | '';
+  operatorName: string;
+  findings: string;
+  correctiveAction: string;
+  checkedBy: string;
+  createdAt: string;
+}
+
+export type ContractorP2HInput = Pick<ContractorP2HRecord, 'inspectionDate' | 'status' | 'hourMeter' | 'operatorName' | 'findings' | 'correctiveAction'>;
+
 export interface ContractorFleetUnit {
   id: string;
   code: string;
@@ -346,6 +365,14 @@ export const hseApi = {
 
   async listContractorFleet(): Promise<ContractorFleetUnit[]> {
     return request<ContractorFleetUnit[]>('GET', '/api/contractor/fleet');
+  },
+
+  async listContractorP2HHistory(fleetId: string): Promise<ContractorP2HRecord[]> {
+    return request<ContractorP2HRecord[]>('GET', `/api/contractor/fleet/${encodeURIComponent(fleetId)}/p2h`);
+  },
+
+  async createContractorP2HRecord(fleetId: string, input: ContractorP2HInput): Promise<ContractorP2HRecord> {
+    return request<ContractorP2HRecord>('POST', `/api/contractor/fleet/${encodeURIComponent(fleetId)}/p2h`, input);
   },
 
   async createContractorFleetUnit(input: ContractorFleetInput): Promise<ContractorFleetUnit> {
