@@ -525,11 +525,16 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       try {
         await hdosDB.put('photos', storedFile);
         if (hseApi.baseUrl && sessionUser) {
-          await hseApi.uploadRepositoryDocument({
+          const cloudDocument = await hseApi.uploadRepositoryDocument({
             ...newDoc,
             fileName: selectedFile.name,
             mimeType: selectedFile.type || 'application/octet-stream',
             fileBase64: await fileToBase64(selectedFile),
+          });
+          // Keep the local index aligned with the authoritative Drive metadata.
+          await store.updateDocument(newDoc.id, {
+            ...(cloudDocument as Partial<DocumentItem>),
+            cloudStored: true,
           });
         }
       } catch (storageError) {
@@ -743,10 +748,15 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     resetMessages();
     setDeleting(true);
     try {
+      if (doc.cloudStored && hseApi.baseUrl) {
+        // Online cloud documents are removed through the server so Drive and
+        // the central register remain consistent. Never hide a failed deletion.
+        await hseApi.deleteRepositoryDocument(doc.id);
+      }
       await hdosDB.delete('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
       await store.deleteDocument(doc.id);
       setSelectedDoc(store.documents.find((item) => item.id !== doc.id) || null);
-      setSuccessMessage(`Dokumen ${doc.docNumber} berhasil dihapus oleh pengunggahnya.`);
+      setSuccessMessage(`Dokumen ${doc.docNumber} berhasil dihapus.`);
     } catch (error) {
       setErrorMessage(`Dokumen gagal dihapus: ${getErrorMessage(error)}`);
     } finally {
