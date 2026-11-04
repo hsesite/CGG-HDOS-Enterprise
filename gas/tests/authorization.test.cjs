@@ -1428,4 +1428,8 @@ test('contractor fleet API applies company-scoped read and write rules', () => {
   assert.ok(source.includes("String(item.companyCode || '').trim().toUpperCase() === companyCode"));
   assert.ok(source.includes("String(existing.companyCode || '').trim().toUpperCase()"));
   assert.ok(source.includes("logAudit_(user, 'CREATE', 'contractor_fleet'"));
+  assert.ok(source.includes('p2hLastCheckedAt: normalized.p2hStatus'));
+  assert.ok(source.includes('p2hCheckedBy: normalized.p2hStatus'));
+  assert.ok(source.includes("'FLT-' + String(existing.companyCode"));
+
 });
