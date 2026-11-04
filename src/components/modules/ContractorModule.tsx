@@ -547,6 +547,86 @@ export const ContractorModule: React.FC = () => {
       <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
           <div>
+            <h4 className="flex items-center gap-2 text-sm font-bold text-white"><Truck className="h-4 w-4 text-amber-400" />Register Peralatan &amp; Fleet</h4>
+            <p className="mt-1 text-xs text-neutral-400">Daftar unit Contractor dan Subkon, status P2H, kepemilikan, serta masa berlaku SIA.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-neutral-300">{activeFleetCount} unit aktif · {selectedCompanyFleet.length} total</span>
+            <button type="button" onClick={() => void refreshFleet()} disabled={fleetLoading} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-neutral-300 disabled:opacity-50">{fleetLoading ? 'Memuat...' : 'Muat Ulang'}</button>
+          </div>
+        </div>
+
+        {canSubmitReport && ownCompanyCode === selectedCompanyCode && (
+          <form onSubmit={submitFleetUnit} className="grid grid-cols-1 gap-3 border-b border-white/10 p-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="sm:col-span-2 lg:col-span-4"><h5 className="text-xs font-semibold text-white">Tambah Unit · {ownCompanyCode}</h5></div>
+            <label className="space-y-1 text-xs text-neutral-400">Nomor lambung / unit *
+              <input required minLength={2} maxLength={50} value={fleetDraft.unitNumber} onChange={e => setFleetDraft(current => ({...current,unitNumber:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" placeholder="Contoh: DT-001" />
+            </label>
+            <label className="space-y-1 text-xs text-neutral-400">Jenis unit *
+              <input required minLength={2} maxLength={80} value={fleetDraft.unitType} onChange={e => setFleetDraft(current => ({...current,unitType:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" placeholder="Dump Truck" />
+            </label>
+            <label className="space-y-1 text-xs text-neutral-400">Merek
+              <input maxLength={80} value={fleetDraft.brand} onChange={e => setFleetDraft(current => ({...current,brand:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" placeholder="XCMG" />
+            </label>
+            <label className="space-y-1 text-xs text-neutral-400">Model
+              <input maxLength={80} value={fleetDraft.model} onChange={e => setFleetDraft(current => ({...current,model:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" placeholder="DH400" />
+            </label>
+            <label className="space-y-1 text-xs text-neutral-400">Kepemilikan
+              <select value={fleetDraft.ownershipType} onChange={e => setFleetDraft(current => ({...current,ownershipType:e.target.value as ContractorFleetInput['ownershipType']}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white">
+                <option value="OWNED">Milik perusahaan</option><option value="RENTAL">Sewa</option><option value="LEASED">Leasing</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-xs text-neutral-400">Status P2H
+              <select value={fleetDraft.p2hStatus} onChange={e => setFleetDraft(current => ({...current,p2hStatus:e.target.value as ContractorFleetInput['p2hStatus']}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white">
+                <option value="NOT_CHECKED">Belum diperiksa</option><option value="READY">Siap operasi</option><option value="NOT_READY">Tidak laik operasi</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-xs text-neutral-400">Masa berlaku SIA
+              <input type="date" value={fleetDraft.siaExpiry} onChange={e => setFleetDraft(current => ({...current,siaExpiry:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" />
+            </label>
+            <div className="flex items-end"><button type="submit" disabled={fleetBusy} className="w-full rounded-lg bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Daftarkan Unit'}</button></div>
+          </form>
+        )}
+        {canSubmitReport && ownCompanyCode !== selectedCompanyCode && (
+          <div className="border-b border-white/10 px-5 py-3 text-xs text-neutral-400">Pendaftaran dan perubahan unit dilakukan oleh akun perusahaan pemilik unit.</div>
+        )}
+        {fleetMessage && <div className="border-b border-white/10 px-5 py-3 text-xs text-amber-200">{fleetMessage}</div>}
+        {selectedCompanyFleet.length === 0 ? (
+          <div className="px-5 py-8 text-center text-xs text-neutral-400">{fleetLoading ? 'Memuat register fleet...' : 'Belum ada unit yang didaftarkan untuk perusahaan ini.'}</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] text-left text-xs">
+              <thead className="bg-white/5 text-neutral-400">
+                <tr><th className="px-4 py-3">Unit / Perusahaan</th><th className="px-4 py-3">Jenis / Model</th><th className="px-4 py-3">Kepemilikan</th><th className="px-4 py-3">P2H</th><th className="px-4 py-3">SIA</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Tindakan</th></tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {selectedCompanyFleet.map(unit => {
+                  const expiry = unit.siaExpiry ? new Date(unit.siaExpiry.slice(0,10) + 'T00:00:00') : null;
+                  const expired = expiry !== null && !Number.isNaN(expiry.getTime()) && expiry < today;
+                  const editable = canSubmitReport && unit.companyCode.toUpperCase() === ownCompanyCode;
+                  return (
+                    <tr key={unit.id} className="text-neutral-300">
+                      <td className="px-4 py-3"><div className="font-mono font-semibold text-white">{unit.unitNumber}</div><div className="text-[10px] text-neutral-500">{unit.companyCode}</div></td>
+                      <td className="px-4 py-3"><div>{unit.unitType}</div><div className="text-[10px] text-neutral-500">{[unit.brand,unit.model].filter(Boolean).join(' ') || 'Merek/model belum dicatat'}</div></td>
+                      <td className="px-4 py-3">{unit.ownershipType === 'OWNED' ? 'Milik perusahaan' : unit.ownershipType === 'RENTAL' ? 'Sewa' : 'Leasing'}</td>
+                      <td className="px-4 py-3">
+                        {editable ? <select value={unit.p2hStatus} disabled={fleetBusy} onChange={e => void updateFleetUnit(unit,{p2hStatus:e.target.value as ContractorFleetInput['p2hStatus']})} className="rounded border border-white/10 bg-neutral-950 px-2 py-1 text-xs text-white"><option value="NOT_CHECKED">Belum diperiksa</option><option value="READY">Siap operasi</option><option value="NOT_READY">Tidak laik operasi</option></select> : <span className={unit.p2hStatus === 'READY' ? 'text-emerald-300' : unit.p2hStatus === 'NOT_READY' ? 'text-red-300' : 'text-amber-300'}>{unit.p2hStatus === 'READY' ? 'Siap operasi' : unit.p2hStatus === 'NOT_READY' ? 'Tidak laik operasi' : 'Belum diperiksa'}</span>}
+                      </td>
+                      <td className={`px-4 py-3 ${expired ? 'text-red-300' : 'text-neutral-300'}`}>{unit.siaExpiry || 'Belum dicatat'}{expired && <div className="text-[10px]">Kedaluwarsa</div>}</td>
+                      <td className="px-4 py-3">{unit.status}</td>
+                      <td className="px-4 py-3">{editable && <button type="button" disabled={fleetBusy} onClick={() => void updateFleetUnit(unit,{status:unit.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'})} className="rounded bg-white/5 px-2 py-1 text-[10px] text-neutral-300">{unit.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}</button>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+          <div>
             <h4 className="flex items-center gap-2 text-sm font-bold text-white"><AlertTriangle className="h-4 w-4 text-amber-400" />Register PICA Perusahaan</h4>
             <p className="mt-1 text-xs text-neutral-400">Daftar tindak lanjut yang terkait dengan perusahaan terpilih, termasuk subkontraktor di bawahnya.</p>
           </div>
