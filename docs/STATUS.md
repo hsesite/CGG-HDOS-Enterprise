@@ -109,7 +109,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] KPI MCU, induksi, Safe Hours, manpower, dan fleet pada Passport mengambil data dari laporan terakhir yang sudah diverifikasi; data yang belum diverifikasi tidak dipakai sebagai KPI.
 - [x] Ekspor CSV laporan Contractor Passport hanya tersedia untuk akun internal CGG; akun Contractor/Subkon tetap tidak mendapatkan fungsi unduh.
 - [x] Data MCU dibatasi pada agregat; tidak ada kolom diagnosis atau data medis individu pada laporan ini.
-- [ ] Register rinci peralatan/fleet (nomor lambung, jenis unit, P2H, SIA) dan sumber dokumen pendukung masih perlu dibangun.
+- [x] Register rinci fleet terpusat pada sheet `contractor_fleet`: nomor lambung unik per perusahaan, jenis unit, merek/model, kepemilikan, status P2H, masa berlaku SIA, status aktif/nonaktif, dan audit trail; Contractor/Subkon hanya mengelola unit milik perusahaannya sendiri.
+- [ ] Lampiran bukti dokumen SIA, riwayat P2H per tanggal, dan inspeksi kelayakan unit masih perlu dikembangkan.
 - [ ] Bukti dokumen pendukung laporan, verifikasi sumber data, dan laporan tren historis masih perlu dilengkapi.
 
 ## Pengujian dan deployment
