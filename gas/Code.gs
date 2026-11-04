@@ -698,6 +698,8 @@ function getRepositoryFileMetadata_(fileName, bytes) {
 function publicRepositoryDocument_(doc) {
   if (!doc) return doc;
   const safe = Object.assign({}, doc);
+  // Expose storage readiness without leaking the private Google Drive file ID.
+  safe.cloudStored = Boolean(doc.driveFileId);
   delete safe.driveFileId;
   delete safe.fileBase64;
   return safe;
