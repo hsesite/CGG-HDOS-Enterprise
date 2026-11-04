@@ -1208,3 +1208,17 @@ test('central database supports auditable Google Drive backup and daily trigger 
   assert.match(source, /everyDays\(1\)\.atHour\(2\)/);
   assert.match(source, /HDOS_BACKUP_FOLDER_ID/);
 });
+
+
+test('central audit trail is readable only by Admin CGG and returns bounded recent events', () => {
+  const routeStart = source.indexOf("if (path === '/api/audit' && method === 'GET')");
+  const routeEnd = source.indexOf('// CURRENT USER', routeStart);
+  assert.notEqual(routeStart, -1);
+  assert.notEqual(routeEnd, -1);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /if \(!isAdminCGG_\(user\)\) return error_\(403/);
+  assert.match(route, /readAll_\('audit_logs'\)/);
+  assert.match(route, /rows\.slice\(-500\)\.reverse\(\)/);
+  assert.match(route, /email: row\.email/);
+  assert.match(route, /details: isObject_\(row\.details\)/);
+});
