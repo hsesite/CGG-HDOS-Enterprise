@@ -33,8 +33,8 @@ export const DashboardModule: React.FC = () => {
   const roles = sessionUser?.roles || [];
   const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const isOwnerAdmin = roles.includes('Admin CGG');
-  const isOversight = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV'].includes(role));
-  const isContractor = companyCode === 'SLS' || companyCode === 'VIP';
+  const isOversight = sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
+  const isContractor = store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor');
   const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
   const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan KTT / SPT / SPV' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
   const cloudRefreshLabel = store.lastCloudRefreshAt ? new Date(store.lastCloudRefreshAt).toLocaleString('id-ID') : 'Belum ada snapshot cloud pada sesi ini';
@@ -43,7 +43,7 @@ export const DashboardModule: React.FC = () => {
   const dashboardDescription = isOwnerAdmin
     ? 'Konsolidasi seluruh perusahaan dan wilayah dalam HDOS.'
     : isOversight
-      ? 'Cakupan pengawasan bersama: SLS, VIP, dan seluruh subkontraktor aktif di bawah keduanya.'
+      ? 'Cakupan pengawasan seluruh kontraktor aktif dan subkontraktor terdaftar sesuai master perusahaan.'
       : isContractor
         ? `Data ${companyCode} dan subkontraktor yang terdaftar di bawah perusahaan ini.`
         : isSubcontractor
@@ -58,7 +58,7 @@ export const DashboardModule: React.FC = () => {
     const recordCompany = String(item.companyCode || item.contractorCode || item.ownerCompanyCode || '').trim().toUpperCase();
     const recordSubkon = String(item.subcontractorCode || item.subkonCode || '').trim().toUpperCase();
     const recordParent = String(item.parentCompanyCode || '').trim().toUpperCase();
-    if (isOversight) return ['SLS', 'VIP'].includes(recordCompany) || ['SLS', 'VIP'].includes(recordParent) || ['SLS', 'VIP'].includes(recordSubkon) || Boolean(recordCompany && recordParent && ['SLS', 'VIP'].includes(recordParent));
+    if (isOversight) { const allowed = new Set(store.contractors.flatMap(company => [company.code, company.parentCompanyCode || '']).map(code => String(code).trim().toUpperCase()).filter(Boolean)); return allowed.has(recordCompany) || allowed.has(recordParent) || allowed.has(recordSubkon); }
     if (!companyCode) return false;
     if (isSubcontractor) return recordCompany === companyCode || recordSubkon === companyCode;
     if (isContractor) return recordSubkon ? recordSubkon === companyCode : recordCompany === companyCode;
