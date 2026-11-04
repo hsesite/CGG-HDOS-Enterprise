@@ -74,20 +74,6 @@ export const InspectionModule: React.FC = () => {
   const [picaTargetDate, setPicaTargetDate] = useState(() => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
 
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!hseApi.baseUrl || !sessionUser) return;
-    void Promise.all([
-      hseApi.listOperationalRecords('inspections'),
-      hseApi.listOperationalRecords('picas'),
-    ]).then(async ([inspections, picas]) => {
-      if (cancelled) return;
-      await store.mergeCloudOperationalRecords('inspections', inspections);
-      await store.mergeCloudOperationalRecords('picas', picas);
-    }).catch((error) => console.warn('[InspectionModule] Gagal memuat riwayat pusat:', error));
-    return () => { cancelled = true; };
-  }, [store, sessionUser?.id, hseApi.baseUrl]);
-
   const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId) || { id: 'APAR' as const, title: '', category: '', smkpElement: '', items: [] };
   useEffect(() => {
     let cancelled = false;
