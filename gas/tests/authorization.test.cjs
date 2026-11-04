@@ -1460,3 +1460,11 @@ test('verified oversight roles assigned to a contractor tenant do not bypass ina
     roles:['Foreman Safety'], companyCode:'SLS', roleVerified:true
   }), false);
 });
+
+test('successful HTTP responses with unreadable bodies are classified as retryable gateway failures', () => {
+  const apiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'api.ts'), 'utf8');
+  assert.match(apiSource, /throw new ApiError\(\s*0,/);
+  assert.match(apiSource, /response\.ok \? 502 : \(response\.status \|\| 502\)/);
+  assert.match(apiSource, /body\?\.status \|\|\s*\(response\.ok \? 502 : \(response\.status \|\| 500\)\)/);
+  assert.match(apiSource, /idempotent CREATE/);
+});
