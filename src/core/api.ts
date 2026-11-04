@@ -91,6 +91,8 @@ export interface ContractorFleetUnit {
   model: string;
   ownershipType: ContractorFleetOwnership;
   p2hStatus: ContractorFleetP2HStatus;
+  p2hLastCheckedAt?: string;
+  p2hCheckedBy?: string;
   siaExpiry: string;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
