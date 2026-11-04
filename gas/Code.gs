@@ -1057,7 +1057,13 @@ function handleRoute_(
     const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/png' ? 'png' : 'webp';
     const fileName = safeName.replace(/\.(jpg|jpeg|png|webp)$/i, '') + '-' + Utilities.getUuid() + '.' + extension;
     const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
-    logAudit_(user, 'OPERATIONAL_PHOTO_UPLOADED', 'photos', file.getId(), { companyCode: companyCode, mimeType: mimeType, size: bytes.length });
+    try {
+      logAudit_(user, 'OPERATIONAL_PHOTO_UPLOADED', 'photos', file.getId(), { companyCode: companyCode, mimeType: mimeType, size: bytes.length });
+    } catch (auditError) {
+      // The Drive upload is already committed. Do not return a failed response
+      // that could cause the client to repeat the upload and create duplicates.
+      console.error('[HDOS PHOTO] Foto tersimpan tetapi audit log gagal dicatat.', auditError);
+    }
     return success_({ photoFileId: file.getId(), photoUrl: file.getUrl(), fileName: fileName, mimeType: mimeType });
   }
 
@@ -2289,7 +2295,13 @@ function createContractorP2HRecord_(fleetId, payload, user) {
   } finally {
     lock.releaseLock();
   }
-  logAudit_(user, 'CREATE', 'contractor_p2h_history', record.id, { fleetId: fleetId, unitNumber: record.unitNumber, status: record.status });
+  try {
+    logAudit_(user, 'CREATE', 'contractor_p2h_history', record.id, { fleetId: fleetId, unitNumber: record.unitNumber, status: record.status });
+  } catch (auditError) {
+    // The P2H history and fleet status have already been committed together.
+    // Keep the successful response stable so a client retry cannot duplicate P2H.
+    console.error('[HDOS P2H] Data P2H tersimpan tetapi audit log gagal dicatat.', auditError);
+  }
   return success_(record);
 }
 
