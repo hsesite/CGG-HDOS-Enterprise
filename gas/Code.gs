@@ -1810,13 +1810,14 @@ function canReviewContractorComplianceReport_(user) {
   const roles = user && user.roles || [];
   return isAdminCGG_(user) || (
     user && user.roleVerified === true &&
+    String(user.companyCode || '').trim().toUpperCase() === 'CGG' &&
     roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; })
   );
 }
 
 function canViewContractorComplianceReports_(user) {
   return isAdminCGG_(user) || canReviewContractorComplianceReport_(user) ||
-    (user && user.roleVerified === true && isOversightRole_(user)) ||
+    (user && user.roleVerified === true && String(user.companyCode || '').trim().toUpperCase() === 'CGG' && isOversightRole_(user)) ||
     canSubmitContractorComplianceReport_(user);
 }
 
@@ -2548,7 +2549,7 @@ function isRecordVisibleToUser_(record, user) {
   }
 
   // Verified CGG oversight roles share one scope: all active Contractors and their active registered Subkon.
-  if (isOversightRole_(user) && user.roleVerified === true) {
+  if (isOversightRole_(user) && user.roleVerified === true && ownCompany === 'CGG') {
     const allowed = getOversightCompanyCodes_();
     return Boolean(allowed[recordCompany] || allowed[recordSubkon] || allowed[recordParent]);
   }
