@@ -300,7 +300,7 @@ export const ContractorModule: React.FC = () => {
               <FileCheck className="w-4 h-4 text-[#00E676]" />
             </div>
             <div className="text-2xl font-bold text-white font-mono mt-1">
-              {selectedContractor.mcuCompliancePercent > 0 ? `${selectedContractor.mcuCompliancePercent}%` : '—'}
+              {selectedVerifiedReport && selectedVerifiedReport.mcuEligibleCount > 0 ? `${Math.round(selectedVerifiedReport.mcuFitCount / selectedVerifiedReport.mcuEligibleCount * 100)}%` : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">Fit to work certified</div>
           </div>
@@ -311,7 +311,7 @@ export const ContractorModule: React.FC = () => {
               <Award className="w-4 h-4 text-blue-400" />
             </div>
             <div className="text-2xl font-bold text-white font-mono mt-1">
-              {selectedContractor.inductionRatePercent > 0 ? `${selectedContractor.inductionRatePercent}%` : '—'}
+              {selectedVerifiedReport && selectedVerifiedReport.inductionRequiredCount > 0 ? `${Math.round(selectedVerifiedReport.inductionCompletedCount / selectedVerifiedReport.inductionRequiredCount * 100)}%` : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">Berdasarkan data induksi yang tercatat</div>
           </div>
@@ -322,7 +322,7 @@ export const ContractorModule: React.FC = () => {
               <ShieldCheck className="w-4 h-4 text-amber-400" />
             </div>
             <div className="text-xl font-bold text-white font-mono mt-1 truncate">
-              {selectedContractor.safeHours > 0 ? selectedContractor.safeHours.toLocaleString('id-ID') : '—'}
+              {selectedVerifiedReport ? selectedVerifiedReport.safeHours.toLocaleString('id-ID') : '—'}
             </div>
             <div className="text-[10px] text-neutral-400 mt-1">LTI-Free Hours</div>
           </div>
@@ -347,15 +347,102 @@ export const ContractorModule: React.FC = () => {
               Peralatan &amp; Fleet
             </h4>
             <span className="text-xs font-mono text-neutral-400">
-              {selectedContractor.equipmentCount > 0 ? `${selectedContractor.equipmentCount} unit tercatat` : 'Data belum tersedia'}
+              {selectedVerifiedReport ? `${selectedVerifiedReport.equipmentCount} unit tercatat (laporan terverifikasi)` : 'Data belum tersedia'}
             </span>
           </div>
           <p className="text-xs text-neutral-400">
-            Rincian jenis unit, nomor lambung, status P2H, dan masa berlaku SIA belum tersedia pada data Contractor Passport. Informasi operasional tidak ditampilkan sebelum dicatat dan diverifikasi.
+            Jumlah unit berasal dari laporan bulanan terakhir yang telah diverifikasi. Rincian nomor lambung, status P2H, dan masa berlaku SIA akan ditampilkan setelah register fleet dikembangkan.
           </p>
         </div>
 
       </div>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+          <div>
+            <h4 className="text-sm font-bold text-white">Laporan Kepatuhan Bulanan Kontraktor</h4>
+            <p className="mt-1 text-xs text-neutral-400">Data agregat manpower, fleet, MCU, induksi, jam kerja selamat, dan LTI. Nilai KPI hanya ditampilkan setelah diverifikasi HSE.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-neutral-300">{selectedCompanyReports.length} laporan</span>
+            <button type="button" onClick={() => void refreshComplianceReports()} disabled={reportsLoading} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-neutral-300 disabled:opacity-50">{reportsLoading ? 'Memuat...' : 'Muat Ulang'}</button>
+          </div>
+        </div>
+
+        {canSubmitReport && ownCompanyCode === selectedCompanyCode && (
+          <form onSubmit={submitComplianceReport} className="grid grid-cols-1 gap-3 border-b border-white/10 p-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="sm:col-span-2 lg:col-span-3">
+              <h5 className="text-xs font-semibold text-white">{editingReportId ? 'Perbaikan Laporan yang Dikembalikan' : 'Kirim Laporan Bulanan'} · {ownCompanyCode}</h5>
+            </div>
+            <label className="space-y-1 text-xs text-neutral-400">Periode laporan
+              <input type="month" required disabled={Boolean(editingReportId)} value={reportDraft.period} onChange={e => setReportDraft(current => ({...current, period:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white disabled:opacity-60" />
+            </label>
+            {([
+              ['manpowerCount','Jumlah manpower'],
+              ['equipmentCount','Jumlah unit peralatan'],
+              ['mcuEligibleCount','Pekerja wajib MCU'],
+              ['mcuFitCount','Pekerja MCU fit'],
+              ['inductionRequiredCount','Pekerja wajib induksi'],
+              ['inductionCompletedCount','Pekerja selesai induksi'],
+              ['safeHours','Jam kerja selamat kumulatif'],
+              ['ltiCount','Jumlah LTI periode ini']
+            ] as const).map(([field,label]) => (
+              <label key={field} className="space-y-1 text-xs text-neutral-400">{label}
+                <input type="number" min="0" step="1" required value={reportDraft[field]} onChange={e => setReportDraft(current => ({...current,[field]:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" />
+              </label>
+            ))}
+            <label className="space-y-1 text-xs text-neutral-400 sm:col-span-2 lg:col-span-3">Catatan / keterangan
+              <textarea rows={2} maxLength={1000} value={reportDraft.remarks} onChange={e => setReportDraft(current => ({...current,remarks:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" placeholder="Sumber data, periode cut-off, atau keterangan pendukung." />
+            </label>
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-3">
+              <button type="submit" disabled={reportBusy} className="rounded-lg bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{reportBusy ? 'Menyimpan...' : editingReportId ? 'Kirim Ulang Laporan' : 'Kirim untuk Verifikasi HSE'}</button>
+              {editingReportId && <button type="button" onClick={() => { setEditingReportId(''); setReportDraft({period:currentPeriod,manpowerCount:'',equipmentCount:'',mcuEligibleCount:'',mcuFitCount:'',inductionRequiredCount:'',inductionCompletedCount:'',safeHours:'',ltiCount:'0',remarks:''}); }} className="rounded-lg border border-white/10 px-4 py-2 text-xs text-neutral-300">Batal Perbaikan</button>}
+              <span className="text-[10px] text-neutral-500">MCU hanya berupa jumlah agregat; jangan masukkan diagnosis atau data medis individu.</span>
+            </div>
+          </form>
+        )}
+        {canSubmitReport && ownCompanyCode !== selectedCompanyCode && (
+          <div className="border-b border-white/10 px-5 py-3 text-xs text-neutral-400">Pengiriman laporan dilakukan oleh akun perusahaan masing-masing. Pilih perusahaan akun Anda ({ownCompanyCode}) untuk mengirim laporan.</div>
+        )}
+        {reportMessage && <div className="border-b border-white/10 px-5 py-3 text-xs text-amber-200">{reportMessage}</div>}
+
+        {selectedCompanyReports.length === 0 ? (
+          <div className="px-5 py-8 text-center text-xs text-neutral-400">Belum ada laporan kepatuhan untuk perusahaan ini.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] text-left text-xs">
+              <thead className="bg-white/5 text-neutral-400">
+                <tr><th className="px-4 py-3">Periode / Perusahaan</th><th className="px-4 py-3">Manpower</th><th className="px-4 py-3">Fleet</th><th className="px-4 py-3">MCU</th><th className="px-4 py-3">Induksi</th><th className="px-4 py-3">Safe Hours</th><th className="px-4 py-3">LTI</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Tindakan</th></tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {selectedCompanyReports.map(report => (
+                  <tr key={report.id} className="text-neutral-300">
+                    <td className="px-4 py-3"><div className="font-mono text-white">{report.period}</div><div className="text-[10px] text-neutral-500">{report.companyCode}</div></td>
+                    <td className="px-4 py-3">{report.manpowerCount.toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3">{report.equipmentCount.toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3">{report.mcuEligibleCount ? Math.round(report.mcuFitCount / report.mcuEligibleCount * 100) + '%' : '—'}</td>
+                    <td className="px-4 py-3">{report.inductionRequiredCount ? Math.round(report.inductionCompletedCount / report.inductionRequiredCount * 100) + '%' : '—'}</td>
+                    <td className="px-4 py-3">{report.safeHours.toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3">{report.ltiCount}</td>
+                    <td className="px-4 py-3"><span className={`rounded px-2 py-1 text-[10px] font-semibold ${report.status === 'VERIFIED' ? 'bg-emerald-500/15 text-emerald-300' : report.status === 'RETURNED' ? 'bg-red-500/15 text-red-300' : 'bg-amber-500/15 text-amber-300'}`}>{report.status}</span>{report.reviewNotes && <div className="mt-1 max-w-[180px] whitespace-normal text-[10px] text-red-300">{report.reviewNotes}</div>}</td>
+                    <td className="px-4 py-3">
+                      {canReviewReport && report.status === 'SUBMITTED' && <div className="flex flex-col gap-1"><button type="button" disabled={reportBusy} onClick={() => void reviewComplianceReport(report,'VERIFY')} className="rounded bg-emerald-500/15 px-2 py-1 text-[10px] text-emerald-300">Verifikasi</button><button type="button" disabled={reportBusy} onClick={() => void reviewComplianceReport(report,'RETURN')} className="rounded bg-red-500/15 px-2 py-1 text-[10px] text-red-300">Kembalikan</button></div>}
+                      {report.status === 'RETURNED' && canSubmitReport && report.companyCode.toUpperCase() === ownCompanyCode && <button type="button" onClick={() => startReportCorrection(report)} className="rounded bg-amber-500/15 px-2 py-1 text-[10px] text-amber-300">Perbaiki</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {canReviewReport && selectedCompanyReports.some(report => report.status === 'SUBMITTED') && (
+          <div className="border-t border-white/10 p-5">
+            <label className="block space-y-1 text-xs text-neutral-400">Catatan pengembalian (wajib jika laporan dikembalikan)
+              <textarea rows={2} value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} maxLength={1000} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" placeholder="Tuliskan data yang perlu diperbaiki." />
+            </label>
+          </div>
+        )}
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
