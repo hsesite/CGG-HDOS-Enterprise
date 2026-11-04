@@ -472,7 +472,6 @@ export class HDOSSyncEngine {
     if (this.queueOwnerKey !== ownerKey) return 0;
 
     let resetCount = 0;
-    const skippedCount = 0;
 
     for (const item of [...this.queue]) {
       const activeOwner = this.getCurrentOwner();
