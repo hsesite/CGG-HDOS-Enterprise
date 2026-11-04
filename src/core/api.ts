@@ -77,6 +77,39 @@ export type ApiUser = {
   roleVerified?: boolean;
 };
 
+export type ContractorComplianceReportStatus = 'SUBMITTED' | 'VERIFIED' | 'RETURNED';
+
+export interface ContractorComplianceReport {
+  id: string;
+  code: string;
+  period: string;
+  companyCode: string;
+  parentCompanyCode?: string;
+  manpowerCount: number;
+  equipmentCount: number;
+  mcuEligibleCount: number;
+  mcuFitCount: number;
+  inductionRequiredCount: number;
+  inductionCompletedCount: number;
+  safeHours: number;
+  ltiCount: number;
+  remarks: string;
+  status: ContractorComplianceReportStatus;
+  submittedBy: string;
+  submittedAt: string;
+  reviewNotes?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContractorComplianceReportInput = Pick<ContractorComplianceReport,
+  'period' | 'manpowerCount' | 'equipmentCount' | 'mcuEligibleCount' |
+  'mcuFitCount' | 'inductionRequiredCount' | 'inductionCompletedCount' |
+  'safeHours' | 'ltiCount' | 'remarks'
+>;
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -283,6 +316,18 @@ export const hseApi = {
 
   async upsertCompany(input: { code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains?: string; autoProvision?: boolean; status: 'ACTIVE' | 'INACTIVE'; passportStatus?: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName?: string; picContact?: string; safetyPassportExpiry?: string }): Promise<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string; passportStatus: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName: string; picContact: string; safetyPassportExpiry: string }> {
     return request('POST', '/api/companies', input);
+  },
+
+  async listContractorComplianceReports(): Promise<ContractorComplianceReport[]> {
+    return request<ContractorComplianceReport[]>('GET', '/api/contractor/reports');
+  },
+
+  async submitContractorComplianceReport(input: ContractorComplianceReportInput): Promise<ContractorComplianceReport> {
+    return request<ContractorComplianceReport>('POST', '/api/contractor/reports', input);
+  },
+
+  async updateContractorComplianceReport(id: string, input: { action?: 'VERIFY' | 'RETURN'; reviewNotes?: string } | ContractorComplianceReportInput): Promise<ContractorComplianceReport> {
+    return request<ContractorComplianceReport>('PATCH', `/api/contractor/reports/${encodeURIComponent(id)}`, input);
   },
 
   async listLocations(): Promise<MiningLocationGIS[]> {
