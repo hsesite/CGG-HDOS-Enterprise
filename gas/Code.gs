@@ -891,10 +891,10 @@ function handleRoute_(
   }
 
   if (path === '/api/companies' && method === 'GET') {
+    const roles = user.roles || [];
     const isVerifiedCggOversight = user.roleVerified === true &&
       (isReadOnlyController_(user) || roles.indexOf('Project Manager') >= 0) &&
       String(user.companyCode || '').trim().toUpperCase() === 'CGG';
-    const roles = user.roles || [];
     const isCompanyPassportViewer = roles.some(function(role) {
       return ['Contractor', 'Subkon', 'Contractor PIC'].indexOf(role) >= 0;
     });
