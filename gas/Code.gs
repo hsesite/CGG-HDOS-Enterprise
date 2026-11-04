@@ -46,7 +46,8 @@ const CONFIG = {
     'audit_logs',
     'backup_logs',
     'contractor_reports',
-    'contractor_fleet'
+    'contractor_fleet',
+    'contractor_p2h_history'
   ],
 
   SESSION_TTL:
@@ -183,6 +184,11 @@ const ENTITY_SCHEMAS = {
     'unitType', 'brand', 'model', 'ownershipType', 'p2hStatus',
     'p2hLastCheckedAt', 'p2hCheckedBy', 'siaExpiry', 'status',
     'createdAt', 'updatedAt', 'payload'
+  ],
+  contractor_p2h_history: [
+    'id', 'code', 'fleetId', 'companyCode', 'parentCompanyCode', 'unitNumber',
+    'inspectionDate', 'status', 'hourMeter', 'operatorName', 'findings',
+    'correctiveAction', 'checkedBy', 'createdAt', 'payload'
   ]
 };
 
@@ -910,6 +916,17 @@ function handleRoute_(
   if (path === '/api/contractor/fleet' && method === 'POST') {
     return createContractorFleetUnit_(params.payload, user);
   }
+  const contractorP2hMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)\/p2h$/);
+  if (contractorP2hMatch && method === 'GET') {
+    if (!canViewContractorComplianceReports_(user)) return error_(403, 'Akun ini tidak memiliki akses ke riwayat P2H.');
+    const fleetId = decodeURIComponent(contractorP2hMatch[1]);
+    const unit = readAll_('contractor_fleet').filter(function(item) { return item.id === fleetId; })[0];
+    if (!unit) return error_(404, 'Unit fleet tidak ditemukan.');
+    if (!isRecordVisibleToUser_(unit, user)) return error_(403, 'Unit berada di luar cakupan perusahaan akun Anda.');
+    return success_(readAll_('contractor_p2h_history').filter(function(item) { return item.fleetId === fleetId && isRecordVisibleToUser_(item, user); }).sort(function(a,b) { return String(b.inspectionDate || '').localeCompare(String(a.inspectionDate || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')); }));
+  }
+  if (contractorP2hMatch && method === 'POST') return createContractorP2HRecord_(decodeURIComponent(contractorP2hMatch[1]), params.payload, user);
+
   const contractorFleetMatch = path.match(/^\/api\/contractor\/fleet\/([^/]+)$/);
   if (contractorFleetMatch && method === 'PATCH') {
     return updateContractorFleetUnit_(decodeURIComponent(contractorFleetMatch[1]), params.payload, user);
@@ -2056,6 +2073,53 @@ function updateContractorFleetUnit_(id, payload, user) {
   return success_(updated);
 }
 
+
+function createContractorP2HRecord_(fleetId, payload, user) {
+  if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mencatat P2H.');
+  const input = isObject_(payload) ? payload : {};
+  const sheet = getSheet_('contractor_fleet');
+  const historySheet = getSheet_('contractor_p2h_history');
+  const lock = LockService.getScriptLock();
+  let record = null;
+  lock.waitLock(10000);
+  try {
+    const rowNumber = findRecordRow_(sheet, fleetId);
+    if (!rowNumber) return error_(404, 'Unit fleet tidak ditemukan.');
+    const unit = parseRow_(sheet, rowNumber);
+    const companyCode = String(user.companyCode || '').trim().toUpperCase();
+    if (!isRecordVisibleToUser_(unit, user) || (!isAdminCGG_(user) && companyCode !== String(unit.companyCode || '').trim().toUpperCase())) {
+      return error_(403, 'Pencatatan P2H hanya dapat dilakukan oleh perusahaan pemilik unit.');
+    }
+    const inspectionDate = String(input.inspectionDate || '').trim();
+    const status = String(input.status || '').trim().toUpperCase();
+    const operatorName = String(input.operatorName || '').trim();
+    const findings = String(input.findings || '').trim();
+    const correctiveAction = String(input.correctiveAction || '').trim();
+    const hourMeter = input.hourMeter === '' || input.hourMeter === null || input.hourMeter === undefined ? '' : Number(input.hourMeter);
+    if (!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$/.test(inspectionDate) || new Date(inspectionDate + 'T00:00:00Z').toISOString().slice(0,10) !== inspectionDate) return error_(400, 'Tanggal pemeriksaan P2H wajib valid dengan format YYYY-MM-DD.');
+    if (['READY', 'NOT_READY'].indexOf(status) === -1) return error_(400, 'Status hasil P2H wajib dipilih.');
+    if (!operatorName || operatorName.length > 120) return error_(400, 'Nama operator wajib diisi maksimal 120 karakter.');
+    if (findings.length > 2000 || correctiveAction.length > 2000) return error_(400, 'Temuan dan tindakan koreksi maksimal 2.000 karakter.');
+    if (hourMeter !== '' && (!Number.isFinite(hourMeter) || hourMeter < 0 || hourMeter > 100000000)) return error_(400, 'Hour meter harus berupa angka positif yang valid.');
+    if (status === 'NOT_READY' && !correctiveAction) return error_(400, 'Tindakan pengendalian wajib dicatat untuk unit yang tidak laik operasi.');
+    const now = new Date().toISOString();
+    record = {
+      id: Utilities.getUuid(), code: 'P2H-' + String(unit.unitNumber || '').replace(/[^A-Z0-9-]/gi, '-') + '-' + Utilities.getUuid().slice(0,8).toUpperCase(),
+      fleetId: fleetId, companyCode: unit.companyCode, parentCompanyCode: unit.parentCompanyCode || '',
+      unitNumber: unit.unitNumber, inspectionDate: inspectionDate, status: status,
+      hourMeter: hourMeter, operatorName: operatorName, findings: findings,
+      correctiveAction: correctiveAction, checkedBy: String(user.email || ''), createdAt: now
+    };
+    historySheet.appendRow(buildEntityRow_('contractor_p2h_history', record, ENTITY_SCHEMAS.contractor_p2h_history));
+    const updated = Object.assign({}, unit, { p2hStatus: status, p2hLastCheckedAt: now, p2hCheckedBy: String(user.email || ''), updatedAt: now });
+    sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  logAudit_(user, 'CREATE', 'contractor_p2h_history', record.id, { fleetId: fleetId, unitNumber: record.unitNumber, status: record.status });
+  return success_(record);
+}
 
 function revokeCompanySessions_(companyCode) {
   const targetCode = String(companyCode || '').trim().toUpperCase();
