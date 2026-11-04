@@ -78,6 +78,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Alur investigasi insiden: Foreman Safety/SPV HSE terverifikasi dapat memperbarui 5-Why, akar penyebab, dan tindakan koreksi; KTT/SPT/SPV terverifikasi dapat mereview; penutupan hanya KTT terverifikasi atau Admin CGG.
 - [x] Status review/penutupan dicatat bersama nama dan waktu, dengan audit trail dan perlindungan idempotensi saat respons jaringan hilang.
 - [x] Sinkronisasi UPDATE meneruskan versi `updatedAt` dari server ke record lokal dan antrean lanjutan agar rangkaian perubahan offline pada record yang sama tidak saling menolak.
+- [x] Sinkronisasi CREATE juga meneruskan versi pertama dari server ke UPDATE yang sudah antre untuk record baru.
+- [x] Kode referensi Inspection, Hazard, Incident, dan PICA menggunakan tahun berjalan serta potongan ID unik, bukan nomor urut lokal yang dapat bentrok antarperangkat.
 - [x] Status koneksi modul Sinkronisasi memakai status jaringan perangkat aktual, bukan tombol simulasi.
 - [x] Pemanggilan snapshot cloud duplikat pada modul operasional dihapus; satu store pusat mengelola proses pemuatan.
 - [x] Dashboard membandingkan perusahaan dari master terdaftar, bukan daftar kode statis.
