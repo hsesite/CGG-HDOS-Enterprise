@@ -19,8 +19,9 @@ export const ContractorModule: React.FC = () => {
   const [selectedContractor, setSelectedContractor] = useState<ContractorPassport | undefined>(store.contractors[0]);
   const selectedCompanyCode = String(selectedContractor?.code || '').trim().toUpperCase();
   const selectedCompanyPicas = store.picas.filter((pica) => {
-    const operatingCompany = String(pica.subcontractorCode || pica.subkonCode || pica.companyCode || pica.contractorCode || '').trim().toUpperCase();
-    const parentCompany = String(pica.parentCompanyCode || '').trim().toUpperCase();
+    const record = pica as unknown as Record<string, unknown>;
+    const operatingCompany = String(record.subcontractorCode || record.subkonCode || record.companyCode || record.contractorCode || '').trim().toUpperCase();
+    const parentCompany = String(record.parentCompanyCode || '').trim().toUpperCase();
     return operatingCompany === selectedCompanyCode || parentCompany === selectedCompanyCode;
   });
   const actualActivePicaCount = selectedCompanyPicas.filter(pica => pica.status !== 'CLOSED').length;
