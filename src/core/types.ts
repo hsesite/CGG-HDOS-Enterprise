@@ -126,9 +126,15 @@ export interface Incident {
   fiveWhyAnalysis: string[];
   rootCause: string;
   correctiveActions: string[];
+  reviewNotes?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  closedBy?: string;
+  closedAt?: string;
   smkpReportSubmitted: boolean;
   reporter: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface PICA {
