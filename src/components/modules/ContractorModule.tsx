@@ -446,11 +446,11 @@ export const ContractorModule: React.FC = () => {
               Peralatan &amp; Fleet
             </h4>
             <span className="text-xs font-mono text-neutral-400">
-              {selectedVerifiedReport ? `${selectedVerifiedReport.equipmentCount} unit tercatat (laporan terverifikasi)` : 'Data belum tersedia'}
+              {activeFleetCount} unit aktif di register
             </span>
           </div>
           <p className="text-xs text-neutral-400">
-            Jumlah unit berasal dari laporan bulanan terakhir yang telah diverifikasi. Rincian nomor lambung, status P2H, dan masa berlaku SIA akan ditampilkan setelah register fleet dikembangkan.
+            Jumlah unit berasal dari register fleet. Status P2H dan masa berlaku SIA ditampilkan dari data unit yang didaftarkan; jumlah pada laporan bulanan tetap dapat dibandingkan pada tabel laporan.
           </p>
         </div>
 
