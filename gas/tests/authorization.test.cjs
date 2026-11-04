@@ -867,7 +867,7 @@ test('offline sync queue is bound to the authenticated user and company before r
   assert.match(syncSource, /const verifiedProfile\s*=\s*await hseApi\.me\(syncToken\)/);
   assert.match(syncSource, /verifiedOwner\.userId\s*!==\s*owner\.userId/);
   assert.match(syncSource, /verifiedOwner\.companyCode\s*!==\s*owner\.companyCode/);
-  assert.match(syncSource, /hseApi\.create(?:<[^>]+>)?\(\s*endpoint,\s*item\.payload,\s*syncToken\s*\)/);
+  assert.match(syncSource, /hseApi\.create[\s\S]{0,120}\(endpoint, item\.payload, syncToken\)/);
 
   // Cloud snapshots must not erase local records still waiting in this tenant's
   // queue, and must not expose another tenant's cached operational records.
@@ -1256,7 +1256,7 @@ test('operational reference codes are year-scoped and unique across client devic
 test('a queued update after CREATE inherits the server-created updatedAt version', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /hseApi\.create<Record<string, unknown>>/);
-  assert.match(syncSource, /A user may edit a new record again before its CREATE reaches the server/);
+  assert.match(syncSource, /A user may edit a new record again before its CREATE reaches the\s*server/);
   assert.match(syncSource, /queued\.action !== 'UPDATE'/);
   assert.match(syncSource, /updatedAt: serverUpdatedAt/);
 });
