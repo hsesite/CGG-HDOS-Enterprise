@@ -23,6 +23,7 @@ export const SyncModule: React.FC = () => {
   const canExport = String(currentUser?.companyCode || '').trim().toUpperCase() === 'CGG' || Boolean(currentUser?.roles.includes('Admin CGG'));
   const [online, setOnline] = useState(hdosSync.getIsOnline());
   const [syncing, setSyncing] = useState(hdosSync.getIsSyncing());
+  const [refreshingCloud, setRefreshingCloud] = useState(false);
   const [queue, setQueue] = useState(hdosSync.getQueue());
   const [logs, setLogs] = useState(hdosSync.getSyncLogs());
 
@@ -59,6 +60,28 @@ export const SyncModule: React.FC = () => {
     await hdosSync.retryFailedItems();
     await hdosSync.triggerSync();
   };
+
+  const handleRefreshCloud = async () => {
+    if (!hseApi.isAuthenticated) return;
+    setRefreshingCloud(true);
+    try {
+      await store.refreshCloudData();
+      setLogs(current => [{
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        message: 'Snapshot database pusat berhasil diminta; data yang masih antre tetap dipertahankan.',
+        type: 'success',
+      }, ...current].slice(0, 100));
+    } catch (error) {
+      setLogs(current => [{
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        message: error instanceof Error ? `Refresh database pusat gagal: ${error.message}` : 'Refresh database pusat gagal.',
+        type: 'warning',
+      }, ...current].slice(0, 100));
+    } finally {
+      setRefreshingCloud(false);
+    }
+  };
+
 
 
   const handleExportInspections = () => {
@@ -101,6 +124,14 @@ export const SyncModule: React.FC = () => {
             <span>Mode: {online ? 'Online (Terkoneksi)' : 'Offline (Area Blankspot Pit)'}</span>
           </button>
 
+          <button
+            onClick={handleRefreshCloud}
+            disabled={refreshingCloud || !online || !hseApi.isAuthenticated}
+            className="px-3.5 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-neutral-200 font-semibold text-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-40"
+          >
+            <Download className={`w-3.5 h-3.5 ${refreshingCloud ? 'animate-pulse' : ''}`} />
+            <span>{refreshingCloud ? 'Mengambil Data...' : 'Ambil Data Pusat'}</span>
+          </button>
           <button
             onClick={handleTriggerSync}
             disabled={syncing || !online || queue.length === 0}
