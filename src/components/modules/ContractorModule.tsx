@@ -660,7 +660,8 @@ export const ContractorModule: React.FC = () => {
                   const expiringSoon = expiryDays !== null && expiryDays >= 0 && expiryDays <= 30;
                   const editable = canSubmitReport && unit.companyCode.toUpperCase() === ownCompanyCode;
                   return (
-                    <tr key={unit.id} className="text-neutral-300">
+                    <React.Fragment key={unit.id}>
+                    <tr className="text-neutral-300">
                       <td className="px-4 py-3"><div className="font-mono font-semibold text-white">{unit.unitNumber}</div><div className="text-[10px] text-neutral-500">{unit.companyCode}</div></td>
                       <td className="px-4 py-3"><div>{unit.unitType}</div><div className="text-[10px] text-neutral-500">{[unit.brand,unit.model].filter(Boolean).join(' ') || 'Merek/model belum dicatat'}</div></td>
                       <td className="px-4 py-3">{unit.ownershipType === 'OWNED' ? 'Milik perusahaan' : unit.ownershipType === 'RENTAL' ? 'Sewa' : 'Leasing'}</td>
@@ -689,6 +690,7 @@ export const ContractorModule: React.FC = () => {
                       </form>}
                       {p2hLoading ? <div className="text-xs text-neutral-400">Memuat riwayat P2H...</div> : p2hHistory.length === 0 ? <div className="text-xs text-neutral-500">Belum terdapat catatan riwayat P2H untuk unit ini.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-[10px]"><thead className="text-neutral-500"><tr><th className="py-2 pr-3">Tanggal</th><th className="py-2 pr-3">Hasil</th><th className="py-2 pr-3">HM</th><th className="py-2 pr-3">Operator</th><th className="py-2 pr-3">Temuan / Tindakan</th><th className="py-2">Pemeriksa</th></tr></thead><tbody className="divide-y divide-white/5">{p2hHistory.map(record => <tr key={record.id} className="text-neutral-300"><td className="py-2 pr-3 whitespace-nowrap">{record.inspectionDate}</td><td className={record.status === 'READY' ? 'py-2 pr-3 text-emerald-300' : 'py-2 pr-3 text-red-300'}>{record.status === 'READY' ? 'Laik operasi' : 'Tidak laik operasi'}</td><td className="py-2 pr-3">{record.hourMeter === '' || record.hourMeter === undefined ? '—' : record.hourMeter}</td><td className="py-2 pr-3">{record.operatorName}</td><td className="py-2 pr-3"><div>{record.findings || 'Tidak ada temuan dicatat'}</div>{record.correctiveAction && <div className="mt-1 text-amber-200">Tindakan: {record.correctiveAction}</div>}</td><td className="py-2">{record.checkedBy || '—'}</td></tr>)}</tbody></table></div>}
                     </td></tr>}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
