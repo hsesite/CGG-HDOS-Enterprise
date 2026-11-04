@@ -244,7 +244,7 @@ export const ContractorModule: React.FC = () => {
 
               <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] border-t border-white/5 pt-2 font-mono">
                 <div>
-                  <span className="text-neutral-400">KPI Safety:</span>{' '}
+                  <span className="text-neutral-400">LTI Periode:</span>{' '}
                   <strong className="text-[#00E676]">{verifiedReport ? (verifiedReport.ltiCount === 0 ? 'Tanpa LTI' : verifiedReport.ltiCount + ' LTI') : 'Belum diverifikasi'}</strong>
                 </div>
                 <div>
