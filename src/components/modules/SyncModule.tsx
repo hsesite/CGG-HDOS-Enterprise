@@ -60,11 +60,14 @@ export const SyncModule: React.FC = () => {
     if (!hseApi.isAuthenticated) return;
     setRefreshingCloud(true);
     try {
-      await store.refreshCloudData();
+      const result = await store.refreshCloudData();
+      const hasFailures = result.failed.length > 0;
       setLogs(current => [{
         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-        message: 'Snapshot database pusat berhasil diminta; data yang masih antre tetap dipertahankan.',
-        type: 'success' as const,
+        message: hasFailures
+          ? `Refresh sebagian: ${result.refreshed.join(', ') || 'belum ada sumber berhasil'}; gagal: ${result.failed.join(', ')}.`
+          : `Database pusat berhasil diperbarui: ${result.refreshed.join(', ')}.`,
+        type: hasFailures ? 'warning' as const : 'success' as const,
       }, ...current].slice(0, 100));
     } catch (error) {
       setLogs(current => [{
