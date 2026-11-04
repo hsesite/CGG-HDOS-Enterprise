@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   HardHat,
   ShieldCheck,
@@ -25,6 +25,30 @@ export const ContractorModule: React.FC = () => {
     return operatingCompany === selectedCompanyCode || parentCompany === selectedCompanyCode;
   });
   const actualActivePicaCount = selectedCompanyPicas.filter(pica => pica.status !== 'CLOSED').length;
+
+  // The company master arrives asynchronously after the local workspace is loaded.
+  // Keep the selected passport aligned with the authoritative store.
+  useEffect(() => {
+    if (store.contractors.length === 0) {
+      setSelectedContractor(undefined);
+      return;
+    }
+    setSelectedContractor(current => {
+      if (!current) return store.contractors[0];
+      return store.contractors.find(company => company.code.toUpperCase() === current.code.toUpperCase())
+        || store.contractors[0];
+    });
+  }, [store.contractors]);
+
+  const activeCompanyCount = store.contractors.filter(company => company.status === 'ACTIVE').length;
+  const passportExpiry = selectedContractor?.safetyPassportExpiry
+    ? new Date(selectedContractor.safetyPassportExpiry.slice(0, 10) + 'T00:00:00')
+    : null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const passportDaysRemaining = passportExpiry && !Number.isNaN(passportExpiry.getTime())
+    ? Math.ceil((passportExpiry.getTime() - today.getTime()) / 86400000)
+    : null;
 
   if (store.contractors.length === 0 || !selectedContractor) {
     return (
@@ -56,7 +80,7 @@ export const ContractorModule: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-semibold">
-            {store.contractors.length} Mitra Kerja Aktif di Pit CGG
+            {activeCompanyCount} dari {store.contractors.length} Mitra Kerja Aktif
           </span>
         </div>
       </div>
@@ -87,7 +111,7 @@ export const ContractorModule: React.FC = () => {
                   </div>
                 </div>
 
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300' : c.status === 'WARNING' ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
                   {c.status}
                 </span>
               </div>
@@ -118,7 +142,7 @@ export const ContractorModule: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white">{selectedContractor.companyName}</h3>
-                <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${selectedContractor.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300' : selectedContractor.status === 'WARNING' ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
                   Status: {selectedContractor.status}
                 </span>
               </div>
@@ -135,8 +159,13 @@ export const ContractorModule: React.FC = () => {
           <div className="text-right text-xs">
             <div className="text-neutral-400 font-mono">Masa Berlaku Safety Passport:</div>
             <div className="text-[#00E676] font-bold font-mono text-sm mt-0.5">
-              {selectedContractor.safetyPassportExpiry}
+              {selectedContractor.safetyPassportExpiry || 'Belum dicatat'}
             </div>
+            {passportDaysRemaining !== null && (
+              <div className="mt-1 text-[10px] text-neutral-400">
+                {passportDaysRemaining < 0 ? 'Kedaluwarsa ' + Math.abs(passportDaysRemaining) + ' hari lalu' : passportDaysRemaining === 0 ? 'Berakhir hari ini' : 'Sisa ' + passportDaysRemaining + ' hari'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -161,7 +190,7 @@ export const ContractorModule: React.FC = () => {
             <div className="text-2xl font-bold text-white font-mono mt-1">
               {selectedContractor.inductionRatePercent > 0 ? `${selectedContractor.inductionRatePercent}%` : '—'}
             </div>
-            <div className="text-[10px] text-neutral-400 mt-1">Belum ada sumber data MCU terintegrasi</div>
+            <div className="text-[10px] text-neutral-400 mt-1">Berdasarkan data induksi yang tercatat</div>
           </div>
 
           <div className="p-4 rounded-xl bg-white/5 border border-white/10">
