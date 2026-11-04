@@ -394,7 +394,7 @@ export class HDOSCentralStore {
         .filter(record => isLocalRecordVisible(record, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean)))) as unknown as DocumentItem[];
       const remoteById = new Map(remote.map(document => [document.id, document]));
       const localOffline = this.documents.filter(document =>
-        isLocalRecordVisible(document as unknown as Record<string, unknown>, user) &&
+        isLocalRecordVisible(document as unknown as Record<string, unknown>, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean))) &&
         !remoteById.has(document.id) &&
         document.cloudStored !== true
       );
@@ -402,7 +402,7 @@ export class HDOSCentralStore {
       for (const document of remote) await hdosDB.put('repository', document);
       const remoteIds = new Set(remote.map(document => document.id));
       for (const local of this.documents) {
-        if (isLocalRecordVisible(local as unknown as Record<string, unknown>, user) &&
+        if (isLocalRecordVisible(local as unknown as Record<string, unknown>, user, new Set(this.contractors.flatMap(company => [String(company.code || '').trim().toUpperCase(), String(company.parentCompanyCode || '').trim().toUpperCase()]).filter(Boolean))) &&
             local.cloudStored === true && !remoteIds.has(local.id)) {
           await hdosDB.delete('repository', local.id);
           await hdosDB.delete('photos', `document-file-${local.id}`);
