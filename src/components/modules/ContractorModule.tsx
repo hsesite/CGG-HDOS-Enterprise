@@ -208,6 +208,9 @@ export const ContractorModule: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {store.contractors.map((c) => {
           const isSelected = selectedContractor.id === c.id;
+          const verifiedReport = complianceReports
+            .filter(report => report.companyCode.toUpperCase() === c.code.toUpperCase() && report.status === 'VERIFIED')
+            .sort((a, b) => b.period.localeCompare(a.period))[0];
 
           return (
             <div
@@ -242,11 +245,11 @@ export const ContractorModule: React.FC = () => {
               <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] border-t border-white/5 pt-2 font-mono">
                 <div>
                   <span className="text-neutral-400">KPI Safety:</span>{' '}
-                  <strong className="text-[#00E676]">{c.kpiSafetyScore > 0 ? `${c.kpiSafetyScore}%` : '—'}</strong>
+                  <strong className="text-[#00E676]">{verifiedReport ? (verifiedReport.ltiCount === 0 ? 'Tanpa LTI' : verifiedReport.ltiCount + ' LTI') : 'Belum diverifikasi'}</strong>
                 </div>
                 <div>
                   <span className="text-neutral-400">Manpower:</span>{' '}
-                  <strong className="text-white">{c.manpowerCount > 0 ? `${c.manpowerCount} org` : 'Belum tersedia'}</strong>
+                  <strong className="text-white">{verifiedReport ? verifiedReport.manpowerCount.toLocaleString('id-ID') + ' org' : 'Belum diverifikasi'}</strong>
                 </div>
               </div>
             </div>
