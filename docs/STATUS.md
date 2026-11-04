@@ -114,7 +114,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Backend riwayat P2H append-only per unit: tanggal pemeriksaan, status laik/tidak laik, hour meter, nama operator, temuan, tindakan koreksi, pemeriksa, dan audit trail; hasil terbaru memperbarui status P2H pada register fleet.
 - [x] UI Contractor Passport menyediakan panel riwayat P2H per unit dan form pencatatan untuk perusahaan pemilik; catatan lama tetap ditampilkan dan tidak dapat ditimpa.
 - [x] Form P2H mendukung upload bukti foto JPG/PNG/WEBP maksimal 5 MB ke Google Drive dengan referensi file pada riwayat dan endpoint pratinjau berbasis otorisasi cakupan perusahaan.
-- [ ] Lampiran dokumen SIA masih perlu dikembangkan; endpoint dan UI upload/pratinjau bukti P2H belum dinyatakan teruji pada deployment GAS aktif.
+- [x] Register fleet menyediakan unggah/ganti dan pratinjau dokumen SIA PDF/JPG/PNG maksimal 10 MB, disimpan di Google Drive per perusahaan dan ditautkan ke unit.
+- [ ] Endpoint dan UI bukti P2H/SIA belum dinyatakan teruji pada deployment GAS aktif; validasi hak akses dan siklus penggantian file harus masuk uji menyeluruh.
 - [ ] Bukti dokumen pendukung laporan, verifikasi sumber data, dan laporan tren historis masih perlu dilengkapi.
 
 ## Pengujian dan deployment
