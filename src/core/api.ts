@@ -94,6 +94,9 @@ export interface ContractorP2HRecord {
   findings: string;
   correctiveAction: string;
   checkedBy: string;
+  photoFileId?: string;
+  photoFileName?: string;
+  photoMimeType?: string;
   createdAt: string;
 }
 
