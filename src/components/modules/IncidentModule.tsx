@@ -36,6 +36,8 @@ export const IncidentModule: React.FC = () => {
   const [fiveWhy1, setFiveWhy1] = useState('');
   const [fiveWhy2, setFiveWhy2] = useState('');
   const [fiveWhy3, setFiveWhy3] = useState('');
+  const [fiveWhy4, setFiveWhy4] = useState('');
+  const [fiveWhy5, setFiveWhy5] = useState('');
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +49,9 @@ export const IncidentModule: React.FC = () => {
     const fiveWhyAnalysis = [
       fiveWhy1 ? `1. Mengapa terjadi? ${fiveWhy1}` : '',
       fiveWhy2 ? `2. Mengapa hal tersebut terjadi? ${fiveWhy2}` : '',
-      fiveWhy3 ? `3. Mengapa kondisi itu dibiarkan? ${fiveWhy3}` : '',
+      fiveWhy3 ? `3. Mengapa proteksi atau pengawasan tidak mencegahnya? ${fiveWhy3}` : '',
+      fiveWhy4 ? `4. Mengapa sistem kerja memungkinkan penyebab tersebut? ${fiveWhy4}` : '',
+      fiveWhy5 ? `5. Pengendalian sistemik apa yang harus diperbaiki? ${fiveWhy5}` : '',
     ].filter(Boolean);
 
     const newInc = await createIncidentAction({
@@ -325,6 +329,20 @@ export const IncidentModule: React.FC = () => {
               placeholder="Why 3: Mengapa proteksi / pengawasan tidak mencegahnya?"
               value={fiveWhy3}
               onChange={(e) => setFiveWhy3(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-xs text-white"
+            />
+            <input
+              type="text"
+              placeholder="Why 4: Mengapa sistem kerja memungkinkan penyebab tersebut?"
+              value={fiveWhy4}
+              onChange={(e) => setFiveWhy4(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-xs text-white"
+            />
+            <input
+              type="text"
+              placeholder="Why 5: Pengendalian sistemik apa yang harus diperbaiki?"
+              value={fiveWhy5}
+              onChange={(e) => setFiveWhy5(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-xs text-white"
             />
           </div>
