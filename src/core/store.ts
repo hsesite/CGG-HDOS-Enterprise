@@ -23,7 +23,7 @@ function isLocalRecordVisible(
 
   // Match the backend's approved, active Contractor/Subkon scope. The master
   // is supplied by the central company register; never hard-code tenant IDs.
-  const oversightRoles = ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'];
+  const oversightRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'];
   if (user.roleVerified === true && oversightRoles.some(role => roles.includes(role))) {
     return allowedCompanyCodes.has(company) ||
       allowedCompanyCodes.has(subkon) ||
