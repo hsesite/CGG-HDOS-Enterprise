@@ -344,136 +344,36 @@ export const DashboardModule: React.FC = () => {
         {/* Recharts Responsive Canvas */}
         <div className="w-full h-64 sm:h-76 md:h-80 pt-1 -ml-2 sm:ml-0">
           {activeTrendData.length === 0 ? <div className="flex h-full items-center justify-center text-xs text-neutral-500">Belum ada data historis untuk periode ini.</div> : <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <BarChart
               data={activeTrendData}
               margin={{ top: 12, right: 12, left: -10, bottom: 0 }}
             >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="rgba(255, 255, 255, 0.06)"
-                vertical={false}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="rgba(255, 255, 255, 0.35)"
-                tick={{ fill: 'rgba(255, 255, 255, 0.55)', fontSize: 11, fontFamily: 'monospace' }}
+                stroke="rgba(255,255,255,0.35)"
+                tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: 'monospace' }}
                 tickLine={false}
-                axisLine={{ stroke: 'rgba(255, 255, 255, 0.12)' }}
+                axisLine={{ stroke: 'rgba(255,255,255,0.12)' }}
                 interval={timeRange === '7D' ? 0 : timeRange === '14D' ? 1 : 4}
               />
-              {/* Left Y-Axis for Safe Hours */}
               <YAxis
-                yAxisId="left"
-                stroke="rgba(0, 230, 118, 0.5)"
-                tick={{ fill: '#00E676', fontSize: 11, fontFamily: 'monospace' }}
+                allowDecimals={false}
+                stroke="rgba(255,255,255,0.35)"
+                tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                domain={['dataMin - 4000', 'dataMax + 4000']}
-                tickFormatter={(val: number) => `${(val / 1000000).toFixed(2)}M`}
-              />
-              {/* Right Y-Axis for Active Hazards */}
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                stroke="rgba(255, 82, 82, 0.5)"
-                tick={{ fill: '#FF5252', fontSize: 11, fontFamily: 'monospace' }}
-                tickLine={false}
-                axisLine={false}
-                domain={[0, 8]}
-                tickFormatter={(val: number) => `${val}h`}
               />
               <Tooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const safeHoursVal = payload.find((p: any) => p.dataKey === 'safeHours')?.value;
-                    const hazardsVal = payload.find((p: any) => p.dataKey === 'activeHazards')?.value;
-
-                    return (
-                      <div className="apple-glass p-3.5 rounded-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-3xl text-xs font-mono space-y-2.5 min-w-[240px] pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                        {/* Tooltip Header */}
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-[#00E676]" />
-                            <span className="font-bold text-white text-[12px]">{label} 2026</span>
-                          </div>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-medium">
-                            Area belum dipilih
-                          </span>
-                        </div>
-
-                        {/* Metric 1: Safe Hours */}
-                        <div className="flex items-center justify-between gap-3 text-[11px] bg-white/[0.04] p-2 rounded-xl border border-white/5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#00E676] shadow-[0_0_8px_#00E676]" />
-                            <span className="text-neutral-300 font-medium font-sans">Jam Kerja Selamat:</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[#00E676] font-bold tabular-nums">
-                              {Number(safeHoursVal ?? 0).toLocaleString('id-ID')} Jam
-                            </div>
-                            <div className="text-[9px] text-neutral-400 font-sans">Belum ada data insiden/LTI</div>
-                          </div>
-                        </div>
-
-                        {/* Metric 2: Active Hazards */}
-                        <div className="flex items-center justify-between gap-3 text-[11px] bg-white/[0.04] p-2 rounded-xl border border-white/5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5252] shadow-[0_0_8px_#FF5252]" />
-                            <span className="text-neutral-300 font-medium font-sans">Hazard Aktif:</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-red-400 font-bold tabular-nums">
-                              {hazardsVal ?? 0} Temuan
-                            </div>
-                            <div className="text-[9px] font-sans">
-                              {Number(hazardsVal ?? 0) <= 2 ? (
-                                <span className="text-neutral-400">Menunggu data</span>
-                              ) : (
-                                <span className="text-neutral-400">Menunggu data</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Tooltip Footer */}
-                        <div className="flex items-center justify-between pt-1 text-[10px] text-neutral-400 border-t border-white/5 font-sans">
-                          <span>Shift 1 &amp; 2 Terverifikasi</span>
-                          <span className="text-neutral-400 font-mono">Belum diverifikasi</span>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
+                contentStyle={{ background: '#171717', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: '#fff', fontSize: 11 }}
+                labelStyle={{ color: '#fff', fontWeight: 700 }}
               />
-              <Legend
-                verticalAlign="top"
-                align="right"
-                wrapperStyle={{ paddingBottom: '12px', fontSize: '11px', fontFamily: 'monospace' }}
-                formatter={(value) => <span className="text-neutral-300 font-medium mr-2">{value}</span>}
-              />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="safeHours"
-                name="Safe Hours"
-                stroke="#00E676"
-                strokeWidth={2.5}
-                dot={timeRange === '7D'}
-                activeDot={{ r: 5, fill: '#00E676', stroke: '#090909', strokeWidth: 2 }}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="activeHazards"
-                name="Active Hazards"
-                stroke="#FF5252"
-                strokeWidth={2}
-                strokeDasharray="4 4"
-                dot={timeRange === '7D'}
-                activeDot={{ r: 5, fill: '#FF5252', stroke: '#090909', strokeWidth: 2 }}
-              />
-            </LineChart>
+              <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }} />
+              <Bar dataKey="inspections" name="Inspeksi" fill="#42A5F5" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="hazards" name="Hazard" fill="#FF5252" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="incidents" name="Insiden" fill="#F59E0B" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="picas" name="PICA" fill="#A78BFA" radius={[3, 3, 0, 0]} />
+            </BarChart></LineChart>
           </ResponsiveContainer>}
         </div>
       </div>
