@@ -193,7 +193,7 @@ test('unverified KTT, SPT, and SPV cannot view cross-company records', () => {
 });
 test('verified CGG oversight can read redacted company master dynamically', () => {
   assert.ok(source.includes("const isVerifiedCggOversight = isReadOnlyController_(user)"));
-  assert.ok(source.includes("if (!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight)"));
+  assert.ok(source.includes("!isAdminCGG_(user) && !isCompanyAdmin_(user) && !isVerifiedCggOversight && !isCompanyPassportViewer"));
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("autoProvision: false,"));
   assert.ok(source.includes("return success_(companyData.map(function(company)"));
