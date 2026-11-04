@@ -181,7 +181,8 @@ const ENTITY_SCHEMAS = {
   contractor_fleet: [
     'id', 'code', 'companyCode', 'parentCompanyCode', 'unitNumber',
     'unitType', 'brand', 'model', 'ownershipType', 'p2hStatus',
-    'siaExpiry', 'status', 'createdAt', 'updatedAt', 'payload'
+    'p2hLastCheckedAt', 'p2hCheckedBy', 'siaExpiry', 'status',
+    'createdAt', 'updatedAt', 'payload'
   ]
 };
 
@@ -1990,6 +1991,8 @@ function createContractorFleetUnit_(payload, user) {
       code: 'FLT-' + companyCode + '-' + normalized.unitNumber.replace(/[^A-Z0-9-]/g, '-'),
       companyCode: companyCode,
       parentCompanyCode: company.role === 'Subkon' ? String(company.parentCompanyCode || '').trim().toUpperCase() : '',
+      p2hLastCheckedAt: normalized.p2hStatus === 'NOT_CHECKED' ? '' : now,
+      p2hCheckedBy: normalized.p2hStatus === 'NOT_CHECKED' ? '' : String(user.email || ''),
       createdAt: now,
       updatedAt: now
     });
@@ -2025,7 +2028,15 @@ function updateContractorFleetUnit_(id, payload, user) {
         String(item.unitNumber || '').trim().toUpperCase() === normalized.unitNumber;
     });
     if (duplicate) return error_(409, 'Nomor lambung/unit sudah digunakan unit lain pada perusahaan ini.');
-    updated = Object.assign({}, existing, normalized, { updatedAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    const p2hChanged = normalized.p2hStatus !== String(existing.p2hStatus || 'NOT_CHECKED');
+    updated = Object.assign({}, existing, normalized, {
+      updatedAt: now,
+      ...(p2hChanged ? {
+        p2hLastCheckedAt: normalized.p2hStatus === 'NOT_CHECKED' ? '' : now,
+        p2hCheckedBy: normalized.p2hStatus === 'NOT_CHECKED' ? '' : String(user.email || '')
+      } : {})
+    });
     sheet.getRange(rowNumber, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
       .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
     SpreadsheetApp.flush();
