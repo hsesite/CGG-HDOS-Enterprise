@@ -113,6 +113,10 @@ export class HDOSCentralStore {
 
   async init(): Promise<void> {
   try {
+    // Never carry another account's freshness indicator across a workspace switch.
+    this.lastCloudRefreshAt = null;
+    this.cloudRefreshFailedSources = [];
+
     // Load the active account's durable queue before reconciling cloud snapshots.
     // This ensures pending offline writes are never overwritten by older server data.
     await hdosSync.init();
