@@ -20,7 +20,8 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Kegagalan penulisan fallback storage diteruskan sebagai error.
 - [x] Upload dokumen mencoba rollback metadata jika penyimpanan file binary gagal.
 - [ ] Uji browser storage quota, private browsing, upgrade schema, dan pemulihan data.
-- [ ] Strategi backup dan pemulihan data lokal/cloud yang sudah diuji.
+- [x] Implementasi backup terjadwal Spreadsheet pusat ke Google Drive dan log backup.
+- [ ] Uji pemulihan (restore) dari backup, kebijakan retensi, dan pemulihan data lokal/cloud.
 - [x] Implementasi upload file asli Repository ke Google Drive melalui GAS, metadata pusat, preview, download terotorisasi, dan penghapusan cloud.
 - [ ] Uji end-to-end upload, preview, download, delete, batas ukuran, dan pemulihan Drive pada deployment GAS aktif.
 
@@ -78,6 +79,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] KPI overdue PICA dihitung dari target date; Hazard kritis hanya menghitung temuan yang masih terbuka.
 - [x] Contractor Passport menghitung PICA aktif dari register operasional dalam cakupan perusahaan; manpower, MCU, dan KPI tanpa sumber tetap ditampilkan sebagai belum tersedia.
 - [x] Modul GIS menampilkan plot koordinat relatif dari latitude/longitude valid pada master area dan daftar status lokasi; bukan basemap atau citra satelit.
+- [x] Backend menyediakan backup Spreadsheet pusat ke Google Drive, log hasil backup, dan pemasangan trigger harian pukul 02:00 sesuai timezone Apps Script.
 
 ## Pengujian dan deployment
 
