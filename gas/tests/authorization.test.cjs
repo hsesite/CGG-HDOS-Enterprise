@@ -1217,8 +1217,9 @@ test('central audit trail is readable only by Admin CGG and returns bounded rece
   assert.notEqual(routeEnd, -1);
   const route = source.slice(routeStart, routeEnd);
   assert.match(route, /if \(!isAdminCGG_\(user\)\) return error_\(403/);
-  assert.match(route, /readAll_\('audit_logs'\)/);
-  assert.match(route, /rows\.slice\(-500\)\.reverse\(\)/);
+  assert.match(route, /readRecentAuditLogs_\(500\)/);
+  assert.match(source, /function readRecentAuditLogs_\(limit\)/);
+  assert.match(source, /lastRow - safeLimit \+ 1/);
   assert.match(route, /email: row\.email/);
   assert.match(route, /details: isObject_\(row\.details\)/);
 });
