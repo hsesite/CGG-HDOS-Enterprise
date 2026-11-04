@@ -143,3 +143,5 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 6. Lakukan backup sebelum pengujian yang mengubah atau menghapus data.
 
 **Penting:** keberhasilan typecheck/build membuktikan kualitas kompilasi frontend saja. Ia tidak membuktikan keamanan, kepatuhan SMKP, kebenaran data, atau kesiapan operasional.
+
+- [x] Upload foto operasional dan pencatatan P2H tidak lagi mengembalikan kegagalan hanya karena audit log gagal setelah data/file utama tersimpan; hal ini mencegah retry klien membuat file foto atau catatan P2H duplikat pada kegagalan audit saja.
