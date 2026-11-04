@@ -1256,7 +1256,7 @@ test('operational reference codes are year-scoped and unique across client devic
 test('a queued update after CREATE inherits the server-created updatedAt version', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /hseApi\.create<Record<string, unknown>>/);
-  assert.match(syncSource, /A user may edit a new record again before its CREATE reaches the\s*server/);
+  assert.match(syncSource, /serverRecord = await hseApi\.create<Record<string, unknown>>/);
   assert.match(syncSource, /queued\.action !== 'UPDATE'/);
   assert.match(syncSource, /updatedAt: serverUpdatedAt/);
 });
