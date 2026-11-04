@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Building2, Users, ShieldCheck, Trash2, Plus, Settings2 } from 'lucide-react';
+import { MapPin, Building2, Users, ShieldCheck, Trash2, Plus, Settings2, FileClock } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import type { MiningLocationGIS, ContractorPassport } from '../../core/types';
 import { getCurrentUser } from '../../core/auth-utils';
@@ -22,7 +22,7 @@ const getAreaCategoryLabel = (zoneType: MiningLocationGIS['zoneType']) => AREA_C
 
 export const SettingsModule: React.FC = () => {
   const store = useHDOSStore();
-  const [tab, setTab] = useState<'areas' | 'contractors' | 'accounts'>(() => getCurrentUser()?.roles.includes('Company Admin') ? 'accounts' : 'areas');
+  const [tab, setTab] = useState<'areas' | 'contractors' | 'accounts' | 'audit'>(() => getCurrentUser()?.roles.includes('Company Admin') ? 'accounts' : 'areas');
   const [area, setArea] = useState(emptyArea);
   const [contractor, setContractor] = useState({ code: '', companyName: '', picName: '', picContact: '', status: 'ACTIVE' as ContractorPassport['status'], safetyPassportExpiry: '', companyRole: 'Contractor' as 'Contractor' | 'Subkon', parentCompanyCode: '', emailDomains: '', autoProvision: false });
   const [companyMaster, setCompanyMaster] = useState<Array<{ code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; emailDomains: string; autoProvision: boolean; status: string; passportStatus: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName: string; picContact: string; safetyPassportExpiry: string }>>([]);
@@ -32,6 +32,8 @@ export const SettingsModule: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<ApiUser[]>([]);
   const [accountLoading, setAccountLoading] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<Array<Record<string, unknown>>>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [newAccount, setNewAccount] = useState({displayName:'',email:'',password:'',position:'',role:(getCurrentUser()?.roles.includes('Company Admin') ? 'Employee' : 'Company Admin') as 'Company Admin'|'KTT'|'SPT'|'SPV'|'Project Manager'|'Superintendent'|'Supervisor'|'Foreman'|'PJO'|'SPV HSE'|'Foreman Safety'|'Safety Officer'|'Paramedis'|'Contractor PIC'|'Employee',companyCode:getCurrentUser()?.companyCode || ''});
   const user = getCurrentUser();
   const isCGGAdmin = Boolean(user?.roles.includes('Admin CGG'));
@@ -69,7 +71,20 @@ export const SettingsModule: React.FC = () => {
     finally { setCompanyLoading(false); }
   }
 
-  useEffect(() => { if (tab === 'accounts') void loadAccounts(); if (tab === 'contractors') void loadCompanyMaster(); }, [tab]);
+  async function loadAuditLogs() {
+    if (!isCGGAdmin) return;
+    setAuditLoading(true);
+    try {
+      const records = await hseApi.listAuditLogs();
+      setAuditLogs(records);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Audit trail gagal dimuat: ${error.message}` : 'Audit trail tidak dapat dimuat.');
+    } finally {
+      setAuditLoading(false);
+    }
+  }
+
+  useEffect(() => { if (tab === 'accounts') void loadAccounts(); if (tab === 'contractors') void loadCompanyMaster(); if (tab === 'audit' && isCGGAdmin) void loadAuditLogs(); }, [tab, isCGGAdmin]);
   
   if (!user || (!isCGGAdmin && !isCompanyAdmin)) {
     return <div className="mx-auto max-w-3xl rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-center"><ShieldCheck className="mx-auto mb-3 h-8 w-8 text-red-300"/><h2 className="font-semibold text-white">Akses Pengaturan Ditolak</h2><p className="mt-2 text-sm text-neutral-400">Hanya Admin CGG atau Admin Perusahaan yang ditunjuk dapat mengelola akun sesuai cakupannya.</p></div>;
@@ -181,7 +196,7 @@ export const SettingsModule: React.FC = () => {
         <div><h2 className="text-xl font-bold text-white">Pengaturan Sistem</h2><p className="mt-1 text-sm text-neutral-400">Master data Area Kerja kini tersimpan terpusat di server HDOS dan dapat digunakan lintas perangkat. Master perusahaan juga dikelola terpusat.</p></div>
       </header>
       <div className="flex flex-wrap gap-2">
-        {(isCGGAdmin ? ([{id:'areas',label:'Area Kerja',icon:MapPin},{id:'contractors',label:'Perusahaan',icon:Building2},{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const) : ([{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const)).map(item => {
+        {(isCGGAdmin ? ([{id:'areas',label:'Area Kerja',icon:MapPin},{id:'contractors',label:'Perusahaan',icon:Building2},{id:'accounts',label:'Akun & Akses',icon:ShieldCheck},{id:'audit',label:'Audit Trail',icon:FileClock}] as const) : ([{id:'accounts',label:'Akun & Akses',icon:ShieldCheck}] as const)).map(item => {
           const Icon = item.icon;
           return <button key={item.id} onClick={() => {setTab(item.id);setMessage('');}} className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm ${tab===item.id?'border-[#00E676]/50 bg-[#00E676]/10 text-[#00E676]':'border-white/10 bg-white/5 text-neutral-300 hover:bg-white/10'}`}><Icon size={16}/>{item.label}</button>;
         })}
@@ -225,6 +240,28 @@ export const SettingsModule: React.FC = () => {
           {companyLoading ? <p className="text-sm text-neutral-400">Memuat master perusahaan dari server...</p> : companyMaster.length===0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Master perusahaan server masih kosong. Tambahkan kontraktor atau subkon dari formulir ini.</div> : companyMaster.map(item=><div key={item.code} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-medium text-white">{item.name}</div><div className="mt-1 text-xs text-neutral-400">{item.code} · {item.role==='Contractor'?'Kontraktor':'Subkontraktor'}{item.parentCompanyCode ? ` · Induk: ${item.parentCompanyCode}` : ''}</div></div><div className="flex shrink-0 flex-col items-end gap-2"><span className={`rounded-lg border px-2 py-1 text-xs ${item.status==='ACTIVE'?'border-emerald-400/20 text-emerald-300':'border-amber-400/20 text-amber-300'}`}>{item.status}</span><button type="button" onClick={()=>{setEditingCompanyCode(item.code);setContractor({code:item.code,companyName:item.name,picName:item.picName||'',picContact:item.picContact||'',status:item.passportStatus|| (item.status==='ACTIVE'?'ACTIVE':'SUSPENDED'),safetyPassportExpiry:item.safetyPassportExpiry||'',companyRole:item.role,parentCompanyCode:item.parentCompanyCode||'',emailDomains:item.emailDomains||'',autoProvision:item.autoProvision});setMessage('Edit master perusahaan lalu simpan perubahan.');}} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white">Edit</button></div></div></div>)}
         </section>
       </div>}
+      {tab === 'audit' && isCGGAdmin && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="font-semibold text-white">Audit Trail Sistem</h3><p className="mt-1 text-xs text-neutral-400">500 aktivitas terbaru dari database pusat. Riwayat hanya dapat dibuka Admin CGG.</p></div>
+          <button disabled={auditLoading} onClick={() => void loadAuditLogs()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{auditLoading ? 'Memuat...' : 'Muat ulang'}</button>
+        </div>
+        {auditLoading ? <p className="py-8 text-center text-sm text-neutral-400">Memuat audit trail...</p> : auditLogs.length === 0 ? <div className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">Belum ada aktivitas tercatat atau endpoint audit belum tersedia pada GAS aktif.</div> : <div className="space-y-2">
+          {auditLogs.map((entry, index) => {
+            const roles = Array.isArray(entry.roles) ? entry.roles.map(String).join(', ') : '';
+            const details = entry.details && typeof entry.details === 'object' ? JSON.stringify(entry.details) : '';
+            const timestamp = String(entry.timestamp || entry.createdAt || '');
+            return <article key={String(entry.id || index)} className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2"><span className="rounded-md bg-cyan-400/10 px-2 py-1 text-[10px] font-bold text-cyan-300">{String(entry.action || 'ACTIVITY')}</span><span className="text-[10px] text-neutral-500">{String(entry.code || '')}</span></div>
+                <time className="text-[10px] text-neutral-500">{timestamp ? new Date(timestamp).toLocaleString('id-ID') : 'Waktu tidak tersedia'}</time>
+              </div>
+              <div className="mt-2 text-xs text-white">{String(entry.email || 'Akun tidak diketahui')} <span className="text-neutral-500">· {roles || 'Role tidak tersedia'}</span></div>
+              <div className="mt-1 text-[11px] text-neutral-400">Objek: {String(entry.entity || '—')} · ID: {String(entry.recordId || '—')} · Status: {String(entry.status || '—')}</div>
+              {details && <div className="mt-2 break-words rounded-lg bg-white/[0.03] p-2 font-mono text-[10px] text-neutral-500">{details}</div>}
+            </article>;
+          })}
+        </div>}
+      </section>}
       {tab === 'accounts' && <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-3"><Users className="text-[#00E676]"/><div><h3 className="font-semibold text-white">Akun dan hak akses</h3><p className="text-sm text-neutral-400">Sesi saat ini: {user?.displayName || 'Tidak diketahui'}{user?.email ? ` · ${user.email}` : ''}</p></div></div>
         <div className="flex items-center justify-between gap-3"><p className="text-sm text-neutral-400">Admin CGG menunjuk Admin Perusahaan. Admin Perusahaan mengelola akun pekerja dan jabatan di perusahaan dalam cakupannya.</p><button disabled={accountLoading} onClick={() => void loadAccounts()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">{accountLoading ? 'Memuat...' : 'Muat ulang'}</button></div>
