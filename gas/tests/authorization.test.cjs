@@ -14,7 +14,7 @@ function extractFunction(name, nextName) {
 function loadScope() {
   const context = {
     isAdminCGG_: u => (u.roles || []).includes('Admin CGG'),
-    isReadOnlyController_: u => (u.roles || []).some(r => ['KTT','SPT','SPV','PJO','SPV HSE','Foreman Safety'].includes(r)),
+    isReadOnlyController_: u => (u.roles || []).some(r => ['KTT','SPT','SPV','Project Manager','PJO','SPV HSE','Foreman Safety'].includes(r)),
     requiresRoleVerification_: u => (u.roles || []).some(r => ['KTT','Project Manager','Superintendent','Supervisor','Foreman','SPV HSE','Foreman Safety','PJO'].includes(r)),
     isRecordVisibleToUser_: () => true,
     findCompanyRegistry_: code => (code === 'SLS' || code === 'VIP') ? {status:'ACTIVE',role:'Contractor',parentCompanyCode:''} : null,
@@ -142,7 +142,7 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
   const context = {
     isAdminCGG_: () => false,
     isCompanyScopedRole_: () => true,
-    isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV','PJO','SPV HSE','Foreman Safety'].includes(role)),
+    isOversightRole_: user => (user.roles || []).some(role => ['KTT','SPT','SPV','Project Manager','PJO','SPV HSE','Foreman Safety'].includes(role)),
     findCompanyRegistry_: code => code === 'CGG' ? null : ({status:'ACTIVE',role:'Contractor',parentCompanyCode:''}),
     getSheet_: () => ({ getDataRange: () => ({ getValues: () => [
       ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status'],
@@ -162,7 +162,7 @@ test('KTT, SPT, and SPV share read-only oversight of SLS, VIP, and active subcon
   const end=source.indexOf('function requiresRoleVerification_(',start+1);
   assert.notEqual(start,-1); assert.notEqual(end,-1);
   vm.runInContext(source.slice(start,end),context);
-  for (const role of ['KTT','SPT','SPV','PJO','SPV HSE','Foreman Safety']) {
+  for (const role of ['KTT','SPT','SPV','Project Manager','PJO','SPV HSE','Foreman Safety']) {
     const user={roles:[role],companyCode:'CGG',roleVerified:true};
     assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},user),true);
     assert.equal(context.isRecordVisibleToUser_({companyCode:'VIP'},user),true);
@@ -201,7 +201,7 @@ test('verified CGG oversight can read redacted company master dynamically', () =
   assert.ok(source.includes("company.role === 'Subkon' && parent === ownCode"));
 });
 test('all verified oversight roles are read-only for operational record writes', () => {
-  assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety']"));
+  assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety']"));
   for (const role of ['KTT','SPT','SPV']) {
     assert.ok(source.includes("['KTT', 'SPT', 'SPV', 'Project Manager'"));
   }
@@ -1288,7 +1288,7 @@ test('dashboard and repository access follow the registered company master', () 
   assert.match(dashboardSource, /new Set\(store\.contractors\.flatMap/);
   assert.ok(dashboardSource.includes('recordParent === companyCode'));
   assert.match(repositorySource, /new Set\(store\.contractors\.flatMap/);
-  assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
+  assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'/);
   assert.equal(dashboardSource.includes("['SLS', 'VIP']"), false);
   assert.equal(repositorySource.includes("['SLS', 'VIP']"), false);
 });
@@ -1296,7 +1296,7 @@ test('dashboard and repository access follow the registered company master', () 
 test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
-  assert.match(storeSource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
+  assert.match(storeSource, /'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'/);
   assert.match(storeSource, /allowedCompanyCodes\.has\(company\)/);
   assert.match(storeSource, /allowedCompanyCodes\.has\(subkon\)/);
   assert.equal(storeSource.includes("['SLS', 'VIP']"), false);
