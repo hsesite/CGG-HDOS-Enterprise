@@ -29,7 +29,7 @@ Frontend di GitHub Pages bersifat statis. Ia tidak menjalankan Express atau Post
 - `SettingsModule`: audit trail pusat hanya untuk Admin CGG; daftar menampilkan maksimal 500 aktivitas terbaru.
 - `gas/Code.gs`: backup Spreadsheet ke folder Google Drive khusus dan trigger harian pukul 02:00 berdasarkan timezone project; hasilnya dicatat di `backup_logs`.
 - `IncidentModule` + GAS: investigasi 5-Why dapat diperbarui HSE terverifikasi, hasil direview KTT/SPT/SPV, dan penutupan dibatasi KTT terverifikasi/Admin CGG; setiap transisi dicatat pada audit trail.
-- `HDOSSyncEngine`: setelah UPDATE sukses, versi `updatedAt` dari server diteruskan ke record lokal dan antrean UPDATE berikutnya untuk ID yang sama.
+- `HDOSSyncEngine`: setelah CREATE atau UPDATE sukses, versi `updatedAt` dari server diteruskan ke record lokal dan antrean UPDATE berikutnya untuk ID yang sama.
 - `src/core/auth-utils.ts` / `auth-state.ts`: alur login dan cache sesi frontend.
 - `src/components/modules/RepositoryModule.tsx`: kontrol dokumen dan file asli lokal.
 - `src/components/mobile/IOSMobileSimulator.tsx`: simulasi UI perangkat untuk preview, bukan bukti bahwa UI sudah lolos uji di ponsel fisik.
