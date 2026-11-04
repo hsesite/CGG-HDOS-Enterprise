@@ -940,7 +940,7 @@ export class HDOSCentralStore {
     } else {
       if (!isAdminCGG && !isInvestigator) throw new Error('Pembaruan investigasi hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
       if (current.status !== 'INVESTIGATING' || nextStatus !== 'INVESTIGATING') throw new Error('Data investigasi hanya dapat diperbarui selama status Investigating.');
-      const allowedKeys = ['fiveWhyAnalysis', 'rootCause', 'correctiveActions', 'timeline', 'reviewNotes'];
+      const allowedKeys = ['fiveWhyAnalysis', 'rootCause', 'correctiveActions', 'timeline'];
       if (Object.keys(updates).some(key => !allowedKeys.includes(key))) throw new Error('Field yang dikirim tidak diizinkan untuk pembaruan investigasi.');
     }
 
