@@ -2537,9 +2537,10 @@ function isRecordVisibleToUser_(record, user) {
   const recordSubkon = String(record.subcontractorCode || record.subkonCode || '').trim().toUpperCase();
   const recordParent = String(record.parentCompanyCode || '').trim().toUpperCase();
   if (!ownCompany) return false;
+  const isCggOversight = isOversightRole_(user) && user.roleVerified === true && ownCompany === 'CGG';
 
   // Disabled or orphaned companies must lose access even if their user account remains active.
-  if (!isOversightRole_(user) && ownCompany !== 'CGG') {
+  if (!isCggOversight && ownCompany !== 'CGG') {
     const ownRegistry = findCompanyRegistry_(ownCompany);
     if (!ownRegistry || ownRegistry.status !== 'ACTIVE') return false;
     if (ownRegistry.role === 'Subkon') {
@@ -2549,7 +2550,7 @@ function isRecordVisibleToUser_(record, user) {
   }
 
   // Verified CGG oversight roles share one scope: all active Contractors and their active registered Subkon.
-  if (isOversightRole_(user) && user.roleVerified === true && ownCompany === 'CGG') {
+  if (isCggOversight) {
     const allowed = getOversightCompanyCodes_();
     return Boolean(allowed[recordCompany] || allowed[recordSubkon] || allowed[recordParent]);
   }
