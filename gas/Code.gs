@@ -818,6 +818,30 @@ function handleRoute_(
 
 
   // ----------------------------------------------------------
+  // CENTRAL AUDIT TRAIL — ADMIN CGG ONLY
+  // ----------------------------------------------------------
+  if (path === '/api/audit' && method === 'GET') {
+    if (!isAdminCGG_(user)) return error_(403, 'Audit trail hanya dapat diakses Admin CGG.');
+    const rows = readAll_('audit_logs');
+    const recent = rows.slice(-500).reverse().map(function(row) {
+      return {
+        id: row.id,
+        code: row.code,
+        action: row.action || '',
+        entity: row.entity || '',
+        recordId: row.recordId || '',
+        userId: row.userId || '',
+        email: row.email || '',
+        roles: Array.isArray(row.roles) ? row.roles : [],
+        timestamp: row.timestamp || row.createdAt || '',
+        details: isObject_(row.details) ? row.details : {},
+        status: row.status || ''
+      };
+    });
+    return success_(recent);
+  }
+
+  // ----------------------------------------------------------
   // CURRENT USER
   // ----------------------------------------------------------
 
