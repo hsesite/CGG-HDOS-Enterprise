@@ -111,6 +111,10 @@ export class HDOSCentralStore {
 
   async init(): Promise<void> {
   try {
+    // Load the active account's durable queue before reconciling cloud snapshots.
+    // This ensures pending offline writes are never overwritten by older server data.
+    await hdosSync.init();
+
     // Preserve all operational offline data during application upgrades.
     // Only explicitly identified demo seed records are removed below.
     this.inspections = await hdosDB.getAll<Inspection>('inspection');
@@ -177,6 +181,10 @@ export class HDOSCentralStore {
       if (['KTT', 'SPT', 'SPV'].some(role => currentUser.roles.includes(role))) return currentUser.roleVerified === true && ['SLS', 'VIP'].includes(record.code.toUpperCase());
       return record.code.toUpperCase() === String(currentUser.companyCode || '').toUpperCase();
     });
+
+    if (currentUser && hseApi.isAuthenticated) {
+      await this.refreshCloudData();
+    }
 
   } catch (err) {
     console.error('[HDOS Store] Gagal memuat data lokal secara lengkap', err);
@@ -291,6 +299,82 @@ export class HDOSCentralStore {
     else if (entity === 'picas') this.picas = snapshot as unknown as PICA[];
     else this.incidents = snapshot as unknown as Incident[];
     this.notify();
+  }
+
+  /**
+   * Reconcile the active tenant's local workspace with the central GAS database.
+   * Successful cloud snapshots are authoritative; unsynced local writes are
+   * protected by the queue-aware merge routine above.
+   */
+  async refreshCloudData(): Promise<void> {
+    const user = AuthState.getUser();
+    const token = hseApi.authToken;
+    if (!user?.id || !token || !hseApi.isAuthenticated) return;
+    const ownerKey = `${user.id}::${String(user.companyCode || '').trim().toUpperCase()}`;
+    const isSameSession = () => {
+      const active = AuthState.getUser();
+      return hseApi.authToken === token && active?.id === user.id &&
+        `${active.id}::${String(active.companyCode || '').trim().toUpperCase()}` === ownerKey;
+    };
+
+    const entities = ['inspections', 'hazards', 'picas', 'incidents'] as const;
+    const results = await Promise.allSettled([
+      ...entities.map(entity => hseApi.listOperationalRecords(entity)),
+      hseApi.listRepository(),
+      hseApi.listPublishedForms(),
+    ]);
+    if (!isSameSession()) return;
+
+    for (let index = 0; index < entities.length; index += 1) {
+      const result = results[index];
+      if (result.status !== 'fulfilled') {
+        console.warn(`[HDOS Store] Snapshot cloud ${entities[index]} belum tersedia; cache lokal dipertahankan.`, result.reason);
+        continue;
+      }
+      if (!isSameSession()) return;
+      await this.mergeCloudOperationalRecords(entities[index], result.value);
+    }
+
+    const repositoryResult = results[4];
+    if (repositoryResult.status === 'fulfilled' && isSameSession()) {
+      const remote = repositoryResult.value
+        .filter((record): record is Record<string, unknown> & { id: string } =>
+          Boolean(record && typeof record.id === 'string' && record.id.trim())
+        )
+        .filter(record => isLocalRecordVisible(record, user)) as unknown as DocumentItem[];
+      const remoteById = new Map(remote.map(document => [document.id, document]));
+      const localOffline = this.documents.filter(document =>
+        isLocalRecordVisible(document as unknown as Record<string, unknown>, user) &&
+        !remoteById.has(document.id) &&
+        document.cloudStored !== true
+      );
+      const merged = [...remote, ...localOffline];
+      for (const document of remote) await hdosDB.put('repository', document);
+      const remoteIds = new Set(remote.map(document => document.id));
+      for (const local of this.documents) {
+        if (isLocalRecordVisible(local as unknown as Record<string, unknown>, user) &&
+            local.cloudStored === true && !remoteIds.has(local.id)) {
+          await hdosDB.delete('repository', local.id);
+          await hdosDB.delete('photos', `document-file-${local.id}`);
+        }
+      }
+      if (!isSameSession()) return;
+      this.documents = merged;
+      this.formDefinitions = this.formDefinitions.filter(form =>
+        merged.some(document => document.id === form.sourceDocumentId)
+      );
+    } else if (repositoryResult.status === 'rejected') {
+      console.warn('[HDOS Store] Repository pusat belum tersedia; cache lokal dipertahankan.', repositoryResult.reason);
+    }
+
+    const formsResult = results[5];
+    if (formsResult.status === 'fulfilled' && isSameSession()) {
+      await this.mergePublishedFormDefinitions(formsResult.value as unknown as FormDefinition[]);
+    } else if (formsResult.status === 'rejected') {
+      console.warn('[HDOS Store] Formulir terbit pusat belum tersedia; cache lokal dipertahankan.', formsResult.reason);
+    }
+
+    if (isSameSession()) this.notify();
   }
 
   subscribe(listener: () => void): () => void {
