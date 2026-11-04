@@ -1340,12 +1340,16 @@ function handleRoute_(
         const allowedInvestigationFields = ['fiveWhyAnalysis', 'rootCause', 'correctiveActions', 'timeline'];
         if (!isAdmin && !isInvestigator) return error_(403, 'Pembaruan investigasi hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
         if (changedIncidentKeys.some(function(key) { return allowedInvestigationFields.indexOf(key) === -1; })) return error_(403, 'Perubahan field investigasi tidak diizinkan.');
+      } else if (nextIncidentStatus === 'REVIEWED_KTT' && oldIncidentStatus === 'REVIEWED_KTT') {
+        if (!isAdmin && !isReviewer) return error_(403, 'Catatan review hanya dapat diperbarui KTT/SPT/SPV terverifikasi.');
+        if (changedIncidentKeys.some(function(key) { return ['reviewNotes'].indexOf(key) === -1; })) return error_(403, 'Reviewer hanya dapat memperbarui catatan review.');
       } else if (nextIncidentStatus === 'REVIEWED_KTT') {
         if (!isAdmin && !isReviewer) return error_(403, 'Review insiden hanya dapat dilakukan KTT/SPT/SPV terverifikasi.');
         if (oldIncidentStatus !== 'INVESTIGATING') return error_(409, 'Insiden harus dalam status Investigating sebelum direview.');
-        const whys = Array.isArray(requestedPayload.fiveWhyAnalysis) ? requestedPayload.fiveWhyAnalysis : (existingRecord.fiveWhyAnalysis || []);
-        const rootCause = String(requestedPayload.rootCause || existingRecord.rootCause || '').trim();
-        const actions = Array.isArray(requestedPayload.correctiveActions) ? requestedPayload.correctiveActions : (existingRecord.correctiveActions || []);
+        if (changedIncidentKeys.some(function(key) { return ['status', 'reviewNotes'].indexOf(key) === -1; })) return error_(403, 'Reviewer tidak dapat mengubah hasil investigasi.');
+        const whys = Array.isArray(existingRecord.fiveWhyAnalysis) ? existingRecord.fiveWhyAnalysis : [];
+        const rootCause = String(existingRecord.rootCause || '').trim();
+        const actions = Array.isArray(existingRecord.correctiveActions) ? existingRecord.correctiveActions : [];
         if (whys.filter(function(item) { return String(item || '').trim(); }).length < 5 || !rootCause || !actions.some(function(item) { return String(item || '').trim(); })) {
           return error_(400, 'Review memerlukan lima tahapan Why, akar penyebab, dan tindakan koreksi yang lengkap.');
         }
@@ -1414,6 +1418,17 @@ function handleRoute_(
       else delete scopedPayload[key];
     });
     let auditDetails = null;
+    if (entity === 'incidents' && String(scopedPayload.status || '') !== String(existingRecord.status || '')) {
+      auditDetails = {
+        statusFrom: existingRecord.status || '',
+        statusTo: scopedPayload.status || '',
+        reviewedBy: requestedPayload.reviewedBy || null,
+        reviewedAt: requestedPayload.reviewedAt || null,
+        closedBy: requestedPayload.closedBy || null,
+        closedAt: requestedPayload.closedAt || null,
+        reviewNotes: requestedPayload.reviewNotes || null
+      };
+    }
     if (entity === 'picas') {
       const oldStages = existingRecord.approvalStages || {};
       const nextStages = scopedPayload.approvalStages || oldStages;
