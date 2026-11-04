@@ -305,6 +305,10 @@ export const hseApi = {
     return request<ApiUser>('PATCH', `/api/users/${encodeURIComponent(id)}`, updates);
   },
 
+  async listAuditLogs(): Promise<Array<Record<string, unknown>>> {
+    return request<Array<Record<string, unknown>>>('GET', '/api/audit');
+  },
+
   async listRepository(): Promise<Array<Record<string, unknown>>> {
     return request<Array<Record<string, unknown>>>('GET', '/api/repository');
   },
