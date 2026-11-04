@@ -75,6 +75,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Dashboard menampilkan waktu snapshot cloud terakhir dan sumber yang gagal dimuat agar data lokal tidak disalahartikan sebagai data pusat terbaru.
 - [x] Form investigasi insiden menyediakan lima tingkat pertanyaan Why dan tidak lagi mengisi akar penyebab/tindakan dengan asumsi otomatis.
 - [x] Waktu kejadian diwajibkan diisi; timeline awal hanya mencatat laporan yang benar-benar dibuat.
+- [x] Alur investigasi insiden: Foreman Safety/SPV HSE terverifikasi dapat memperbarui 5-Why, akar penyebab, dan tindakan koreksi; KTT/SPT/SPV terverifikasi dapat mereview; penutupan hanya KTT terverifikasi atau Admin CGG.
+- [x] Status review/penutupan dicatat bersama nama dan waktu, dengan audit trail dan perlindungan idempotensi saat respons jaringan hilang.
+- [x] Sinkronisasi UPDATE meneruskan versi `updatedAt` dari server ke record lokal dan antrean lanjutan agar rangkaian perubahan offline pada record yang sama tidak saling menolak.
 - [x] Status koneksi modul Sinkronisasi memakai status jaringan perangkat aktual, bukan tombol simulasi.
 - [x] Pemanggilan snapshot cloud duplikat pada modul operasional dihapus; satu store pusat mengelola proses pemuatan.
 - [x] Dashboard membandingkan perusahaan dari master terdaftar, bukan daftar kode statis.
