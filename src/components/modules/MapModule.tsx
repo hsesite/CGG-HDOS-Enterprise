@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Compass, MapPin, Settings2, Crosshair, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Compass, MapPin, Settings2, Crosshair } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 
 export const MapModule: React.FC = () => {
@@ -26,11 +26,11 @@ export const MapModule: React.FC = () => {
 
   const getPoint = (lat: number, lng: number) => {
     if (!bounds) return { x: 500, y: 300 };
-    const latSpan = Math.max(bounds.maxLat - bounds.minLat, 0.0001);
-    const lngSpan = Math.max(bounds.maxLng - bounds.minLng, 0.0001);
+    const latSpan = bounds.maxLat - bounds.minLat;
+    const lngSpan = bounds.maxLng - bounds.minLng;
     return {
-      x: 70 + ((lng - bounds.minLng) / lngSpan) * 860,
-      y: 530 - ((lat - bounds.minLat) / latSpan) * 460,
+      x: lngSpan < 0.0001 ? 500 : 70 + ((lng - bounds.minLng) / lngSpan) * 860,
+      y: latSpan < 0.0001 ? 300 : 530 - ((lat - bounds.minLat) / latSpan) * 460,
     };
   };
 
