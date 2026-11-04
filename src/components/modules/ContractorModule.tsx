@@ -84,25 +84,48 @@ export const ContractorModule: React.FC = () => {
     });
   }, [store.contractors]);
 
+  // Re-fetch tenant-scoped registers whenever the authenticated account or
+  // company changes. Clear the previous tenant's data immediately and ignore
+  // late responses from requests started by the previous session.
+  const sessionScopeKey = sessionUser
+    ? `${sessionUser.id}::${String(sessionUser.companyCode || '').trim().toUpperCase()}`
+    : 'anonymous';
+
   useEffect(() => {
     let active = true;
-    setReportsLoading(true);
+    setComplianceReports([]);
+    setReportsLoading(Boolean(sessionUser));
+    setReportMessage('');
+    if (!sessionUser) {
+      setReportsLoading(false);
+      return () => { active = false; };
+    }
     hseApi.listContractorComplianceReports()
       .then(reports => { if (active) setComplianceReports(reports); })
       .catch(error => { if (active) setReportMessage(error instanceof Error ? error.message : 'Laporan kepatuhan tidak dapat dimuat.'); })
       .finally(() => { if (active) setReportsLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [sessionScopeKey]);
 
   useEffect(() => {
     let active = true;
-    setFleetLoading(true);
+    setFleetUnits([]);
+    setP2hUnitId('');
+    setP2hHistory([]);
+    setP2hPhotoView({});
+    setSiaPreview({});
+    setFleetMessage('');
+    setFleetLoading(Boolean(sessionUser));
+    if (!sessionUser) {
+      setFleetLoading(false);
+      return () => { active = false; };
+    }
     hseApi.listContractorFleet()
       .then(units => { if (active) setFleetUnits(units); })
       .catch(error => { if (active) setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.'); })
       .finally(() => { if (active) setFleetLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [sessionScopeKey]);
 
   const refreshFleet = async () => {
     setFleetLoading(true);
