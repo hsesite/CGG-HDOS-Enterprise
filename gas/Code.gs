@@ -2134,18 +2134,70 @@ function uploadContractorSia_(fleetId, payload, user) {
   const sheet = getSheet_('contractor_fleet');
   const lock = LockService.getScriptLock();
   let updated;
+  let oldFileId = '';
+  let targetRow = 0;
+  let previousRowValues = null;
+  let committed = false;
   lock.waitLock(10000);
   try {
-    const row = findRecordRow_(sheet, fleetId);
-    if (!row) { file.setTrashed(true); return error_(404, 'Unit fleet tidak ditemukan.'); }
-    const latest = parseRow_(sheet, row);
-    if (String(latest.companyCode || '').trim().toUpperCase() !== companyCode) { file.setTrashed(true); return error_(403, 'Kepemilikan unit berubah. Unggah dokumen dibatalkan.'); }
-    const oldFileId = String(latest.siaFileId || '');
+    targetRow = findRecordRow_(sheet, fleetId);
+    if (!targetRow) {
+      file.setTrashed(true);
+      return error_(404, 'Unit fleet tidak ditemukan.');
+    }
+    const latest = parseRow_(sheet, targetRow);
+    if (String(latest.companyCode || '').trim().toUpperCase() !== companyCode) {
+      file.setTrashed(true);
+      return error_(403, 'Kepemilikan unit berubah. Unggah dokumen dibatalkan.');
+    }
+    previousRowValues = sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).getValues()[0];
+    oldFileId = String(latest.siaFileId || '');
     updated = Object.assign({}, latest, { siaFileId: file.getId(), siaFileName: safeName, siaMimeType: mimeType, updatedAt: new Date().toISOString() });
-    sheet.getRange(row, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
-    if (oldFileId && oldFileId !== file.getId()) { try { DriveApp.getFileById(oldFileId).setTrashed(true); } catch (cleanupError) { logAudit_(user, 'CONTRACTOR_SIA_OLD_FILE_CLEANUP_FAILED', 'contractor_fleet', fleetId, { oldFileId: oldFileId }); } }
-  } finally { lock.releaseLock(); }
-  logAudit_(user, 'CONTRACTOR_SIA_UPLOADED', 'contractor_fleet', fleetId, { companyCode: companyCode, fileName: safeName, mimeType: mimeType, size: bytes.length });
+    sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
+      .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
+    SpreadsheetApp.flush();
+    committed = true;
+  } catch (writeError) {
+    let rollbackError = null;
+    if (previousRowValues && targetRow > 0) {
+      try {
+        sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).setValues([previousRowValues]);
+        SpreadsheetApp.flush();
+      } catch (error) {
+        rollbackError = error;
+      }
+    }
+    try { file.setTrashed(true); } catch (cleanupError) {
+      console.error('[HDOS SIA] Gagal membersihkan file baru setelah penulisan gagal.', cleanupError);
+    }
+    if (rollbackError) {
+      throw new Error('Penyimpanan SIA gagal dan pemulihan data fleet juga gagal. Perlu pemeriksaan administrator.', { cause: rollbackError });
+    }
+    throw writeError;
+  } finally {
+    lock.releaseLock();
+  }
+
+  // Replace the previous Drive file only after the new file reference is
+  // committed to the fleet register. A cleanup failure must not undo success.
+  if (committed && oldFileId && oldFileId !== file.getId()) {
+    try {
+      DriveApp.getFileById(oldFileId).setTrashed(true);
+    } catch (cleanupError) {
+      try {
+        logAudit_(user, 'CONTRACTOR_SIA_OLD_FILE_CLEANUP_FAILED', 'contractor_fleet', fleetId, { oldFileId: oldFileId });
+      } catch (auditError) {
+        console.error('[HDOS SIA] Audit cleanup file lama gagal dicatat.', auditError);
+      }
+    }
+  }
+  try {
+    logAudit_(user, 'CONTRACTOR_SIA_UPLOADED', 'contractor_fleet', fleetId, { companyCode: companyCode, fileName: safeName, mimeType: mimeType, size: bytes.length });
+  } catch (auditError) {
+    // Do not report a committed upload as failed: clients may retry and create
+    // duplicate Drive files if an audit-only write failure becomes an API error.
+    console.error('[HDOS SIA] Upload tersimpan tetapi audit log gagal dicatat.', auditError);
+  }
   return success_({ id: updated.id, siaFileName: updated.siaFileName, siaMimeType: updated.siaMimeType, updatedAt: updated.updatedAt });
 }
 
