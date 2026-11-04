@@ -2096,7 +2096,8 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     const findings = String(input.findings || '').trim();
     const correctiveAction = String(input.correctiveAction || '').trim();
     const hourMeter = input.hourMeter === '' || input.hourMeter === null || input.hourMeter === undefined ? '' : Number(input.hourMeter);
-    if (!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$/.test(inspectionDate) || new Date(inspectionDate + 'T00:00:00Z').toISOString().slice(0,10) !== inspectionDate) return error_(400, 'Tanggal pemeriksaan P2H wajib valid dengan format YYYY-MM-DD.');
+    const parsedInspectionDate = new Date(inspectionDate + 'T00:00:00Z');
+    if (!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$/.test(inspectionDate) || Number.isNaN(parsedInspectionDate.getTime()) || parsedInspectionDate.toISOString().slice(0,10) !== inspectionDate) return error_(400, 'Tanggal pemeriksaan P2H wajib valid dengan format YYYY-MM-DD.');
     if (['READY', 'NOT_READY'].indexOf(status) === -1) return error_(400, 'Status hasil P2H wajib dipilih.');
     if (!operatorName || operatorName.length > 120) return error_(400, 'Nama operator wajib diisi maksimal 120 karakter.');
     if (findings.length > 2000 || correctiveAction.length > 2000) return error_(400, 'Temuan dan tindakan koreksi maksimal 2.000 karakter.');
