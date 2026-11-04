@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   Plus,
@@ -30,20 +30,6 @@ export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
   const sessionUser = getCurrentUser();
-  useEffect(() => {
-    let cancelled = false;
-    if (!hseApi.baseUrl || !sessionUser) return;
-    void Promise.all([
-      hseApi.listOperationalRecords('hazards'),
-      hseApi.listOperationalRecords('picas'),
-    ]).then(async ([hazards, picas]) => {
-      if (cancelled) return;
-      await store.mergeCloudOperationalRecords('hazards', hazards);
-      await store.mergeCloudOperationalRecords('picas', picas);
-    }).catch((error) => console.warn('[HazardModule] Gagal memuat register pusat:', error));
-    return () => { cancelled = true; };
-  }, [store, sessionUser?.id, hseApi.baseUrl]);
-
   const [activeTab, setActiveTab] = useState<'report' | 'register'>('report');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<Hazard['category']>('Unsafe Condition');
