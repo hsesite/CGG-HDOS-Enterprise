@@ -195,6 +195,8 @@ test('verified CGG oversight can read redacted company master dynamically', () =
   assert.ok(source.includes("emailDomains: '',"));
   assert.ok(source.includes("autoProvision: false,"));
   assert.ok(source.includes("return success_(visibleCompanies.map(function(company)"));
+  assert.ok(source.includes("isOversightRole_(user) && user.roleVerified === true && ownCompany === 'CGG'"));
+  assert.ok(source.includes("String(user.companyCode || '').trim().toUpperCase() === 'CGG'"));
   assert.ok(source.includes("const isCompanyPassportViewer = roles.some(function(role)"));
   assert.ok(source.includes("company.role === 'Subkon' && parent === ownCode"));
 });
@@ -1431,5 +1433,6 @@ test('contractor fleet API applies company-scoped read and write rules', () => {
   assert.ok(source.includes('p2hLastCheckedAt: normalized.p2hStatus'));
   assert.ok(source.includes('p2hCheckedBy: normalized.p2hStatus'));
   assert.ok(source.includes("'FLT-' + String(existing.companyCode"));
+  assert.ok(source.includes("ownCompany === 'CGG'"));
 
 });
