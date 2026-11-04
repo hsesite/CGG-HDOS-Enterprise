@@ -795,7 +795,8 @@ test('operational GET ALL returns a complete unpaginated tenant-filtered snapsho
   assert.notEqual(readOneStart, -1);
   const readAll = source.slice(readAllStart, readOneStart);
   assert.match(readAll, /const lastRow =\s*sheet\.getLastRow\(\)/);
-  assert.match(readAll, /rowNumber <= lastRow/);
+  assert.match(readAll, /getRange\(1, 1, lastRow, columnCount\)/);
+  assert.match(readAll, /values\.slice\(1\)/);
   assert.doesNotMatch(readAll, /LIMIT|OFFSET|pageToken|nextPage/);
 });
 
