@@ -1737,7 +1737,7 @@ function listCompanyRegistry_() {
 function normalizeContractorComplianceReport_(payload) {
   const input = isObject_(payload) ? payload : {};
   const period = String(input.period || '').trim();
-  if (!/^\\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw httpError_(400, 'Periode laporan wajib menggunakan format YYYY-MM.');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw httpError_(400, 'Periode laporan wajib menggunakan format YYYY-MM.');
   const numberFields = [
     'manpowerCount', 'equipmentCount', 'mcuEligibleCount',
     'mcuFitCount', 'inductionRequiredCount', 'inductionCompletedCount',
