@@ -246,7 +246,9 @@ test('Oversight scope follows all active Contractor roots and excludes inactive 
       ['SLS','PT SLS','Contractor','','','FALSE','INACTIVE'],
       ['VIP','PT VIP','Contractor','','','FALSE','ACTIVE'],
       ['BCJ','PT BCJ','Subkon','SLS','','FALSE','ACTIVE'],
-      ['CHN','PT CHN','Subkon','VIP','','FALSE','ACTIVE']
+      ['CHN','PT CHN','Subkon','VIP','','FALSE','ACTIVE'],
+      ['NUS','PT Nusantara','Contractor','','','FALSE','ACTIVE'],
+      ['DTA','PT Duta','Subkon','NUS','','FALSE','ACTIVE']
     ]}) })
   };
   vm.createContext(context);
