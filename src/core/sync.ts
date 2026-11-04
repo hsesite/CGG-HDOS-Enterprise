@@ -11,7 +11,8 @@ type SyncEntityEndpoint =
   | 'inspections'
   | 'hazards'
   | 'picas'
-  | 'incidents';
+  | 'incidents'
+  | 'repository';
 
 function getEntityEndpoint(
   entity: SyncQueueItem['entity']
@@ -25,6 +26,8 @@ function getEntityEndpoint(
       return 'picas';
     case 'incident':
       return 'incidents';
+    case 'repository':
+      return 'repository';
     default:
       return null;
   }
@@ -649,7 +652,11 @@ export class HDOSSyncEngine {
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk penghapusan queue item ${item.id}.`);
             }
-            await hseApi.deleteOperationalRecord(endpoint, recordId, syncToken);
+            if (endpoint === 'repository') {
+              await hseApi.deleteRepositoryDocument(recordId, syncToken);
+            } else {
+              await hseApi.deleteOperationalRecord(endpoint, recordId, syncToken);
+            }
           }
 
           await hdosDB.delete(
