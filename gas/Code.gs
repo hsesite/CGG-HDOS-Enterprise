@@ -2402,50 +2402,25 @@ function getSheet_(
 function readAll_(
   entity
 ) {
-  const sheet =
-    getSheet_(
-      entity
-    );
+  const sheet = getSheet_(entity);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
 
-  const lastRow =
-    sheet.getLastRow();
+  const columnCount = sheet.getLastColumn();
+  if (columnCount < 1) return [];
 
-  if (
-    lastRow < 2
-  ) {
-    return [];
-  }
+  // Read the register in one Spreadsheet request. The former row-by-row
+  // getRange calls scaled poorly and could time out as operational records grew.
+  const values = sheet.getRange(1, 1, lastRow, columnCount).getValues();
+  const headers = values[0].map(function(value) {
+    return String(value || '').trim();
+  });
 
-  const results = [];
-
-  for (
-    let rowNumber = 2;
-    rowNumber <= lastRow;
-    rowNumber++
-  ) {
-    const id =
-      sheet
-        .getRange(
-          rowNumber,
-          1,
-          1,
-          1
-        )
-        .getValue();
-
-    if (!id) {
-      continue;
-    }
-
-    results.push(
-      parseRow_(
-        sheet,
-        rowNumber
-      )
-    );
-  }
-
-  return results;
+  return values.slice(1).filter(function(row) {
+    return row[0] !== '' && row[0] !== null && row[0] !== undefined;
+  }).map(function(row) {
+    return parseRowValues_(sheet.getName(), headers, row);
+  });
 }
 
 
@@ -2800,187 +2775,55 @@ function updateRecord_(
 // PARSE SHEET ROW
 // ============================================================
 
-function parseRow_(
-  sheet,
-  rowNumber
-) {
-  const columnCount =
-    sheet.getLastColumn();
-
-  const headers =
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        columnCount
-      )
-      .getValues()[0]
-      .map(
-        function(value) {
-          return String(
-            value || ''
-          ).trim();
-        }
-      );
-
-  const row =
-    sheet
-      .getRange(
-        rowNumber,
-        1,
-        1,
-        columnCount
-      )
-      .getValues()[0];
-
+function parseRowValues_(sheetName, headers, row) {
   const normalized = {};
-
-  headers.forEach(
-    function(
-      header,
-      index
-    ) {
-      if (
-        header ===
-          'payload'
-      ) {
-        return;
-      }
-
-      normalized[
-        header
-      ] =
-        row[index];
-    }
-  );
-
+  headers.forEach(function(header, index) {
+    if (header !== 'payload') normalized[header] = row[index];
+  });
 
   let payload = {};
-
-  const payloadIndex =
-    headers.indexOf(
-      'payload'
-    );
-
-  if (
-    payloadIndex >= 0
-  ) {
+  const payloadIndex = headers.indexOf('payload');
+  if (payloadIndex >= 0) {
     try {
-      payload =
-        JSON.parse(
-          String(
-            row[
-              payloadIndex
-            ] ||
-              '{}'
-          )
-        );
+      payload = JSON.parse(String(row[payloadIndex] || '{}'));
     } catch (error) {
       payload = {};
     }
   }
 
+  const result = Object.assign({}, payload, normalized);
 
-  const result =
-    Object.assign(
-      {},
-      payload,
-      normalized
-    );
-
-
-  // ----------------------------------------------------------
-  // REBUILD HAZARD NESTED RISK MATRIX
-  // ----------------------------------------------------------
-
-  if (
-    sheet.getName() ===
-      'hazards'
-  ) {
+  if (sheetName === 'hazards') {
     result.riskMatrix = {
-      severity:
-        Number(
-          normalized.severity ||
-            (
-              payload.riskMatrix &&
-              payload.riskMatrix.severity
-            ) ||
-            0
-        ),
-
-      likelihood:
-        Number(
-          normalized.likelihood ||
-            (
-              payload.riskMatrix &&
-              payload.riskMatrix.likelihood
-            ) ||
-            0
-        ),
-
-      score:
-        Number(
-          normalized.riskScore ||
-            (
-              payload.riskMatrix &&
-              payload.riskMatrix.score
-            ) ||
-            0
-        ),
-
-      level:
-        String(
-          normalized.riskLevel ||
-            (
-              payload.riskMatrix &&
-              payload.riskMatrix.level
-            ) ||
-            ''
-        )
+      severity: Number(normalized.severity || (payload.riskMatrix && payload.riskMatrix.severity) || 0),
+      likelihood: Number(normalized.likelihood || (payload.riskMatrix && payload.riskMatrix.likelihood) || 0),
+      score: Number(normalized.riskScore || (payload.riskMatrix && payload.riskMatrix.score) || 0),
+      level: String(normalized.riskLevel || (payload.riskMatrix && payload.riskMatrix.level) || '')
     };
   }
 
-
-  // ----------------------------------------------------------
-  // REBUILD PICA NESTED APPROVAL STAGES
-  // ----------------------------------------------------------
-
-  if (
-    sheet.getName() ===
-      'picas'
-  ) {
+  if (sheetName === 'picas') {
     result.approvalStages = {
-      foreman:
-        Boolean(
-          normalized.foremanApproval ||
-            (
-              payload.approvalStages &&
-              payload.approvalStages.foreman
-            )
-        ),
-
-      spvHse:
-        Boolean(
-          normalized.spvHseApproval ||
-            (
-              payload.approvalStages &&
-              payload.approvalStages.spvHse
-            )
-        ),
-
-      ktt:
-        Boolean(
-          normalized.kttApproval ||
-            (
-              payload.approvalStages &&
-              payload.approvalStages.ktt
-            )
-        )
+      foreman: Boolean(normalized.foremanApproval || (payload.approvalStages && payload.approvalStages.foreman)),
+      spvHse: Boolean(normalized.spvHseApproval || (payload.approvalStages && payload.approvalStages.spvHse)),
+      ktt: Boolean(normalized.kttApproval || (payload.approvalStages && payload.approvalStages.ktt))
     };
   }
 
   return result;
+}
+
+function parseRow_(
+  sheet,
+  rowNumber
+) {
+  const columnCount = sheet.getLastColumn();
+  if (columnCount < 1) return {};
+  const headers = sheet.getRange(1, 1, 1, columnCount).getValues()[0].map(function(value) {
+    return String(value || '').trim();
+  });
+  const row = sheet.getRange(rowNumber, 1, 1, columnCount).getValues()[0];
+  return parseRowValues_(sheet.getName(), headers, row);
 }
 
 
