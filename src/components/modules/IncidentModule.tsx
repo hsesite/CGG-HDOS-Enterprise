@@ -20,9 +20,9 @@ export const IncidentModule: React.FC = () => {
   const canEditInvestigation = isAdminCGG || (isVerified && assignedRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role)));
   const canReviewIncident = isAdminCGG || (isVerified && assignedRoles.some(role => ['KTT', 'SPT', 'SPV'].includes(role)));
   const canCloseIncident = isAdminCGG || (isVerified && assignedRoles.includes('KTT'));
-  const selectedIncidentReadyForReview = Boolean(selectedIncident && (selectedIncident.fiveWhyAnalysis || []).filter(item => String(item || '').trim()).length >= 5 && String(selectedIncident.rootCause || '').trim() && (selectedIncident.correctiveActions || []).some(item => String(item || '').trim()));
   const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
+  const selectedIncidentReadyForReview = Boolean(selectedIncident && (selectedIncident.fiveWhyAnalysis || []).filter(item => String(item || '').trim()).length >= 5 && String(selectedIncident.rootCause || '').trim() && (selectedIncident.correctiveActions || []).some(item => String(item || '').trim()));
 
   // New incident form state
   const [title, setTitle] = useState('');
