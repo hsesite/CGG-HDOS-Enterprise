@@ -341,10 +341,22 @@ export class HDOSCentralStore {
 
     const repositoryResult = results[4];
     if (repositoryResult.status === 'fulfilled' && isSameSession()) {
+      const pendingRepositoryDeletes = new Set(
+        hdosSync.getQueue()
+          .filter(item => item.entity === 'repository' && item.action === 'DELETE' && item.status !== 'SYNCED')
+          .map(item => {
+            const payload = item.payload && typeof item.payload === 'object'
+              ? item.payload as Record<string, unknown>
+              : {};
+            return String(payload.id || '').trim();
+          })
+          .filter(Boolean)
+      );
       const remote = repositoryResult.value
         .filter((record): record is Record<string, unknown> & { id: string } =>
           Boolean(record && typeof record.id === 'string' && record.id.trim())
         )
+        .filter(record => !pendingRepositoryDeletes.has(record.id))
         .filter(record => isLocalRecordVisible(record, user)) as unknown as DocumentItem[];
       const remoteById = new Map(remote.map(document => [document.id, document]));
       const localOffline = this.documents.filter(document =>
@@ -375,7 +387,12 @@ export class HDOSCentralStore {
 
     const formsResult = results[5];
     if (formsResult.status === 'fulfilled' && isSameSession()) {
-      await this.mergePublishedFormDefinitions(formsResult.value as unknown as FormDefinition[]);
+      const availableDocumentIds = new Set(this.documents.map(document => document.id));
+      const availableForms = formsResult.value.filter(form => {
+        const sourceDocumentId = String(form.sourceDocumentId || '').trim();
+        return !sourceDocumentId || availableDocumentIds.has(sourceDocumentId);
+      }) as unknown as FormDefinition[];
+      await this.mergePublishedFormDefinitions(availableForms);
     } else if (formsResult.status === 'rejected') {
       failed.push('forms');
       console.warn('[HDOS Store] Formulir terbit pusat belum tersedia; cache lokal dipertahankan.', formsResult.reason);
