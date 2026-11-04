@@ -748,12 +748,8 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     resetMessages();
     setDeleting(true);
     try {
-      if (doc.cloudStored && hseApi.baseUrl) {
-        // Online cloud documents are removed through the server so Drive and
-        // the central register remain consistent. Never hide a failed deletion.
-        await hseApi.deleteRepositoryDocument(doc.id);
-      }
-      await hdosDB.delete('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+      // The central store handles cloud acknowledgment online and durable
+      // queueing offline before removing local Repository metadata.
       await store.deleteDocument(doc.id);
       setSelectedDoc(store.documents.find((item) => item.id !== doc.id) || null);
       setSuccessMessage(`Dokumen ${doc.docNumber} berhasil dihapus.`);
