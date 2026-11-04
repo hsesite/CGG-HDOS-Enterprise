@@ -184,8 +184,21 @@ export class HDOSCentralStore {
     this.contractors = this.contractors.filter(record => {
       if (!currentUser) return false;
       if (currentUser.roles.includes('Admin CGG')) return true;
-      if (['KTT', 'SPT', 'SPV'].some(role => currentUser.roles.includes(role))) return currentUser.roleVerified === true && ['SLS', 'VIP'].includes(record.code.toUpperCase());
-      return record.code.toUpperCase() === String(currentUser.companyCode || '').toUpperCase();
+
+      // Verified CGG oversight roles need visibility across the registered
+      // contractor and subcontractor master, not a hard-coded company list.
+      const oversightRoles = ['KTT', 'SPT', 'SPV', 'SPV HSE', 'Foreman Safety', 'PJO'];
+      if (currentUser.roleVerified === true && oversightRoles.some(role => currentUser.roles.includes(role))) {
+        return true;
+      }
+
+      // A contractor/company administrator can see its own company and its
+      // registered subcontractors. A subcontractor account sees only itself.
+      const ownCompanyCode = String(currentUser.companyCode || '').trim().toUpperCase();
+      if (!ownCompanyCode) return false;
+      const recordCode = String(record.code || '').trim().toUpperCase();
+      const parentCode = String(record.parentCompanyCode || '').trim().toUpperCase();
+      return recordCode === ownCompanyCode || parentCode === ownCompanyCode;
     });
 
     if (currentUser && hseApi.isAuthenticated) {
@@ -521,7 +534,7 @@ export class HDOSCentralStore {
   }
 
   async setContractorsFromCompanyMaster(companies: Array<{
-    code: string; name: string; role: 'Contractor' | 'Subkon'; status: string;
+    code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; status: string;
     passportStatus?: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName?: string;
     picContact?: string; safetyPassportExpiry?: string;
   }>): Promise<void> {
@@ -529,6 +542,8 @@ export class HDOSCentralStore {
       id: company.code,
       code: company.code,
       companyName: company.name,
+      companyRole: company.role,
+      parentCompanyCode: company.parentCompanyCode || '',
       picName: company.picName || '',
       picContact: company.picContact || '',
       manpowerCount: 0,
