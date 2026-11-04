@@ -910,6 +910,51 @@ export class HDOSCentralStore {
     return newInc;
   }
 
+  async updateIncident(id: string, updates: Partial<Incident>): Promise<Incident | null> {
+    this.assertMutationAllowed('incident');
+    const index = this.incidents.findIndex(incident => incident.id === id);
+    if (index < 0) return null;
+
+    const current = this.incidents[index];
+    if (current.status === 'CLOSED') throw new Error('Insiden yang sudah ditutup tidak dapat diubah.');
+    const user = AuthState.getUser();
+    const roles = user?.roles || [];
+    const isAdminCGG = roles.includes('Admin CGG');
+    const isVerified = user?.roleVerified === true;
+    const isInvestigator = isVerified && roles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role));
+    const isReviewer = isVerified && roles.some(role => ['KTT', 'SPT', 'SPV'].includes(role));
+    const nextStatus = updates.status || current.status;
+
+    if (updates.status === 'REVIEWED_KTT') {
+      if (!isAdminCGG && !isReviewer) throw new Error('Review insiden hanya dapat dilakukan KTT/SPT/SPV yang telah diverifikasi.');
+      if (current.status !== 'INVESTIGATING') throw new Error('Insiden harus dalam status Investigating sebelum direview.');
+      const whys = updates.fiveWhyAnalysis || current.fiveWhyAnalysis;
+      const rootCause = updates.rootCause ?? current.rootCause;
+      const actions = updates.correctiveActions || current.correctiveActions;
+      if (whys.filter(item => String(item || '').trim()).length < 5 || !String(rootCause || '').trim() || !actions.some(item => String(item || '').trim())) {
+        throw new Error('Review memerlukan lima tahapan Why, akar penyebab, dan tindakan koreksi yang lengkap.');
+      }
+    } else if (updates.status === 'CLOSED') {
+      if (!isAdminCGG && !(isVerified && roles.includes('KTT'))) throw new Error('Penutupan insiden hanya dapat dilakukan KTT terverifikasi atau Admin CGG.');
+      if (current.status !== 'REVIEWED_KTT') throw new Error('Insiden harus direview terlebih dahulu sebelum ditutup.');
+    } else {
+      if (!isAdminCGG && !isInvestigator) throw new Error('Pembaruan investigasi hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
+      if (current.status !== 'INVESTIGATING' || nextStatus !== 'INVESTIGATING') throw new Error('Data investigasi hanya dapat diperbarui selama status Investigating.');
+      const allowedKeys = ['fiveWhyAnalysis', 'rootCause', 'correctiveActions', 'timeline', 'reviewNotes'];
+      if (Object.keys(updates).some(key => !allowedKeys.includes(key))) throw new Error('Field yang dikirim tidak diizinkan untuk pembaruan investigasi.');
+    }
+
+    const updated: Incident = { ...current, ...updates };
+    await hdosSync.enqueueBatch(
+      [{ storeName: 'incident', item: updated }],
+      [{ action: 'UPDATE', entity: 'incident', payload: updated, note: `Pembaruan investigasi insiden ${updated.code}` }]
+    );
+    this.incidents[index] = updated;
+    this.notify();
+    hdosEvents.emit('incident:updated', updated);
+    return updated;
+  }
+
   async updatePICAStatus(id: string, updates: Partial<PICA>): Promise<PICA | null> {
     this.assertMutationAllowed('pica', updates);
     const index = this.picas.findIndex((p) => p.id === id);
