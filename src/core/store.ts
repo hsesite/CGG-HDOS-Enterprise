@@ -306,10 +306,12 @@ export class HDOSCentralStore {
    * Successful cloud snapshots are authoritative; unsynced local writes are
    * protected by the queue-aware merge routine above.
    */
-  async refreshCloudData(): Promise<void> {
+  async refreshCloudData(): Promise<{ refreshed: string[]; failed: string[] }> {
     const user = AuthState.getUser();
     const token = hseApi.authToken;
-    if (!user?.id || !token || !hseApi.isAuthenticated) return;
+    if (!user?.id || !token || !hseApi.isAuthenticated) return { refreshed: [], failed: ['session'] };
+    const refreshed: string[] = [];
+    const failed: string[] = [];
     const ownerKey = `${user.id}::${String(user.companyCode || '').trim().toUpperCase()}`;
     const isSameSession = () => {
       const active = AuthState.getUser();
@@ -323,16 +325,18 @@ export class HDOSCentralStore {
       hseApi.listRepository(),
       hseApi.listPublishedForms(),
     ]);
-    if (!isSameSession()) return;
+    if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
 
     for (let index = 0; index < entities.length; index += 1) {
       const result = results[index];
       if (result.status !== 'fulfilled') {
+        failed.push(entities[index]);
         console.warn(`[HDOS Store] Snapshot cloud ${entities[index]} belum tersedia; cache lokal dipertahankan.`, result.reason);
         continue;
       }
       if (!isSameSession()) return;
       await this.mergeCloudOperationalRecords(entities[index], result.value);
+      refreshed.push(entities[index]);
     }
 
     const repositoryResult = results[4];
@@ -363,7 +367,9 @@ export class HDOSCentralStore {
       this.formDefinitions = this.formDefinitions.filter(form =>
         merged.some(document => document.id === form.sourceDocumentId)
       );
+      refreshed.push('repository');
     } else if (repositoryResult.status === 'rejected') {
+      failed.push('repository');
       console.warn('[HDOS Store] Repository pusat belum tersedia; cache lokal dipertahankan.', repositoryResult.reason);
     }
 
@@ -371,10 +377,14 @@ export class HDOSCentralStore {
     if (formsResult.status === 'fulfilled' && isSameSession()) {
       await this.mergePublishedFormDefinitions(formsResult.value as unknown as FormDefinition[]);
     } else if (formsResult.status === 'rejected') {
+      failed.push('forms');
       console.warn('[HDOS Store] Formulir terbit pusat belum tersedia; cache lokal dipertahankan.', formsResult.reason);
+    } else {
+      refreshed.push('forms');
     }
 
     if (isSameSession()) this.notify();
+    return { refreshed, failed };
   }
 
   subscribe(listener: () => void): () => void {
