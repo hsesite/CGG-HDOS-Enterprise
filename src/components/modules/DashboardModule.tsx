@@ -142,8 +142,8 @@ export const DashboardModule: React.FC = () => {
           <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-mono tabular-nums">
             {isOwnerAdmin && store.safeHours > 0 ? store.safeHours.toLocaleString('id-ID') : '—'}
           </div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-[#00E676]">
-            <span className="w-2 h-2 rounded-full bg-[#00E676] animate-ping" />
+          <div className="mt-2 flex items-center gap-2 text-xs text-neutral-400">
+            <span className={`w-2 h-2 rounded-full ${isOwnerAdmin && store.safeHours > 0 ? "bg-[#00E676]" : "bg-neutral-500"}`} />
             <span>{isOwnerAdmin && store.safeHours > 0 ? 'Data jam kerja konsolidasi' : 'Menunggu data jam kerja per perusahaan'}</span>
           </div>
         </div>
