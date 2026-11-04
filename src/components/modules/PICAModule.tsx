@@ -19,7 +19,8 @@ export const PICAModule: React.FC = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [busy, setBusy] = useState(false);
   const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
-  const isHSEValidator = ['Foreman Safety', 'SPV HSE'].includes(currentUser.role);
+  const sessionRoles = sessionUser?.roles || [];
+  const isHSEValidator = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE'].includes(role));
 
   useEffect(() => {
     let cancelled = false;
@@ -47,9 +48,9 @@ export const PICAModule: React.FC = () => {
     const status = pica.status !== 'CLOSED' && pica.status !== 'WAITING_HSE' && !Number.isNaN(target.getTime()) && target < today ? 'OVERDUE' : pica.status;
     return { aging, status };
   };
-  const canViewAllPicas = currentUser.role === 'Admin CGG' || currentUser.role === 'Company Admin' || ['Foreman Safety', 'SPV HSE'].includes(currentUser.role);
+  const canViewAllPicas = sessionRoles.some((role) => ['Admin CGG', 'Company Admin'].includes(role)) || isHSEValidator;
   const accessiblePicas = store.picas.filter((pica) => canViewAllPicas || Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase()));
-  const picas = useMemo(() => accessiblePicas.map((pica) => ({ pica, ...getMetrics(pica) })), [store.picas, sessionUser?.email, currentUser.role]);
+  const picas = useMemo(() => accessiblePicas.map((pica) => ({ pica, ...getMetrics(pica) })), [store.picas, sessionUser?.email, canViewAllPicas]);
   const visible = picas.filter(({ pica, status }) => {
     if (filterStatus === 'ACTIVE') return status !== 'CLOSED';
     if (filterStatus === 'CLOSED') return status === 'CLOSED';
