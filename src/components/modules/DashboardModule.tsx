@@ -11,18 +11,12 @@ import {
   MapPin,
   ArrowRight,
   Plus,
-  Compass,
-  FileText,
-  Users,
   TrendingUp,
-  Calendar,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -373,7 +367,7 @@ export const DashboardModule: React.FC = () => {
               <Bar dataKey="hazards" name="Hazard" fill="#FF5252" radius={[3, 3, 0, 0]} />
               <Bar dataKey="incidents" name="Insiden" fill="#F59E0B" radius={[3, 3, 0, 0]} />
               <Bar dataKey="picas" name="PICA" fill="#A78BFA" radius={[3, 3, 0, 0]} />
-            </BarChart></LineChart>
+            </BarChart>
           </ResponsiveContainer>}
         </div>
       </div>
