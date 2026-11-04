@@ -891,8 +891,8 @@ function handleRoute_(
   }
 
   if (path === '/api/companies' && method === 'GET') {
-    const isVerifiedCggOversight = isReadOnlyController_(user) &&
-      user.roleVerified === true &&
+    const isVerifiedCggOversight = user.roleVerified === true &&
+      (isReadOnlyController_(user) || roles.indexOf('Project Manager') >= 0) &&
       String(user.companyCode || '').trim().toUpperCase() === 'CGG';
     const roles = user.roles || [];
     const isCompanyPassportViewer = roles.some(function(role) {
@@ -1790,7 +1790,9 @@ function canReviewContractorComplianceReport_(user) {
 }
 
 function canViewContractorComplianceReports_(user) {
-  return isAdminCGG_(user) || canReviewContractorComplianceReport_(user) || canSubmitContractorComplianceReport_(user);
+  return isAdminCGG_(user) || canReviewContractorComplianceReport_(user) ||
+    (user && user.roleVerified === true && isOversightRole_(user)) ||
+    canSubmitContractorComplianceReport_(user);
 }
 
 function createContractorComplianceReport_(payload, user) {
@@ -2156,7 +2158,7 @@ function canPublishForms_(user) {
 
 function isReadOnlyController_(user) {
   const roles = user && user.roles || [];
-  return roles.some(function(role) { return ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });
+  return roles.some(function(role) { return ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].indexOf(role) >= 0; });
 }
 
 function isCompanyScopedRole_(user) {
