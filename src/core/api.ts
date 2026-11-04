@@ -325,8 +325,8 @@ export const hseApi = {
     return request<{ fileName: string; mimeType: string; base64: string }>('GET', `/api/repository/${encodeURIComponent(id)}/file`, undefined, authToken);
   },
 
-  async deleteRepositoryDocument(id: string): Promise<{ id: string; deleted: boolean }> {
-    return request<{ id: string; deleted: boolean }>('DELETE', `/api/repository/${encodeURIComponent(id)}`);
+  async deleteRepositoryDocument(id: string, authToken?: string | null): Promise<{ id: string; deleted: boolean }> {
+    return request<{ id: string; deleted: boolean }>('DELETE', `/api/repository/${encodeURIComponent(id)}`, undefined, authToken);
   },
 
   async deleteOperationalRecord(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string, authToken?: string): Promise<{ id: string; deleted: boolean }> {
