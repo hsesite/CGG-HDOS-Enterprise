@@ -1900,4 +1900,8 @@ test('PICA close action requires only Foreman Safety and SPV HSE approvals', () 
   assert.doesNotMatch(picaUiSource, /approvalStagesFor\(selectedPica\)\.ktt/);
   assert.match(picaUiSource, /Penutupan memerlukan persetujuan berurutan Foreman Safety dan SPV HSE/);
   assert.match(picaStoreSource, /approvalStages: current\.approvalStages \|\| \{ foreman: false, spvHse: false \}/);
+  assert.match(picaStoreSource, /if \(currentStages\.foreman !== true \|\| currentStages\.spvHse !== true\)/);
+  assert.match(picaStoreSource, /const requiredRole = stage === 'foreman' \? 'Foreman Safety' : 'SPV HSE'/);
+  assert.match(picaStoreSource, /Satu permintaan hanya boleh menyetujui satu tahapan yang belum disetujui/);
+  assert.match(picaStoreSource, /PICA tidak dapat dikembalikan setelah proses persetujuan dimulai/);
 });
