@@ -222,10 +222,16 @@ test('Company Admin cannot overwrite a published form outside its tenant or chan
 });
 
 test('Repository upload derives parent company from master registry and is idempotent before Drive upload', () => {
-  assert.ok(source.includes("const registeredCompany = companyCode === 'CGG' ? null : findCompanyRegistry_(companyCode);"));
-  assert.ok(source.includes("const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';"));
-  assert.ok(source.includes("const existingDocument = findRecordRow_(getSheet_('repository'), id);"));
-  assert.ok(source.includes("parentCompanyCode: parentCompanyCode"));
+  const routeStart = source.indexOf("if (path === '/api/repository' && method === 'POST')");
+  const routeEnd = source.indexOf('const repositoryDeleteMatch', routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  const helperStart = source.indexOf('function createRepositoryDocument_(');
+  const helperEnd = source.indexOf('function canPreviewRepositoryDocument_(', helperStart);
+  const helper = source.slice(helperStart, helperEnd);
+  assert.match(route, /registeredCompany\\.parentCompanyCode/);
+  assert.match(route, /createRepositoryDocument_\\(input, bytes, fileMetadata, companyCode, parentCompanyCode, user\\)/);
+  assert.match(helper, /getExistingRecordForCreate_\\(sheet, id, user\\)/);
+  assert.ok(helper.indexOf('getExistingRecordForCreate_') < helper.indexOf('folder.createFile(blob)'));
 });
 
 
