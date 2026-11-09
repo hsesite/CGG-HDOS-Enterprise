@@ -17,8 +17,9 @@ Never commit Spreadsheet IDs, OAuth secrets, session tokens, passwords, or produ
 ## Health checks
 
 - `GET /api/health/live` confirms the Apps Script Web App is responding.
-- `GET /api/health/ready` confirms the configured Spreadsheet is accessible, required sheets exist, Google OAuth is configured, and the CGG registration domain/email policy is explicitly configured.
-- Readiness returns HTTP-style status 503 when the Spreadsheet is missing or inaccessible. A successful response with `status: "not_ready"` means one or more required sheets or authentication settings still need setup.
+- `GET /api/health/ready` confirms the configured Spreadsheet is accessible, every required sheet exists, and each sheet contains its mandatory header columns. It also checks that Google OAuth and the CGG registration domain/email policy are explicitly configured.
+- Schema validation is read-only: it checks required headers by name and allows additional legacy/custom columns. It does not expose sheet names, header values, or configuration secrets in the response; only aggregate missing-sheet and invalid-schema counts are returned.
+- Readiness returns HTTP-style status 503 when the Spreadsheet is missing or inaccessible. A successful response with `status: "not_ready"` means one or more required sheets, required columns, or authentication settings still need setup.
 - The readiness response exposes configuration status only; it never returns Spreadsheet IDs, OAuth Client IDs, or allowlisted email addresses.
 
 ## Deployment checklist
