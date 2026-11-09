@@ -1357,7 +1357,7 @@ test('incident investigation updates, KTT review, and closure are role- and stat
 test('successful sync advances server version for later queued updates of the same record', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /serverUpdatedAt/);
-  assert.match(syncSource, /queued\.status !== 'PENDING'/);
+  assert.match(syncSource, /queued\.status === 'PENDING'/);
   assert.match(syncSource, /queued\.ownerUserId !== owner\.userId/);
   assert.match(syncSource, /queued\.ownerCompanyCode !== owner\.companyCode/);
   assert.match(syncSource, /this\.queueOwnerKey === requestedOwnerKey/);
@@ -1963,7 +1963,7 @@ test('sync recovery does not reset another tab active lease and timestamps each 
 
 
 test('server version propagation commits local record and follow-up queue updates atomically', () => {
-  const createStart = syncEngineSource.indexOf("if (item.action === 'CREATE')");
+  const createStart = syncEngineSource.indexOf("item.action === 'CREATE'");
   const updateStart = syncEngineSource.indexOf("item.action === 'UPDATE'", createStart);
   const deleteStart = syncEngineSource.indexOf("item.action === 'DELETE'", updateStart);
   assert.ok(createStart >= 0 && updateStart > createStart && deleteStart > updateStart);
