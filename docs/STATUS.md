@@ -279,3 +279,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Verifikasi folder gagal secara tertutup (fail closed) bila metadata Drive atau konfigurasi folder tidak tersedia.
 - [x] Regression test ditambahkan untuk preview dan cleanup lintas folder perusahaan.
 - [ ] UAT akses preview/penggantian SIA dengan dua tenant berbeda pada Drive staging.
+
+
+### P2H — validasi konsistensi replay (9 November 2026)
+- [x] Replay request ID yang sama hanya mengembalikan record lama jika seluruh payload pemeriksaan cocok, termasuk unit, tanggal, status, hour meter, operator, temuan, tindakan koreksi, dan referensi foto.
+- [x] Penggunaan ulang request ID dengan payload berbeda ditolak sebagai konflik HTTP 409.
+- [x] Referensi foto hasil upload dipertahankan pada percobaan ulang form yang sama agar retry tidak mengunggah foto duplikat dan tetap cocok dengan request ID.
+- [ ] Uji replay dengan respons hilang, perubahan payload, serta penggantian foto di GAS/Drive staging.
