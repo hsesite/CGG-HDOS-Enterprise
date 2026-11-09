@@ -49,3 +49,10 @@ Never commit Spreadsheet IDs, OAuth secrets, session tokens, passwords, or produ
 - Spreadsheet selection comes from the `HDOS_SPREADSHEET_ID` Script Property rather than a hardcoded production ID.
 
 Run local authorization checks with `npm run test:gas`.
+
+
+## Browser session storage
+
+- Token API dan cache profil pengguna disimpan di `sessionStorage`, bukan `localStorage`, sehingga kredensial browser dibatasi pada sesi tab aktif.
+- Masa berlaku otoritatif tetap diperiksa backend melalui registri sesi Script Properties dan `SESSION_TTL`; penyimpanan browser bukan pengganti validasi server.
+- Setelah perubahan ini, pengguna perlu login kembali pada tab yang belum memiliki token sesi.
