@@ -46,7 +46,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 ## Authentication dan keamanan
 
 - [x] Login frontend memanggil client API cloud.
-- [x] Session token disimpan dalam sessionStorage.
+- [x] Token sesi dan cache profil pengguna disimpan dalam `sessionStorage` (dibatasi pada tab browser aktif).
 - [ ] Verifikasi autentikasi dan otorisasi server-side pada deployment GAS.
 - [ ] Verifikasi bahwa hak akses frontend selalu sesuai role dari server dan tidak bergantung pada pilihan role lokal.
 - [ ] Hapus seluruh kredensial default/fallback dari source code dan rotasi credential jika pernah terpublikasi.
@@ -191,3 +191,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [ ] Deploy versi GAS terbaru ke project Apps Script dan verifikasi readiness terhadap Spreadsheet uji.
 - [ ] Uji restore backup, termasuk verifikasi isi dan konsistensi data setelah pemulihan.
 - [ ] UAT lintas role dan tenant pada akun/perangkat uji dengan data operasional representatif.
+
+
+## Penguatan sesi browser (9 November 2026)
+
+- [x] Token API HDOS dipindahkan dari `localStorage` ke `sessionStorage`; token tidak dipertahankan sebagai kredensial browser setelah sesi tab berakhir.
+- [x] Cache profil pengguna dipindahkan ke `sessionStorage` agar profil lama tidak otomatis muncul kembali pada sesi browser baru tanpa autentikasi ulang.
+- [x] Uji regresi memastikan token dan cache profil tidak lagi ditulis/dibaca dari `localStorage`.
+- [ ] Uji manual lintas tab, refresh, tutup-buka browser, logout, dan kedaluwarsa token pada browser nyata.
