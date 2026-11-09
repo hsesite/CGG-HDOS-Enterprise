@@ -3634,12 +3634,15 @@ function areUpdateValuesEqual_(left, right) {
   }
   if (typeof left === 'object' || typeof right === 'object') {
     if (typeof left !== 'object' || typeof right !== 'object') return false;
-    const leftKeys = Object.keys(left).sort();
-    const rightKeys = Object.keys(right).sort();
-    if (leftKeys.length !== rightKeys.length) return false;
-    for (let index = 0; index < leftKeys.length; index++) {
-      if (leftKeys[index] !== rightKeys[index] ||
-          !areUpdateValuesEqual_(left[leftKeys[index]], right[rightKeys[index]])) return false;
+    // Update payloads may intentionally contain partial nested objects
+    // (for example riskMatrix or approvalStages, which the API merges).
+    // Treat the payload as applied when every submitted nested key matches
+    // the persisted record; unrelated server-side nested keys may remain.
+    const expectedKeys = Object.keys(right);
+    for (let index = 0; index < expectedKeys.length; index++) {
+      const key = expectedKeys[index];
+      if (!Object.prototype.hasOwnProperty.call(left, key) ||
+          !areUpdateValuesEqual_(left[key], right[key])) return false;
     }
     return true;
   }
