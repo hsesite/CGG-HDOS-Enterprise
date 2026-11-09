@@ -744,13 +744,21 @@ export class HDOSSyncEngine {
               // server. Advance those pending UPDATEs to the server's first version.
               const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
               for (const queued of persistedQueue) {
-                if (queued.id === item.id || queued.entity !== item.entity || queued.action !== 'UPDATE' ||
-                    queued.status !== 'PENDING' || getRecordId(queued) !== getRecordId(item) ||
+                if (queued.id === item.id || queued.ownerUserId !== owner.userId ||
+                    queued.ownerCompanyCode !== owner.companyCode || queued.entity !== item.entity ||
+                    queued.action !== 'UPDATE' || queued.status !== 'PENDING' ||
+                    getRecordId(queued) !== getRecordId(item) ||
                     !queued.payload || typeof queued.payload !== 'object' || Array.isArray(queued.payload)) continue;
                 const nextPayload = { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt };
                 const nextQueued = { ...queued, payload: nextPayload };
                 await hdosDB.put('queue', nextQueued);
-                this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
+                const queueOwnerAfterWrite = this.getCurrentOwner();
+                if (queueOwnerAfterWrite &&
+                    queueOwnerAfterWrite.userId === owner.userId &&
+                    queueOwnerAfterWrite.companyCode === owner.companyCode &&
+                    this.queueOwnerKey === requestedOwnerKey) {
+                  this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
+                }
               }
             }
           } else if (
@@ -776,13 +784,21 @@ export class HDOSSyncEngine {
 
               const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
               for (const queued of persistedQueue) {
-                if (queued.id === item.id || queued.entity !== item.entity || queued.action !== 'UPDATE' ||
-                    queued.status !== 'PENDING' || getRecordId(queued) !== recordId ||
+                if (queued.id === item.id || queued.ownerUserId !== owner.userId ||
+                    queued.ownerCompanyCode !== owner.companyCode || queued.entity !== item.entity ||
+                    queued.action !== 'UPDATE' || queued.status !== 'PENDING' ||
+                    getRecordId(queued) !== recordId ||
                     !queued.payload || typeof queued.payload !== 'object' || Array.isArray(queued.payload)) continue;
                 const nextPayload = { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt };
                 const nextQueued = { ...queued, payload: nextPayload };
                 await hdosDB.put('queue', nextQueued);
-                this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
+                const queueOwnerAfterWrite = this.getCurrentOwner();
+                if (queueOwnerAfterWrite &&
+                    queueOwnerAfterWrite.userId === owner.userId &&
+                    queueOwnerAfterWrite.companyCode === owner.companyCode &&
+                    this.queueOwnerKey === requestedOwnerKey) {
+                  this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
+                }
               }
             }
           } else if (item.action === 'DELETE') {
