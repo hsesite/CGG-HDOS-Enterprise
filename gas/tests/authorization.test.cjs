@@ -1818,3 +1818,35 @@ test('PICA approval stages must follow Foreman → SPV HSE → KTT sequence', ()
   assert.equal(valid({ foreman: false, spvHse: false, ktt: true }, 'ktt'), false);
   assert.equal(valid({ foreman: true, spvHse: true, ktt: true }, 'unknown'), false);
 });
+
+
+test('PICA approval updates enforce verified role, one stage at a time, and strict sequence', () => {
+  const context = {
+    isObject_: value => Boolean(value && typeof value === 'object' && !Array.isArray(value)),
+    error_: (status, message) => ({ status, message })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function enforcePicaApprovalStageRules_(');
+  const end = source.indexOf('function enforcePicaClosureRules_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+  const enforce = context.enforcePicaApprovalStageRules_;
+
+  const base = { status: 'OPEN', approvalStages: { foreman: false, spvHse: false, ktt: false } };
+  const foreman = { roles: ['Foreman Safety'], roleVerified: true };
+  const spv = { roles: ['SPV HSE'], roleVerified: true };
+  const ktt = { roles: ['KTT'], roleVerified: true };
+  const admin = { roles: ['Admin CGG'], roleVerified: true };
+
+  assert.equal(enforce(base, { approvalStages: { foreman: true } }, foreman), null);
+  assert.equal(enforce(base, { approvalStages: { spvHse: true } }, spv).status, 409);
+  assert.equal(enforce(base, { approvalStages: { foreman: true } }, spv).status, 403);
+  assert.equal(enforce(base, { approvalStages: { foreman: true } }, { roles: ['Foreman Safety'], roleVerified: false }).status, 403);
+  assert.equal(enforce(base, { approvalStages: { foreman: true, spvHse: true } }, foreman).status, 403);
+  assert.equal(enforce(base, { approvalStages: { foreman: true } }, admin).status, 403);
+  assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: true, spvHse: true } }, spv), null);
+  assert.equal(enforce({ ...base, approvalStages: { foreman: true, spvHse: true } }, { approvalStages: { foreman: true, spvHse: true, ktt: true } }, ktt), null);
+  assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: false } }, foreman).status, 403);
+  assert.equal(enforce(base, { approvalStages: [] }, foreman).status, 400);
+});
