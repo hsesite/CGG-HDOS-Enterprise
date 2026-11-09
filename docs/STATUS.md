@@ -239,3 +239,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Dashboard tidak lagi crash ketika membaca data Hazard legacy yang belum memiliki objek `riskMatrix`; hazard tetap dihitung sebagai temuan aktif, tetapi tidak dihitung sebagai risiko kritis tanpa klasifikasi yang valid.
 - [ ] Uji tarik-publikasi formulir pada dua sesi browser dan verifikasi bahwa formulir yang ditarik tidak dapat dipakai untuk membuat inspeksi.
 - [ ] Uji Dashboard dengan data legacy/malformed dan bandingkan seluruh agregat terhadap register sumber.
+
+
+### Pengamanan persetujuan PICA — 9 November 2026
+
+- [x] Validasi persetujuan tahapan PICA diterapkan di backend GAS, bukan hanya pada kontrol frontend.
+- [x] Foreman Safety, SPV HSE, dan KTT hanya dapat menyetujui tahapan masing-masing setelah role diverifikasi.
+- [x] Urutan Foreman Safety → SPV HSE → KTT ditegakkan di server; persetujuan yang melompati tahapan ditolak.
+- [x] Satu request hanya dapat mengubah satu tahapan persetujuan; persetujuan yang sudah diberikan tidak dapat dibatalkan melalui pembaruan biasa.
+- [x] Admin CGG maupun Admin Perusahaan tidak dapat membuat persetujuan operasional atas nama pejabat yang berwenang.
+- [x] Regression test untuk role, urutan, perubahan serentak, dan pembatalan persetujuan lulus pada GitHub Actions commit `54a736d`.
+- [ ] Deploy versi GAS terbaru ke project staging dan uji alur persetujuan menggunakan akun Foreman Safety, SPV HSE, dan KTT yang terverifikasi.
