@@ -22,7 +22,7 @@ export const PICAModule: React.FC = () => {
   const sessionRoles = sessionUser?.roles || [];
   const isVerifiedReviewer = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'].includes(role));
   const isHSEValidator = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE'].includes(role));
-  const approvalStagesFor = (pica: PICA) => pica.approvalStages || { foreman: false, spvHse: false, ktt: false };
+  const approvalStagesFor = (pica: PICA) => pica.approvalStages || { foreman: false, spvHse: false };
 
   useEffect(() => {
     if (!selectedPica) return;
@@ -112,17 +112,16 @@ export const PICAModule: React.FC = () => {
     finally { setBusy(false); }
   };
 
-  const approvePicaStage = async (stage: 'foreman' | 'spvHse' | 'ktt') => {
+  const approvePicaStage = async (stage: 'foreman' | 'spvHse') => {
     if (!selectedPica || selectedPica.status !== 'WAITING_HSE') return;
-    const requiredRole = stage === 'foreman' ? 'Foreman Safety' : stage === 'spvHse' ? 'SPV HSE' : 'KTT';
+    const requiredRole = stage === 'foreman' ? 'Foreman Safety' : 'SPV HSE';
     if (sessionUser?.roleVerified !== true || !sessionRoles.includes(requiredRole)) {
       window.alert('Persetujuan hanya dapat dilakukan oleh pejabat dengan role terverifikasi.');
       return;
     }
     const currentStages = approvalStagesFor(selectedPica);
     if (stage === 'spvHse' && !currentStages.foreman) { window.alert('Persetujuan Foreman Safety harus diselesaikan terlebih dahulu.'); return; }
-    if (stage === 'ktt' && (!currentStages.foreman || !currentStages.spvHse)) { window.alert('Persetujuan Foreman Safety dan SPV HSE harus diselesaikan terlebih dahulu.'); return; }
-    setBusy(true);
+      setBusy(true);
     try {
       const updated = await store.updatePICAStatus(selectedPica.id, {
         approvalStages: { ...currentStages, [stage]: true }
@@ -167,10 +166,10 @@ export const PICAModule: React.FC = () => {
           {selectedPica.rejectionReason && <p className="text-xs text-red-300 bg-red-500/10 p-2 rounded-lg">Dikembalikan HSE: {selectedPica.rejectionReason}</p>}
           {selectedPica.status === 'WAITING_HSE' && <div className="text-xs text-purple-200 bg-purple-500/10 p-3 rounded-lg space-y-2">
             <p className="font-semibold">Tahapan persetujuan PICA</p>
-            {(['foreman','spvHse','ktt'] as const).map((stage) => {
+            {(['foreman','spvHse'] as const).map((stage) => {
               const stages = approvalStagesFor(selectedPica);
-              const label = stage === 'foreman' ? 'Foreman Safety' : stage === 'spvHse' ? 'SPV HSE' : 'KTT';
-              const previousApproved = stage === 'foreman' || (stage === 'spvHse' && stages.foreman) || (stage === 'ktt' && stages.foreman && stages.spvHse);
+              const label = stage === 'foreman' ? 'Foreman Safety' : 'SPV HSE';
+              const previousApproved = stage === 'foreman' || (stage === 'spvHse' && stages.foreman);
               const roleCanApprove = sessionUser?.roleVerified === true && sessionRoles.includes(label);
               return <div key={stage} className="flex items-center justify-between gap-2">
                 <span>{label}</span>
@@ -186,7 +185,7 @@ export const PICAModule: React.FC = () => {
           {isHSEValidator && selectedPica.status === 'WAITING_HSE' && <div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs font-bold text-white flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Validasi akhir HSE</p>
             {approvalStagesFor(selectedPica).foreman && approvalStagesFor(selectedPica).spvHse && approvalStagesFor(selectedPica).ktt
               ? <button disabled={busy} onClick={validateClose} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">Validasi & Close PICA</button>
-              : <p className="text-[10px] text-amber-300">Penutupan tersedia setelah persetujuan Foreman Safety, SPV HSE, dan KTT selesai.</p>}
+              : <p className="text-[10px] text-amber-300">Penutupan tersedia setelah persetujuan Foreman Safety dan SPV HSE selesai.</p>}
             {!Object.values(approvalStagesFor(selectedPica)).some(Boolean) && <><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} placeholder="Alasan jika bukti belum sesuai" className="w-full p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white" /><button disabled={busy} onClick={returnToPIC} className="w-full p-2 rounded-lg bg-red-500/20 text-red-200 text-xs font-semibold disabled:opacity-50">Kembalikan ke PIC</button></>}
           </div>}
         </> : <div className="text-center text-xs text-neutral-500 py-12"><UserCheck className="w-8 h-8 mx-auto mb-2" />Pilih PICA untuk melihat penugasan dan tindak lanjut.</div>}
