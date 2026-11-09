@@ -1469,6 +1469,14 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
   assert.match(apiSource, /idempotent CREATE/);
 });
 
+test('Contractor fleet refresh and P2H history ignore responses from a previous tenant session', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+  assert.match(moduleSource, /const isCurrentSessionScope = \(scopeKey: string\) =>/);
+  assert.match(moduleSource, /const requestScope = sessionScopeKey;[\s\S]*?const units = await hseApi\.listContractorFleet\(\);[\s\S]*?if \(isCurrentSessionScope\(requestScope\)\) setFleetUnits\(units\)/);
+  assert.match(moduleSource, /const history = await hseApi\.listContractorP2HHistory\(unit\.id\);[\s\S]*?if \(isCurrentSessionScope\(requestScope\)\) setP2hHistory\(history\)/);
+  assert.match(moduleSource, /if \(isCurrentSessionScope\(requestScope\)\) setP2hLoading\(false\)/);
+});
+
 test('Sync initialization revalidates tenant after asynchronous queue recovery before publishing', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /const finalOwner = this\.getCurrentOwner\(\);/);
