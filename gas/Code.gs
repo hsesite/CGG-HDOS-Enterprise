@@ -3709,8 +3709,7 @@ function parseRowValues_(sheetName, headers, row) {
   if (sheetName === 'picas') {
     result.approvalStages = {
       foreman: Boolean(normalized.foremanApproval || (payload.approvalStages && payload.approvalStages.foreman)),
-      spvHse: Boolean(normalized.spvHseApproval || (payload.approvalStages && payload.approvalStages.spvHse)),
-      ktt: Boolean(normalized.kttApproval || (payload.approvalStages && payload.approvalStages.ktt))
+      spvHse: Boolean(normalized.spvHseApproval || (payload.approvalStages && payload.approvalStages.spvHse))
     };
   }
 
