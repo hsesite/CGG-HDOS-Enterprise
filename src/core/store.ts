@@ -87,7 +87,7 @@ export class HDOSCentralStore {
   private assertMutationAllowed(action: 'location' | 'contractor' | 'document' | 'inspection' | 'hazard' | 'incident' | 'pica', updates?: Partial<PICA>): void {
     const role = hdosAuth.getCurrentRole();
     if (action === 'pica') {
-      const allowedKeys = ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'rejectionReason', 'updatedAt'];
+      const allowedKeys = ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'rejectionReason', 'approvalStages', 'updatedAt'];
       if (updates && Object.keys(updates).every((key) => allowedKeys.includes(key))) return;
       throw new Error('Perubahan PICA hanya dapat dilakukan oleh PIC yang ditugaskan atau HSE validator.');
     }
@@ -1017,7 +1017,8 @@ export class HDOSCentralStore {
     if (index === -1) return null;
 
     const current = this.picas[index];
-    if (current.status === 'CLOSED') throw new Error('PICA sudah ditutup dan tidak dapat diubah.');
+    const isApprovalOnlyUpdate = Object.keys(updates).length > 0 && Object.keys(updates).every((key) => key === 'approvalStages');
+    if (current.status === 'CLOSED' && !isApprovalOnlyUpdate) throw new Error('PICA sudah ditutup dan tidak dapat diubah.');
     const sessionUser = AuthState.getUser();
     const role = hdosAuth.getCurrentRole();
     const email = String(sessionUser?.email || '').trim().toLowerCase();
