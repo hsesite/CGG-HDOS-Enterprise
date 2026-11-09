@@ -1550,7 +1550,7 @@ test('Manual sync retry revalidates tenant after asynchronous IndexedDB persiste
 test('Overlapping sync initialization cannot let an older IndexedDB read clear a newer tenant snapshot', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /private initGeneration = 0;/);
-  assert.match(syncSource, /const initGeneration = \\+\\+this\\.initGeneration;/);
+  assert.ok(syncSource.includes('const initGeneration = ++this.initGeneration;'));
   const initStart = syncSource.indexOf('async init(): Promise<void>');
   const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart);
   assert.ok(initStart >= 0 && initEnd > initStart);
