@@ -215,3 +215,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test mencakup isolasi folder Drive dan pemulihan antrean `SYNCING` setelah kesalahan engine.
 - [x] Workflow validasi dan deployment GitHub Pages berhasil pada commit `ce025b9`.
 - [ ] Pengujian upload Repository, kegagalan Spreadsheet, dan pemulihan antrean tetap harus dilakukan pada Apps Script/Drive staging dengan akun uji.
+
+### Integritas database — penguatan konkurensi (9 November 2026)
+
+- [x] Alokasi kode referensi operasional berbasis nomor baris dipindahkan ke dalam Script Lock, setelah pemeriksaan idempotensi kedua.
+- [x] Pembuatan record bersamaan kini menjalankan pemeriksaan duplikasi, alokasi kode, dan append dalam satu critical section sehingga kode referensi tidak dihitung dari nomor baris yang sama oleh dua request paralel.
+- [x] Regression test ditambahkan untuk memastikan alokasi kode berlangsung setelah lock diperoleh dan sebelum append.
+- [x] Skenario DB-11 ditambahkan ke UAT untuk verifikasi dua perangkat membuat record secara bersamaan pada deployment GAS uji.
+- [ ] Uji konkurensi aktual pada Google Apps Script dan Spreadsheet uji masih menunggu environment runtime.
