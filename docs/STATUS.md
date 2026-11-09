@@ -156,3 +156,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Operasi tulis Contractor Passport (unggah SIA, pencatatan P2H, tambah/perbarui fleet, kirim/revisi laporan, dan review) menangkap session scope; hasil, pesan error, serta flag busy dari request sesi lama tidak mengubah tampilan tenant aktif. Pencatatan P2H juga menghentikan rangkaian upload foto → pembuatan record bila sesi berubah sebelum record dikirim.
 
 - [x] Retry manual antrean sinkronisasi memvalidasi ulang pemilik dan scope setelah penulisan IndexedDB asinkron sebelum memperbarui snapshot antrean aktif; item tenant lama tetap tersimpan pada owner key-nya dan tidak dipublikasikan ke tampilan tenant baru.
+
+ 
+### Stabilitas repository dan pipeline (9 November 2026)
+
+- [x] Pemeriksaan riwayat Actions membedakan kegagalan kode dari gangguan runner: HTTP 504 saat mengunduh Bun terjadi pada tahap setup, sebelum dependency, typecheck, test, atau build dijalankan.
+- [x] Kesalahan sintaks TypeScript pada assertion test authorization sebelumnya telah diperbaiki; workflow validasi berikutnya lulus sampai tahap typecheck frontend/backend, authorization tests, dan production build.
+- [x] Pipeline deployment untuk commit terbaru telah berhasil; run deployment yang dibatalkan merupakan run commit perantara yang digantikan oleh commit lebih baru karena concurrency deployment, bukan kegagalan build pada HEAD final.
+- [x] Versi Bun dipatok ke 1.4.4 pada workflow CI, PR, dan deployment; instalasi deployment/PR memakai frozen lockfile agar dependency yang diuji sama dengan dependency yang dibangun.
+- [x] Checkout GitHub Actions dinaikkan ke actions/checkout@v5 untuk menghindari ketergantungan pada runtime Node 20 yang sudah deprecated pada runner.
+- [ ] Validasi integrasi runtime Google Apps Script, Spreadsheet, Drive, kredensial deployment, dan akun per role tetap membutuhkan pengujian end-to-end pada environment nonproduksi/produksi yang diizinkan.
+- [ ] Branch fitur lama belum dihapus. Branch tersebut tidak menghambat pipeline main selama tidak digabung; sebelum cleanup perlu pemeriksaan perbedaan commit dan konfirmasi pemilik.
