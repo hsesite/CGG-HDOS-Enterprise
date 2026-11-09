@@ -244,15 +244,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 ### Pengamanan persetujuan PICA — 9 November 2026
 
 - [x] Validasi persetujuan tahapan PICA diterapkan di backend GAS, bukan hanya pada kontrol frontend.
-- [x] Foreman Safety, SPV HSE, dan KTT hanya dapat menyetujui tahapan masing-masing setelah role diverifikasi.
-- [x] Urutan Foreman Safety → SPV HSE → KTT ditegakkan di server; persetujuan yang melompati tahapan ditolak.
+- [x] Foreman Safety dan SPV HSE hanya dapat menyetujui tahapan masing-masing setelah role diverifikasi.
+- [x] Urutan Foreman Safety → SPV HSE ditegakkan di server; persetujuan yang melompati tahapan ditolak.
 - [x] Satu request hanya dapat mengubah satu tahapan persetujuan; persetujuan yang sudah diberikan tidak dapat dibatalkan melalui pembaruan biasa.
 - [x] Admin CGG maupun Admin Perusahaan tidak dapat membuat persetujuan operasional atas nama pejabat yang berwenang.
 - [x] Regression test untuk role, urutan, perubahan serentak, dan pembatalan persetujuan lulus pada GitHub Actions commit `54a736d`.
-- [ ] Deploy versi GAS terbaru ke project staging dan uji alur persetujuan menggunakan akun Foreman Safety, SPV HSE, dan KTT yang terverifikasi.
+- [ ] Deploy versi GAS terbaru ke project staging dan uji alur persetujuan menggunakan akun Foreman Safety dan SPV HSE yang terverifikasi.
 - [x] Regression test tambahan untuk aturan penutupan PICA: kepemilikan PIC, tindakan koreksi, bukti, validasi HSE, tanggal penyelesaian, dan transisi status tidak sah; lulus pada commit `1530cff`.
 - [x] CI dan deployment frontend GitHub Pages untuk commit `1530cff` berhasil.
-- [x] UI PICA menghubungkan persetujuan Foreman Safety → SPV HSE → KTT, masing-masing hanya dapat dilakukan role terverifikasi yang sesuai.
-- [x] Akses register dan pembaruan PICA mencakup KTT terverifikasi dalam cakupan perusahaan untuk menjalankan persetujuan tahap akhir.
-- [x] Penutupan PICA diblokir backend sampai ketiga tahap persetujuan selesai; pengembalian kepada PIC dibatasi sebelum persetujuan pertama.
-- [ ] UAT persetujuan PICA tiga tahap dengan akun Foreman Safety, SPV HSE, KTT serta validasi file bukti di GAS/Drive staging.
+- [x] UI PICA menghubungkan persetujuan Foreman Safety → SPV HSE, masing-masing hanya dapat dilakukan role terverifikasi yang sesuai.
+- [x] Penutupan PICA diblokir backend sampai kedua tahap persetujuan selesai; pengembalian kepada PIC dibatasi sebelum persetujuan pertama.
+- [ ] UAT persetujuan PICA dua tahap dengan akun Foreman Safety dan SPV HSE serta validasi file bukti di GAS/Drive staging.
