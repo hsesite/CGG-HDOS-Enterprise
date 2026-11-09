@@ -1630,19 +1630,18 @@ function loginRateLimitKey_(email) {
   return 'login-fail:' + Utilities.base64EncodeWebSafe(digest).replace(/=+$/g, '');
 }
 
-function isLoginRateLimited_(email) {
-  const attempts = Number(CacheService.getScriptCache().get(loginRateLimitKey_(email)) || 0);
-  return attempts >= 10;
-}
-
-function recordLoginFailure_(email) {
+function reserveLoginAttempt_(email) {
+  // Check and increment atomically. Separate check/increment calls allow
+  // concurrent requests to all pass the threshold before any failure is counted.
   const lock = LockService.getScriptLock();
   lock.waitLock(5000);
   try {
     const cache = CacheService.getScriptCache();
     const key = loginRateLimitKey_(email);
     const attempts = Number(cache.get(key) || 0);
+    if (attempts >= 10) return false;
     cache.put(key, String(attempts + 1), 300);
+    return true;
   } finally {
     lock.releaseLock();
   }
@@ -1657,7 +1656,7 @@ function login_(payload) {
   const email = String(input.email || '').trim().toLowerCase();
   const password = String(input.password || '');
   if (!email || !password) return error_(400, 'Email dan password diperlukan');
-  if (isLoginRateLimited_(email)) return error_(429, 'Terlalu banyak percobaan login. Coba kembali setelah 5 menit.');
+  if (!reserveLoginAttempt_(email)) return error_(429, 'Terlalu banyak percobaan login. Coba kembali setelah 5 menit.');
 
   const user = findUserByEmail_(email);
   let validPassword = false;
@@ -1669,7 +1668,6 @@ function login_(payload) {
     if (validPassword) migrateLegacyPassword_(user, password);
   }
   if (!user || !validPassword || user.status !== 'ACTIVE') {
-    recordLoginFailure_(email);
     return error_(401, 'Email atau password salah atau akun tidak aktif');
   }
   clearLoginFailures_(email);
