@@ -1568,3 +1568,17 @@ test('Frontend module access uses one server-role policy and blocks unverified P
   assert.ok(policySource.includes("if (requiresRoleVerification(user) && user.roleVerified !== true)"));
   assert.ok(policySource.includes("if (roles.includes('Employee'))"));
 });
+
+
+test('CGG self-registration is restricted to approved domains or exact allowlisted emails', () => {
+  const gasSource = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
+  const start = gasSource.indexOf('function isCggEmailAllowed_(email, companyCode) {');
+  const end = gasSource.indexOf('function appendUniqueUser_', start);
+  assert.ok(start >= 0 && end > start);
+  const block = gasSource.slice(start, end);
+  assert.ok(block.includes("properties.getProperty('CGG_EMAIL_DOMAINS')"));
+  assert.ok(block.includes("properties.getProperty('CGG_ALLOWED_EMAILS')"));
+  assert.ok(block.includes("'ptcgg.com'"));
+  assert.ok(block.includes("domains.indexOf(emailDomain) >= 0 || allowlist.indexOf(normalizedEmail) >= 0"));
+  assert.ok(block.includes("if (String(companyCode || '').trim().toUpperCase() !== 'CGG') return true;"));
+});
