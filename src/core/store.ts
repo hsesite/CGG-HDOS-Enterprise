@@ -862,7 +862,7 @@ export class HDOSCentralStore {
         assignedToEmail: String(inspection.picaPicEmail || '').trim().toLowerCase(),
         targetDate: inspection.picaTargetDate || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
         status: 'OPEN', daysAging: 0,
-        approvalStages: { foreman: false, spvHse: false, ktt: false }, createdAt: now,
+        approvalStages: { foreman: false, spvHse: false }, createdAt: now,
       };
       failedItem.picaId = picaId;
       createdPicas.push(picaCreated);
@@ -912,7 +912,7 @@ export class HDOSCentralStore {
       preventiveAction: 'Lakukan evaluasi penyebab, verifikasi efektivitas pengendalian, dan cegah terulangnya kondisi serupa.',
       picDepartment: 'Operations', picName: 'PIC Belum Ditentukan',
       targetDate: picaTarget.toISOString().split('T')[0], status: 'OPEN', daysAging: 0,
-      approvalStages: { foreman: false, spvHse: false, ktt: false }, createdAt: now,
+      approvalStages: { foreman: false, spvHse: false }, createdAt: now,
     };
     const newHazard: Hazard = {
       ...hazard, ...tenantFields, id, code, createdAt: now, picaId, status: 'PICA_ISSUED',
@@ -1026,7 +1026,7 @@ export class HDOSCentralStore {
     const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((assignedRole) => ['Foreman Safety', 'SPV HSE'].includes(assignedRole));
     const persistedPicas = await hdosDB.getAll<PICA>('pica');
     const persistedVersion = persistedPicas.find(pica => pica.id === id)?.updatedAt;
-    const updated: PICA = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt, approvalStages: current.approvalStages || { foreman: false, spvHse: false, ktt: false } };
+    const updated: PICA = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt, approvalStages: current.approvalStages || { foreman: false, spvHse: false } };
 
     if (updates.status === 'WAITING_HSE') {
       if (!isAssignedPIC) throw new Error('Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA.');
