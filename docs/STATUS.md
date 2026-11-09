@@ -325,3 +325,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Data lokal yang masih memiliki antrean sinkronisasi tetap diprioritaskan sesuai kebijakan queue-aware merge yang sudah ada.
 - [x] Regression test ditambahkan untuk memastikan snapshot yang sudah kedaluwarsa tidak memutasi cache atau dipublikasikan ke workspace.
 - [ ] UAT refresh paralel pada dua tab/perangkat dengan perubahan cloud bersamaan tetap diperlukan untuk memverifikasi urutan respons dan konsistensi IndexedDB.
+
+
+### Sinkronisasi — snapshot pembanding saat konflik versi (9 November 2026)
+- [x] Konflik optimistic concurrency HTTP 409 pada UPDATE operasional mencoba mengambil snapshot record terbaru dari API pusat.
+- [x] Snapshot server disimpan terpisah pada queue item; payload lokal tetap dipertahankan dan tidak diganti otomatis.
+- [x] Pengambilan snapshot hanya diterima jika ID record cocok, sesi token masih sama, serta user dan tenant pemilik transaksi belum berubah.
+- [x] Jika snapshot server gagal diambil, konflik asli dan payload lokal tetap dipertahankan.
+- [x] Modul Sinkronisasi menampilkan versi server untuk dibandingkan secara eksplisit sebelum tindak lanjut manual.
+- [x] Regression test ditambahkan untuk perlindungan payload lokal, validasi identitas, penyimpanan snapshot server, dan tampilan pembanding.
+- [ ] UAT konflik dua pengguna pada data operasional di GAS/Sheets staging tetap diperlukan; belum ada auto-merge atau auto-overwrite.
