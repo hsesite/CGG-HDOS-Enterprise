@@ -199,3 +199,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Cache profil pengguna dipindahkan ke `sessionStorage` agar profil lama tidak otomatis muncul kembali pada sesi browser baru tanpa autentikasi ulang.
 - [x] Uji regresi memastikan token dan cache profil tidak lagi ditulis/dibaca dari `localStorage`.
 - [ ] Uji manual lintas tab, refresh, tutup-buka browser, logout, dan kedaluwarsa token pada browser nyata.
+
+
+## Penguatan rate limit autentikasi (9 November 2026)
+
+- [x] Pemeriksaan dan pencatatan percobaan login digabung menjadi satu reservasi atomik di bawah Script Lock.
+- [x] Batas 10 percobaan per alamat email dalam jendela cache 5 menit diterapkan sebelum verifikasi kredensial.
+- [x] Login berhasil menghapus penghitung kegagalan; percobaan paralel tidak lagi dapat lolos hanya karena pemeriksaan dan increment berjalan terpisah.
+- [ ] Uji beban dan verifikasi perilaku pada deployment Apps Script aktual.
