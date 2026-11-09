@@ -615,7 +615,7 @@ test('PICA approval sequence requires Foreman, then SPV HSE', () => {
   vm.runInContext(extractFunction('isPicaApprovalSequenceValid_', 'enforcePicaClosureRules_'), context);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:false,spvHse:false,ktt:false},'foreman'),true);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:false,spvHse:true,ktt:false},'spvHse'),false);
-  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:false},'spvHse'),false);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:false},'spvHse'),true);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true},'spvHse'),true);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true},'ktt'),false);
 });
@@ -1801,7 +1801,7 @@ test('Concurrent operational CREATE allocates row-dependent codes inside the Scr
 });
 
 
-test('PICA approval stages must follow Foreman → SPV HSE → KTT sequence', () => {
+test('PICA approval stages must follow Foreman → SPV HSE sequence', () => {
   const context = {};
   vm.createContext(context);
   const start = source.indexOf('function isPicaApprovalSequenceValid_(');
@@ -1813,11 +1813,10 @@ test('PICA approval stages must follow Foreman → SPV HSE → KTT sequence', ()
   const valid = context.isPicaApprovalSequenceValid_;
   assert.equal(valid({ foreman: false, spvHse: false, ktt: false }, 'foreman'), true);
   assert.equal(valid({ foreman: false, spvHse: true, ktt: false }, 'spvHse'), false);
-  assert.equal(valid({ foreman: true, spvHse: false, ktt: false }, 'spvHse'), true);
-  assert.equal(valid({ foreman: true, spvHse: false, ktt: true }, 'ktt'), false);
-  assert.equal(valid({ foreman: true, spvHse: true, ktt: false }, 'ktt'), true);
-  assert.equal(valid({ foreman: false, spvHse: false, ktt: true }, 'ktt'), false);
-  assert.equal(valid({ foreman: true, spvHse: true, ktt: true }, 'unknown'), false);
+  assert.equal(valid({ foreman: true, spvHse: false }, 'spvHse'), true);
+  assert.equal(valid({ foreman: true, spvHse: true }, 'spvHse'), true);
+  assert.equal(valid({ foreman: true, spvHse: true }, 'ktt'), false);
+  assert.equal(valid({ foreman: true, spvHse: true }, 'unknown'), false);
 });
 
 
@@ -1848,7 +1847,7 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
   assert.equal(enforce(base, { approvalStages: { foreman: true } }, admin).status, 403);
   assert.equal(enforce(base, { approvalStages: { ktt: true } }, ktt).status, 400);
   assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: true, spvHse: true } }, spv), null);
-  assert.equal(enforce({ ...base, approvalStages: { foreman: true, spvHse: true } }, { approvalStages: { foreman: true, spvHse: true, ktt: true } }, ktt), null);
+  assert.equal(enforce(base, { approvalStages: { ktt: true } }, ktt).status, 400);
   assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: false } }, foreman).status, 403);
   assert.equal(enforce(base, { approvalStages: [] }, foreman).status, 400);
   assert.equal(enforce({ ...base, status: 'OPEN' }, { approvalStages: { foreman: true } }, foreman).status, 409);
