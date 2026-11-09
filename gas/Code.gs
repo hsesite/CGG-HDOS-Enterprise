@@ -1424,13 +1424,14 @@ function handleRoute_(
     let deleted = false;
     deleteLock.waitLock(10000);
     try {
-      const existingRecord = readOne_(entity, id);
-      // A prior DELETE may have succeeded while its response was lost.
-      // Return success without exposing whether an unknown ID exists.
-      if (!existingRecord) return success_({ id: id, deleted: true, alreadyDeleted: true });
-      if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk menghapus data perusahaan lain.');
       const targetSheet = getSheet_(entity);
       const targetRow = findRecordRow_(targetSheet, id);
+      // findRecordRow_ returns null for a missing ID. readOne_ throws 404,
+      // which previously made the documented lost-response replay unreachable.
+      // Keep DELETE idempotent without revealing whether an unknown ID exists.
+      if (!targetRow) return success_({ id: id, deleted: true, alreadyDeleted: true });
+      const existingRecord = parseRow_(targetSheet, targetRow);
+      if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk menghapus data perusahaan lain.');
       if (targetRow) {
         targetSheet.deleteRow(targetRow);
         SpreadsheetApp.flush();
