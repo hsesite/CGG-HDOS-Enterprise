@@ -906,7 +906,7 @@ export class HDOSSyncEngine {
                 syncToken
               );
               const ownerAfterConflictRead = this.getCurrentOwner();
-              if (remoteRecord && ownerAfterConflictRead &&
+              if (remoteRecord && String(remoteRecord.id || '') === itemRecordId && ownerAfterConflictRead &&
                   ownerAfterConflictRead.userId === owner.userId &&
                   ownerAfterConflictRead.companyCode === owner.companyCode &&
                   hseApi.authToken === syncToken) {
