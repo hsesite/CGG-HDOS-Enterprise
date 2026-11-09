@@ -1707,3 +1707,18 @@ test('browser authentication token and cached user profile are scoped to the cur
   assert.match(authStateSource, /sessionStorage\.removeItem\('hdos_current_user'/);
   assert.doesNotMatch(authStateSource, /localStorage\.(?:getItem|setItem|removeItem)\('hdos_current_user'/);
 });
+
+
+test('login attempt reservation atomically checks and increments the five-minute limit', () => {
+  const reserve = extractFunction('reserveLoginAttempt_', 'clearLoginFailures_');
+  assert.match(reserve, /LockService\.getScriptLock\(\)/);
+  assert.match(reserve, /lock\.waitLock\(5000\)/);
+  assert.match(reserve, /attempts >= 10/);
+  assert.match(reserve, /cache\.put\(key, String\(attempts \+ 1\), 300\)/);
+  assert.match(reserve, /lock\.releaseLock\(\)/);
+  const loginStart = source.indexOf('function login_(payload)');
+  const loginEnd = source.indexOf('function register_(payload)', loginStart);
+  const login = source.slice(loginStart, loginEnd);
+  assert.match(login, /reserveLoginAttempt_\(email\)/);
+  assert.doesNotMatch(login, /isLoginRateLimited_|recordLoginFailure_/);
+});
