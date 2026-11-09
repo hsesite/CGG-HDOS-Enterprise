@@ -4196,6 +4196,99 @@ function createDatabaseBackup() {
 }
 
 /**
+ * Create a non-destructive recovery copy from a verified HDOS backup.
+ * This function never changes HDOS_SPREADSHEET_ID or overwrites the live database.
+ * Run manually from the Apps Script editor as the authorized database owner.
+ *
+ * @param {string} backupFileId Google Drive ID returned by createDatabaseBackup().
+ * @return {{success:boolean,fileId:string,fileName:string,url:string}}
+ */
+function createDatabaseRecoveryCopy(backupFileId) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  let recoveryFile = null;
+  try {
+    const sourceId = String(backupFileId || '').trim();
+    if (!sourceId) throw new Error('ID file backup wajib diisi.');
+    const properties = PropertiesService.getScriptProperties();
+    const backupFolderId = String(properties.getProperty('HDOS_BACKUP_FOLDER_ID') || '').trim();
+    if (!backupFolderId) throw new Error('Folder backup belum dikonfigurasi.');
+
+    const sourceFile = DriveApp.getFileById(sourceId);
+    if (sourceFile.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+      throw new Error('File sumber bukan Google Spreadsheet.');
+    }
+    if (sourceFile.getName().indexOf('CGG_HDOS_DB_BACKUP_') !== 0) {
+      throw new Error('File sumber bukan backup HDOS yang dikenali.');
+    }
+    const parents = sourceFile.getParents();
+    let belongsToBackupFolder = false;
+    while (parents.hasNext()) {
+      if (parents.next().getId() === backupFolderId) {
+        belongsToBackupFolder = true;
+        break;
+      }
+    }
+    if (!belongsToBackupFolder) {
+      throw new Error('File sumber tidak berada di folder backup HDOS yang dikonfigurasi.');
+    }
+
+    const folder = DriveApp.getFolderById(backupFolderId);
+    const timeZone = Session.getScriptTimeZone() || 'Asia/Makassar';
+    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyyMMdd_HHmmss_SSS');
+    const recoveryName = 'CGG_HDOS_RECOVERY_COPY_' + timestamp;
+    recoveryFile = sourceFile.makeCopy(recoveryName, folder);
+    if (recoveryFile.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+      throw new Error('Salinan pemulihan bukan Google Spreadsheet.');
+    }
+
+    const recoveredSpreadsheet = SpreadsheetApp.openById(recoveryFile.getId());
+    const requiredSheets = CONFIG.SHEETS.concat(['repository']);
+    const requiredHeaders = Object.assign({}, ENTITY_SCHEMAS, {
+      users: ['id', 'email', 'password', 'displayName', 'role', 'status', 'passwordHash', 'passwordSalt', 'googleSub', 'companyCode', 'parentCompanyCode', 'position', 'department', 'section', 'roleVerified'],
+      companies: ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry']
+    });
+    const invalidSheets = [];
+    requiredSheets.forEach(function(name) {
+      const sheet = recoveredSpreadsheet.getSheetByName(name);
+      const expected = requiredHeaders[name] || [];
+      if (!sheet || expected.length === 0) {
+        invalidSheets.push(name);
+        return;
+      }
+      const lastColumn = sheet.getLastColumn();
+      const headers = lastColumn > 0
+        ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(value) { return String(value || '').trim(); })
+        : [];
+      if (expected.some(function(header) { return headers.indexOf(header) < 0; })) invalidSheets.push(name);
+    });
+    if (invalidSheets.length > 0) {
+      throw new Error('Validasi salinan pemulihan gagal. Jumlah sheet dengan skema tidak valid: ' + invalidSheets.length + '.');
+    }
+
+    const logSheet = getSheet_('backup_logs');
+    logSheet.appendRow([Utilities.getUuid(), new Date().toISOString(), recoveryFile.getId(), recoveryName, 'RECOVERY_COPY_VERIFIED', 'SCRIPT', 'Salinan pemulihan diverifikasi; database aktif tidak diubah. Sumber backup: ' + sourceId]);
+    SpreadsheetApp.flush();
+    return {
+      success: true,
+      fileId: recoveryFile.getId(),
+      fileName: recoveryName,
+      url: 'https://docs.google.com/spreadsheets/d/' + recoveryFile.getId() + '/edit',
+      liveDatabaseChanged: false
+    };
+  } catch (error) {
+    if (recoveryFile) {
+      try { recoveryFile.setTrashed(true); } catch (cleanupError) {
+        Logger.log('Salinan pemulihan gagal divalidasi dan tidak dapat dipindahkan ke sampah: ' + recoveryFile.getId());
+      }
+    }
+    throw error;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Install or replace the daily 02:00 backup trigger.
  * The hour uses the Apps Script project's configured timezone.
  */
