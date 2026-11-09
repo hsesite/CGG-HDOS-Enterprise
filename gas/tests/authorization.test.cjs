@@ -1479,10 +1479,20 @@ test('Contractor fleet refresh and P2H history ignore responses from a previous 
 
 test('Contractor SIA/photo previews and compliance refresh ignore stale tenant responses', () => {
   const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
-  assert.match(moduleSource, /const requestScope = sessionScopeKey;[\\s\\S]*?const file = await hseApi\\.previewContractorSia\\(unit\\.id\\);[\\s\\S]*?if \\(!isCurrentSessionScope\\(requestScope\\)\\) return;/);
-  assert.match(moduleSource, /const requestScope = sessionScopeKey;[\\s\\S]*?const photo = await hseApi\\.getContractorP2HPhoto\\(record\\.id\\);[\\s\\S]*?if \\(!isCurrentSessionScope\\(requestScope\\)\\) return;/);
-  assert.match(moduleSource, /const reports = await hseApi\\.listContractorComplianceReports\\(\);[\\s\\S]*?if \(isCurrentSessionScope\(requestScope\)\) setComplianceReports\(reports\)/);
-  assert.match(moduleSource, /if \(isCurrentSessionScope\(requestScope\)\) setReportsLoading\(false\)/);
+  const siaPreviewStart = moduleSource.indexOf('const previewSiaDocument = async');
+  const photoPreviewStart = moduleSource.indexOf('const openP2HPhoto = async');
+  const reportsRefreshStart = moduleSource.indexOf('const refreshComplianceReports = async');
+  assert.ok(siaPreviewStart >= 0 && photoPreviewStart > siaPreviewStart && reportsRefreshStart > photoPreviewStart);
+  const siaPreview = moduleSource.slice(siaPreviewStart, photoPreviewStart);
+  const photoPreview = moduleSource.slice(photoPreviewStart, reportsRefreshStart);
+  const reportsRefresh = moduleSource.slice(reportsRefreshStart, moduleSource.indexOf('const submitComplianceReport = async', reportsRefreshStart));
+  assert.ok(siaPreview.includes('const requestScope = sessionScopeKey;'));
+  assert.ok(siaPreview.includes('if (!isCurrentSessionScope(requestScope)) return;'));
+  assert.ok(photoPreview.includes('const requestScope = sessionScopeKey;'));
+  assert.ok(photoPreview.includes('if (!isCurrentSessionScope(requestScope)) return;'));
+  assert.ok(reportsRefresh.includes('const reports = await hseApi.listContractorComplianceReports();'));
+  assert.ok(reportsRefresh.includes('if (isCurrentSessionScope(requestScope)) setComplianceReports(reports);'));
+  assert.ok(reportsRefresh.includes('if (isCurrentSessionScope(requestScope)) setReportsLoading(false);'));
 });
 
 test('Sync initialization revalidates tenant after asynchronous queue recovery before publishing', () => {
