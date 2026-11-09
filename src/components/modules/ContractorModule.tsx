@@ -127,24 +127,41 @@ export const ContractorModule: React.FC = () => {
     return () => { active = false; };
   }, [sessionScopeKey]);
 
+  const isCurrentSessionScope = (scopeKey: string) => {
+    const current = getCurrentUser();
+    const currentKey = current
+      ? `${current.id}::${String(current.companyCode || '').trim().toUpperCase()}::${current.roleVerified === true ? 'verified' : 'unverified'}::${[...(current.roles || [])].sort().join(',')}`
+      : 'anonymous';
+    return currentKey === scopeKey;
+  };
+
   const refreshFleet = async () => {
+    const requestScope = sessionScopeKey;
     setFleetLoading(true);
     try {
-      setFleetUnits(await hseApi.listContractorFleet());
+      const units = await hseApi.listContractorFleet();
+      if (isCurrentSessionScope(requestScope)) setFleetUnits(units);
     } catch (error) {
-      setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.');
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.');
     } finally {
-      setFleetLoading(false);
+      if (isCurrentSessionScope(requestScope)) setFleetLoading(false);
     }
   };
 
   const openP2HHistory = async (unit: ContractorFleetUnit) => {
     if (p2hUnitId === unit.id) { setP2hUnitId(''); setP2hHistory([]); return; }
+    const requestScope = sessionScopeKey;
     setP2hUnitId(unit.id);
+    setP2hHistory([]);
     setP2hLoading(true);
-    try { setP2hHistory(await hseApi.listContractorP2HHistory(unit.id)); }
-    catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Riwayat P2H tidak dapat dimuat.'); }
-    finally { setP2hLoading(false); }
+    try {
+      const history = await hseApi.listContractorP2HHistory(unit.id);
+      if (isCurrentSessionScope(requestScope)) setP2hHistory(history);
+    } catch (error) {
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Riwayat P2H tidak dapat dimuat.');
+    } finally {
+      if (isCurrentSessionScope(requestScope)) setP2hLoading(false);
+    }
   };
 
   const uploadSiaDocument = async (unit: ContractorFleetUnit, file: File) => {
