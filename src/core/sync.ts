@@ -545,6 +545,27 @@ export class HDOSSyncEngine {
   async triggerSync(): Promise<boolean> {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
+
+    // Serialize queue replay across tabs/windows for the same tenant. The
+    // backend still enforces idempotency; this browser lock prevents two
+    // tabs from needlessly sending the same IndexedDB queue item together.
+    const lockManager = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    if (lockManager && typeof lockManager.request === 'function') {
+      const lockName = `hdos-sync:${owner.userId}:${owner.companyCode}`;
+      return lockManager.request(lockName, { mode: 'exclusive', ifAvailable: true }, async lock => {
+        if (!lock) return false;
+        return this.triggerSyncUnlocked();
+      });
+    }
+
+    // Browsers without Web Locks retain the per-instance guard and the
+    // server-side idempotency/concurrency controls.
+    return this.triggerSyncUnlocked();
+  }
+
+  private async triggerSyncUnlocked(): Promise<boolean> {
+    const owner = this.getCurrentOwner();
+    if (!owner) return false;
     const syncToken = hseApi.authToken;
     if (!syncToken) return false;
     const requestedOwnerKey = `${owner.userId}::${owner.companyCode}`;
