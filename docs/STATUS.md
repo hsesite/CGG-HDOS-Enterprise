@@ -223,3 +223,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test ditambahkan untuk memastikan alokasi kode berlangsung setelah lock diperoleh dan sebelum append.
 - [x] Skenario DB-11 ditambahkan ke UAT untuk verifikasi dua perangkat membuat record secara bersamaan pada deployment GAS uji.
 - [ ] Uji konkurensi aktual pada Google Apps Script dan Spreadsheet uji masih menunggu environment runtime.
+
+### Sinkronisasi lintas tab (9 November 2026)
+
+- [x] Replay antrean sinkronisasi pada browser yang mendukung Web Locks kini menggunakan exclusive lock per kombinasi user dan company.
+- [x] Jika lock sedang dipakai tab lain, pemanggilan kedua tidak menjalankan replay paralel.
+- [x] Browser tanpa Web Locks tetap menggunakan guard per instance dan perlindungan idempotensi/concurrency di backend.
+- [x] Skenario SYNC-11 ditambahkan ke UAT.
+- [ ] Uji dua tab, dua perangkat, browser tanpa Web Locks, dan respons jaringan terputus masih perlu dilakukan pada environment staging.
