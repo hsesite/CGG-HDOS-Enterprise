@@ -755,6 +755,69 @@ function isRepositoryDriveFile_(file) {
   }
 }
 
+function createRepositoryDocument_(input, bytes, fileMetadata, companyCode, parentCompanyCode, user) {
+  const sheet = getSheet_('repository');
+  const id = String(input.id || Utilities.getUuid());
+  const fileName = String(input.fileName || 'document.bin');
+  const lock = LockService.getScriptLock();
+  let document = null;
+  let createdFile = null;
+  let committed = false;
+
+  // Keep the idempotency check, Drive upload, and metadata append in one
+  // critical section so simultaneous retries cannot create duplicate files.
+  lock.waitLock(10000);
+  try {
+    const existing = getExistingRecordForCreate_(sheet, id, user);
+    if (existing) return publicRepositoryDocument_(existing);
+
+    const props = PropertiesService.getScriptProperties();
+    const configuredFolderId = String(props.getProperty('HDOS_REPOSITORY_FOLDER_ID') || '').trim();
+    const folder = configuredFolderId
+      ? DriveApp.getFolderById(configuredFolderId)
+      : DriveApp.createFolder('CGG HDOS Repository');
+    if (!configuredFolderId) props.setProperty('HDOS_REPOSITORY_FOLDER_ID', folder.getId());
+
+    const blob = Utilities.newBlob(bytes, fileMetadata.mimeType, fileName);
+    createdFile = folder.createFile(blob);
+    document = Object.assign({}, input, {
+      id: id,
+      code: String(input.docNumber || input.code || id),
+      driveFileId: createdFile.getId(),
+      fileName: fileName,
+      fileType: fileMetadata.fileType,
+      mimeType: fileMetadata.mimeType,
+      fileBase64: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      companyCode: companyCode,
+      parentCompanyCode: parentCompanyCode
+    });
+    delete document.fileBase64;
+
+    const headers = ENTITY_SCHEMAS.repository;
+    if (!headers) throw new Error('Schema entity tidak ditemukan: repository');
+    sheet.appendRow(buildEntityRow_('repository', document, headers));
+    SpreadsheetApp.flush();
+    committed = true;
+  } catch (error) {
+    if (createdFile && !committed) {
+      try { createdFile.setTrashed(true); }
+      catch (cleanupError) { console.error('[HDOS Repository] Gagal membersihkan file upload yang metadata-nya gagal disimpan.', cleanupError); }
+    }
+    throw error;
+  } finally {
+    lock.releaseLock();
+  }
+
+  // Audit logging uses its own ScriptLock; it must run after releasing the
+  // repository transaction lock. A logging failure must not turn a committed
+  // upload into a retryable failure that could create duplicate Drive files.
+  try { logAudit_(user, 'CREATE', 'repository', id); }
+  catch (auditError) { console.error('[HDOS Repository] Dokumen tersimpan tetapi audit log gagal dicatat.', auditError); }
+  return publicRepositoryDocument_(document);
+}
+
 function canPreviewRepositoryDocument_(doc, user) {
   return Boolean(doc && isRecordVisibleToUser_(doc, user));
 }
@@ -1109,26 +1172,7 @@ function handleRoute_(
     const registeredCompany = companyCode === 'CGG' ? null : findCompanyRegistry_(companyCode);
     if (companyCode !== 'CGG' && (!registeredCompany || registeredCompany.status !== 'ACTIVE')) return error_(400, 'Perusahaan dokumen tidak terdaftar aktif pada master perusahaan.');
     const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';
-    const id = String(input.id || Utilities.getUuid());
-    const existingDocument = findRecordRow_(getSheet_('repository'), id);
-    if (existingDocument) {
-      const existing = readOne_('repository', id);
-      if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) return error_(403, 'ID dokumen sudah digunakan di luar cakupan perusahaan Anda.');
-      return success_(publicRepositoryDocument_(existing));
-    }
-    const bytes = Utilities.base64Decode(base64);
-    const fileName = String(input.fileName || 'document.bin');
-    const fileMetadata = getRepositoryFileMetadata_(fileName, bytes);
-    const mimeType = fileMetadata.mimeType;
-    const blob = Utilities.newBlob(bytes, mimeType, fileName);
-    const props = PropertiesService.getScriptProperties();
-    const folderId = props.getProperty('HDOS_REPOSITORY_FOLDER_ID');
-    const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS Repository');
-    if (!folderId) props.setProperty('HDOS_REPOSITORY_FOLDER_ID', folder.getId());
-    const file = folder.createFile(blob);
-    const doc = Object.assign({}, input, { id: id, code: String(input.docNumber || input.code || id), driveFileId: file.getId(), fileName: fileName, fileType: fileMetadata.fileType, mimeType: mimeType, fileBase64: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), companyCode: companyCode, parentCompanyCode: parentCompanyCode });
-    delete doc.fileBase64;
-    return success_(publicRepositoryDocument_(createRecord_('repository', doc, user)));
+    return success_(createRepositoryDocument_(input, bytes, fileMetadata, companyCode, parentCompanyCode, user));
   }
   const repositoryDeleteMatch = path.match(/^\/api\/repository\/([^/]+)$/);
   if (repositoryDeleteMatch && method === 'DELETE') {
