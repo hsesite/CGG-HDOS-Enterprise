@@ -267,6 +267,8 @@ export interface SyncQueueItem {
   timestamp: string;
   status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT';
   retryCount: number;
+  /** Timestamp of the current sync lease; cleared when the item leaves SYNCING. */
+  syncStartedAt?: string;
   /** Local account that created this offline item; prevents cross-account sync. */
   ownerUserId?: string;
   /** Tenant at creation time, retained for audit and account-switch checks. */
