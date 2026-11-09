@@ -620,7 +620,7 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
 });
 
 test('PICA PATCH accepts any verified HSE role in a multi-role account', () => {
-  assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));"));
+  assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE', 'KTT'].indexOf(role) >= 0; }));"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
 });
 test('operational photo upload requires an active registered tenant', () => {
