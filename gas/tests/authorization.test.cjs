@@ -706,7 +706,7 @@ test('PICA updates reject stale approval states to prevent concurrent stage over
   assert.equal(context.isExpectedPicaStateCurrent_({status:'CLOSED',approvalStages:{foreman:true,spvHse:false,ktt:false}},expected),false);
 });
 
-test('login failures are rate-limited per normalized email and can be cleared', () => {
+test('login attempts are atomically rate-limited per normalized email and can be cleared', () => {
   const values = new Map();
   const context = {
     Utilities: {
@@ -723,15 +723,13 @@ test('login failures are rate-limited per normalized email and can be cleared', 
     LockService: {getScriptLock: () => ({waitLock:ms=>assert.equal(ms,5000),releaseLock:()=>{}})}
   };
   vm.createContext(context);
-  vm.runInContext(extractFunction('loginRateLimitKey_', 'isLoginRateLimited_'),context);
-  vm.runInContext(extractFunction('isLoginRateLimited_', 'recordLoginFailure_'),context);
-  vm.runInContext(extractFunction('recordLoginFailure_', 'clearLoginFailures_'),context);
+  vm.runInContext(extractFunction('loginRateLimitKey_', 'reserveLoginAttempt_'),context);
+  vm.runInContext(extractFunction('reserveLoginAttempt_', 'clearLoginFailures_'),context);
   vm.runInContext(extractFunction('clearLoginFailures_', 'login_'),context);
-  assert.equal(context.isLoginRateLimited_('Worker@Example.com'),false);
-  for(let i=0;i<10;i++) context.recordLoginFailure_('Worker@Example.com');
-  assert.equal(context.isLoginRateLimited_('worker@example.com'),true);
+  for(let i=0;i<10;i++) assert.equal(context.reserveLoginAttempt_('Worker@Example.com'),true);
+  assert.equal(context.reserveLoginAttempt_('worker@example.com'),false);
   context.clearLoginFailures_('worker@example.com');
-  assert.equal(context.isLoginRateLimited_('worker@example.com'),false);
+  assert.equal(context.reserveLoginAttempt_('worker@example.com'),true);
 });
 
 test('password hash comparison checks the full fixed-format value', () => {
