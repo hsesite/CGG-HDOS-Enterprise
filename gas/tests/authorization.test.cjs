@@ -1979,3 +1979,17 @@ test('server version propagation commits local record and follow-up queue update
   }
   assert.match(syncDbSource, /const tx = db\.transaction\(storeNames, 'readwrite'\)/);
 });
+
+
+test('overlapping cloud reconciliation ignores superseded snapshots before cache mutation and publication', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  assert.match(storeSource, /private cloudMergeGeneration = new Map<'inspections' \| 'hazards' \| 'picas' \| 'incidents', number>\(\)/);
+  const start = storeSource.indexOf('async mergeCloudOperationalRecords(');
+  const end = storeSource.indexOf('async refreshCloudData()', start);
+  assert.ok(start >= 0 && end > start);
+  const merge = storeSource.slice(start, end);
+  assert.match(merge, /const generation = \(this\.cloudMergeGeneration\.get\(entity\) \|\| 0\) \+ 1/);
+  assert.match(merge, /const isCurrentMerge = \(\): boolean => this\.cloudMergeGeneration\.get\(entity\) === generation/);
+  assert.match(merge, /!isCurrentMerge\(\) \|\| activeOwnerKey\(\) !== ownerKey/);
+  assert.match(merge, /activeOwnerKey\(\) !== ownerKey \|\| !isCurrentMerge\(\)/);
+});
