@@ -317,3 +317,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Timestamp lease sinkronisasi dibersihkan ketika request gagal dan item kembali ke PENDING/CONFLICT.
 - [x] Regression test memastikan propagasi versi CREATE/UPDATE memakai transaksi bundle, bukan serangkaian write terpisah.
 - [ ] UAT browser ditutup paksa saat propagasi versi berlangsung, lalu verifikasi konsistensi IndexedDB dan Google Sheets pada staging.
+
+
+### Rekonsiliasi cloud — perlindungan refresh bersamaan (9 November 2026)
+- [x] Setiap entitas operasional memiliki generation counter untuk refresh cloud; snapshot yang lebih lama dibatalkan ketika refresh baru dimulai.
+- [x] Pemeriksaan generation dan identitas user/tenant dilakukan sebelum penghapusan cache, sebelum setiap penulisan record, dan sebelum publikasi ke workspace.
+- [x] Data lokal yang masih memiliki antrean sinkronisasi tetap diprioritaskan sesuai kebijakan queue-aware merge yang sudah ada.
+- [x] Regression test ditambahkan untuk memastikan snapshot yang sudah kedaluwarsa tidak memutasi cache atau dipublikasikan ke workspace.
+- [ ] UAT refresh paralel pada dua tab/perangkat dengan perubahan cloud bersamaan tetap diperlukan untuk memverifikasi urutan respons dan konsistensi IndexedDB.
