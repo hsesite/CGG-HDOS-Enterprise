@@ -774,6 +774,10 @@ function handleRoute_(
     });
   }
 
+  if (path === '/api/health/ready' && method === 'GET') {
+    return getHealthReadiness_();
+  }
+
 
   // ----------------------------------------------------------
   // LOGIN
@@ -3099,6 +3103,39 @@ function publicUser_(
 // ============================================================
 // SPREADSHEET FUNCTIONS
 // ============================================================
+
+function getHealthReadiness_() {
+  const properties = PropertiesService.getScriptProperties();
+  const spreadsheetId = String(properties.getProperty('HDOS_SPREADSHEET_ID') || CONFIG.SPREADSHEET_ID || '').trim();
+  const googleOAuthConfigured = Boolean(String(properties.getProperty('GOOGLE_CLIENT_ID') || '').trim());
+  const cggRegistrationPolicyConfigured = Boolean(
+    String(properties.getProperty('CGG_EMAIL_DOMAINS') || '').trim() ||
+    String(properties.getProperty('CGG_ALLOWED_EMAILS') || '').trim()
+  );
+  if (!spreadsheetId) return error_(503, 'Backend belum siap: Spreadsheet belum dikonfigurasi.');
+
+  let spreadsheet;
+  try {
+    spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  } catch (error) {
+    return error_(503, 'Backend belum siap: Spreadsheet tidak dapat diakses.');
+  }
+
+  const requiredSheets = CONFIG.SHEETS.concat(['repository']);
+  const schemaReady = requiredSheets.every(function(name) {
+    return Boolean(spreadsheet.getSheetByName(name));
+  });
+  const ready = schemaReady && googleOAuthConfigured && cggRegistrationPolicyConfigured;
+  return success_({
+    status: ready ? 'ready' : 'not_ready',
+    checks: {
+      spreadsheetAccessible: true,
+      schemaReady: schemaReady,
+      googleOAuthConfigured: googleOAuthConfigured,
+      cggRegistrationPolicyConfigured: cggRegistrationPolicyConfigured
+    }
+  });
+}
 
 function getSpreadsheet_() {
   const spreadsheetId = PropertiesService.getScriptProperties().getProperty('HDOS_SPREADSHEET_ID') || CONFIG.SPREADSHEET_ID;
