@@ -3123,9 +3123,33 @@ function getHealthReadiness_() {
   }
 
   const requiredSheets = CONFIG.SHEETS.concat(['repository']);
-  const schemaReady = requiredSheets.every(function(name) {
-    return Boolean(spreadsheet.getSheetByName(name));
+  const requiredHeaders = Object.assign({}, ENTITY_SCHEMAS, {
+    users: ['id', 'email', 'password', 'displayName', 'role', 'status', 'passwordHash', 'passwordSalt', 'googleSub', 'companyCode', 'parentCompanyCode', 'position', 'department', 'section', 'roleVerified'],
+    companies: ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry']
   });
+  let missingSheets = [];
+  let invalidSheets = [];
+  requiredSheets.forEach(function(name) {
+    const sheet = spreadsheet.getSheetByName(name);
+    if (!sheet) {
+      missingSheets.push(name);
+      return;
+    }
+    const expected = requiredHeaders[name];
+    if (!expected || expected.length === 0) {
+      invalidSheets.push(name);
+      return;
+    }
+    const lastColumn = sheet.getLastColumn();
+    const headers = lastColumn > 0
+      ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(value) {
+          return String(value || '').trim();
+        })
+      : [];
+    const missing = expected.filter(function(header) { return headers.indexOf(header) < 0; });
+    if (missing.length > 0) invalidSheets.push(name);
+  });
+  const schemaReady = missingSheets.length === 0 && invalidSheets.length === 0;
   const ready = schemaReady && googleOAuthConfigured && cggRegistrationPolicyConfigured;
   return success_({
     status: ready ? 'ready' : 'not_ready',
@@ -3133,7 +3157,9 @@ function getHealthReadiness_() {
       spreadsheetAccessible: true,
       schemaReady: schemaReady,
       googleOAuthConfigured: googleOAuthConfigured,
-      cggRegistrationPolicyConfigured: cggRegistrationPolicyConfigured
+      cggRegistrationPolicyConfigured: cggRegistrationPolicyConfigured,
+      missingSheetCount: missingSheets.length,
+      invalidSchemaSheetCount: invalidSheets.length
     }
   });
 }
