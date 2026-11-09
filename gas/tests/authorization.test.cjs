@@ -1526,6 +1526,14 @@ test('contractor fleet input validates unit identity, P2H state, ownership, and 
   }), error => error.status === 400);
 });
 
+test('Contractor SIA preview and replacement cleanup verify the tenant Drive folder', () => {
+  assert.match(source, /function isContractorSiaDriveFile_\(file, companyCode\)/);
+  assert.match(source, /const expectedFolderId = String\(PropertiesService\.getScriptProperties\(\)\.getProperty\(folderKey\) \|\| ''\)\.trim\(\)/);
+  assert.match(source, /if \(!isContractorSiaDriveFile_\(file, unit\.companyCode\)\) return error_\(403/);
+  assert.match(source, /if \(isContractorSiaDriveFile_\(oldFile, companyCode\)\) \{\s*oldFile\.setTrashed\(true\)/);
+  assert.match(source, /Fail closed: Drive metadata must prove tenant-folder ownership/);
+});
+
 test('contractor fleet API applies company-scoped read and write rules', () => {
   assert.ok(source.includes("if (path === '/api/contractor/fleet' && method === 'GET')"));
   assert.ok(source.includes("if (path === '/api/contractor/fleet' && method === 'POST')"));
