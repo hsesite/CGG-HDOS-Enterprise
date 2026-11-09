@@ -30,6 +30,7 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | AUTH-08 | Role pengawas belum terverifikasi | Tidak memperoleh hak istimewa pengawas/approval | | |
 | AUTH-09 | Akun perusahaan nonaktif | Login/akses ditolak sesuai kebijakan backend | | |
 | AUTH-10 | Akses endpoint tanpa token | Ditolak 401; tidak ada data terlindungi yang bocor | | |
+| AUTH-11 | 10+ percobaan login dalam 5 menit, termasuk paralel | Permintaan setelah ambang ditolak 429; login berhasil menghapus penghitung | | |
 
 ## 2. CRUD database pusat dan integritas data
 
