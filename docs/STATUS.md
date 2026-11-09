@@ -250,3 +250,6 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Admin CGG maupun Admin Perusahaan tidak dapat membuat persetujuan operasional atas nama pejabat yang berwenang.
 - [x] Regression test untuk role, urutan, perubahan serentak, dan pembatalan persetujuan lulus pada GitHub Actions commit `54a736d`.
 - [ ] Deploy versi GAS terbaru ke project staging dan uji alur persetujuan menggunakan akun Foreman Safety, SPV HSE, dan KTT yang terverifikasi.
+- [x] Regression test tambahan untuk aturan penutupan PICA: kepemilikan PIC, tindakan koreksi, bukti, validasi HSE, tanggal penyelesaian, dan transisi status tidak sah; lulus pada commit `1530cff`.
+- [x] CI dan deployment frontend GitHub Pages untuk commit `1530cff` berhasil.
+- [ ] Catatan integrasi: UI PICA saat ini masih menggunakan alur pengajuan PIC → validasi Foreman Safety/SPV HSE. Tahapan approval metadata Foreman → SPV HSE → KTT sudah divalidasi di backend bila dikirim, tetapi belum dihubungkan ke alur UI; jangan menyatakan UAT approval tiga tahap selesai sebelum integrasi dan pengujian staging.
