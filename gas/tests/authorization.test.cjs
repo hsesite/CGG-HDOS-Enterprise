@@ -1850,3 +1850,31 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
   assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: false } }, foreman).status, 403);
   assert.equal(enforce(base, { approvalStages: [] }, foreman).status, 400);
 });
+
+
+test('PICA closure rules reject unauthorized, incomplete, and invalid status transitions', () => {
+  const context = {
+    error_: (status, message) => ({ status, message })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function enforcePicaClosureRules_(');
+  const end = source.indexOf('function ', start + 12);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+  const enforce = context.enforcePicaClosureRules_;
+
+  const pic = { email: 'pic@example.test', roles: ['Employee'], roleVerified: false };
+  const foreman = { email: 'foreman@example.test', displayName: 'Foreman', roles: ['Foreman Safety'], roleVerified: true };
+  const pica = { status: 'OPEN', assignedToEmail: 'pic@example.test', correctiveAction: '', evidencePhotoUrl: '', evidencePhotoFileId: '' };
+
+  assert.equal(enforce({ ...pica, status: 'CLOSED' }, { status: 'PROGRESS' }, pic).status, 403);
+  assert.equal(enforce(pica, { completionDate: '2026-11-09' }, pic).status, 403);
+  assert.equal(enforce(pica, { status: 'WAITING_HSE' }, { ...pic, email: 'other@example.test' }).status, 403);
+  assert.equal(enforce(pica, { status: 'WAITING_HSE' }, pic).status, 400);
+  assert.equal(enforce({ ...pica, correctiveAction: 'Perbaikan dilakukan' }, { status: 'WAITING_HSE' }, pic).status, 400);
+  assert.equal(enforce(pica, { status: 'CLOSED' }, foreman).status, 409);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'CLOSED' }, { ...foreman, roleVerified: false }).status, 403);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'PROGRESS' }, foreman).status, 400);
+  assert.equal(enforce(pica, { status: 'NOT_A_STATUS' }, pic).status, 400);
+});
