@@ -1360,6 +1360,9 @@ test('successful sync advances server version for later queued updates of the sa
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /serverUpdatedAt/);
   assert.match(syncSource, /queued\.status !== 'PENDING'/);
+  assert.match(syncSource, /queued\.ownerUserId !== owner\.userId/);
+  assert.match(syncSource, /queued\.ownerCompanyCode !== owner\.companyCode/);
+  assert.match(syncSource, /this\.queueOwnerKey === requestedOwnerKey/);
   assert.match(syncSource, /nextPayload = \{[\s\S]{0,160}updatedAt: serverUpdatedAt/);
   assert.match(syncSource, /hdosDB\.put\(localStoreName, \{ \.\.\.localRecord, updatedAt: serverUpdatedAt \}\)/);
 });
