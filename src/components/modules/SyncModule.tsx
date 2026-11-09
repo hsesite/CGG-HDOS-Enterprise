@@ -267,7 +267,12 @@ export const SyncModule: React.FC = () => {
                           <div className="text-[10px] text-neutral-400 mb-1">
                             Server diperbarui: {String(item.conflictServerRecord.updatedAt || 'Waktu tidak tersedia')}
                           </div>
-                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] text-neutral-300">
+                          <div className="text-[10px] font-semibold text-neutral-300 mb-1">Perubahan lokal yang tertahan</div>
+                          <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words text-[10px] text-neutral-400">
+                            {JSON.stringify(item.payload, null, 2)}
+                          </pre>
+                          <div className="text-[10px] font-semibold text-neutral-300 mt-2 mb-1">Data terbaru dari server</div>
+                          <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words text-[10px] text-neutral-300">
                             {JSON.stringify(item.conflictServerRecord, null, 2)}
                           </pre>
                           <p className="text-[10px] text-amber-200 mt-2">
