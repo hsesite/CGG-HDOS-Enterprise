@@ -107,6 +107,7 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | UAT-08 | Distribusi frontend | URL, build, akses, dan panduan pengguna disetujui | | |
 | UAT-09 | Deployment backend GAS | Versi Web App, akses, Script Properties, OAuth, dan Spreadsheet produksi diverifikasi | | |
 | UAT-10 | Go-live approval | Temuan kritis ditutup; pemilik proses, HSE, IT/admin, dan KTT menyetujui | | |
+| UAT-11 | Formulir inspeksi ditarik dari publikasi pada Repository | Setelah snapshot cloud berhasil diperbarui, formulir yang tidak lagi PUBLISHED tidak muncul sebagai pilihan inspeksi baru, termasuk setelah reload/offline cache reconciliation | | |
 
 ## Kriteria keputusan
 
