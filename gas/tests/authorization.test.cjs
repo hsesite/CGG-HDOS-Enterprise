@@ -619,7 +619,7 @@ test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true,ktt:true},'ktt'),true);
 });
 
-test('PICA PATCH accepts any verified HSE role in a multi-role account', () => {
+test('PICA oversight reads and updates include verified KTT approval access', () => {
   assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE', 'KTT'].indexOf(role) >= 0; }));"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
 });
@@ -1883,4 +1883,11 @@ test('PICA closure rules reject unauthorized, incomplete, and invalid status tra
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true } }, { status: 'PROGRESS', rejectionReason: 'Perlu perbaikan' }, foreman).status, 409);
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'PROGRESS' }, foreman).status, 400);
   assert.equal(enforce(pica, { status: 'NOT_A_STATUS' }, pic).status, 400);
+});
+
+test('PICA three-stage approval is required before final HSE closure', () => {
+  assert.ok(source.includes("const approvalStages = existingRecord.approvalStages || {};\n    if (approvalStages.foreman !== true || approvalStages.spvHse !== true || approvalStages.ktt !== true)"));
+  assert.ok(source.includes("PICA tidak dapat dikembalikan setelah proses persetujuan dimulai."));
+  assert.ok(source.includes("Persetujuan PICA hanya dapat dilakukan setelah PIC mengajukan penyelesaian."));
+  assert.ok(source.includes("return ['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'].indexOf(role) >= 0;"));
 });
