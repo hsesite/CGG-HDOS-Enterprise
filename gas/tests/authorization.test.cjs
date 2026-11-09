@@ -1662,6 +1662,12 @@ test('GAS readiness validates required sheet headers without exposing configurat
   assert.equal(invalidSchema.data.checks.schemaReady, false);
   assert.equal(invalidSchema.data.checks.invalidSchemaSheetCount, 1);
 
+  sheets.hazards = null;
+  const missingSheet = context.getHealthReadiness_();
+  assert.equal(missingSheet.data.status, 'not_ready');
+  assert.equal(missingSheet.data.checks.missingSheetCount, 1);
+  assert.equal(missingSheet.data.checks.invalidSchemaSheetCount, 0);
+
   properties.CGG_EMAIL_DOMAINS = '';
   properties.CGG_ALLOWED_EMAILS = '';
   const notReady = context.getHealthReadiness_();
