@@ -1546,3 +1546,15 @@ test('Manual sync retry revalidates tenant after asynchronous IndexedDB persiste
   assert.ok(writeIndex >= 0 && recheckIndex > writeIndex && publishIndex > recheckIndex);
   assert.ok(retryBlock.slice(recheckIndex, publishIndex).includes('this.queueOwnerKey !== ownerKey'));
 });
+
+test('Overlapping sync initialization cannot let an older IndexedDB read clear a newer tenant snapshot', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  assert.match(syncSource, /private initGeneration = 0;/);
+  assert.match(syncSource, /const initGeneration = \\+\\+this\\.initGeneration;/);
+  const initStart = syncSource.indexOf('async init(): Promise<void>');
+  const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart);
+  const initBlock = syncSource.slice(initStart, initEnd);
+  assert.ok(initBlock.indexOf('if (initGeneration !== this.initGeneration) return;') < initBlock.indexOf('const activeOwner = this.getCurrentOwner();'));
+  assert.ok(initBlock.lastIndexOf('if (initGeneration !== this.initGeneration) return;') < initBlock.indexOf('const finalOwner = this.getCurrentOwner();'));
+});
