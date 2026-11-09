@@ -62,6 +62,7 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | SYNC-08 | Ambil Data Pusat | Snapshot cloud dimuat tanpa menimpa perubahan lokal yang masih pending | | |
 | SYNC-09 | Update record yang sama beberapa kali offline | Urutan perubahan dipertahankan dan konflik versi ditangani | | |
 | SYNC-10 | Browser storage penuh / IndexedDB gagal | Kesalahan terlihat; aplikasi tidak menyatakan data berhasil tersimpan | | |
+| SYNC-11 | Dua tab pada browser yang sama memproses antrean tenant yang sama | Web Locks mencegah replay paralel; antrean tetap konsisten dan tidak ada pengiriman ganda yang tidak perlu | | |
 
 ## 4. Repository, Drive, dan isolasi tenant
 
