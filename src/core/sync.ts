@@ -109,6 +109,9 @@ export class HDOSSyncEngine {
 
   private queueOwnerKey = '';
 
+  // Prevent overlapping IndexedDB initializations from publishing stale snapshots.
+  private initGeneration = 0;
+
   private lastSyncTime = '';
 
   private getCurrentOwner() {
@@ -156,10 +159,12 @@ export class HDOSSyncEngine {
   }
 
   async init(): Promise<void> {
+    const initGeneration = ++this.initGeneration;
     const owner = this.getCurrentOwner();
     const requestedOwnerKey = owner ? `${owner.userId}::${owner.companyCode}` : '';
     this.queueOwnerKey = requestedOwnerKey;
     const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    if (initGeneration !== this.initGeneration) return;
 
     // Account identity can change while IndexedDB is being read (for example,
     // after a cross-tab login). Never publish a queue snapshot for that stale
@@ -221,6 +226,7 @@ export class HDOSSyncEngine {
     // Recovery writes above are asynchronous too. Re-check the active
     // identity immediately before publishing this snapshot so a cross-tab
     // account switch cannot expose the previous tenant's queue in the new UI.
+    if (initGeneration !== this.initGeneration) return;
     const finalOwner = this.getCurrentOwner();
     const finalOwnerKey = finalOwner ? `${finalOwner.userId}::${finalOwner.companyCode}` : '';
     if (finalOwnerKey !== requestedOwnerKey || this.queueOwnerKey !== requestedOwnerKey) {
