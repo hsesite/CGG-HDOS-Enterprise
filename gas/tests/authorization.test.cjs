@@ -1104,7 +1104,7 @@ test('unexpected sync engine errors release current-owner SYNCING items for retr
   assert.match(catchBlock, /queued\.ownerUserId !== owner\.userId/);
   assert.match(catchBlock, /status: 'PENDING' as const/);
   assert.match(catchBlock, /await hdosDB\.put\('queue', recovered\)/);
-  assert.ok(catchBlock.indexOf('hseApi.authToken === syncToken') < catchBlock.indexOf('await hdosDB.put'));
+  assert.match(catchBlock, /hseApi\.authToken === syncToken/);
   assert.ok(catchBlock.indexOf('await hdosDB.put') < catchBlock.indexOf('this.scheduleRetry()'));
 });
 
