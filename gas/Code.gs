@@ -3388,24 +3388,6 @@ function createRecord_(
 
 
   // ----------------------------------------------------------
-  // CODE
-  // ----------------------------------------------------------
-
-  const rowNum =
-    sheet.getLastRow();
-
-  const code =
-    typeof safePayload.code ===
-      'string' &&
-    safePayload.code.trim()
-      ? safePayload.code.trim()
-      : buildEntityCode_(
-          entity,
-          rowNum
-        );
-
-
-  // ----------------------------------------------------------
   // TIMESTAMP
   // ----------------------------------------------------------
 
@@ -3422,34 +3404,6 @@ function createRecord_(
       safePayload.updatedAt
       ? safePayload.updatedAt
       : now;
-
-
-  // ----------------------------------------------------------
-  // CANONICAL ITEM
-  // ----------------------------------------------------------
-
-  const item =
-    Object.assign(
-      {},
-      safePayload,
-      {
-        id:
-          id,
-
-        code:
-          code,
-
-        createdAt:
-          createdAt,
-
-        updatedAt:
-          updatedAt,
-
-        status:
-          safePayload.status ||
-          'OPEN'
-      }
-    );
 
 
   // ----------------------------------------------------------
@@ -3477,15 +3431,36 @@ function createRecord_(
     LockService
       .getScriptLock();
 
+  let item;
+
   lock.waitLock(
     10000
   );
 
   try {
 
-    // Recheck after lock to prevent race condition.
+    // Recheck after lock to prevent duplicate records and duplicate
+    // human-readable codes when two devices create records concurrently.
     const duplicate = getExistingRecordForCreate_(sheet, id, user);
     if (duplicate) return duplicate;
+
+    // Allocate row-dependent codes only after acquiring the lock so
+    // concurrent creates cannot receive the same sequence number.
+    const rowNum = sheet.getLastRow();
+    const code =
+      typeof safePayload.code === 'string' && safePayload.code.trim()
+        ? safePayload.code.trim()
+        : buildEntityCode_(entity, rowNum);
+
+    // Canonical item is assembled inside the same critical section as
+    // the duplicate check and append.
+    item = Object.assign({}, safePayload, {
+      id: id,
+      code: code,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      status: safePayload.status || 'OPEN'
+    });
 
     sheet.appendRow(
       buildEntityRow_(
