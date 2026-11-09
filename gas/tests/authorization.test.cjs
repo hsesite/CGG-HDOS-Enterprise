@@ -1026,33 +1026,23 @@ test('operational records and matching sync queue entries use one atomic Indexed
 });
 
 
-test('sync initialization recovers interrupted SYNCING items for the active owner only', () => {
-  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
-  const initStart = syncSource.indexOf('async init(): Promise<void>');
-  const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart + 1);
-  const initMethod = syncSource.slice(initStart, initEnd);
-  assert.match(initMethod, /this\.queue = owner \? storedQueue\.filter\(item => item\.ownerUserId === owner\.userId && item\.ownerCompanyCode === owner\.companyCode\)/);
-  assert.match(initMethod, /if \(item\.status === 'SYNCING'\)/);
-  assert.match(initMethod, /item\.status = 'PENDING'/);
-  assert.match(initMethod, /await hdosDB\.put\('queue', item\)/);
-  assert.ok(initMethod.indexOf('this.queue = owner ?') < initMethod.indexOf("if (item.status === 'SYNCING')"), 'owner filter precedes recovery');
-});
-
-
-test('sync initialization recovers interrupted SYNCING items for the active owner only', () => {
+test('sync initialization recovers interrupted items only when the tenant lock is available or lease expired', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   const initStart = syncSource.indexOf('async init(): Promise<void>');
   const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart + 1);
   const initMethod = syncSource.slice(initStart, initEnd);
   const ownerFilter = initMethod.indexOf('this.queue = owner ? storedQueue.filter');
-  const recovery = initMethod.indexOf("if (item.status === 'SYNCING')");
+  const recovery = initMethod.indexOf('const recoverInterruptedQueue');
   assert.ok(ownerFilter >= 0 && recovery > ownerFilter, 'owner filter precedes interrupted-item recovery');
+  assert.match(initMethod, /navigator\.locks\.request\(/);
+  assert.match(initMethod, /\{ mode: 'exclusive', ifAvailable: true \}/);
+  assert.match(initMethod, /if \(lock\) await recoverInterruptedQueue\(\)/);
+  assert.match(initMethod, /Date\.now\(\) - 2 \* 60 \* 1000/);
   assert.match(initMethod, /item\.status = 'PENDING'/);
+  assert.match(initMethod, /item\.syncStartedAt = undefined/);
   assert.match(initMethod, /await hdosDB\.put\('queue', item\)/);
-  assert.match(initMethod, /recoveredCount/);
+  assert.match(syncSource, /item\.syncStartedAt = new Date\(\)\.toISOString\(\)/);
 });
-
-
 test('sync retries transient failures but holds permanent API errors for manual correction', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.ok(sync.includes('function isRetryableSyncError(error: unknown): boolean'));
