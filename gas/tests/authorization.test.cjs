@@ -1693,3 +1693,17 @@ test('GAS readiness validates required sheet headers without exposing configurat
   assert.equal(notReady.data.status, 'not_ready');
   assert.equal(notReady.data.checks.cggRegistrationPolicyConfigured, false);
 });
+
+
+test('browser authentication token and cached user profile are scoped to the current tab session', () => {
+  const apiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'api.ts'), 'utf8');
+  const authStateSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'auth-state.ts'), 'utf8');
+  assert.match(apiSource, /window\.sessionStorage\.getItem\(\s*TOKEN_KEY\s*\)/);
+  assert.match(apiSource, /window\.sessionStorage\.setItem\(\s*TOKEN_KEY/);
+  assert.match(apiSource, /window\.sessionStorage\.removeItem\(\s*TOKEN_KEY/);
+  assert.doesNotMatch(apiSource, /window\.localStorage\.(?:getItem|setItem|removeItem)\(\s*TOKEN_KEY/);
+  assert.match(authStateSource, /sessionStorage\.setItem\('hdos_current_user'/);
+  assert.match(authStateSource, /sessionStorage\.getItem\('hdos_current_user'/);
+  assert.match(authStateSource, /sessionStorage\.removeItem\('hdos_current_user'/);
+  assert.doesNotMatch(authStateSource, /localStorage\.(?:getItem|setItem|removeItem)\('hdos_current_user'/);
+});
