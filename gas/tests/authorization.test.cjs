@@ -661,6 +661,29 @@ test('unverified oversight roles behave like crew for own-tenant reporting and v
   assert.equal(context.isRecordVisibleToUser_({companyCode:'SLS'},{...user}),false);
 });
 
+test('Repository Drive file ownership fails closed unless the file belongs to the configured folder', () => {
+  const context = {
+    PropertiesService: { getScriptProperties: () => ({ getProperty: key => key === 'HDOS_REPOSITORY_FOLDER_ID' ? 'repository-folder' : null }) }
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('isRepositoryDriveFile_', 'canPreviewRepositoryDocument_'), context);
+  const inFolder = { getParents: () => {
+    let read = false;
+    return { hasNext: () => !read, next: () => { read = true; return { getId: () => 'repository-folder' }; } };
+  } };
+  const outsideFolder = { getParents: () => {
+    let read = false;
+    return { hasNext: () => !read, next: () => { read = true; return { getId: () => 'other-folder' }; } };
+  } };
+  assert.equal(context.isRepositoryDriveFile_(inFolder), true);
+  assert.equal(context.isRepositoryDriveFile_(outsideFolder), false);
+  assert.equal(context.isRepositoryDriveFile_(null), false);
+  context.PropertiesService.getScriptProperties = () => ({ getProperty: () => '' });
+  assert.equal(context.isRepositoryDriveFile_(inFolder), false);
+  context.PropertiesService.getScriptProperties = () => { throw new Error('Drive unavailable'); };
+  assert.equal(context.isRepositoryDriveFile_(inFolder), false);
+});
+
 test('Repository preview and download accesses are recorded in the audit log', () => {
   assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_PREVIEWED', 'repository', doc.id"));
   assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_DOWNLOADED', 'repository', doc.id"));
