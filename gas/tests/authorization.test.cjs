@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
 const picaUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
 const picaStoreSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+const p2hUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
 function extractFunction(name, nextName) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);
@@ -1570,9 +1571,9 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
 });
 
 test('P2H submission uses a stable request key and backend idempotency', () => {
-  assert.match(moduleSource, /const requestId = p2hRequestId \|\|/);
-  assert.match(moduleSource, /createContractorP2HRecord\(unit\.id, \{ \.\.\.p2hDraft, requestId,/);
-  assert.match(moduleSource, /setP2hRequestId\(''\)/);
+  assert.match(p2hUiSource, /const requestId = p2hRequestId \|\|/);
+  assert.match(p2hUiSource, /createContractorP2HRecord\(unit\.id, \{ \.\.\.p2hDraft, requestId,/);
+  assert.match(p2hUiSource, /setP2hRequestId\(''\)/);
   assert.match(source, /const requestId = String\(input\.requestId \|\| ''\)\.trim\(\)/);
   assert.match(source, /const existingRequestRow = findRecordRow_\(historySheet, requestId\)/);
   assert.match(source, /if \(String\(existingRequest\.fleetId \|\| ''\) !== String\(fleetId\)/);
