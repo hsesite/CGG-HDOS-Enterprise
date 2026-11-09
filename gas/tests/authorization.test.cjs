@@ -2005,6 +2005,7 @@ test('version conflicts preserve local queue payload and capture a tenant-scoped
   const conflictBlock = syncEngineSource.slice(conflictStart, conflictEnd);
   assert.match(conflictBlock, /status === 409 && item\.action === 'UPDATE' && itemRecordId/);
   assert.match(conflictBlock, /hseApi\.getOperationalRecord\(/);
+  assert.match(conflictBlock, /String\(remoteRecord\.id \|\| ''\) === itemRecordId/, 'snapshot must match the exact requested record ID');
   assert.match(conflictBlock, /itemRecordId,\s*syncToken/);
   assert.match(conflictBlock, /ownerAfterConflictRead\.userId === owner\.userId/);
   assert.match(conflictBlock, /ownerAfterConflictRead\.companyCode === owner\.companyCode/);
