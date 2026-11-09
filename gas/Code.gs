@@ -2334,6 +2334,24 @@ function previewContractorSia_(fleetId, user) {
   return success_({ fileName: unit.siaFileName || file.getName(), mimeType: unit.siaMimeType || blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
 }
 
+function isSameContractorP2HRequest_(existing, requested) {
+  const oldRecord = existing || {};
+  const next = requested || {};
+  const oldHourMeter = oldRecord.hourMeter === undefined || oldRecord.hourMeter === null ? '' : String(oldRecord.hourMeter);
+  const nextHourMeter = next.hourMeter === undefined || next.hourMeter === null ? '' : String(next.hourMeter);
+  return String(oldRecord.fleetId || '') === String(next.fleetId || '') &&
+    String(oldRecord.companyCode || '').trim().toUpperCase() === String(next.companyCode || '').trim().toUpperCase() &&
+    String(oldRecord.inspectionDate || '') === String(next.inspectionDate || '') &&
+    String(oldRecord.status || '').trim().toUpperCase() === String(next.status || '').trim().toUpperCase() &&
+    oldHourMeter === nextHourMeter &&
+    String(oldRecord.operatorName || '') === String(next.operatorName || '') &&
+    String(oldRecord.findings || '') === String(next.findings || '') &&
+    String(oldRecord.correctiveAction || '') === String(next.correctiveAction || '') &&
+    String(oldRecord.photoFileId || '') === String(next.photoFileId || '') &&
+    String(oldRecord.photoFileName || '') === String(next.photoFileName || '') &&
+    String(oldRecord.photoMimeType || '').trim().toLowerCase() === String(next.photoMimeType || '').trim().toLowerCase();
+}
+
 function createContractorP2HRecord_(fleetId, payload, user) {
   if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mencatat P2H.');
   const input = isObject_(payload) ? payload : {};
@@ -2383,17 +2401,12 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     const existingRequestRow = findRecordRow_(historySheet, requestId);
     if (existingRequestRow) {
       const existingRequest = parseRow_(historySheet, existingRequestRow);
-      const sameRequest = String(existingRequest.fleetId || '') === String(fleetId) &&
-        String(existingRequest.companyCode || '').trim().toUpperCase() === String(unit.companyCode || '').trim().toUpperCase() &&
-        String(existingRequest.inspectionDate || '') === inspectionDate &&
-        String(existingRequest.status || '').toUpperCase() === status &&
-        String(existingRequest.hourMeter === undefined || existingRequest.hourMeter === null ? '' : existingRequest.hourMeter) === String(hourMeter) &&
-        String(existingRequest.operatorName || '') === operatorName &&
-        String(existingRequest.findings || '') === findings &&
-        String(existingRequest.correctiveAction || '') === correctiveAction &&
-        String(existingRequest.photoFileId || '') === photoFileId &&
-        String(existingRequest.photoFileName || '') === normalizedPhotoFileName &&
-        String(existingRequest.photoMimeType || '').toLowerCase() === photoMimeType;
+      const sameRequest = isSameContractorP2HRequest_(existingRequest, {
+        fleetId: fleetId, companyCode: unit.companyCode, inspectionDate: inspectionDate,
+        status: status, hourMeter: hourMeter, operatorName: operatorName,
+        findings: findings, correctiveAction: correctiveAction,
+        photoFileId: photoFileId, photoFileName: normalizedPhotoFileName, photoMimeType: photoMimeType
+      });
       if (!sameRequest) return error_(409, 'ID permintaan P2H sudah digunakan untuk data pemeriksaan yang berbeda. Pertahankan data pengiriman awal atau buat permintaan baru.');
       return success_(existingRequest);
     }
