@@ -739,6 +739,22 @@ function publicRepositoryDocument_(doc) {
   return safe;
 }
 
+function isRepositoryDriveFile_(file) {
+  if (!file) return false;
+  try {
+    const folderId = String(PropertiesService.getScriptProperties().getProperty('HDOS_REPOSITORY_FOLDER_ID') || '').trim();
+    if (!folderId) return false;
+    const parents = file.getParents();
+    while (parents.hasNext()) {
+      if (String(parents.next().getId()) === folderId) return true;
+    }
+    return false;
+  } catch (error) {
+    // Fail closed if Drive metadata cannot prove repository-folder ownership.
+    return false;
+  }
+}
+
 function canPreviewRepositoryDocument_(doc, user) {
   return Boolean(doc && isRecordVisibleToUser_(doc, user));
 }
@@ -1125,8 +1141,13 @@ function handleRoute_(
     if (!isAdminCGG_(user) && String(doc.companyCode || '').trim().toUpperCase() !== String(user.companyCode || '').trim().toUpperCase()) return error_(403, 'Anda tidak dapat menghapus dokumen perusahaan lain.');
     const driveFileId = String(doc.driveFileId || '');
     if (driveFileId) {
-      try { DriveApp.getFileById(driveFileId).setTrashed(true); }
-      catch (driveError) { throw httpError_(500, 'Metadata tidak dihapus karena berkas Drive gagal dipindahkan ke Sampah: ' + driveError.message); }
+      try {
+        const repositoryFile = DriveApp.getFileById(driveFileId);
+        if (!isRepositoryDriveFile_(repositoryFile)) throw httpError_(403, 'Berkas tidak berada di folder Repository HDOS yang terdaftar.');
+        repositoryFile.setTrashed(true);
+      } catch (driveError) {
+        throw httpError_(getErrorStatus_(driveError) || 500, 'Metadata tidak dihapus karena kepemilikan berkas Repository tidak dapat diverifikasi: ' + driveError.message);
+      }
     }
     sheet.deleteRow(rowNumber);
     // Remove published form definitions sourced from this document so they cannot remain as orphaned forms.
@@ -1153,6 +1174,7 @@ function handleRoute_(
     const fileId = String(doc.driveFileId || '');
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
+    if (!isRepositoryDriveFile_(file)) return error_(403, 'Berkas tidak berada di folder Repository HDOS yang terdaftar.');
     const blob = file.getBlob();
     const fileMetadata = getRepositoryFileMetadata_(doc.fileName || file.getName(), blob.getBytes());
     blob.setContentType(fileMetadata.mimeType);
@@ -1172,6 +1194,7 @@ function handleRoute_(
     const fileId = String(doc.driveFileId || '');
     if (!fileId) return error_(404, 'Berkas pusat tidak ditemukan.');
     const file = DriveApp.getFileById(fileId);
+    if (!isRepositoryDriveFile_(file)) return error_(403, 'Berkas tidak berada di folder Repository HDOS yang terdaftar.');
     const blob = file.getBlob();
     const fileMetadata = getRepositoryFileMetadata_(doc.fileName || file.getName(), blob.getBytes());
     blob.setContentType(fileMetadata.mimeType);
