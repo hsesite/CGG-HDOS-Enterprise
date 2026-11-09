@@ -190,12 +190,45 @@ export class HDOSSyncEngine {
     }
     this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode).sort(compareQueueItemsByTime) : [];
 
-    // Recover this owner's interrupted writes after a tab or browser closes.
+    // Recover interrupted writes only when no other tab currently owns the
+    // tenant sync lock. This prevents a newly opened tab from resetting a
+    // legitimate in-flight request in another tab.
     let recoveredCount = 0;
-    for (const item of this.queue) {
-      if (item.status === 'SYNCING') {
+    const recoverInterruptedQueue = async (): Promise<void> => {
+      for (const item of this.queue) {
+        if (item.status !== 'SYNCING' ||
+            item.ownerUserId !== owner?.userId ||
+            item.ownerCompanyCode !== owner?.companyCode) continue;
         item.status = 'PENDING';
+        item.syncStartedAt = undefined;
         item.error = 'Sinkronisasi sebelumnya terputus. Item dipulihkan dan akan dicoba kembali.';
+        await hdosDB.put('queue', item);
+        recoveredCount += 1;
+      }
+    };
+    if (owner && typeof navigator !== 'undefined' &&
+        navigator.locks && typeof navigator.locks.request === 'function') {
+      const recoveryLockName = `hdos-sync:${owner.userId}:${owner.companyCode}`;
+      await navigator.locks.request(
+        recoveryLockName,
+        { mode: 'exclusive', ifAvailable: true },
+        async lock => {
+          if (lock) await recoverInterruptedQueue();
+        }
+      );
+    } else {
+      // Without cross-tab locks, recover only leases that have clearly expired.
+      // Never reset a fresh SYNCING item just because another tab initialized.
+      const staleBefore = Date.now() - 2 * 60 * 1000;
+      for (const item of this.queue) {
+        if (item.status !== 'SYNCING' ||
+            item.ownerUserId !== owner?.userId ||
+            item.ownerCompanyCode !== owner?.companyCode) continue;
+        const startedAt = Date.parse(String(item.syncStartedAt || ''));
+        if (!Number.isFinite(startedAt) || startedAt > staleBefore) continue;
+        item.status = 'PENDING';
+        item.syncStartedAt = undefined;
+        item.error = 'Lease sinkronisasi kedaluwarsa. Item dipulihkan dan akan dicoba kembali.';
         await hdosDB.put('queue', item);
         recoveredCount += 1;
       }
@@ -716,6 +749,8 @@ export class HDOSSyncEngine {
 
 
         item.status = 'SYNCING';
+        item.syncStartedAt = new Date().toISOString();
+        item.error = undefined;
 
         await hdosDB.put(
           'queue',
