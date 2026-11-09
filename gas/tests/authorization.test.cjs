@@ -1081,11 +1081,11 @@ test('cloud snapshot merge cannot publish stale account data after an account sw
   assert.ok(start >= 0 && end > start);
   const merge = storeSource.slice(start, end);
   assert.match(merge, /const ownerKey = currentUser\?\.id/);
-  assert.ok(merge.includes('if (!currentUser || !ownerKey || activeOwnerKey() !== ownerKey) return;'));
+  assert.match(merge, /if \(!currentUser \|\| !ownerKey \|\| activeOwnerKey\(\) !== ownerKey \|\| !isCurrentMerge\(\)\) return;/);
   assert.match(merge, /hdosSync\.getOwnerSnapshot\(\)/);
   assert.match(merge, /queueMatchesOwner/);
-  assert.match(merge, /if \(activeOwnerKey\(\) !== ownerKey\) return/);
-  const publish = merge.indexOf('if (activeOwnerKey() !== ownerKey) return');
+  assert.match(merge, /if \(activeOwnerKey\(\) !== ownerKey \|\| !isCurrentMerge\(\)\) return/);
+  const publish = merge.indexOf('if (activeOwnerKey() !== ownerKey || !isCurrentMerge()) return');
   const assign = merge.indexOf('this.inspections = snapshot');
   assert.ok(publish >= 0 && assign > publish, 'identity is rechecked before in-memory publication');
 });
