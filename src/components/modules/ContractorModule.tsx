@@ -179,16 +179,26 @@ export const ContractorModule: React.FC = () => {
 
   const previewSiaDocument = async (unit: ContractorFleetUnit) => {
     if (siaPreview[unit.id]) { setSiaPreview(current => { const next = {...current}; delete next[unit.id]; return next; }); return; }
+    const requestScope = sessionScopeKey;
     try {
       const file = await hseApi.previewContractorSia(unit.id);
+      if (!isCurrentSessionScope(requestScope)) return;
       setSiaPreview(current => ({...current, [unit.id]: { url: `data:${file.mimeType};base64,${file.base64}`, mimeType: file.mimeType, fileName: file.fileName }}));
-    } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Dokumen SIA tidak dapat dibuka.'); }
+    } catch (error) {
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Dokumen SIA tidak dapat dibuka.');
+    }
   };
 
   const openP2HPhoto = async (record: ContractorP2HRecord) => {
     if (p2hPhotoView[record.id]) { setP2hPhotoView(current => { const next = {...current}; delete next[record.id]; return next; }); return; }
-    try { const photo = await hseApi.getContractorP2HPhoto(record.id); setP2hPhotoView(current => ({...current, [record.id]: `data:${photo.mimeType};base64,${photo.base64}`})); }
-    catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Bukti foto tidak dapat dibuka.'); }
+    const requestScope = sessionScopeKey;
+    try {
+      const photo = await hseApi.getContractorP2HPhoto(record.id);
+      if (!isCurrentSessionScope(requestScope)) return;
+      setP2hPhotoView(current => ({...current, [record.id]: `data:${photo.mimeType};base64,${photo.base64}`}));
+    } catch (error) {
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Bukti foto tidak dapat dibuka.');
+    }
   };
 
   const submitP2HRecord = async (event: React.FormEvent<HTMLFormElement>, unit: ContractorFleetUnit) => {
@@ -244,13 +254,15 @@ export const ContractorModule: React.FC = () => {
   };
 
   const refreshComplianceReports = async () => {
+    const requestScope = sessionScopeKey;
     setReportsLoading(true);
     try {
-      setComplianceReports(await hseApi.listContractorComplianceReports());
+      const reports = await hseApi.listContractorComplianceReports();
+      if (isCurrentSessionScope(requestScope)) setComplianceReports(reports);
     } catch (error) {
-      setReportMessage(error instanceof Error ? error.message : 'Laporan kepatuhan tidak dapat dimuat.');
+      if (isCurrentSessionScope(requestScope)) setReportMessage(error instanceof Error ? error.message : 'Laporan kepatuhan tidak dapat dimuat.');
     } finally {
-      setReportsLoading(false);
+      if (isCurrentSessionScope(requestScope)) setReportsLoading(false);
     }
   };
 
