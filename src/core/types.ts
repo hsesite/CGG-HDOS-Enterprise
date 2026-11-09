@@ -273,6 +273,10 @@ export interface SyncQueueItem {
   ownerUserId?: string;
   /** Tenant at creation time, retained for audit and account-switch checks. */
   ownerCompanyCode?: string;
+  /** Server snapshot captured after an optimistic-concurrency (HTTP 409) rejection. */
+  conflictServerRecord?: Record<string, unknown>;
+  /** Timestamp when the server-side conflict snapshot was captured. */
+  conflictDetectedAt?: string;
   note?: string;
   error?: string;
 }
