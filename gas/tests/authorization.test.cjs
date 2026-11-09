@@ -1511,3 +1511,25 @@ test('Contractor Passport clears tenant-scoped registers and ignores stale respo
   assert.match(moduleSource, /if \(active\) setComplianceReports\(reports\)/);
   assert.match(moduleSource, /if \(active\) setFleetUnits\(units\)/);
 });
+
+test('Contractor write operations suppress stale tenant UI updates after account changes', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+  const blocks = [
+    ['uploadSiaDocument', 'const previewSiaDocument = async'],
+    ['submitP2HRecord', 'const submitFleetUnit = async'],
+    ['submitFleetUnit', 'const updateFleetUnit = async'],
+    ['updateFleetUnit', 'const refreshComplianceReports = async'],
+    ['submitComplianceReport', 'const reviewComplianceReport = async'],
+    ['reviewComplianceReport', 'const startReportCorrection =']
+  ];
+  for (const [name, nextName] of blocks) {
+    const start = moduleSource.indexOf(`const ${name} = async`);
+    const end = moduleSource.indexOf(nextName, start + 1);
+    assert.ok(start >= 0 && end > start, `missing function block: ${name}`);
+    const block = moduleSource.slice(start, end);
+    assert.ok(block.includes('const requestScope = sessionScopeKey;'), `${name} must capture its session scope`);
+    assert.ok(block.includes('if (isCurrentSessionScope(requestScope))'), `${name} must guard state updates`);
+  }
+  const p2hBlock = moduleSource.slice(moduleSource.indexOf('const submitP2HRecord = async'), moduleSource.indexOf('const submitFleetUnit = async'));
+  assert.ok(p2hBlock.includes('if (!isCurrentSessionScope(requestScope)) return;'), 'P2H must stop between photo upload and record creation when the session changes');
+});
