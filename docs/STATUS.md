@@ -231,3 +231,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Browser tanpa Web Locks tetap menggunakan guard per instance dan perlindungan idempotensi/concurrency di backend.
 - [x] Skenario SYNC-11 ditambahkan ke UAT.
 - [ ] Uji dua tab, dua perangkat, browser tanpa Web Locks, dan respons jaringan terputus masih perlu dilakukan pada environment staging.
+
+
+### Konsistensi formulir inspeksi dan dashboard (9 November 2026)
+
+- [x] Rekonsiliasi formulir terbit memperlakukan respons cloud kosong sebagai snapshot sah; formulir yang sudah ditarik dari publikasi dihapus dari cache lokal agar tidak tetap dapat dipilih untuk inspeksi baru.
+- [x] Dashboard tidak lagi crash ketika membaca data Hazard legacy yang belum memiliki objek `riskMatrix`; hazard tetap dihitung sebagai temuan aktif, tetapi tidak dihitung sebagai risiko kritis tanpa klasifikasi yang valid.
+- [ ] Uji tarik-publikasi formulir pada dua sesi browser dan verifikasi bahwa formulir yang ditarik tidak dapat dipakai untuk membuat inspeksi.
+- [ ] Uji Dashboard dengan data legacy/malformed dan bandingkan seluruh agregat terhadap register sumber.
