@@ -4117,34 +4117,55 @@ function clearOperationalDataForCleanStart() {
  * Run manually for an immediate backup, or install the daily trigger below.
  */
 function createDatabaseBackup() {
-  const spreadsheet = getSpreadsheet_();
-  const properties = PropertiesService.getScriptProperties();
-  const configuredFolderId = properties.getProperty('HDOS_BACKUP_FOLDER_ID');
-  let folder;
-  if (configuredFolderId) {
-    folder = DriveApp.getFolderById(configuredFolderId);
-  } else {
-    folder = DriveApp.createFolder('CGG HDOS Database Backups');
-    properties.setProperty('HDOS_BACKUP_FOLDER_ID', folder.getId());
-  }
-
-  const timeZone = Session.getScriptTimeZone() || 'Asia/Makassar';
-  const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyyMMdd_HHmmss');
-  const fileName = 'CGG_HDOS_DB_BACKUP_' + timestamp;
-  const logSheet = getSheet_('backup_logs');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  let logSheet = null;
   const backupId = Utilities.getUuid();
   const createdAt = new Date().toISOString();
-
+  let fileName = '';
   try {
+    const spreadsheet = getSpreadsheet_();
+    const properties = PropertiesService.getScriptProperties();
+    const configuredFolderId = properties.getProperty('HDOS_BACKUP_FOLDER_ID');
+    let folder;
+    if (configuredFolderId) {
+      folder = DriveApp.getFolderById(configuredFolderId);
+    } else {
+      folder = DriveApp.createFolder('CGG HDOS Database Backups');
+      properties.setProperty('HDOS_BACKUP_FOLDER_ID', folder.getId());
+    }
+
+    const timeZone = Session.getScriptTimeZone() || 'Asia/Makassar';
+    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyyMMdd_HHmmss_SSS');
+    fileName = 'CGG_HDOS_DB_BACKUP_' + timestamp;
+    logSheet = getSheet_('backup_logs');
+
     const backupFile = DriveApp.getFileById(spreadsheet.getId()).makeCopy(fileName, folder);
-    logSheet.appendRow([backupId, createdAt, backupFile.getId(), backupFile.getName(), 'SUCCESS', 'SCRIPT', 'Database Spreadsheet berhasil dicadangkan ke Google Drive.']);
+    // Confirm the Drive copy is readable before recording a successful backup.
+    const verifiedBackup = DriveApp.getFileById(backupFile.getId());
+    if (!verifiedBackup || verifiedBackup.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+      throw new Error('Salinan backup tidak dapat diverifikasi sebagai Google Spreadsheet.');
+    }
+
+    logSheet.appendRow([backupId, createdAt, verifiedBackup.getId(), verifiedBackup.getName(), 'SUCCESS', 'SCRIPT', 'Database Spreadsheet berhasil dicadangkan dan diverifikasi di Google Drive.']);
     SpreadsheetApp.flush();
-    Logger.log('Backup HDOS berhasil: ' + backupFile.getId());
-    return { success: true, fileId: backupFile.getId(), fileName: backupFile.getName(), createdAt: createdAt };
+    Logger.log('Backup HDOS berhasil dan terverifikasi: ' + verifiedBackup.getId());
+    return { success: true, fileId: verifiedBackup.getId(), fileName: verifiedBackup.getName(), createdAt: createdAt };
   } catch (error) {
-    logSheet.appendRow([backupId, createdAt, '', fileName, 'FAILED', 'SCRIPT', String(error && error.message || error)]);
-    SpreadsheetApp.flush();
+    if (!logSheet) {
+      try { logSheet = getSheet_('backup_logs'); } catch (logSheetError) { /* preserve original backup error */ }
+    }
+    if (logSheet) {
+      try {
+        logSheet.appendRow([backupId, createdAt, '', fileName, 'FAILED', 'SCRIPT', String(error && error.message || error)]);
+        SpreadsheetApp.flush();
+      } catch (loggingError) {
+        Logger.log('Gagal mencatat kegagalan backup: ' + String(loggingError && loggingError.message || loggingError));
+      }
+    }
     throw error;
+  } finally {
+    lock.releaseLock();
   }
 }
 
