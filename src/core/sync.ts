@@ -900,10 +900,11 @@ export class HDOSSyncEngine {
           if (status === 409 && item.action === 'UPDATE' && itemRecordId &&
               endpoint !== 'repository') {
             try {
-              const remoteRecords = await hseApi.listOperationalRecords(
-                endpoint as 'inspections' | 'hazards' | 'picas' | 'incidents'
+              const remoteRecord = await hseApi.getOperationalRecord(
+                endpoint as 'inspections' | 'hazards' | 'picas' | 'incidents',
+                itemRecordId,
+                syncToken
               );
-              const remoteRecord = remoteRecords.find(record => String(record.id || '') === itemRecordId);
               const ownerAfterConflictRead = this.getCurrentOwner();
               if (remoteRecord && ownerAfterConflictRead &&
                   ownerAfterConflictRead.userId === owner.userId &&
