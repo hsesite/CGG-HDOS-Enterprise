@@ -908,6 +908,33 @@ export class HDOSSyncEngine {
         error
       );
 
+      // If an unexpected engine/storage error interrupts the replay loop,
+      // release this owner's in-flight markers. Otherwise they would remain
+      // SYNCING indefinitely and scheduleRetry() would never select them.
+      const activeOwnerAfterError = this.getCurrentOwner();
+      if (activeOwnerAfterError &&
+          activeOwnerAfterError.userId === owner.userId &&
+          activeOwnerAfterError.companyCode === owner.companyCode &&
+          hseApi.authToken === syncToken &&
+          this.queueOwnerKey === requestedOwnerKey) {
+        for (const queued of this.queue) {
+          if (queued.status !== 'SYNCING' ||
+              queued.ownerUserId !== owner.userId ||
+              queued.ownerCompanyCode !== owner.companyCode) continue;
+          const recovered = {
+            ...queued,
+            status: 'PENDING' as const,
+            error: 'Sinkronisasi terhenti karena gangguan internal. Item dikembalikan ke antrean untuk dicoba kembali.'
+          };
+          try {
+            await hdosDB.put('queue', recovered);
+            this.queue = this.queue.map(current => current.id === recovered.id ? recovered : current);
+          } catch (recoveryError) {
+            console.error('[HDOS Sync] Gagal memulihkan status antrean setelah gangguan engine.', recoveryError);
+          }
+        }
+      }
+
       this.syncLogs.unshift({
         time: formatTime(),
         message:
