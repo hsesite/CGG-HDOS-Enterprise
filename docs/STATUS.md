@@ -255,3 +255,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] UI PICA menghubungkan persetujuan Foreman Safety → SPV HSE, masing-masing hanya dapat dilakukan role terverifikasi yang sesuai.
 - [x] Penutupan PICA diblokir backend sampai kedua tahap persetujuan selesai; pengembalian kepada PIC dibatasi sebelum persetujuan pertama.
 - [ ] UAT persetujuan PICA dua tahap dengan akun Foreman Safety dan SPV HSE serta validasi file bukti di GAS/Drive staging.
+
+
+### PICA — penyelarasan persetujuan dua tahap (9 November 2026)
+- [x] Model PICA frontend dan default store hanya menggunakan tahap Foreman Safety dan SPV HSE.
+- [x] Tombol validasi & close frontend hanya bergantung pada dua persetujuan tersebut; tidak lagi menunggu flag KTT.
+- [x] Parser backend tetap kompatibel dengan kolom legacy `kttApproval` pada sheet, tetapi tidak memetakan nilai tersebut sebagai tahap persetujuan operasional.
+- [x] Regression test memastikan UI, store, dan parser menggunakan kontrak persetujuan dua tahap.
+- [ ] UAT UI PICA dengan dua akun role terverifikasi dan deploy GAS staging tetap diperlukan.
