@@ -1577,6 +1577,10 @@ function handleRoute_(
       }
     }
 
+    if (entity === 'picas') {
+      const approvalStageError = enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user);
+      if (approvalStageError) return approvalStageError;
+    }
     const isPrivilegedEditor = isAdminCGG_(user) || isCompanyAdmin_(user);
     // Company Admin may manage PICA details in its tenant, but cannot bypass the
     // operational approval chain or directly mark a PICA closed.
