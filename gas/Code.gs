@@ -2516,6 +2516,44 @@ function isUserCompanyActive_(user) {
   return Boolean(parent && parent.status === 'ACTIVE' && parent.role === 'Contractor');
 }
 
+function enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user) {
+  if (!Object.prototype.hasOwnProperty.call(requestedPayload, 'approvalStages')) return null;
+
+  const oldStages = existingRecord && existingRecord.approvalStages || {};
+  const nextStages = requestedPayload.approvalStages;
+  if (!isObject_(nextStages)) return error_(400, 'Data tahapan persetujuan PICA tidak valid.');
+
+  const stageKeys = ['foreman', 'spvHse', 'ktt'];
+  const changedStages = stageKeys.filter(function(stage) {
+    return nextStages[stage] !== undefined && nextStages[stage] !== (oldStages[stage] === true);
+  });
+  if (changedStages.length === 0) return null;
+  if (changedStages.length !== 1) return error_(403, 'Satu tahapan persetujuan PICA harus diproses dalam satu tindakan.');
+
+  const stageKey = changedStages[0];
+  if (nextStages[stageKey] !== true) {
+    return error_(403, 'Persetujuan PICA yang telah diberikan tidak dapat dibatalkan melalui pembaruan biasa.');
+  }
+
+  const roles = user && user.roles || [];
+  const requiredRole = stageKey === 'foreman' ? 'Foreman Safety' :
+    stageKey === 'spvHse' ? 'SPV HSE' : 'KTT';
+  if (user.roleVerified !== true || roles.indexOf(requiredRole) < 0) {
+    return error_(403, 'Tahapan ini hanya dapat disetujui oleh ' + requiredRole + ' yang telah diverifikasi.');
+  }
+
+  const mergedStages = {
+    foreman: oldStages.foreman === true,
+    spvHse: oldStages.spvHse === true,
+    ktt: oldStages.ktt === true
+  };
+  if (!isPicaApprovalSequenceValid_(mergedStages, stageKey)) {
+    return error_(409, 'Urutan persetujuan PICA harus Foreman Safety, SPV HSE, kemudian KTT.');
+  }
+
+  return null;
+}
+
 function isPicaApprovalSequenceValid_(stages, stageKey) {
   if (stageKey === 'spvHse') return stages.foreman === true;
   if (stageKey === 'ktt') return stages.foreman === true && stages.spvHse === true;
