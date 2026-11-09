@@ -100,7 +100,7 @@ export interface ContractorP2HRecord {
   createdAt: string;
 }
 
-export type ContractorP2HInput = Pick<ContractorP2HRecord, 'inspectionDate' | 'status' | 'hourMeter' | 'operatorName' | 'findings' | 'correctiveAction'> & Partial<Pick<ContractorP2HRecord, 'photoFileId' | 'photoFileName' | 'photoMimeType'>>;
+export type ContractorP2HInput = Pick<ContractorP2HRecord, 'inspectionDate' | 'status' | 'hourMeter' | 'operatorName' | 'findings' | 'correctiveAction'> & Partial<Pick<ContractorP2HRecord, 'photoFileId' | 'photoFileName' | 'photoMimeType'>> & { requestId: string };
 
 export interface ContractorFleetUnit {
   id: string;
