@@ -184,6 +184,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Pemeriksaan skema readiness bersifat read-only dan mengizinkan kolom tambahan/legacy agar kompatibel dengan migrasi.
 - [x] Respons readiness hanya menampilkan status agregat dan jumlah sheet yang hilang atau memiliki skema tidak valid; tidak mengembalikan nama sheet, nama kolom, ID Spreadsheet, atau kredensial.
 - [x] Test readiness mencakup konfigurasi lengkap, header wajib hilang, sheet hilang, dan kebijakan pendaftaran CGG yang belum dikonfigurasi.
+- [x] Pemulihan database non-destruktif: backup HDOS yang tervalidasi dapat disalin ke Spreadsheet baru; fungsi memverifikasi folder sumber, tipe file, sheet/header wajib, mencatat hasil, dan tidak mengubah ID database aktif.
+- [x] Test keamanan pemulihan memastikan fungsi tidak melakukan overwrite atau mengganti konfigurasi database aktif.
+- [ ] Jalankan uji backup dan recovery copy pada project Apps Script serta periksa isi data hasil pemulihan.
 - [x] Validasi GitHub Actions dan deployment GitHub Pages lulus pada commit `0cdc148`.
 - [ ] Deploy versi GAS terbaru ke project Apps Script dan verifikasi readiness terhadap Spreadsheet uji.
 - [ ] Uji restore backup, termasuk verifikasi isi dan konsistensi data setelah pemulihan.
