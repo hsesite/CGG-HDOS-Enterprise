@@ -14,6 +14,13 @@ Configure these in **Apps Script → Project Settings → Script Properties** be
 
 Never commit Spreadsheet IDs, OAuth secrets, session tokens, passwords, or production data to this public repository. Use separate test and production Script Properties and spreadsheets.
 
+## Health checks
+
+- `GET /api/health/live` confirms the Apps Script Web App is responding.
+- `GET /api/health/ready` confirms the configured Spreadsheet is accessible, required sheets exist, Google OAuth is configured, and the CGG registration domain/email policy is explicitly configured.
+- Readiness returns HTTP-style status 503 when the Spreadsheet is missing or inaccessible. A successful response with `status: "not_ready"` means one or more required sheets or authentication settings still need setup.
+- The readiness response exposes configuration status only; it never returns Spreadsheet IDs, OAuth Client IDs, or allowlisted email addresses.
+
 ## Deployment checklist
 
 1. Back up the target Spreadsheet and Apps Script project.
