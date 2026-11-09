@@ -1558,3 +1558,13 @@ test('Overlapping sync initialization cannot let an older IndexedDB read clear a
   assert.ok(initBlock.indexOf('if (initGeneration !== this.initGeneration) return;') < initBlock.indexOf('const activeOwner = this.getCurrentOwner();'));
   assert.ok(initBlock.lastIndexOf('if (initGeneration !== this.initGeneration) return;') < initBlock.indexOf('const finalOwner = this.getCurrentOwner();'));
 });
+
+
+test('Frontend module access uses one server-role policy and blocks unverified PICA approvers', () => {
+  const authSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'auth.ts'), 'utf8');
+  const policySource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'access-policy.ts'), 'utf8');
+  assert.ok(authSource.includes("return canAccessModule(sessionUser, moduleName as import('./access-policy').HDOSModule);"));
+  assert.ok(authSource.includes("return user.roleVerified === true && user.roles.some((role) => approvalRoles.includes(role));"));
+  assert.ok(policySource.includes("if (requiresRoleVerification(user) && user.roleVerified !== true)"));
+  assert.ok(policySource.includes("if (roles.includes('Employee'))"));
+});
