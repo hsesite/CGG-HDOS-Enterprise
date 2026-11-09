@@ -480,6 +480,10 @@ export const hseApi = {
     return request<Array<Record<string, unknown>>>('GET', `/api/${entity}`);
   },
 
+  async getOperationalRecord(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', id: string, authToken?: string | null): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>('GET', `/api/${entity}/${encodeURIComponent(id)}`, undefined, authToken);
+  },
+
   async listPublishedForms(): Promise<Array<Record<string, unknown>>> {
     return request<Array<Record<string, unknown>>>('GET', '/api/forms');
   },
