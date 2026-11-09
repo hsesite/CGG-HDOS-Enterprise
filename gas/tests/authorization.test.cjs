@@ -1228,13 +1228,21 @@ test('users and companies master setup use safe header-based schema reconciliati
 });
 
 
-test('central database supports auditable Google Drive backup and daily trigger installation', () => {
-  assert.match(source, /backup_logs:\s*\[/);
-  assert.match(source, /function createDatabaseBackup\(\)/);
-  assert.match(source, /makeCopy\(fileName, folder\)/);
-  assert.match(source, /logSheet\.appendRow\(\[backupId, createdAt, backupFile\.getId\(\), backupFile\.getName\(\), 'SUCCESS'/);
-  assert.match(source, /function installDailyDatabaseBackupTrigger\(\)/);
-  assert.match(source, /everyDays\(1\)\.atHour\(2\)/);
+test('central database backup is serialized, uniquely named, verified, and audited', () => {
+  assert.match(source, /backup_logs:\\s*\\[/);
+  const start = source.indexOf('function createDatabaseBackup()');
+  const end = source.indexOf('function installDailyDatabaseBackupTrigger()', start);
+  assert.ok(start >= 0 && end > start);
+  const backup = source.slice(start, end);
+  assert.match(backup, /LockService\\.getScriptLock\\(\\)/);
+  assert.match(backup, /lock\\.waitLock\\(30000\\)/);
+  assert.match(backup, /yyyyMMdd_HHmmss_SSS/);
+  assert.match(backup, /makeCopy\\(fileName, folder\\)/);
+  assert.match(backup, /getMimeType\\(\\) !== MimeType\\.GOOGLE_SHEETS/);
+  assert.match(backup, /'SUCCESS'/);
+  assert.match(backup, /'FAILED'/);
+  assert.match(backup, /finally\\s*\\{\\s*lock\\.releaseLock\\(\\)/);
+  assert.match(source, /function installDailyDatabaseBackupTrigger\\(\\)/);
   assert.match(source, /HDOS_BACKUP_FOLDER_ID/);
 });
 
