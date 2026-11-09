@@ -1361,8 +1361,10 @@ test('successful sync advances server version for later queued updates of the sa
   assert.match(syncSource, /queued\.ownerUserId !== owner\.userId/);
   assert.match(syncSource, /queued\.ownerCompanyCode !== owner\.companyCode/);
   assert.match(syncSource, /this\.queueOwnerKey === requestedOwnerKey/);
-  assert.match(syncSource, /nextPayload = \{[\s\S]{0,160}updatedAt: serverUpdatedAt/);
-  assert.match(syncSource, /hdosDB\.put\(localStoreName, \{ \.\.\.localRecord, updatedAt: serverUpdatedAt \}\)/);
+  assert.match(syncSource, /versionedQueueItems = persistedQueue\.filter[\s\S]{0,700}updatedAt: serverUpdatedAt/);
+  assert.match(syncSource, /await hdosDB\.putBundle\(versionBundle\)/);
+  assert.match(syncSource, /versionBundle\.push\(\.\.\.versionedQueueItems\.map/);
+  assert.doesNotMatch(syncSource, /hdosDB\.put\(localStoreName, \{ \.\.\.localRecord, updatedAt: serverUpdatedAt \}\)/);
 });
 
 
