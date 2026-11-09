@@ -1247,6 +1247,25 @@ test('central database backup is serialized, uniquely named, verified, and audit
 });
 
 
+
+test('database recovery creates a validated isolated copy and never overwrites the live database', () => {
+  const start = source.indexOf('function createDatabaseRecoveryCopy(backupFileId)');
+  const end = source.indexOf('function installDailyDatabaseBackupTrigger()', start);
+  assert.ok(start >= 0 && end > start);
+  const recovery = source.slice(start, end);
+  assert.ok(recovery.includes("sourceFile.getName().indexOf('CGG_HDOS_DB_BACKUP_') !== 0"));
+  assert.ok(recovery.includes('sourceFile.getMimeType() !== MimeType.GOOGLE_SHEETS'));
+  assert.ok(recovery.includes("parents.next().getId() === backupFolderId"));
+  assert.ok(recovery.includes('sourceFile.makeCopy(recoveryName, folder)'));
+  assert.ok(recovery.includes('recoveredSpreadsheet.getSheetByName(name)'));
+  assert.ok(recovery.includes("'RECOVERY_COPY_VERIFIED'"));
+  assert.ok(recovery.includes('recoveryFile.setTrashed(true)'));
+  assert.ok(recovery.includes('liveDatabaseChanged: false'));
+  assert.doesNotMatch(recovery, /setProperty\(['"]HDOS_SPREADSHEET_ID/);
+  assert.doesNotMatch(recovery, /deleteSheet\(|clearContents\(|setValues\(/);
+});
+
+
 test('central audit trail is readable only by Admin CGG and returns bounded recent events', () => {
   const routeStart = source.indexOf("if (path === '/api/audit' && method === 'GET')");
   const routeEnd = source.indexOf('// CURRENT USER', routeStart);
