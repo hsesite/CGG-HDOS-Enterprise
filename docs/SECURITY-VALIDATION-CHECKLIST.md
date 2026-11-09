@@ -21,7 +21,7 @@ Use a separate test spreadsheet and a staging GAS deployment. Do not run destruc
 - [ ] Simultaneous Admin CGG/Company Admin user-access updates serialize without lost role, status, verification, or tenant fields; each successful update has exactly one audit event.
 - [ ] Simultaneous company-master upserts for the same company code do not create duplicate rows or overwrite a newer parent/status relationship; successful changes are audited after the master row is committed.
 
-- [ ] CGG self-registration is denied when neither `CGG_EMAIL_DOMAINS` nor `CGG_ALLOWED_EMAILS` is configured.
+- [ ] CGG self-registration rejects non-corporate domains by default (`ptcgg.com`) and accepts only explicitly configured `CGG_EMAIL_DOMAINS` or exact `CGG_ALLOWED_EMAILS`; verify alternate company domains in staging.
 - [ ] CGG self-registration accepts only an explicitly configured corporate domain or exact allowlisted address.
 - [ ] Contractor/Subkon registration accepts a verified Google email only when the selected company exists and is ACTIVE.
 - [ ] Duplicate email registration is rejected, including concurrent requests.
