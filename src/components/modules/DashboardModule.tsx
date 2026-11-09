@@ -72,7 +72,7 @@ export const DashboardModule: React.FC = () => {
   const totalInspections = completedInspections.length;
   const complianceScore = totalInspections > 0 ? completedInspections.reduce((total, record) => total + Number(record.scorePercent || 0), 0) / totalInspections : null;
   const openHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED').length;
-  const criticalHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED' && h.riskMatrix.level === 'CRITICAL').length;
+  const criticalHazards = dashboardHazards.filter((h) => h.status !== 'CLOSED' && h.riskMatrix?.level === 'CRITICAL').length;
   const activePicas = dashboardPicas.filter((p) => p.status !== 'CLOSED').length;
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
