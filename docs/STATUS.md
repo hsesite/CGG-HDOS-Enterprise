@@ -286,3 +286,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Penggunaan ulang request ID dengan payload berbeda ditolak sebagai konflik HTTP 409.
 - [x] Referensi foto hasil upload dipertahankan pada percobaan ulang form yang sama agar retry tidak mengunggah foto duplikat dan tetap cocok dengan request ID.
 - [ ] Uji replay dengan respons hilang, perubahan payload, serta penggantian foto di GAS/Drive staging.
+
+
+### Sinkronisasi antrean — isolasi pemilik saat propagasi versi (9 November 2026)
+- [x] Pembaruan `updatedAt` untuk antrean UPDATE lanjutan setelah CREATE/UPDATE berhasil kini hanya menyentuh item milik user dan companyCode pemilik transaksi.
+- [x] Snapshot antrean di memori hanya diperbarui jika sesi dan queue scope masih sama setelah operasi IndexedDB selesai.
+- [x] Regression test memastikan propagasi versi tidak menulis antrean lintas user/tenant.
+- [ ] UAT multi-akun dan multi-tenant pada browser berbeda, termasuk simulasi perubahan sesi ketika request cloud sedang berlangsung.
