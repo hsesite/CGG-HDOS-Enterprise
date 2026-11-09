@@ -1708,10 +1708,28 @@ function googleLogin_(payload) {
 }
 
 function isCggEmailAllowed_(email, companyCode) {
-  // All valid, Google-verified email addresses may self-register for any company.
-  // Company existence/status and tenant assignment are validated separately in googleOnboard_.
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return false;
+
+  // CGG accounts can access internal company information. Fail closed to the
+  // explicitly approved corporate domain (ptcgg.com by default) and exact
+  // addresses approved by the company. Contractor/Subkon onboarding is
+  // validated separately against the active company master.
+  if (String(companyCode || '').trim().toUpperCase() !== 'CGG') return true;
+
+  const properties = PropertiesService.getScriptProperties();
+  const configuredDomains = properties.getProperty('CGG_EMAIL_DOMAINS');
+  const domains = String(configuredDomains === null ? 'ptcgg.com' : configuredDomains)
+    .split(/[;,\\s]+/)
+    .map(function(value) { return value.trim().toLowerCase().replace(/^@/, ''); })
+    .filter(Boolean);
+  const allowlist = String(properties.getProperty('CGG_ALLOWED_EMAILS') || '')
+    .split(/[;,\\s]+/)
+    .map(function(value) { return value.trim().toLowerCase(); })
+    .filter(Boolean);
+
+  const emailDomain = normalizedEmail.split('@').pop();
+  return domains.indexOf(emailDomain) >= 0 || allowlist.indexOf(normalizedEmail) >= 0;
 }
 
 function appendUniqueUser_(email, rowValues) {
