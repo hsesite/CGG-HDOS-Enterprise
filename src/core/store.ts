@@ -120,6 +120,8 @@ export class HDOSCentralStore {
   public cloudRefreshFailedSources: string[] = [];
 
   private listeners: Set<() => void> = new Set();
+  // Monotonic generations prevent an older cloud snapshot from publishing after a newer refresh starts.
+  private cloudMergeGeneration = new Map<'inspections' | 'hazards' | 'picas' | 'incidents', number>();
   private maxZIndex: number = 20;
 
   private getAllowedCompanyCodes(): Set<string> {
@@ -244,6 +246,9 @@ export class HDOSCentralStore {
   }
 
   async mergeCloudOperationalRecords(entity: 'inspections' | 'hazards' | 'picas' | 'incidents', records: Array<Record<string, unknown>>): Promise<void> {
+    const generation = (this.cloudMergeGeneration.get(entity) || 0) + 1;
+    this.cloudMergeGeneration.set(entity, generation);
+    const isCurrentMerge = (): boolean => this.cloudMergeGeneration.get(entity) === generation;
     const rows = records.filter((record) => record && typeof record.id === 'string' && record.id.trim());
     const currentUser = AuthState.getUser();
     const ownerKey = currentUser?.id
@@ -258,7 +263,7 @@ export class HDOSCentralStore {
 
     // A cloud response belongs to the identity that initiated it. Never use
     // another account's queue snapshot or publish stale results after a switch.
-    if (!currentUser || !ownerKey || activeOwnerKey() !== ownerKey) return;
+    if (!currentUser || !ownerKey || activeOwnerKey() !== ownerKey || !isCurrentMerge()) return;
     const queueOwner = hdosSync.getOwnerSnapshot();
     const queueMatchesOwner = Boolean(
       queueOwner &&
@@ -308,13 +313,17 @@ export class HDOSCentralStore {
       // Remove stale records from this tenant's local cache, but never touch
       // another tenant's cached data or any record still waiting to sync.
       for (const local of visibleLocal) {
+        if (!isCurrentMerge() || activeOwnerKey() !== ownerKey) return [];
         if (!remoteIds.has(local.id) && !pendingIds.has(local.id)) {
           await hdosDB.delete(storeName, local.id);
         }
       }
 
       const snapshot = [...merged.values()];
-      for (const record of snapshot) await hdosDB.put(storeName, record);
+      for (const record of snapshot) {
+        if (!isCurrentMerge() || activeOwnerKey() !== ownerKey) return [];
+        await hdosDB.put(storeName, record);
+      }
       return snapshot;
     };
 
@@ -331,7 +340,7 @@ export class HDOSCentralStore {
 
     // IndexedDB writes above are tenant-filtered, but the in-memory store is
     // shared by the active workspace. Recheck identity immediately before publish.
-    if (activeOwnerKey() !== ownerKey) return;
+    if (activeOwnerKey() !== ownerKey || !isCurrentMerge()) return;
     if (entity === 'inspections') this.inspections = snapshot as unknown as Inspection[];
     else if (entity === 'hazards') this.hazards = snapshot as unknown as Hazard[];
     else if (entity === 'picas') this.picas = snapshot as unknown as PICA[];
