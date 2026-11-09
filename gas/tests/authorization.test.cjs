@@ -1602,9 +1602,9 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /setP2hRequestId\(''\)/);
   assert.match(source, /const requestId = String\(input\.requestId \|\| ''\)\.trim\(\)/);
   assert.match(source, /const existingRequestRow = findRecordRow_\(historySheet, requestId\)/);
-  assert.match(source, /const sameRequest = String\(existingRequest\.fleetId \|\| ''\) === String\(fleetId\)/);
-  assert.match(source, /String\(existingRequest\.findings \|\| ''\) === findings/);
-  assert.match(source, /String\(existingRequest\.photoFileId \|\| ''\) === photoFileId/);
+  assert.match(source, /const sameRequest = isSameContractorP2HRequest_\(existingRequest, \{/);
+  assert.match(source, /if \(!sameRequest\) return error_\(409/);
+  assert.match(source, /function isSameContractorP2HRequest_\(existing, requested\)/);
   assert.match(source, /if \(!sameRequest\) return error_\(409/);
   assert.match(p2hUiSource, /p2hPhotoFile && !p2hPhotoReference/);
   assert.match(p2hUiSource, /setP2hPhotoReference\(photoReference\)/);
