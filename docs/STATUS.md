@@ -176,3 +176,15 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Test regresi GAS diperbarui untuk menguji domain default, domain tambahan, allowlist email persis, dan penolakan email publik untuk CGG.
 - [ ] Perubahan `gas/Code.gs` harus dipasang sebagai versi baru pada deployment Apps Script staging/produksi secara terpisah; commit GitHub tidak memperbarui deployment GAS.
 - [ ] Jalankan UAT lintas role dan lintas tenant pada Spreadsheet/Drive staging sebelum go-live.
+
+
+## Implementasi terbaru (9 November 2026)
+
+- [x] Endpoint readiness memeriksa keberadaan seluruh sheet wajib dan keberadaan setiap header wajib berdasarkan nama kolom.
+- [x] Pemeriksaan skema readiness bersifat read-only dan mengizinkan kolom tambahan/legacy agar kompatibel dengan migrasi.
+- [x] Respons readiness hanya menampilkan status agregat dan jumlah sheet yang hilang atau memiliki skema tidak valid; tidak mengembalikan nama sheet, nama kolom, ID Spreadsheet, atau kredensial.
+- [x] Test readiness mencakup konfigurasi lengkap, header wajib hilang, sheet hilang, dan kebijakan pendaftaran CGG yang belum dikonfigurasi.
+- [x] Validasi GitHub Actions dan deployment GitHub Pages lulus pada commit `0cdc148`.
+- [ ] Deploy versi GAS terbaru ke project Apps Script dan verifikasi readiness terhadap Spreadsheet uji.
+- [ ] Uji restore backup, termasuk verifikasi isi dan konsistensi data setelah pemulihan.
+- [ ] UAT lintas role dan tenant pada akun/perangkat uji dengan data operasional representatif.
