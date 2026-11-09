@@ -167,3 +167,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Checkout GitHub Actions dinaikkan ke actions/checkout@v5 untuk menghindari ketergantungan pada runtime Node 20 yang sudah deprecated pada runner.
 - [ ] Validasi integrasi runtime Google Apps Script, Spreadsheet, Drive, kredensial deployment, dan akun per role tetap membutuhkan pengujian end-to-end pada environment nonproduksi/produksi yang diizinkan.
 - [ ] Branch fitur lama belum dihapus. Branch tersebut tidak menghambat pipeline main selama tidak digabung; sebelum cleanup perlu pemeriksaan perbedaan commit dan konfirmasi pemilik.
+
+
+### Hardening akses dan onboarding (9 November 2026)
+- [x] Frontend module access diarahkan ke satu policy bersama agar navigasi dan kontrol akses modul tidak berbeda aturan.
+- [x] Kontrol persetujuan PICA di frontend mensyaratkan role server yang telah diverifikasi; Admin CGG tetap memiliki kewenangan administratif.
+- [x] Pendaftaran mandiri dengan pilihan perusahaan CGG dibatasi pada domain korporat yang diizinkan (default `ptcgg.com`) atau alamat persis di `CGG_ALLOWED_EMAILS`; email publik seperti Gmail/Yahoo tidak otomatis memperoleh akun internal CGG.
+- [x] Test regresi GAS diperbarui untuk menguji domain default, domain tambahan, allowlist email persis, dan penolakan email publik untuk CGG.
+- [ ] Perubahan `gas/Code.gs` harus dipasang sebagai versi baru pada deployment Apps Script staging/produksi secara terpisah; commit GitHub tidak memperbarui deployment GAS.
+- [ ] Jalankan UAT lintas role dan lintas tenant pada Spreadsheet/Drive staging sebelum go-live.
