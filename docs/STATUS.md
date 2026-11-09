@@ -156,6 +156,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Operasi tulis Contractor Passport (unggah SIA, pencatatan P2H, tambah/perbarui fleet, kirim/revisi laporan, dan review) menangkap session scope; hasil, pesan error, serta flag busy dari request sesi lama tidak mengubah tampilan tenant aktif. Pencatatan P2H juga menghentikan rangkaian upload foto → pembuatan record bila sesi berubah sebelum record dikirim.
 
 - [x] Retry manual antrean sinkronisasi memvalidasi ulang pemilik dan scope setelah penulisan IndexedDB asinkron sebelum memperbarui snapshot antrean aktif; item tenant lama tetap tersimpan pada owner key-nya dan tidak dipublikasikan ke tampilan tenant baru.
+- [x] Jika terjadi kesalahan engine/storage tak terduga di tengah replay, item milik akun aktif yang tertinggal berstatus `SYNCING` dicoba dikembalikan ke `PENDING` dan disimpan kembali agar dapat dijadwalkan retry; pemulihan dibatasi pada identitas dan token sesi yang sama.
 
  
 ### Stabilitas repository dan pipeline (9 November 2026)
@@ -207,3 +208,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Batas 10 percobaan per alamat email dalam jendela cache 5 menit diterapkan sebelum verifikasi kredensial.
 - [x] Login berhasil menghapus penghitung kegagalan; percobaan paralel tidak lagi dapat lolos hanya karena pemeriksaan dan increment berjalan terpisah.
 - [ ] Uji beban dan verifikasi perilaku pada deployment Apps Script aktual.
+
+### Penguatan sinkronisasi dan Repository (9 November 2026)
+- [x] Upload Repository mengunci pemeriksaan idempotensi, pembuatan file Drive, dan commit metadata pusat dalam satu critical section; jika commit metadata gagal, file Drive baru dicoba dibersihkan.
+- [x] File Repository yang dipreview, diunduh, atau dihapus harus terbukti berada pada folder Drive Repository yang dikonfigurasi; kegagalan verifikasi menolak akses.
+- [x] Regression test mencakup isolasi folder Drive dan pemulihan antrean `SYNCING` setelah kesalahan engine.
+- [x] Workflow validasi dan deployment GitHub Pages berhasil pada commit `ce025b9`.
+- [ ] Pengujian upload Repository, kegagalan Spreadsheet, dan pemulihan antrean tetap harus dilakukan pada Apps Script/Drive staging dengan akun uji.
