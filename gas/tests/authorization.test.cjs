@@ -1781,3 +1781,20 @@ test('login attempt reservation atomically checks and increments the five-minute
   assert.match(login, /reserveLoginAttempt_\(email\)/);
   assert.doesNotMatch(login, /isLoginRateLimited_|recordLoginFailure_/);
 });
+
+test('Concurrent operational CREATE allocates row-dependent codes inside the Script Lock', () => {
+  const start = source.indexOf('function createRecord_(');
+  const end = source.indexOf('function isExpectedPicaStateCurrent_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const create = source.slice(start, end);
+  const lockStart = create.indexOf('lock.waitLock(');
+  const rowAllocation = create.indexOf('const rowNum = sheet.getLastRow()');
+  const codeAllocation = create.indexOf('buildEntityCode_(entity, rowNum)');
+  const append = create.indexOf('sheet.appendRow(');
+  assert.ok(lockStart >= 0 && rowAllocation > lockStart);
+  assert.ok(codeAllocation > rowAllocation);
+  assert.ok(append > codeAllocation);
+  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user)') < rowAllocation);
+  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user)', create.indexOf('lock.waitLock(')) > lockStart);
+});
