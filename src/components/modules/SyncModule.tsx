@@ -258,6 +258,24 @@ export const SyncModule: React.FC = () => {
                         {item.error}
                       </div>
                     )}
+                    {item.status === 'CONFLICT' && item.conflictServerRecord && (
+                      <details className="mt-2 text-left">
+                        <summary className="cursor-pointer text-[10px] text-amber-300">
+                          Bandingkan versi server
+                        </summary>
+                        <div className="mt-1 rounded-lg border border-amber-500/20 bg-black/20 p-2">
+                          <div className="text-[10px] text-neutral-400 mb-1">
+                            Server diperbarui: {String(item.conflictServerRecord.updatedAt || 'Waktu tidak tersedia')}
+                          </div>
+                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] text-neutral-300">
+                            {JSON.stringify(item.conflictServerRecord, null, 2)}
+                          </pre>
+                          <p className="text-[10px] text-amber-200 mt-2">
+                            Payload lokal tetap tersimpan di antrean. Periksa perbedaan sebelum membuat perubahan lanjutan.
+                          </p>
+                        </div>
+                      </details>
+                    )}
                   </div>
                 </div>
               ))}
