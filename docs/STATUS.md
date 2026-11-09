@@ -154,3 +154,5 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Pratinjau dokumen SIA, bukti foto P2H, dan refresh laporan kepatuhan memvalidasi ulang session scope setelah respons API diterima; respons atau pesan error dari sesi sebelumnya tidak dapat mengubah tampilan tenant aktif.
 
 - [x] Operasi tulis Contractor Passport (unggah SIA, pencatatan P2H, tambah/perbarui fleet, kirim/revisi laporan, dan review) menangkap session scope; hasil, pesan error, serta flag busy dari request sesi lama tidak mengubah tampilan tenant aktif. Pencatatan P2H juga menghentikan rangkaian upload foto → pembuatan record bila sesi berubah sebelum record dikirim.
+
+- [x] Retry manual antrean sinkronisasi memvalidasi ulang pemilik dan scope setelah penulisan IndexedDB asinkron sebelum memperbarui snapshot antrean aktif; item tenant lama tetap tersimpan pada owner key-nya dan tidak dipublikasikan ke tampilan tenant baru.
