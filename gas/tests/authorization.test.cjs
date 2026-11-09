@@ -1533,3 +1533,16 @@ test('Contractor write operations suppress stale tenant UI updates after account
   const p2hBlock = moduleSource.slice(moduleSource.indexOf('const submitP2HRecord = async'), moduleSource.indexOf('const submitFleetUnit = async'));
   assert.ok(p2hBlock.includes('if (!isCurrentSessionScope(requestScope)) return;'), 'P2H must stop between photo upload and record creation when the session changes');
 });
+
+test('Manual sync retry revalidates tenant after asynchronous IndexedDB persistence', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const start = syncSource.indexOf('async retryFailedItems()');
+  const end = syncSource.indexOf('async triggerSync()', start);
+  assert.ok(start >= 0 && end > start);
+  const retryBlock = syncSource.slice(start, end);
+  const writeIndex = retryBlock.indexOf("await hdosDB.put('queue', item);");
+  const recheckIndex = retryBlock.indexOf('const ownerAfterWrite = this.getCurrentOwner();', writeIndex);
+  const publishIndex = retryBlock.indexOf('this.queue = this.queue.map', writeIndex);
+  assert.ok(writeIndex >= 0 && recheckIndex > writeIndex && publishIndex > recheckIndex);
+  assert.ok(retryBlock.slice(recheckIndex, publishIndex).includes('this.queueOwnerKey !== ownerKey'));
+});
