@@ -230,7 +230,7 @@ test('Repository upload derives parent company from master registry and is idemp
   const helper = source.slice(helperStart, helperEnd);
   assert.match(route, /const parentCompanyCode = registeredCompany && registeredCompany\.role === 'Subkon'/);
   assert.ok(route.includes('createRepositoryDocument_(input, bytes, fileMetadata, companyCode, parentCompanyCode, user)'));
-  assert.match(helper, /getExistingRecordForCreate_\\(sheet, id, user\\)/);
+  assert.ok(helper.includes('getExistingRecordForCreate_(sheet, id, user)'));
   assert.ok(helper.indexOf('getExistingRecordForCreate_') < helper.indexOf('folder.createFile(blob)'));
 });
 
