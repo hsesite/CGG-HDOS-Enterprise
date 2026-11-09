@@ -341,4 +341,5 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Saat UPDATE ditolak dengan HTTP 409, klien meminta satu record berdasarkan ID melalui route GET detail, bukan mengunduh seluruh register entitas.
 - [x] Permintaan snapshot memakai token sesi sinkronisasi yang sama; pemeriksaan identitas user, tenant, dan token tetap dilakukan setelah respons diterima.
 - [x] Regression test diperbarui untuk memastikan lookup terarah digunakan.
+- [x] Snapshot konflik hanya diterima jika ID pada respons detail sama persis dengan ID queue item yang ditolak; respons detail yang tidak cocok diabaikan.
 - [ ] UAT konflik lintas pengguna/tenant dan pemeriksaan izin route detail tetap diperlukan pada GAS/Sheets staging.
