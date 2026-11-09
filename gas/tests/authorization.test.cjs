@@ -1603,7 +1603,7 @@ test('CGG self-registration is restricted to approved domains or exact allowlist
 });
 
 
-test('GAS readiness endpoint reports required production configuration without exposing secrets', () => {
+test('GAS readiness validates required sheet headers without exposing configuration secrets', () => {
   assert.ok(source.includes("if (path === '/api/health/ready' && method === 'GET')"));
   const properties = {
     HDOS_SPREADSHEET_ID: 'test-sheet-id',
@@ -1612,10 +1612,28 @@ test('GAS readiness endpoint reports required production configuration without e
     CGG_ALLOWED_EMAILS: ''
   };
   const requiredSheets = ['users','companies','locations','forms','inspections','hazards','picas','incidents','audit_logs','backup_logs','contractor_reports','contractor_fleet','contractor_p2h_history','repository'];
+  const headersBySheet = {
+    users: ['id','email','password','displayName','role','status','passwordHash','passwordSalt','googleSub','companyCode','parentCompanyCode','position','department','section','roleVerified'],
+    companies: ['companyCode','companyName','role','parentCompanyCode','emailDomains','autoProvision','status','passportStatus','picName','picContact','safetyPassportExpiry']
+  };
+  const schemaNames = ['locations','repository','forms','hazards','picas','inspections','incidents','audit_logs','backup_logs','contractor_reports','contractor_fleet','contractor_p2h_history'];
+  schemaNames.forEach(name => {
+    const match = source.match(new RegExp('\\b' + name + ': \\[([\\s\\S]*?)\\]'));
+    assert.ok(match, 'schema exists for ' + name);
+    headersBySheet[name] = Array.from(match[1].matchAll(/'([^']+)'/g), item => item[1]);
+  });
+  const sheets = {};
+  requiredSheets.forEach(name => {
+    sheets[name] = {
+      getLastColumn: () => headersBySheet[name].length,
+      getRange: () => ({ getValues: () => [headersBySheet[name]] })
+    };
+  });
   const context = {
     CONFIG: { SPREADSHEET_ID: '', SHEETS: requiredSheets.slice(0, -1) },
+    ENTITY_SCHEMAS: Object.fromEntries(schemaNames.map(name => [name, headersBySheet[name]])),
     PropertiesService: { getScriptProperties: () => ({ getProperty: key => properties[key] ?? null }) },
-    SpreadsheetApp: { openById: () => ({ getSheetByName: name => requiredSheets.includes(name) ? {} : null }) },
+    SpreadsheetApp: { openById: () => ({ getSheetByName: name => sheets[name] || null }) },
     success_: data => ({ success: true, data }),
     error_: (status, message) => ({ success: false, status, message })
   };
@@ -1631,10 +1649,18 @@ test('GAS readiness endpoint reports required production configuration without e
     spreadsheetAccessible: true,
     schemaReady: true,
     googleOAuthConfigured: true,
-    cggRegistrationPolicyConfigured: true
+    cggRegistrationPolicyConfigured: true,
+    missingSheetCount: 0,
+    invalidSchemaSheetCount: 0
   });
   assert.equal(JSON.stringify(ready).includes('test-sheet-id'), false);
   assert.equal(JSON.stringify(ready).includes('test-client.apps'), false);
+
+  headersBySheet.hazards = headersBySheet.hazards.filter(header => header !== 'riskScore');
+  const invalidSchema = context.getHealthReadiness_();
+  assert.equal(invalidSchema.data.status, 'not_ready');
+  assert.equal(invalidSchema.data.checks.schemaReady, false);
+  assert.equal(invalidSchema.data.checks.invalidSchemaSheetCount, 1);
 
   properties.CGG_EMAIL_DOMAINS = '';
   properties.CGG_ALLOWED_EMAILS = '';
