@@ -46,6 +46,7 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | DB-08 | Spreadsheet/required sheet tidak tersedia | Readiness menyatakan not-ready; aplikasi tidak mengklaim cloud siap | | |
 | DB-09 | Dua pengguna mengubah data berdekatan | Konflik/versi ditangani tanpa menimpa perubahan secara diam-diam | | |
 | DB-10 | Audit trail untuk create/update/delete/approval | Pelaku, aksi, objek, dan waktu tercatat | | |
+| DB-11 | Dua perangkat membuat record bersamaan pada entity yang sama | ID tetap unik dan kode referensi tidak duplikat; kedua record tersimpan | | |
 
 ## 3. Offline-first dan sinkronisasi
 
