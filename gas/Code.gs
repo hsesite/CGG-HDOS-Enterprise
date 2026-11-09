@@ -1522,7 +1522,7 @@ function handleRoute_(
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
     if (entity === 'picas') {
       const roles = user.roles || [];
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE', 'KTT'].indexOf(role) >= 0; }));
+      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
       if (!canMonitorPicas && String(existingRecord.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
         return error_(403, 'PICA ini tidak ditugaskan kepada akun Anda.');
       }
@@ -2527,7 +2527,10 @@ function enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user) 
   const nextStages = requestedPayload.approvalStages;
   if (!isObject_(nextStages)) return error_(400, 'Data tahapan persetujuan PICA tidak valid.');
 
-  const stageKeys = ['foreman', 'spvHse', 'ktt'];
+  const stageKeys = ['foreman', 'spvHse'];
+  if (Object.keys(nextStages).some(function(stage) { return stageKeys.indexOf(stage) < 0; })) {
+    return error_(400, 'Tahapan persetujuan PICA hanya mencakup Foreman Safety dan SPV HSE.');
+  }
   const changedStages = stageKeys.filter(function(stage) {
     return nextStages[stage] !== undefined && nextStages[stage] !== (oldStages[stage] === true);
   });
@@ -2540,8 +2543,7 @@ function enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user) 
   }
 
   const roles = user && user.roles || [];
-  const requiredRole = stageKey === 'foreman' ? 'Foreman Safety' :
-    stageKey === 'spvHse' ? 'SPV HSE' : 'KTT';
+  const requiredRole = stageKey === 'foreman' ? 'Foreman Safety' : 'SPV HSE';
   if (user.roleVerified !== true || roles.indexOf(requiredRole) < 0) {
     return error_(403, 'Tahapan ini hanya dapat disetujui oleh ' + requiredRole + ' yang telah diverifikasi.');
   }
@@ -2552,11 +2554,10 @@ function enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user) 
 
   const mergedStages = {
     foreman: oldStages.foreman === true,
-    spvHse: oldStages.spvHse === true,
-    ktt: oldStages.ktt === true
+    spvHse: oldStages.spvHse === true
   };
   if (!isPicaApprovalSequenceValid_(mergedStages, stageKey)) {
-    return error_(409, 'Urutan persetujuan PICA harus Foreman Safety, SPV HSE, kemudian KTT.');
+    return error_(409, 'Urutan persetujuan PICA harus Foreman Safety kemudian SPV HSE.');
   }
 
   return null;
@@ -2564,8 +2565,7 @@ function enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user) 
 
 function isPicaApprovalSequenceValid_(stages, stageKey) {
   if (stageKey === 'spvHse') return stages.foreman === true;
-  if (stageKey === 'ktt') return stages.foreman === true && stages.spvHse === true;
-  return stageKey === 'foreman';
+    return stageKey === 'foreman';
 }
 
 function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
@@ -2611,8 +2611,8 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
     if (!isHSEValidator) return error_(403, 'Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE yang telah diverifikasi.');
     if (oldStatus !== 'WAITING_HSE') return error_(409, 'PICA belum diajukan PIC untuk validasi HSE.');
     const approvalStages = existingRecord.approvalStages || {};
-    if (approvalStages.foreman !== true || approvalStages.spvHse !== true || approvalStages.ktt !== true) {
-      return error_(409, 'Penutupan PICA memerlukan persetujuan Foreman Safety, SPV HSE, dan KTT secara berurutan.');
+    if (approvalStages.foreman !== true || approvalStages.spvHse !== true) {
+      return error_(409, 'Penutupan PICA memerlukan persetujuan Foreman Safety dan SPV HSE secara berurutan.');
     }
     requestedPayload.hseValidatedBy = String(user.displayName || user.email || '');
     requestedPayload.hseValidatedRole = role;
@@ -2622,7 +2622,7 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
 
   if (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE') {
     const approvalStages = existingRecord.approvalStages || {};
-    if (approvalStages.foreman === true || approvalStages.spvHse === true || approvalStages.ktt === true) {
+    if (approvalStages.foreman === true || approvalStages.spvHse === true) {
       return error_(409, 'PICA tidak dapat dikembalikan setelah proses persetujuan dimulai.');
     }
     if (!isHSEValidator) return error_(403, 'Hanya Foreman Safety atau SPV HSE yang dapat mengembalikan PICA kepada PIC.');
