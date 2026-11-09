@@ -789,7 +789,7 @@ export class HDOSSyncEngine {
               // Commit the server version to the local record and every queued
               // follow-up UPDATE in one IndexedDB transaction. A browser crash
               // can no longer leave only part of this version propagation saved.
-              const versionBundle: Array<{ storeName: StoreName; item: { id: string } }> = [];
+              const versionBundle: Array<{ storeName: StoreName; item: Record<string, unknown> & { id: string } }> = [];
               if (localRecord) versionBundle.push({
                 storeName: localStoreName,
                 item: { ...localRecord, updatedAt: serverUpdatedAt }
@@ -835,7 +835,7 @@ export class HDOSSyncEngine {
 
               // Keep the local record version and all later UPDATE payloads
               // consistent in one IndexedDB transaction.
-              const versionBundle: Array<{ storeName: StoreName; item: { id: string } }> = [];
+              const versionBundle: Array<{ storeName: StoreName; item: Record<string, unknown> & { id: string } }> = [];
               if (localRecord) versionBundle.push({
                 storeName: localStoreName,
                 item: { ...localRecord, updatedAt: serverUpdatedAt }
