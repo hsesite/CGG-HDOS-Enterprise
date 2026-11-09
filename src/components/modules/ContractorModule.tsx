@@ -167,14 +167,17 @@ export const ContractorModule: React.FC = () => {
   const uploadSiaDocument = async (unit: ContractorFleetUnit, file: File) => {
     if (file.size > 10 * 1024 * 1024) { setFleetMessage('Ukuran dokumen SIA maksimal 10 MB.'); return; }
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) { setFleetMessage('Dokumen SIA harus PDF, JPG, atau PNG.'); return; }
+    const requestScope = sessionScopeKey;
     setFleetBusy(true); setFleetMessage('');
     try {
       const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Dokumen SIA tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(file); });
+      if (!isCurrentSessionScope(requestScope)) return;
       await hseApi.uploadContractorSia(unit.id, { fileName: file.name, mimeType: file.type, fileBase64 });
+      if (!isCurrentSessionScope(requestScope)) return;
       setFleetMessage('Dokumen SIA berhasil diunggah dan ditautkan ke unit.');
       await refreshFleet();
-    } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Unggah dokumen SIA gagal.'); }
-    finally { setFleetBusy(false); }
+    } catch (error) { if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Unggah dokumen SIA gagal.'); }
+    finally { if (isCurrentSessionScope(requestScope)) setFleetBusy(false); }
   };
 
   const previewSiaDocument = async (unit: ContractorFleetUnit) => {
@@ -203,53 +206,63 @@ export const ContractorModule: React.FC = () => {
 
   const submitP2HRecord = async (event: React.FormEvent<HTMLFormElement>, unit: ContractorFleetUnit) => {
     event.preventDefault();
+    const requestScope = sessionScopeKey;
     setFleetBusy(true);
     setFleetMessage('');
     try {
       let photoReference: Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> = {};
       if (p2hPhotoFile) {
         const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Bukti foto tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(p2hPhotoFile); });
+        if (!isCurrentSessionScope(requestScope)) return;
         const uploaded = await hseApi.uploadOperationalPhoto({ fileName: p2hPhotoFile.name, mimeType: p2hPhotoFile.type, fileBase64 });
+        if (!isCurrentSessionScope(requestScope)) return;
         photoReference = { photoFileId: uploaded.photoFileId, photoFileName: uploaded.fileName, photoMimeType: uploaded.mimeType };
       }
       await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, ...photoReference, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
+      if (!isCurrentSessionScope(requestScope)) return;
       setFleetMessage('Pemeriksaan P2H berhasil dicatat. Riwayat sebelumnya tetap tersimpan.');
       setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
       setP2hPhotoFile(null); setP2hPhotoPreview('');
-      setP2hHistory(await hseApi.listContractorP2HHistory(unit.id));
+      const history = await hseApi.listContractorP2HHistory(unit.id);
+      if (!isCurrentSessionScope(requestScope)) return;
+      setP2hHistory(history);
       await refreshFleet();
-    } catch (error) { setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal.'); }
-    finally { setFleetBusy(false); }
+    } catch (error) { if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal.'); }
+    finally { if (isCurrentSessionScope(requestScope)) setFleetBusy(false); }
   };
 
   const submitFleetUnit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const requestScope = sessionScopeKey;
     setFleetBusy(true);
     setFleetMessage('');
     const payload: ContractorFleetInput = { ...fleetDraft };
     try {
       await hseApi.createContractorFleetUnit(payload);
+      if (!isCurrentSessionScope(requestScope)) return;
       setFleetDraft({unitNumber:'',unitType:'',brand:'',model:'',ownershipType:'OWNED',p2hStatus:'NOT_CHECKED',siaExpiry:''});
       setFleetMessage('Unit berhasil ditambahkan ke register fleet.');
       await refreshFleet();
     } catch (error) {
-      setFleetMessage(error instanceof Error ? error.message : 'Unit gagal didaftarkan.');
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Unit gagal didaftarkan.');
     } finally {
-      setFleetBusy(false);
+      if (isCurrentSessionScope(requestScope)) setFleetBusy(false);
     }
   };
 
   const updateFleetUnit = async (unit: ContractorFleetUnit, updates: Partial<ContractorFleetInput>) => {
+    const requestScope = sessionScopeKey;
     setFleetBusy(true);
     setFleetMessage('');
     try {
       await hseApi.updateContractorFleetUnit(unit.id, updates);
+      if (!isCurrentSessionScope(requestScope)) return;
       setFleetMessage('Data unit berhasil diperbarui.');
       await refreshFleet();
     } catch (error) {
-      setFleetMessage(error instanceof Error ? error.message : 'Data unit gagal diperbarui.');
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Data unit gagal diperbarui.');
     } finally {
-      setFleetBusy(false);
+      if (isCurrentSessionScope(requestScope)) setFleetBusy(false);
     }
   };
 
