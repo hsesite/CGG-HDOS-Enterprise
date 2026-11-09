@@ -1094,6 +1094,20 @@ test('cloud snapshot merge cannot publish stale account data after an account sw
 });
 
 
+test('unexpected sync engine errors release current-owner SYNCING items for retry', () => {
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const start = sync.indexOf('    } catch (error) {', sync.indexOf('  async triggerSync()'));
+  const end = sync.indexOf('    } finally {', start);
+  const catchBlock = sync.slice(start, end);
+  assert.match(catchBlock, /activeOwnerAfterError/);
+  assert.match(catchBlock, /queued\.status !== 'SYNCING'/);
+  assert.match(catchBlock, /queued\.ownerUserId !== owner\.userId/);
+  assert.match(catchBlock, /status: 'PENDING' as const/);
+  assert.match(catchBlock, /await hdosDB\.put\('queue', recovered\)/);
+  assert.ok(catchBlock.indexOf('hseApi.authToken === syncToken') < catchBlock.indexOf('await hdosDB.put'));
+  assert.ok(catchBlock.indexOf('await hdosDB.put') < catchBlock.indexOf('this.scheduleRetry()'));
+});
+
 test('offline sync replays queue by creation time and blocks later writes to a failed record', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(sync, /function compareQueueItemsByTime\(a: SyncQueueItem, b: SyncQueueItem\)/);
