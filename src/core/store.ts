@@ -802,13 +802,20 @@ export class HDOSCentralStore {
 }
 
   async mergePublishedFormDefinitions(forms: FormDefinition[]): Promise<void> {
-    if (!Array.isArray(forms) || forms.length === 0) return;
+    if (!Array.isArray(forms)) return;
+
+    // A successful cloud response is an authoritative publication snapshot.
+    // An empty array means every previously published form was withdrawn;
+    // retaining the old IndexedDB entries would leave stale inspection forms usable.
     const published = forms.filter((form) =>
       form && form.status === 'PUBLISHED' && Array.isArray(form.fields) && form.fields.length > 0
     );
+    const previous = [...this.formDefinitions];
+    const next: FormDefinition[] = [];
+
     for (const remote of published) {
-      const local = this.formDefinitions.find((form) =>
-        form.id === remote.id || form.sourceDocumentId === remote.sourceDocumentId
+      const local = previous.find((form) =>
+        form.id === remote.id || Boolean(remote.sourceDocumentId && form.sourceDocumentId === remote.sourceDocumentId)
       );
       const merged: FormDefinition = {
         ...(local || {}),
@@ -818,13 +825,17 @@ export class HDOSCentralStore {
         updatedAt: remote.updatedAt || local?.updatedAt || new Date().toISOString(),
       } as FormDefinition;
       await hdosDB.put('form-definition', merged);
-      this.formDefinitions = [
-        merged,
-        ...this.formDefinitions.filter((form) =>
-          form.id !== merged.id && form.sourceDocumentId !== merged.sourceDocumentId
-        ),
-      ];
+      next.push(merged);
     }
+
+    const retainedIds = new Set(next.map((form) => form.id));
+    for (const stale of previous) {
+      if (!retainedIds.has(stale.id)) {
+        await hdosDB.delete('form-definition', stale.id);
+      }
+    }
+
+    this.formDefinitions = next;
     this.notify();
   }
 
