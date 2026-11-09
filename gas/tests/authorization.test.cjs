@@ -1578,6 +1578,24 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
   assert.match(apiSource, /idempotent CREATE/);
 });
 
+test('P2H idempotency helper accepts exact replay and rejects changed inspection data', () => {
+  const start = source.indexOf('function isSameContractorP2HRequest_(');
+  const end = source.indexOf('function createContractorP2HRecord_(', start);
+  assert.ok(start >= 0 && end > start);
+  const helper = vm.runInNewContext('(' + source.slice(start, end).trim() + ')');
+  const original = {
+    fleetId: 'fleet-01', companyCode: 'SLS', inspectionDate: '2026-11-09',
+    status: 'NOT_READY', hourMeter: 1234, operatorName: 'Operator A',
+    findings: 'Rem bermasalah', correctiveAction: 'Hentikan unit dan perbaiki',
+    photoFileId: 'photo123456789', photoFileName: 'p2h.jpg', photoMimeType: 'image/jpeg'
+  };
+  assert.equal(helper(original, { ...original, companyCode: 'sls', status: 'not_ready', photoMimeType: 'IMAGE/JPEG' }), true);
+  assert.equal(helper(original, { ...original, findings: 'Temuan diubah' }), false);
+  assert.equal(helper(original, { ...original, fleetId: 'fleet-02' }), false);
+  assert.equal(helper(original, { ...original, photoFileId: 'photo987654321' }), false);
+  assert.equal(helper(original, { ...original, hourMeter: 1235 }), false);
+});
+
 test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /const requestId = p2hRequestId \|\|/);
   assert.match(p2hUiSource, /createContractorP2HRecord\(unit\.id, \{ \.\.\.p2hDraft, requestId,/);
