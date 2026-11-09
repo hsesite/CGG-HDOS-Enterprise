@@ -335,3 +335,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Modul Sinkronisasi menampilkan versi server untuk dibandingkan secara eksplisit sebelum tindak lanjut manual.
 - [x] Regression test ditambahkan untuk perlindungan payload lokal, validasi identitas, penyimpanan snapshot server, dan tampilan pembanding.
 - [ ] UAT konflik dua pengguna pada data operasional di GAS/Sheets staging tetap diperlukan; belum ada auto-merge atau auto-overwrite.
+
+
+### Sinkronisasi — pengambilan snapshot konflik terarah (9 November 2026)
+- [x] Saat UPDATE ditolak dengan HTTP 409, klien meminta satu record berdasarkan ID melalui route GET detail, bukan mengunduh seluruh register entitas.
+- [x] Permintaan snapshot memakai token sesi sinkronisasi yang sama; pemeriksaan identitas user, tenant, dan token tetap dilakukan setelah respons diterima.
+- [x] Regression test diperbarui untuk memastikan lookup terarah digunakan.
+- [ ] UAT konflik lintas pengguna/tenant dan pemeriksaan izin route detail tetap diperlukan pada GAS/Sheets staging.
