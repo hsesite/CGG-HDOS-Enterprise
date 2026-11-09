@@ -308,3 +308,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Browser tanpa Web Locks hanya memulihkan lease yang lebih tua dari dua menit; item tanpa timestamp tidak otomatis direset agar tidak mengganggu proses aktif.
 - [x] Regression test memeriksa penggunaan lock eksklusif, batas lease, dan timestamp percobaan.
 - [ ] UAT multi-tab dan browser tanpa Web Locks tetap diperlukan untuk memverifikasi perilaku runtime pada browser target.
+
+
+### Konsistensi versi server dan antrean offline (9 November 2026)
+- [x] Setelah CREATE berhasil, versi `updatedAt` dari server untuk record lokal dan seluruh UPDATE lanjutan milik tenant yang sama disimpan melalui satu transaksi IndexedDB.
+- [x] Setelah UPDATE berhasil, pembaruan versi record lokal dan payload UPDATE berikutnya juga disimpan secara atomik.
+- [x] Snapshot antrean dalam memori baru diperbarui setelah transaksi IndexedDB berhasil dan identitas tenant masih cocok.
+- [x] Timestamp lease sinkronisasi dibersihkan ketika request gagal dan item kembali ke PENDING/CONFLICT.
+- [x] Regression test memastikan propagasi versi CREATE/UPDATE memakai transaksi bundle, bukan serangkaian write terpisah.
+- [ ] UAT browser ditutup paksa saat propagasi versi berlangsung, lalu verifikasi konsistensi IndexedDB dan Google Sheets pada staging.
