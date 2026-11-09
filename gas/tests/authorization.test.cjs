@@ -1377,7 +1377,7 @@ test('a queued update after CREATE inherits the server-created updatedAt version
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /hseApi\.create<Record<string, unknown>>/);
   assert.match(syncSource, /serverRecord = await hseApi\.create<Record<string, unknown>>/);
-  assert.match(syncSource, /queued\.action !== 'UPDATE'/);
+  assert.match(syncSource, /queued\.action === 'UPDATE'/);
   assert.match(syncSource, /updatedAt: serverUpdatedAt/);
 });
 
@@ -1964,8 +1964,8 @@ test('sync recovery does not reset another tab active lease and timestamps each 
 
 test('server version propagation commits local record and follow-up queue updates atomically', () => {
   const createStart = syncEngineSource.indexOf("if (item.action === 'CREATE')");
-  const updateStart = syncEngineSource.indexOf("} else if (\n            item.action === 'UPDATE'", createStart);
-  const deleteStart = syncEngineSource.indexOf("} else if (item.action === 'DELETE')", updateStart);
+  const updateStart = syncEngineSource.indexOf("item.action === 'UPDATE'", createStart);
+  const deleteStart = syncEngineSource.indexOf("item.action === 'DELETE'", updateStart);
   assert.ok(createStart >= 0 && updateStart > createStart && deleteStart > updateStart);
   const createBlock = syncEngineSource.slice(createStart, updateStart);
   const updateBlock = syncEngineSource.slice(updateStart, deleteStart);
