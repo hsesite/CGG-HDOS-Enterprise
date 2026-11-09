@@ -468,7 +468,7 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
   assert.equal(deleted, true);
 });
 
-test('PICA can be submitted by its assigned PIC and closed by one verified HSE validator', () => {
+test('PICA can be submitted by its assigned PIC and closed after Foreman and SPV HSE approvals', () => {
   const context = {
     error_: (status, message) => ({status, message}),
     Utilities: { formatDate: () => '2026-11-01' },
@@ -493,7 +493,7 @@ test('PICA can be submitted by its assigned PIC and closed by one verified HSE v
   assert.equal(context.enforcePicaClosureRules_(open,noPhoto,{roles:['Employee'],email:'pic@example.com'}).status,400);
   assert.equal(context.enforcePicaClosureRules_(open,{status:'WAITING_HSE',correctiveAction:'Done',evidencePhotoUrl:'x',evidencePhotoFileId:'photo-1'},{roles:['Employee'],email:'other@example.com'}).status,403);
 
-  const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',companyCode:'CGG',completionDate:''};
+  const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',companyCode:'CGG',completionDate:'',approvalStages:{foreman:true,spvHse:true}};
   const close = {status:'CLOSED'};
   assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Employee','Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
   assert.equal(close.hseValidatedBy,'HSE Foreman');
@@ -503,7 +503,7 @@ test('PICA can be submitted by its assigned PIC and closed by one verified HSE v
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['Employee','Foreman Safety'],roleVerified:false}).status,403);
 
   const returned = {status:'PROGRESS',rejectionReason:'Foto belum jelas'};
-  assert.equal(context.enforcePicaClosureRules_(waiting,returned,{roles:['SPV HSE'],roleVerified:true}),null);
+  assert.equal(context.enforcePicaClosureRules_({...waiting,approvalStages:{foreman:false,spvHse:false}},returned,{roles:['SPV HSE'],roleVerified:true}),null);
   assert.equal(context.enforcePicaClosureRules_({status:'CLOSED'},{status:'OPEN'},{roles:['Foreman Safety'],roleVerified:true}).status,403);
 });
 test('PICA approval changes are included in the existing audit record', () => {
@@ -609,18 +609,19 @@ test('user creation enforces email uniqueness inside a script lock', () => {
   assert.equal(appended.length,1);
 });
 
-test('PICA approval sequence requires Foreman, then SPV HSE, then KTT', () => {
+test('PICA approval sequence requires Foreman, then SPV HSE', () => {
   const context = {};
   vm.createContext(context);
   vm.runInContext(extractFunction('isPicaApprovalSequenceValid_', 'enforcePicaClosureRules_'), context);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:false,spvHse:false,ktt:false},'foreman'),true);
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:false,spvHse:true,ktt:false},'spvHse'),false);
-  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:false,ktt:true},'ktt'),false);
-  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true,ktt:true},'ktt'),true);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:false},'spvHse'),false);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true},'spvHse'),true);
+  assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true},'ktt'),false);
 });
 
-test('PICA oversight reads and updates include verified KTT approval access', () => {
-  assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE', 'KTT'].indexOf(role) >= 0; }));"));
+test('PICA oversight reads and updates are limited to Foreman Safety and SPV HSE', () => {
+  assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
 });
 test('operational photo upload requires an active registered tenant', () => {
@@ -1833,7 +1834,7 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
   vm.runInContext(source.slice(start, end), context);
   const enforce = context.enforcePicaApprovalStageRules_;
 
-  const base = { status: 'WAITING_HSE', approvalStages: { foreman: false, spvHse: false, ktt: false } };
+  const base = { status: 'WAITING_HSE', approvalStages: { foreman: false, spvHse: false } };
   const foreman = { roles: ['Foreman Safety'], roleVerified: true };
   const spv = { roles: ['SPV HSE'], roleVerified: true };
   const ktt = { roles: ['KTT'], roleVerified: true };
@@ -1845,6 +1846,7 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
   assert.equal(enforce(base, { approvalStages: { foreman: true } }, { roles: ['Foreman Safety'], roleVerified: false }).status, 403);
   assert.equal(enforce(base, { approvalStages: { foreman: true, spvHse: true } }, foreman).status, 403);
   assert.equal(enforce(base, { approvalStages: { foreman: true } }, admin).status, 403);
+  assert.equal(enforce(base, { approvalStages: { ktt: true } }, ktt).status, 400);
   assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: true, spvHse: true } }, spv), null);
   assert.equal(enforce({ ...base, approvalStages: { foreman: true, spvHse: true } }, { approvalStages: { foreman: true, spvHse: true, ktt: true } }, ktt), null);
   assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: false } }, foreman).status, 403);
@@ -1885,9 +1887,9 @@ test('PICA closure rules reject unauthorized, incomplete, and invalid status tra
   assert.equal(enforce(pica, { status: 'NOT_A_STATUS' }, pic).status, 400);
 });
 
-test('PICA three-stage approval is required before final HSE closure', () => {
-  assert.ok(source.includes("const approvalStages = existingRecord.approvalStages || {};\n    if (approvalStages.foreman !== true || approvalStages.spvHse !== true || approvalStages.ktt !== true)"));
+test('PICA two-stage approval is required before final HSE closure', () => {
+  assert.ok(source.includes("const approvalStages = existingRecord.approvalStages || {};\n    if (approvalStages.foreman !== true || approvalStages.spvHse !== true)"));
   assert.ok(source.includes("PICA tidak dapat dikembalikan setelah proses persetujuan dimulai."));
   assert.ok(source.includes("Persetujuan PICA hanya dapat dilakukan setelah PIC mengajukan penyelesaian."));
-  assert.ok(source.includes("return ['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'].indexOf(role) >= 0;"));
+  assert.ok(source.includes("return ['Foreman Safety', 'SPV HSE', 'Project Manager'].indexOf(role) >= 0;"));
 });
