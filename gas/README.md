@@ -14,6 +14,13 @@ Configure these in **Apps Script → Project Settings → Script Properties** be
 
 Never commit Spreadsheet IDs, OAuth secrets, session tokens, passwords, or production data to this public repository. Use separate test and production Script Properties and spreadsheets.
 
+## Database backup and recovery
+
+- Jalankan `createDatabaseBackup()` secara manual satu kali untuk menguji otorisasi Drive; setelah berhasil, pasang jadwal dengan `installDailyDatabaseBackupTrigger()`.
+- Pemulihan dilakukan secara non-destruktif melalui `createDatabaseRecoveryCopy(backupFileId)`. Fungsi ini hanya menerima file Google Spreadsheet bernama backup HDOS yang berada di folder backup terkonfigurasi, membuat salinan terpisah, lalu memvalidasi sheet dan header wajib.
+- Salinan pemulihan yang gagal validasi akan dipindahkan ke sampah jika izin Drive memungkinkan. Keberhasilan dicatat pada `backup_logs` dengan status `RECOVERY_COPY_VERIFIED`.
+- Fungsi pemulihan tidak mengubah `HDOS_SPREADSHEET_ID`, tidak menimpa database aktif, dan harus dijalankan manual oleh pemilik/deployer Apps Script. Setelah salinan tervalidasi, pemeriksaan isi data dan keputusan cutover tetap memerlukan persetujuan administrator.
+
 ## Health checks
 
 - `GET /api/health/live` confirms the Apps Script Web App is responding.
