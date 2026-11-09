@@ -263,3 +263,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Parser backend tetap kompatibel dengan kolom legacy `kttApproval` pada sheet, tetapi tidak memetakan nilai tersebut sebagai tahap persetujuan operasional.
 - [x] Regression test memastikan UI, store, dan parser menggunakan kontrak persetujuan dua tahap.
 - [ ] UAT UI PICA dengan dua akun role terverifikasi dan deploy GAS staging tetap diperlukan.
+
+
+### P2H — perlindungan pengiriman ulang (9 November 2026)
+- [x] Form P2H menggunakan request ID stabil selama percobaan pengiriman yang sama, dan mempertahankannya ketika respons gagal/terputus.
+- [x] Backend memeriksa ID permintaan di bawah Script Lock sebelum membuat riwayat baru; replay untuk unit/perusahaan yang sama mengembalikan record tersimpan, bukan membuat duplikasi.
+- [x] Pemakaian ulang ID untuk unit/perusahaan berbeda ditolak dengan konflik.
+- [x] Regression test memverifikasi alur idempotensi frontend dan backend.
+- [ ] Uji simulasi respons hilang setelah commit pada GAS/Spreadsheet staging, termasuk pengecekan hanya ada satu baris riwayat P2H.
