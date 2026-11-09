@@ -293,3 +293,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Snapshot antrean di memori hanya diperbarui jika sesi dan queue scope masih sama setelah operasi IndexedDB selesai.
 - [x] Regression test memastikan propagasi versi tidak menulis antrean lintas user/tenant.
 - [ ] UAT multi-akun dan multi-tenant pada browser berbeda, termasuk simulasi perubahan sesi ketika request cloud sedang berlangsung.
+
+
+### Idempotensi UPDATE untuk payload nested parsial (9 November 2026)
+- [x] Replay UPDATE yang respons pertamanya hilang kini dikenali sebagai transaksi yang sudah diterapkan meskipun payload nested hanya mengirim sebagian properti.
+- [x] Perbandingan tetap ketat terhadap seluruh properti yang dikirim; nilai nested yang berbeda atau properti tambahan yang tidak cocok tidak dianggap replay sukses.
+- [x] Regression test mencakup nested subset yang cocok, nilai berbeda, dan payload dengan properti tambahan yang belum cocok.
+- [ ] UAT GAS/Sheets untuk retry UPDATE hazard dan PICA dengan perubahan nested parsial tetap diperlukan.
