@@ -2326,6 +2326,16 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     if (!isRecordVisibleToUser_(unit, user) || (!isAdminCGG_(user) && companyCode !== String(unit.companyCode || '').trim().toUpperCase())) {
       return error_(403, 'Pencatatan P2H hanya dapat dilakukan oleh perusahaan pemilik unit.');
     }
+    const requestId = String(input.requestId || '').trim();
+    if (!/^[A-Za-z0-9_-]{16,80}$/.test(requestId)) return error_(400, 'ID permintaan P2H tidak valid. Silakan muat ulang formulir.');
+    const existingRequestRow = findRecordRow_(historySheet, requestId);
+    if (existingRequestRow) {
+      const existingRequest = parseRow_(historySheet, existingRequestRow);
+      if (String(existingRequest.fleetId || '') !== String(fleetId) || String(existingRequest.companyCode || '').toUpperCase() !== String(unit.companyCode || '').toUpperCase()) {
+        return error_(409, 'ID permintaan P2H sudah digunakan untuk unit atau perusahaan lain.');
+      }
+      return success_(existingRequest);
+    }
     const inspectionDate = String(input.inspectionDate || '').trim();
     const status = String(input.status || '').trim().toUpperCase();
     const operatorName = String(input.operatorName || '').trim();
@@ -2355,7 +2365,7 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     if (status === 'NOT_READY' && !correctiveAction) return error_(400, 'Tindakan pengendalian wajib dicatat untuk unit yang tidak laik operasi.');
     const now = new Date().toISOString();
     record = {
-      id: Utilities.getUuid(), code: 'P2H-' + String(unit.unitNumber || '').replace(/[^A-Z0-9-]/gi, '-') + '-' + Utilities.getUuid().slice(0,8).toUpperCase(),
+      id: requestId, code: 'P2H-' + String(unit.unitNumber || '').replace(/[^A-Z0-9-]/gi, '-') + '-' + Utilities.getUuid().slice(0,8).toUpperCase(),
       fleetId: fleetId, companyCode: unit.companyCode, parentCompanyCode: unit.parentCompanyCode || '',
       unitNumber: unit.unitNumber, inspectionDate: inspectionDate, status: status,
       hourMeter: hourMeter, operatorName: operatorName, findings: findings,
