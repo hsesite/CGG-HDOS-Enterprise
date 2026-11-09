@@ -281,6 +281,7 @@ export const ContractorModule: React.FC = () => {
 
   const submitComplianceReport = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const requestScope = sessionScopeKey;
     setReportBusy(true);
     setReportMessage('');
     const payload: ContractorComplianceReportInput = {
@@ -298,14 +299,15 @@ export const ContractorModule: React.FC = () => {
     try {
       if (editingReportId) await hseApi.updateContractorComplianceReport(editingReportId, payload);
       else await hseApi.submitContractorComplianceReport(payload);
+      if (!isCurrentSessionScope(requestScope)) return;
       setEditingReportId('');
       setReportDraft({ period: currentPeriod, manpowerCount: '', equipmentCount: '', mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '', inductionCompletedCount: '', safeHours: '', ltiCount: '0', remarks: '' });
       setReportMessage('Laporan berhasil dikirim dan menunggu verifikasi HSE.');
       await refreshComplianceReports();
     } catch (error) {
-      setReportMessage(error instanceof Error ? error.message : 'Laporan gagal disimpan.');
+      if (isCurrentSessionScope(requestScope)) setReportMessage(error instanceof Error ? error.message : 'Laporan gagal disimpan.');
     } finally {
-      setReportBusy(false);
+      if (isCurrentSessionScope(requestScope)) setReportBusy(false);
     }
   };
 
@@ -314,17 +316,19 @@ export const ContractorModule: React.FC = () => {
       setReportMessage('Alasan pengembalian wajib diisi.');
       return;
     }
+    const requestScope = sessionScopeKey;
     setReportBusy(true);
     setReportMessage('');
     try {
       await hseApi.updateContractorComplianceReport(report.id, { action, reviewNotes: reviewNotes.trim() });
+      if (!isCurrentSessionScope(requestScope)) return;
       setReviewNotes('');
       setReportMessage(action === 'VERIFY' ? 'Laporan diverifikasi.' : 'Laporan dikembalikan kepada perusahaan untuk diperbaiki.');
       await refreshComplianceReports();
     } catch (error) {
-      setReportMessage(error instanceof Error ? error.message : 'Review laporan gagal disimpan.');
+      if (isCurrentSessionScope(requestScope)) setReportMessage(error instanceof Error ? error.message : 'Review laporan gagal disimpan.');
     } finally {
-      setReportBusy(false);
+      if (isCurrentSessionScope(requestScope)) setReportBusy(false);
     }
   };
 
