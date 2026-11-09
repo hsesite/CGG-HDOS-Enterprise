@@ -1719,7 +1719,7 @@ function isCggEmailAllowed_(email, companyCode) {
 
   const properties = PropertiesService.getScriptProperties();
   const configuredDomains = properties.getProperty('CGG_EMAIL_DOMAINS');
-  const domains = String(configuredDomains === null ? 'ptcgg.com' : configuredDomains)
+  const domains = String(configuredDomains || '')
     .split(/[;,\\s]+/)
     .map(function(value) { return value.trim().toLowerCase().replace(/^@/, ''); })
     .filter(Boolean);
