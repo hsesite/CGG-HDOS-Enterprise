@@ -1590,3 +1590,44 @@ test('CGG self-registration is restricted to approved domains or exact allowlist
   assert.ok(block.includes("domains.indexOf(emailDomain) >= 0 || allowlist.indexOf(normalizedEmail) >= 0"));
   assert.ok(block.includes("if (String(companyCode || '').trim().toUpperCase() !== 'CGG') return true;"));
 });
+
+
+test('GAS readiness endpoint reports required production configuration without exposing secrets', () => {
+  assert.ok(source.includes("if (path === '/api/health/ready' && method === 'GET')"));
+  const properties = {
+    HDOS_SPREADSHEET_ID: 'test-sheet-id',
+    GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
+    CGG_EMAIL_DOMAINS: 'cgg.example',
+    CGG_ALLOWED_EMAILS: ''
+  };
+  const requiredSheets = ['users','companies','locations','forms','inspections','hazards','picas','incidents','audit_logs','backup_logs','contractor_reports','contractor_fleet','contractor_p2h_history','repository'];
+  const context = {
+    CONFIG: { SPREADSHEET_ID: '', SHEETS: requiredSheets.slice(0, -1) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: key => properties[key] ?? null }) },
+    SpreadsheetApp: { openById: () => ({ getSheetByName: name => requiredSheets.includes(name) ? {} : null }) },
+    success_: data => ({ success: true, data }),
+    error_: (status, message) => ({ success: false, status, message })
+  };
+  vm.createContext(context);
+  const helperStart = source.indexOf('function getHealthReadiness_() {');
+  const helperEnd = source.indexOf('function getSpreadsheet_()', helperStart + 1);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  vm.runInContext(source.slice(helperStart, helperEnd), context);
+  const ready = context.getHealthReadiness_();
+  assert.equal(ready.success, true);
+  assert.equal(ready.data.status, 'ready');
+  assert.deepEqual(JSON.parse(JSON.stringify(ready.data.checks)), {
+    spreadsheetAccessible: true,
+    schemaReady: true,
+    googleOAuthConfigured: true,
+    cggRegistrationPolicyConfigured: true
+  });
+  assert.equal(JSON.stringify(ready).includes('test-sheet-id'), false);
+  assert.equal(JSON.stringify(ready).includes('test-client.apps'), false);
+
+  properties.CGG_EMAIL_DOMAINS = '';
+  properties.CGG_ALLOWED_EMAILS = '';
+  const notReady = context.getHealthReadiness_();
+  assert.equal(notReady.data.status, 'not_ready');
+  assert.equal(notReady.data.checks.cggRegistrationPolicyConfigured, false);
+});
