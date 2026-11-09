@@ -180,7 +180,7 @@ function getToken(): string | null {
     return null;
   }
 
-  return window.localStorage.getItem(
+  return window.sessionStorage.getItem(
     TOKEN_KEY
   );
 }
@@ -193,12 +193,12 @@ function setToken(
   }
 
   if (token) {
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       TOKEN_KEY,
       token
     );
   } else {
-    window.localStorage.removeItem(
+    window.sessionStorage.removeItem(
       TOKEN_KEY
     );
   }
