@@ -771,29 +771,37 @@ export class HDOSSyncEngine {
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
             if (localStoreName && serverUpdatedAt) {
+              const recordId = getRecordId(item);
               const localRecords = await hdosDB.getAll<Record<string, unknown> & { id: string }>(localStoreName);
-              const localRecord = localRecords.find(record => record.id === getRecordId(item));
-              if (localRecord) await hdosDB.put(localStoreName, { ...localRecord, updatedAt: serverUpdatedAt });
-
-              // A user may edit a new record again before its CREATE reaches the
-              // server. Advance those pending UPDATEs to the server's first version.
+              const localRecord = localRecords.find(record => record.id === recordId);
               const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
-              for (const queued of persistedQueue) {
-                if (queued.id === item.id || queued.ownerUserId !== owner.userId ||
-                    queued.ownerCompanyCode !== owner.companyCode || queued.entity !== item.entity ||
-                    queued.action !== 'UPDATE' || queued.status !== 'PENDING' ||
-                    getRecordId(queued) !== getRecordId(item) ||
-                    !queued.payload || typeof queued.payload !== 'object' || Array.isArray(queued.payload)) continue;
-                const nextPayload = { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt };
-                const nextQueued = { ...queued, payload: nextPayload };
-                await hdosDB.put('queue', nextQueued);
-                const queueOwnerAfterWrite = this.getCurrentOwner();
-                if (queueOwnerAfterWrite &&
-                    queueOwnerAfterWrite.userId === owner.userId &&
-                    queueOwnerAfterWrite.companyCode === owner.companyCode &&
-                    this.queueOwnerKey === requestedOwnerKey) {
-                  this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
-                }
+              const versionedQueueItems = persistedQueue.filter(queued =>
+                queued.id !== item.id && queued.ownerUserId === owner.userId &&
+                queued.ownerCompanyCode === owner.companyCode && queued.entity === item.entity &&
+                queued.action === 'UPDATE' && queued.status === 'PENDING' &&
+                getRecordId(queued) === recordId &&
+                Boolean(queued.payload) && typeof queued.payload === 'object' && !Array.isArray(queued.payload)
+              ).map(queued => ({
+                ...queued,
+                payload: { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt }
+              }));
+
+              // Commit the server version to the local record and every queued
+              // follow-up UPDATE in one IndexedDB transaction. A browser crash
+              // can no longer leave only part of this version propagation saved.
+              const versionBundle: Array<{ storeName: StoreName; item: { id: string } }> = [];
+              if (localRecord) versionBundle.push({
+                storeName: localStoreName,
+                item: { ...localRecord, updatedAt: serverUpdatedAt }
+              });
+              versionBundle.push(...versionedQueueItems.map(queued => ({ storeName: 'queue' as const, item: queued })));
+              await hdosDB.putBundle(versionBundle);
+
+              const queueOwnerAfterWrite = this.getCurrentOwner();
+              if (queueOwnerAfterWrite && queueOwnerAfterWrite.userId === owner.userId &&
+                  queueOwnerAfterWrite.companyCode === owner.companyCode && this.queueOwnerKey === requestedOwnerKey) {
+                const updatedById = new Map(versionedQueueItems.map(queued => [queued.id, queued]));
+                this.queue = this.queue.map(current => updatedById.get(current.id) || current);
               }
             }
           } else if (
@@ -813,27 +821,33 @@ export class HDOSSyncEngine {
               // offline edit sequences do not conflict with their own writes.
               const localRecords = await hdosDB.getAll<Record<string, unknown> & { id: string }>(localStoreName);
               const localRecord = localRecords.find(record => record.id === recordId);
-              if (localRecord) {
-                await hdosDB.put(localStoreName, { ...localRecord, updatedAt: serverUpdatedAt });
-              }
-
               const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
-              for (const queued of persistedQueue) {
-                if (queued.id === item.id || queued.ownerUserId !== owner.userId ||
-                    queued.ownerCompanyCode !== owner.companyCode || queued.entity !== item.entity ||
-                    queued.action !== 'UPDATE' || queued.status !== 'PENDING' ||
-                    getRecordId(queued) !== recordId ||
-                    !queued.payload || typeof queued.payload !== 'object' || Array.isArray(queued.payload)) continue;
-                const nextPayload = { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt };
-                const nextQueued = { ...queued, payload: nextPayload };
-                await hdosDB.put('queue', nextQueued);
-                const queueOwnerAfterWrite = this.getCurrentOwner();
-                if (queueOwnerAfterWrite &&
-                    queueOwnerAfterWrite.userId === owner.userId &&
-                    queueOwnerAfterWrite.companyCode === owner.companyCode &&
-                    this.queueOwnerKey === requestedOwnerKey) {
-                  this.queue = this.queue.map(current => current.id === queued.id ? nextQueued : current);
-                }
+              const versionedQueueItems = persistedQueue.filter(queued =>
+                queued.id !== item.id && queued.ownerUserId === owner.userId &&
+                queued.ownerCompanyCode === owner.companyCode && queued.entity === item.entity &&
+                queued.action === 'UPDATE' && queued.status === 'PENDING' &&
+                getRecordId(queued) === recordId &&
+                Boolean(queued.payload) && typeof queued.payload === 'object' && !Array.isArray(queued.payload)
+              ).map(queued => ({
+                ...queued,
+                payload: { ...(queued.payload as Record<string, unknown>), updatedAt: serverUpdatedAt }
+              }));
+
+              // Keep the local record version and all later UPDATE payloads
+              // consistent in one IndexedDB transaction.
+              const versionBundle: Array<{ storeName: StoreName; item: { id: string } }> = [];
+              if (localRecord) versionBundle.push({
+                storeName: localStoreName,
+                item: { ...localRecord, updatedAt: serverUpdatedAt }
+              });
+              versionBundle.push(...versionedQueueItems.map(queued => ({ storeName: 'queue' as const, item: queued })));
+              await hdosDB.putBundle(versionBundle);
+
+              const queueOwnerAfterWrite = this.getCurrentOwner();
+              if (queueOwnerAfterWrite && queueOwnerAfterWrite.userId === owner.userId &&
+                  queueOwnerAfterWrite.companyCode === owner.companyCode && this.queueOwnerKey === requestedOwnerKey) {
+                const updatedById = new Map(versionedQueueItems.map(queued => [queued.id, queued]));
+                this.queue = this.queue.map(current => updatedById.get(current.id) || current);
               }
             }
           } else if (item.action === 'DELETE') {
@@ -876,6 +890,7 @@ export class HDOSSyncEngine {
           item.status = retryable && item.retryCount < MAX_RETRIES
             ? 'PENDING'
             : 'CONFLICT';
+          item.syncStartedAt = undefined;
           item.error =
             error instanceof Error
               ? error.message
