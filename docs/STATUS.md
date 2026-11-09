@@ -152,3 +152,5 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Inisialisasi antrean sinkronisasi memeriksa ulang identitas dan scope akun setelah proses pemulihan item asinkron selesai, tepat sebelum snapshot antrean dipublikasikan; pergantian akun di tengah pemulihan membatalkan publikasi snapshot lama.
 - [x] Permintaan asinkron untuk refresh register fleet dan pembacaan riwayat P2H memvalidasi ulang session scope sebelum memperbarui state; hasil dari sesi/tenant sebelumnya diabaikan.
 - [x] Pratinjau dokumen SIA, bukti foto P2H, dan refresh laporan kepatuhan memvalidasi ulang session scope setelah respons API diterima; respons atau pesan error dari sesi sebelumnya tidak dapat mengubah tampilan tenant aktif.
+
+- [x] Operasi tulis Contractor Passport (unggah SIA, pencatatan P2H, tambah/perbarui fleet, kirim/revisi laporan, dan review) menangkap session scope; hasil, pesan error, serta flag busy dari request sesi lama tidak mengubah tampilan tenant aktif. Pencatatan P2H juga menghentikan rangkaian upload foto → pembuatan record bila sesi berubah sebelum record dikirim.
