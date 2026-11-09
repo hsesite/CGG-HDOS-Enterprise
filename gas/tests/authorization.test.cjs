@@ -63,7 +63,7 @@ test('CGG self-registration requires an approved corporate domain or exact allow
   const helperEnd = source.indexOf('function appendUniqueUser_(', helperStart + 1);
   vm.runInContext(source.slice(helperStart, helperEnd), context);
 
-  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com', 'CGG'), true);
+  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com', 'CGG'), false);
   assert.equal(context.isCggEmailAllowed_('staff@gmail.com', 'CGG'), false);
   assert.equal(context.isCggEmailAllowed_('person@yahoo.com', 'CGG'), false);
   assert.equal(context.isCggEmailAllowed_('worker@sls.co.id', 'SLS'), true);
@@ -72,6 +72,7 @@ test('CGG self-registration requires an approved corporate domain or exact allow
   assert.equal(context.isCggEmailAllowed_('', 'CGG'), false);
 
   properties.CGG_EMAIL_DOMAINS = 'ptcgg.com; cgg.co.id';
+  assert.equal(context.isCggEmailAllowed_('worker@ptcgg.com', 'CGG'), true);
   properties.CGG_ALLOWED_EMAILS = 'approved@gmail.com';
   assert.equal(context.isCggEmailAllowed_('user@cgg.co.id', 'CGG'), true);
   assert.equal(context.isCggEmailAllowed_('approved@gmail.com', 'CGG'), true);
@@ -1585,7 +1586,7 @@ test('CGG self-registration is restricted to approved domains or exact allowlist
   const block = gasSource.slice(start, end);
   assert.ok(block.includes("properties.getProperty('CGG_EMAIL_DOMAINS')"));
   assert.ok(block.includes("properties.getProperty('CGG_ALLOWED_EMAILS')"));
-  assert.ok(block.includes("'ptcgg.com'"));
+  assert.ok(block.includes("properties.getProperty('CGG_EMAIL_DOMAINS')"));
   assert.ok(block.includes("domains.indexOf(emailDomain) >= 0 || allowlist.indexOf(normalizedEmail) >= 0"));
   assert.ok(block.includes("if (String(companyCode || '').trim().toUpperCase() !== 'CGG') return true;"));
 });
