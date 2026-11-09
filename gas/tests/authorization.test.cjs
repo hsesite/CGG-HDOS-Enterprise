@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
+const picaUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
+const picaStoreSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
 function extractFunction(name, nextName) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);
@@ -1232,10 +1234,10 @@ test('normalized row parser restores nested Hazard and PICA fields from canonica
 
   const pica = context.parseRowValues_('picas',
     ['id', 'foremanApproval', 'spvHseApproval', 'kttApproval', 'payload'],
-    ['p-1', true, false, false, JSON.stringify({ findingDescription: 'Missing berm', approvalStages: { foreman: false, spvHse: true, ktt: true } })]
+    ['p-1', true, true, false, JSON.stringify({ findingDescription: 'Missing berm', approvalStages: { foreman: false, spvHse: false, ktt: true } })]
   );
   assert.equal(pica.findingDescription, 'Missing berm');
-  assert.deepEqual(JSON.parse(JSON.stringify(pica.approvalStages)), { foreman: true, spvHse: true, ktt: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(pica.approvalStages)), { foreman: true, spvHse: true });
 });
 
 test('readAll reads the full register once instead of issuing per-row Spreadsheet reads', () => {
@@ -1891,4 +1893,11 @@ test('PICA two-stage approval is required before final HSE closure', () => {
   assert.ok(source.includes("PICA tidak dapat dikembalikan setelah proses persetujuan dimulai."));
   assert.ok(source.includes("Persetujuan PICA hanya dapat dilakukan setelah PIC mengajukan penyelesaian."));
   assert.ok(source.includes("return ['Foreman Safety', 'SPV HSE', 'Project Manager'].indexOf(role) >= 0;"));
+});
+
+test('PICA close action requires only Foreman Safety and SPV HSE approvals', () => {
+  assert.match(picaUiSource, /approvalStagesFor\(selectedPica\)\.foreman\s*&&\s*approvalStagesFor\(selectedPica\)\.spvHse\s*\?/);
+  assert.doesNotMatch(picaUiSource, /approvalStagesFor\(selectedPica\)\.ktt/);
+  assert.match(picaUiSource, /Penutupan memerlukan persetujuan berurutan Foreman Safety dan SPV HSE/);
+  assert.match(picaStoreSource, /approvalStages: current\.approvalStages \|\| \{ foreman: false, spvHse: false \}/);
 });
