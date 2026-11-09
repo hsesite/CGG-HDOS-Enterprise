@@ -5,6 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
 const picaUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
+const syncUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'SyncModule.tsx'), 'utf8');
 const picaStoreSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
 const p2hUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
 const syncEngineSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
