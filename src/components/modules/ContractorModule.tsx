@@ -34,6 +34,7 @@ export const ContractorModule: React.FC = () => {
   const [p2hPhotoPreview, setP2hPhotoPreview] = useState('');
   const [p2hPhotoView, setP2hPhotoView] = useState<Record<string, string>>({});
   const [siaPreview, setSiaPreview] = useState<Record<string, {url: string; mimeType: string; fileName: string}>>({});
+  const [p2hRequestId, setP2hRequestId] = useState('');
   const [p2hDraft, setP2hDraft] = useState<ContractorP2HInput>({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
   const [fleetDraft, setFleetDraft] = useState({
     unitNumber: '', unitType: '', brand: '', model: '',
@@ -210,6 +211,8 @@ export const ContractorModule: React.FC = () => {
     setFleetBusy(true);
     setFleetMessage('');
     try {
+      const requestId = p2hRequestId || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `p2h_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`);
+      if (!p2hRequestId) setP2hRequestId(requestId);
       let photoReference: Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> = {};
       if (p2hPhotoFile) {
         const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Bukti foto tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(p2hPhotoFile); });
@@ -218,9 +221,10 @@ export const ContractorModule: React.FC = () => {
         if (!isCurrentSessionScope(requestScope)) return;
         photoReference = { photoFileId: uploaded.photoFileId, photoFileName: uploaded.fileName, photoMimeType: uploaded.mimeType };
       }
-      await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, ...photoReference, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
+      await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, requestId, ...photoReference, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
       if (!isCurrentSessionScope(requestScope)) return;
       setFleetMessage('Pemeriksaan P2H berhasil dicatat. Riwayat sebelumnya tetap tersimpan.');
+      setP2hRequestId('');
       setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
       setP2hPhotoFile(null); setP2hPhotoPreview('');
       const history = await hseApi.listContractorP2HHistory(unit.id);
