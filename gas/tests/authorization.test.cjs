@@ -1993,3 +1993,23 @@ test('overlapping cloud reconciliation ignores superseded snapshots before cache
   assert.match(merge, /!isCurrentMerge\(\) \|\| activeOwnerKey\(\) !== ownerKey/);
   assert.match(merge, /activeOwnerKey\(\) !== ownerKey \|\| !isCurrentMerge\(\)/);
 });
+
+
+test('version conflicts preserve local queue payload and capture a tenant-scoped server comparison snapshot', () => {
+  assert.match(syncTypesSource, /conflictServerRecord\?: Record<string, unknown>/);
+  assert.match(syncTypesSource, /conflictDetectedAt\?: string/);
+  const conflictStart = syncEngineSource.indexOf('// Preserve both sides of an optimistic-concurrency conflict.');
+  const conflictEnd = syncEngineSource.indexOf('if (itemRecordId) blockedRecordIds.add(itemRecordId);', conflictStart);
+  assert.ok(conflictStart >= 0 && conflictEnd > conflictStart);
+  const conflictBlock = syncEngineSource.slice(conflictStart, conflictEnd);
+  assert.match(conflictBlock, /status === 409 && item\.action === 'UPDATE' && itemRecordId/);
+  assert.match(conflictBlock, /hseApi\.listOperationalRecords\(/);
+  assert.match(conflictBlock, /remoteRecords\.find\(record => String\(record\.id \|\| ''\) === itemRecordId\)/);
+  assert.match(conflictBlock, /ownerAfterConflictRead\.userId === owner\.userId/);
+  assert.match(conflictBlock, /ownerAfterConflictRead\.companyCode === owner\.companyCode/);
+  assert.match(conflictBlock, /item\.conflictServerRecord = remoteRecord/);
+  assert.match(conflictBlock, /item\.error = .*perubahan lokal tidak ditimpa/);
+  assert.match(syncEngineSource, /await hdosDB\.put\(\s*'queue',\s*item\s*\)/);
+  assert.match(syncUiSource, /Bandingkan versi server/);
+  assert.match(syncUiSource, /JSON\.stringify\(item\.conflictServerRecord, null, 2\)/);
+});
