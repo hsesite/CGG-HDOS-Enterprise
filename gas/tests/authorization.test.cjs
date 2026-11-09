@@ -1477,6 +1477,14 @@ test('Contractor fleet refresh and P2H history ignore responses from a previous 
   assert.match(moduleSource, /if \(isCurrentSessionScope\(requestScope\)\) setP2hLoading\(false\)/);
 });
 
+test('Contractor SIA/photo previews and compliance refresh ignore stale tenant responses', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+  assert.match(moduleSource, /const requestScope = sessionScopeKey;[\\s\\S]*?const file = await hseApi\\.previewContractorSia\\(unit\\.id\\);[\\s\\S]*?if \(!isCurrentSessionScope\(requestScope\)\) return;/);
+  assert.match(moduleSource, /const requestScope = sessionScopeKey;[\\s\\S]*?const photo = await hseApi\\.getContractorP2HPhoto\\(record\\.id\\);[\\s\\S]*?if \(!isCurrentSessionScope\(requestScope\)\) return;/);
+  assert.match(moduleSource, /const reports = await hseApi\\.listContractorComplianceReports\\(\);[\\s\\S]*?if \(isCurrentSessionScope\(requestScope\)\) setComplianceReports\(reports\)/);
+  assert.match(moduleSource, /if \(isCurrentSessionScope\(requestScope\)\) setReportsLoading\(false\)/);
+});
+
 test('Sync initialization revalidates tenant after asynchronous queue recovery before publishing', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(syncSource, /const finalOwner = this\.getCurrentOwner\(\);/);
