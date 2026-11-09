@@ -1833,7 +1833,7 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
   vm.runInContext(source.slice(start, end), context);
   const enforce = context.enforcePicaApprovalStageRules_;
 
-  const base = { status: 'OPEN', approvalStages: { foreman: false, spvHse: false, ktt: false } };
+  const base = { status: 'WAITING_HSE', approvalStages: { foreman: false, spvHse: false, ktt: false } };
   const foreman = { roles: ['Foreman Safety'], roleVerified: true };
   const spv = { roles: ['SPV HSE'], roleVerified: true };
   const ktt = { roles: ['KTT'], roleVerified: true };
@@ -1849,12 +1849,15 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
   assert.equal(enforce({ ...base, approvalStages: { foreman: true, spvHse: true } }, { approvalStages: { foreman: true, spvHse: true, ktt: true } }, ktt), null);
   assert.equal(enforce({ ...base, approvalStages: { foreman: true } }, { approvalStages: { foreman: false } }, foreman).status, 403);
   assert.equal(enforce(base, { approvalStages: [] }, foreman).status, 400);
+  assert.equal(enforce({ ...base, status: 'OPEN' }, { approvalStages: { foreman: true } }, foreman).status, 409);
 });
 
 
 test('PICA closure rules reject unauthorized, incomplete, and invalid status transitions', () => {
   const context = {
-    error_: (status, message) => ({ status, message })
+    error_: (status, message) => ({ status, message }),
+    Utilities: { formatDate: () => '2026-11-09' },
+    Session: { getScriptTimeZone: () => 'Asia/Jakarta' }
   };
   vm.createContext(context);
   const start = source.indexOf('function enforcePicaClosureRules_(');
@@ -1866,7 +1869,7 @@ test('PICA closure rules reject unauthorized, incomplete, and invalid status tra
 
   const pic = { email: 'pic@example.test', roles: ['Employee'], roleVerified: false };
   const foreman = { email: 'foreman@example.test', displayName: 'Foreman', roles: ['Foreman Safety'], roleVerified: true };
-  const pica = { status: 'OPEN', assignedToEmail: 'pic@example.test', correctiveAction: '', evidencePhotoUrl: '', evidencePhotoFileId: '' };
+  const pica = { status: 'OPEN', assignedToEmail: 'pic@example.test', correctiveAction: '', evidencePhotoUrl: '', evidencePhotoFileId: '', approvalStages: { foreman: false, spvHse: false, ktt: false } };
 
   assert.equal(enforce({ ...pica, status: 'CLOSED' }, { status: 'PROGRESS' }, pic).status, 403);
   assert.equal(enforce(pica, { completionDate: '2026-11-09' }, pic).status, 403);
@@ -1875,6 +1878,9 @@ test('PICA closure rules reject unauthorized, incomplete, and invalid status tra
   assert.equal(enforce({ ...pica, correctiveAction: 'Perbaikan dilakukan' }, { status: 'WAITING_HSE' }, pic).status, 400);
   assert.equal(enforce(pica, { status: 'CLOSED' }, foreman).status, 409);
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'CLOSED' }, { ...foreman, roleVerified: false }).status, 403);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'CLOSED' }, foreman).status, 409);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true, ktt: true } }, { status: 'CLOSED' }, foreman), null);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true } }, { status: 'PROGRESS', rejectionReason: 'Perlu perbaikan' }, foreman).status, 409);
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'PROGRESS' }, foreman).status, 400);
   assert.equal(enforce(pica, { status: 'NOT_A_STATUS' }, pic).status, 400);
 });
