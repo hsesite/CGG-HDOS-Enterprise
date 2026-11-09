@@ -39,7 +39,9 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
   }
 
   const roles = user.roles || [];
-  if (['KTT', 'SPT', 'SPV'].some((role) => roles.includes(role))) return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai', 'sync'].includes(module);
+  if (['KTT', 'SPT', 'SPV'].some((role) => roles.includes(role))) {
+    return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai', 'sync'].includes(module);
+  }
   if (roles.includes('Company Admin')) return true;
   if (['PJO', 'SPV HSE', 'Foreman Safety'].some((role) => roles.includes(role))) {
     return ['dashboard', 'repository', 'contractor', 'inspection', 'hazard', 'pica', 'incident', 'map', 'ai', 'sync'].includes(module);
@@ -50,21 +52,21 @@ export function canAccessModule(user: ApiUser | null | undefined, module: HDOSMo
   if (roles.includes('Subkon')) {
     return ['dashboard', 'repository', 'inspection', 'hazard', 'pica', 'incident', 'map'].includes(module);
   }
-  if (roles.includes('Employee') || ['Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager'].some((role) => roles.includes(role))) {
-    if (module === 'sync') return true;
-    if (roles.includes('Employee') || roles.includes('Crew') || ['Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager'].some((role) => roles.includes(role))) {
-      return ['dashboard', 'inspection', 'hazard', 'incident', 'pica', 'repository', 'sync'].includes(module);
-    }
+  if (roles.includes('Employee')) {
+    return ['dashboard', 'repository', 'inspection', 'hazard', 'pica'].includes(module);
   }
 
+  if (roles.includes('Project Manager')) return true;
   switch (module) {
-    case 'dashboard': case 'hazard': case 'map': return true;
-    case 'inspection': return ['KTT', 'Project Manager', 'Safety Officer'].some((role) => roles.includes(role));
+    case 'dashboard': return true;
+    case 'inspection': return ['KTT', 'SPT', 'SPV', 'Project Manager', 'Safety Officer'].some((role) => roles.includes(role));
+    case 'hazard': return true;
     case 'pica': return ['KTT', 'Project Manager', 'Contractor PIC'].some((role) => roles.includes(role));
     case 'incident': return ['KTT', 'Project Manager', 'Paramedis', 'Safety Officer'].some((role) => roles.includes(role));
     case 'repository': return ['KTT', 'Project Manager'].some((role) => roles.includes(role));
     case 'contractor': return ['KTT', 'Project Manager', 'Contractor PIC'].some((role) => roles.includes(role));
-    case 'ai': return ['KTT', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'].some((role) => roles.includes(role));
+    case 'map': return true;
+    case 'ai': return true;
     case 'sync': return true;
     case 'settings': return false;
     default: return false;
