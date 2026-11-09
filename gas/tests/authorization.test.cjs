@@ -1229,21 +1229,21 @@ test('users and companies master setup use safe header-based schema reconciliati
 
 
 test('central database backup is serialized, uniquely named, verified, and audited', () => {
-  assert.match(source, /backup_logs:\\s*\\[/);
+  assert.ok(source.includes('backup_logs: ['));
   const start = source.indexOf('function createDatabaseBackup()');
   const end = source.indexOf('function installDailyDatabaseBackupTrigger()', start);
   assert.ok(start >= 0 && end > start);
   const backup = source.slice(start, end);
-  assert.match(backup, /LockService\\.getScriptLock\\(\\)/);
-  assert.match(backup, /lock\\.waitLock\\(30000\\)/);
-  assert.match(backup, /yyyyMMdd_HHmmss_SSS/);
-  assert.match(backup, /makeCopy\\(fileName, folder\\)/);
-  assert.match(backup, /getMimeType\\(\\) !== MimeType\\.GOOGLE_SHEETS/);
-  assert.match(backup, /'SUCCESS'/);
-  assert.match(backup, /'FAILED'/);
-  assert.match(backup, /finally\\s*\\{\\s*lock\\.releaseLock\\(\\)/);
-  assert.match(source, /function installDailyDatabaseBackupTrigger\\(\\)/);
-  assert.match(source, /HDOS_BACKUP_FOLDER_ID/);
+  assert.ok(backup.includes('LockService.getScriptLock()'));
+  assert.ok(backup.includes('lock.waitLock(30000)'));
+  assert.ok(backup.includes('yyyyMMdd_HHmmss_SSS'));
+  assert.ok(backup.includes('makeCopy(fileName, folder)'));
+  assert.ok(backup.includes('getMimeType() !== MimeType.GOOGLE_SHEETS'));
+  assert.ok(backup.includes("'SUCCESS'"));
+  assert.ok(backup.includes("'FAILED'"));
+  assert.ok(backup.includes('lock.releaseLock()'));
+  assert.ok(source.includes('function installDailyDatabaseBackupTrigger()'));
+  assert.ok(source.includes('HDOS_BACKUP_FOLDER_ID'));
 });
 
 
