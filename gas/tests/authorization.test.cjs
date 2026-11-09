@@ -1021,8 +1021,11 @@ test('operational DELETE is tenant-authorized, locked, and idempotent after a lo
   const route = source.slice(routeStart, routeEnd);
   assert.match(route, /isAdminCGG_\(user\).*isCompanyAdmin_\(user\)/);
   assert.match(route, /deleteLock\.waitLock\(10000\)/);
-  assert.match(route, /if \(!existingRecord\) return success_\(\{ id: id, deleted: true, alreadyDeleted: true \}\)/);
+  assert.match(route, /const targetRow = findRecordRow_\(targetSheet, id\)/);
+  assert.match(route, /if \(!targetRow\) return success_\(\{ id: id, deleted: true, alreadyDeleted: true \}\)/);
+  assert.match(route, /const existingRecord = parseRow_\(targetSheet, targetRow\)/);
   assert.match(route, /isRecordVisibleToUser_\(existingRecord, user\)/);
+  assert.doesNotMatch(route, /readOne_\(entity, id\)/);
   assert.match(route, /deleteLock\.releaseLock\(\)/);
   assert.match(route, /SpreadsheetApp\.flush\(\)/);
   assert.match(route, /if \(deleted\) logAudit_\(user, 'OPERATIONAL_RECORD_DELETED'/);
