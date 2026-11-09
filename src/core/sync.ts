@@ -508,6 +508,15 @@ export class HDOSSyncEngine {
       item.error = undefined;
 
       await hdosDB.put('queue', item);
+      const ownerAfterWrite = this.getCurrentOwner();
+      if (!ownerAfterWrite ||
+          ownerAfterWrite.userId !== owner.userId ||
+          ownerAfterWrite.companyCode !== owner.companyCode ||
+          this.queueOwnerKey !== ownerKey) {
+        // The old owner's item is safely persisted under its own IndexedDB
+        // key, but must not be published into the newly active tenant snapshot.
+        break;
+      }
       this.queue = this.queue.map(current => current.id === item.id ? item : current);
       resetCount += 1;
     }
