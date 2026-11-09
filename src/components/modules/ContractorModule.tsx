@@ -31,6 +31,7 @@ export const ContractorModule: React.FC = () => {
   const [p2hHistory, setP2hHistory] = useState<ContractorP2HRecord[]>([]);
   const [p2hLoading, setP2hLoading] = useState(false);
   const [p2hPhotoFile, setP2hPhotoFile] = useState<File | null>(null);
+  const [p2hPhotoReference, setP2hPhotoReference] = useState<Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> | null>(null);
   const [p2hPhotoPreview, setP2hPhotoPreview] = useState('');
   const [p2hPhotoView, setP2hPhotoView] = useState<Record<string, string>>({});
   const [siaPreview, setSiaPreview] = useState<Record<string, {url: string; mimeType: string; fileName: string}>>({});
@@ -213,18 +214,20 @@ export const ContractorModule: React.FC = () => {
     try {
       const requestId = p2hRequestId || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `p2h_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`);
       if (!p2hRequestId) setP2hRequestId(requestId);
-      let photoReference: Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> = {};
-      if (p2hPhotoFile) {
+      let photoReference: Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> = p2hPhotoReference || {};
+      if (p2hPhotoFile && !p2hPhotoReference) {
         const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Bukti foto tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(p2hPhotoFile); });
         if (!isCurrentSessionScope(requestScope)) return;
         const uploaded = await hseApi.uploadOperationalPhoto({ fileName: p2hPhotoFile.name, mimeType: p2hPhotoFile.type, fileBase64 });
         if (!isCurrentSessionScope(requestScope)) return;
         photoReference = { photoFileId: uploaded.photoFileId, photoFileName: uploaded.fileName, photoMimeType: uploaded.mimeType };
+        setP2hPhotoReference(photoReference);
       }
       await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, requestId, ...photoReference, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
       if (!isCurrentSessionScope(requestScope)) return;
       setFleetMessage('Pemeriksaan P2H berhasil dicatat. Riwayat sebelumnya tetap tersimpan.');
       setP2hRequestId('');
+      setP2hPhotoReference(null);
       setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
       setP2hPhotoFile(null); setP2hPhotoPreview('');
       const history = await hseApi.listContractorP2HHistory(unit.id);
@@ -800,7 +803,7 @@ export const ContractorModule: React.FC = () => {
                         <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2">Temuan pemeriksaan<textarea maxLength={2000} rows={2} value={p2hDraft.findings} onChange={e => setP2hDraft(current => ({...current,findings:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
                         <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2">Tindakan koreksi / pengendalian {p2hDraft.status === 'NOT_READY' ? '*' : ''}<textarea maxLength={2000} required={p2hDraft.status === 'NOT_READY'} rows={2} value={p2hDraft.correctiveAction} onChange={e => setP2hDraft(current => ({...current,correctiveAction:e.target.value}))} className="w-full rounded border border-white/10 bg-neutral-900 px-2 py-2 text-xs text-white" /></label>
                         <label className="space-y-1 text-[10px] text-neutral-400 sm:col-span-2 lg:col-span-4">Bukti foto inspeksi (JPG, PNG, WEBP · maks. 5 MB)
-                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file = e.target.files?.[0] || null; if (file && file.size > 5 * 1024 * 1024) { setFleetMessage('Ukuran foto maksimal 5 MB.'); e.target.value = ''; return; } setP2hPhotoFile(file); setP2hPhotoPreview(file ? URL.createObjectURL(file) : ''); }} className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:text-white" />
+                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file = e.target.files?.[0] || null; if (file && file.size > 5 * 1024 * 1024) { setFleetMessage('Ukuran foto maksimal 5 MB.'); e.target.value = ''; return; } setP2hPhotoFile(file); setP2hPhotoReference(null); setP2hPhotoPreview(file ? URL.createObjectURL(file) : ''); }} className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:text-white" />
                           {p2hPhotoPreview && <img src={p2hPhotoPreview} alt="Pratinjau bukti P2H" className="mt-2 max-h-32 rounded-lg border border-white/10 object-contain" />}
                         </label>
                         <div className="flex items-end sm:col-span-2 lg:col-span-4"><button type="submit" disabled={fleetBusy} className="rounded bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Simpan Catatan P2H'}</button></div>
