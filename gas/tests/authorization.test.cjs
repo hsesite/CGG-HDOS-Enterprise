@@ -1798,3 +1798,23 @@ test('Concurrent operational CREATE allocates row-dependent codes inside the Scr
   assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user)') < rowAllocation);
   assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user)', create.indexOf('lock.waitLock(')) > lockStart);
 });
+
+
+test('PICA approval stages must follow Foreman → SPV HSE → KTT sequence', () => {
+  const context = {};
+  vm.createContext(context);
+  const start = source.indexOf('function isPicaApprovalSequenceValid_(');
+  const end = source.indexOf('function enforcePicaClosureRules_(', start + 1);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+
+  const valid = context.isPicaApprovalSequenceValid_;
+  assert.equal(valid({ foreman: false, spvHse: false, ktt: false }, 'foreman'), true);
+  assert.equal(valid({ foreman: false, spvHse: true, ktt: false }, 'spvHse'), false);
+  assert.equal(valid({ foreman: true, spvHse: false, ktt: false }, 'spvHse'), true);
+  assert.equal(valid({ foreman: true, spvHse: false, ktt: true }, 'ktt'), false);
+  assert.equal(valid({ foreman: true, spvHse: true, ktt: false }, 'ktt'), true);
+  assert.equal(valid({ foreman: false, spvHse: false, ktt: true }, 'ktt'), false);
+  assert.equal(valid({ foreman: true, spvHse: true, ktt: true }, 'unknown'), false);
+});
