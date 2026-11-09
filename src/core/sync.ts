@@ -898,7 +898,7 @@ export class HDOSSyncEngine {
           // queued payload remains the local version; the server snapshot is
           // stored separately for explicit human comparison and resolution.
           if (status === 409 && item.action === 'UPDATE' && itemRecordId &&
-              endpoint !== 'repository' && endpoint !== 'contractor') {
+              endpoint !== 'repository') {
             try {
               const remoteRecords = await hseApi.listOperationalRecords(
                 endpoint as 'inspections' | 'hazards' | 'picas' | 'incidents'
