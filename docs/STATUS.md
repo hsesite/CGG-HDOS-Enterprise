@@ -271,3 +271,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Pemakaian ulang ID untuk unit/perusahaan berbeda ditolak dengan konflik.
 - [x] Regression test memverifikasi alur idempotensi frontend dan backend.
 - [ ] Uji simulasi respons hilang setelah commit pada GAS/Spreadsheet staging, termasuk pengecekan hanya ada satu baris riwayat P2H.
+
+
+### Contractor Passport — isolasi dokumen SIA (9 November 2026)
+- [x] Preview dokumen SIA hanya mengirim berkas yang terbukti berada di folder Drive khusus perusahaan pemilik unit.
+- [x] Penghapusan berkas SIA lama setelah penggantian hanya dilakukan jika kepemilikan folder berhasil diverifikasi; referensi file yang tidak dapat dibuktikan tidak disentuh.
+- [x] Verifikasi folder gagal secara tertutup (fail closed) bila metadata Drive atau konfigurasi folder tidak tersedia.
+- [x] Regression test ditambahkan untuk preview dan cleanup lintas folder perusahaan.
+- [ ] UAT akses preview/penggantian SIA dengan dua tenant berbeda pada Drive staging.
