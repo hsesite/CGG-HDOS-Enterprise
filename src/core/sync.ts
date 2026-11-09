@@ -886,15 +886,43 @@ export class HDOSSyncEngine {
           );
         } catch (error) {
           item.retryCount += 1;
+          const status = error instanceof ApiError ? error.status : 0;
           const retryable = isRetryableSyncError(error);
           item.status = retryable && item.retryCount < MAX_RETRIES
             ? 'PENDING'
             : 'CONFLICT';
           item.syncStartedAt = undefined;
-          item.error =
-            error instanceof Error
-              ? error.message
-              : String(error);
+          item.error = error instanceof Error ? error.message : String(error);
+
+          // Preserve both sides of an optimistic-concurrency conflict. The
+          // queued payload remains the local version; the server snapshot is
+          // stored separately for explicit human comparison and resolution.
+          if (status === 409 && item.action === 'UPDATE' && itemRecordId &&
+              endpoint !== 'repository' && endpoint !== 'contractor') {
+            try {
+              const remoteRecords = await hseApi.listOperationalRecords(
+                endpoint as 'inspections' | 'hazards' | 'picas' | 'incidents'
+              );
+              const remoteRecord = remoteRecords.find(record => String(record.id || '') === itemRecordId);
+              const ownerAfterConflictRead = this.getCurrentOwner();
+              if (remoteRecord && ownerAfterConflictRead &&
+                  ownerAfterConflictRead.userId === owner.userId &&
+                  ownerAfterConflictRead.companyCode === owner.companyCode &&
+                  hseApi.authToken === syncToken) {
+                item.conflictServerRecord = remoteRecord;
+                item.conflictDetectedAt = new Date().toISOString();
+                item.error = `${item.error} Versi server terbaru disimpan untuk dibandingkan; perubahan lokal tidak ditimpa.`;
+              }
+            } catch (conflictReadError) {
+              // Keep the original 409 and local payload even if the comparison
+              // snapshot cannot be fetched (for example, a temporary read failure).
+              this.syncLogs.unshift({
+                time: formatTime(),
+                message: `Konflik ${item.entity} terdeteksi, tetapi versi server belum dapat diambil untuk dibandingkan.`,
+                type: 'warning',
+              });
+            }
+          }
 
           await hdosDB.put(
             'queue',
@@ -902,11 +930,6 @@ export class HDOSSyncEngine {
           );
 
           if (itemRecordId) blockedRecordIds.add(itemRecordId);
-
-          const status =
-            error instanceof ApiError
-              ? error.status
-              : 0;
 
           if (status === 401) {
             this.syncLogs.unshift({
