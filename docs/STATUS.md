@@ -300,3 +300,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Perbandingan tetap ketat terhadap seluruh properti yang dikirim; nilai nested yang berbeda atau properti tambahan yang tidak cocok tidak dianggap replay sukses.
 - [x] Regression test mencakup nested subset yang cocok, nilai berbeda, dan payload dengan properti tambahan yang belum cocok.
 - [ ] UAT GAS/Sheets untuk retry UPDATE hazard dan PICA dengan perubahan nested parsial tetap diperlukan.
+
+
+### Pemulihan antrean sinkronisasi lintas-tab (9 November 2026)
+- [x] Pemulihan item `SYNCING` kini menggunakan Web Locks dengan nama lock per user dan tenant; tab baru tidak mereset request aktif dari tab lain.
+- [x] Setiap percobaan sinkronisasi mencatat `syncStartedAt` dan menghapus lease saat item dipulihkan.
+- [x] Browser tanpa Web Locks hanya memulihkan lease yang lebih tua dari dua menit; item tanpa timestamp tidak otomatis direset agar tidak mengganggu proses aktif.
+- [x] Regression test memeriksa penggunaan lock eksklusif, batas lease, dan timestamp percobaan.
+- [ ] UAT multi-tab dan browser tanpa Web Locks tetap diperlukan untuk memverifikasi perilaku runtime pada browser target.
