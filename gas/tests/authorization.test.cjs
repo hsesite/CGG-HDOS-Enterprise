@@ -7,6 +7,8 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
 const picaUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
 const picaStoreSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
 const p2hUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+const syncEngineSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+const syncTypesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
 function extractFunction(name, nextName) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);
@@ -1955,4 +1957,15 @@ test('PICA close action requires only Foreman Safety and SPV HSE approvals', () 
   assert.match(picaStoreSource, /const requiredRole = stage === 'foreman' \? 'Foreman Safety' : 'SPV HSE'/);
   assert.match(picaStoreSource, /Satu permintaan hanya boleh menyetujui satu tahapan yang belum disetujui/);
   assert.match(picaStoreSource, /PICA tidak dapat dikembalikan setelah proses persetujuan dimulai/);
+});
+
+
+test('sync recovery does not reset another tab active lease and timestamps each attempt', () => {
+  assert.match(syncEngineSource, /navigator\.locks\.request\(\s*recoveryLockName/);
+  assert.match(syncEngineSource, /\{ mode: 'exclusive', ifAvailable: true \}/);
+  assert.match(syncEngineSource, /if \(lock\) await recoverInterruptedQueue\(\)/);
+  assert.match(syncEngineSource, /Date\.now\(\) - 2 \* 60 \* 1000/);
+  assert.match(syncEngineSource, /item\.syncStartedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(syncEngineSource, /item\.ownerUserId !== owner\?\.userId/);
+  assert.match(syncTypesSource, /syncStartedAt\?: string/);
 });
