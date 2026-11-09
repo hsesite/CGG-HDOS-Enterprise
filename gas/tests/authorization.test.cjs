@@ -684,6 +684,24 @@ test('Repository Drive file ownership fails closed unless the file belongs to th
   assert.equal(context.isRepositoryDriveFile_(inFolder), false);
 });
 
+test('Repository upload transaction locks idempotency, Drive creation, and metadata commit together', () => {
+  const start = source.indexOf('function createRepositoryDocument_(');
+  const end = source.indexOf('function canPreviewRepositoryDocument_(', start + 1);
+  assert.ok(start >= 0 && end > start);
+  const helper = source.slice(start, end);
+  assert.match(helper, /lock\.waitLock\(10000\)/);
+  assert.match(helper, /getExistingRecordForCreate_\(sheet, id, user\)/);
+  assert.ok(helper.indexOf('getExistingRecordForCreate_') < helper.indexOf('folder.createFile(blob)'));
+  assert.ok(helper.indexOf('folder.createFile(blob)') < helper.indexOf("sheet.appendRow(buildEntityRow_('repository'"));
+  assert.match(helper, /createdFile\.setTrashed\(true\)/);
+  assert.match(helper, /finally\s*\{\s*lock\.releaseLock\(\)/);
+  assert.ok(helper.indexOf('lock.releaseLock()') < helper.indexOf("logAudit_(user, 'CREATE', 'repository', id)"));
+  const routeStart = source.indexOf("if (path === '/api/repository' && method === 'POST')");
+  const routeEnd = source.indexOf('const repositoryDeleteMatch', routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /createRepositoryDocument_\(input, bytes, fileMetadata, companyCode, parentCompanyCode, user\)/);
+});
+
 test('Repository preview and download accesses are recorded in the audit log', () => {
   assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_PREVIEWED', 'repository', doc.id"));
   assert.ok(source.includes("logAudit_(user, 'REPOSITORY_DOCUMENT_DOWNLOADED', 'repository', doc.id"));
