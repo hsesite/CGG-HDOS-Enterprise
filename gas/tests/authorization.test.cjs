@@ -1163,6 +1163,11 @@ test('a retried update whose first response was lost is accepted without a secon
   assert.equal(result.updatedAt, current.updatedAt);
   assert.equal(writes, 0);
   assert.equal(audits, 0);
+  // Nested objects are merged by the backend; a replay with only the
+  // submitted subset must still be recognized as already committed.
+  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, { riskMatrix: { severity: 2 } }), true);
+  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, { riskMatrix: { severity: 3 } }), false);
+  assert.equal(context.isUpdatePayloadAlreadyApplied_(current, { riskMatrix: { severity: 2, likelihood: 1, exposure: 5 } }), false);
   assert.throws(
     () => context.updateRecord_('hazards','haz-1',{...payload,status:'OPEN'},{id:'user-1',roles:['Employee']},{},null,'2026-11-01T10:00:00.000Z'),
     error => error.status === 409
