@@ -9,6 +9,7 @@ const picaStoreSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 
 const p2hUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
 const syncEngineSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
 const syncTypesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
+const syncDbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
 function extractFunction(name, nextName) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);
@@ -1958,4 +1959,21 @@ test('sync recovery does not reset another tab active lease and timestamps each 
   assert.match(syncEngineSource, /item\.syncStartedAt = new Date\(\)\.toISOString\(\)/);
   assert.match(syncEngineSource, /item\.ownerUserId !== owner\?\.userId/);
   assert.match(syncTypesSource, /syncStartedAt\?: string/);
+});
+
+
+test('server version propagation commits local record and follow-up queue updates atomically', () => {
+  const createStart = syncEngineSource.indexOf("if (item.action === 'CREATE')");
+  const updateStart = syncEngineSource.indexOf("} else if (\n            item.action === 'UPDATE'", createStart);
+  const deleteStart = syncEngineSource.indexOf("} else if (item.action === 'DELETE')", updateStart);
+  assert.ok(createStart >= 0 && updateStart > createStart && deleteStart > updateStart);
+  const createBlock = syncEngineSource.slice(createStart, updateStart);
+  const updateBlock = syncEngineSource.slice(updateStart, deleteStart);
+  for (const block of [createBlock, updateBlock]) {
+    assert.match(block, /const versionBundle:/);
+    assert.match(block, /versionBundle\.push\(\.\.\.versionedQueueItems\.map/);
+    assert.match(block, /await hdosDB\.putBundle\(versionBundle\)/);
+    assert.doesNotMatch(block, /await hdosDB\.put\(/);
+  }
+  assert.match(syncDbSource, /const tx = db\.transaction\(storeNames, 'readwrite'\)/);
 });
