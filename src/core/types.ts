@@ -160,7 +160,6 @@ export interface PICA {
   approvalStages: {
     foreman: boolean;
     spvHse: boolean;
-    ktt: boolean;
   };
   evidencePhotoUrl?: string;
   evidencePhotoFileId?: string;
