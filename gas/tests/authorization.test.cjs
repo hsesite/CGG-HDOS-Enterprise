@@ -1569,6 +1569,16 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
   assert.match(apiSource, /idempotent CREATE/);
 });
 
+test('P2H submission uses a stable request key and backend idempotency', () => {
+  assert.match(moduleSource, /const requestId = p2hRequestId \|\|/);
+  assert.match(moduleSource, /createContractorP2HRecord\(unit\.id, \{ \.\.\.p2hDraft, requestId,/);
+  assert.match(moduleSource, /setP2hRequestId\(''\)/);
+  assert.match(source, /const requestId = String\(input\.requestId \|\| ''\)\.trim\(\)/);
+  assert.match(source, /const existingRequestRow = findRecordRow_\(historySheet, requestId\)/);
+  assert.match(source, /if \(String\(existingRequest\.fleetId \|\| ''\) !== String\(fleetId\)/);
+  assert.match(source, /id: requestId, code: 'P2H-'/);
+});
+
 test('Contractor fleet refresh and P2H history ignore responses from a previous tenant session', () => {
   const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
   assert.match(moduleSource, /const isCurrentSessionScope = \(scopeKey: string\) =>/);
