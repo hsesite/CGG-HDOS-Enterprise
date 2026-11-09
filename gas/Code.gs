@@ -2204,6 +2204,24 @@ function contractorFleetUnitForOwner_(fleetId, user) {
   return unit;
 }
 
+function isContractorSiaDriveFile_(file, companyCode) {
+  try {
+    const normalizedCompanyCode = String(companyCode || '').trim().toUpperCase();
+    if (!file || !normalizedCompanyCode) return false;
+    const folderKey = 'HDOS_SIA_FOLDER_' + normalizedCompanyCode.replace(/[^A-Z0-9_-]/g, '_');
+    const expectedFolderId = String(PropertiesService.getScriptProperties().getProperty(folderKey) || '').trim();
+    if (!expectedFolderId) return false;
+    const parents = file.getParents();
+    while (parents.hasNext()) {
+      if (String(parents.next().getId()) === expectedFolderId) return true;
+    }
+    return false;
+  } catch (error) {
+    // Fail closed: Drive metadata must prove tenant-folder ownership.
+    return false;
+  }
+}
+
 function uploadContractorSia_(fleetId, payload, user) {
   if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC perusahaan pemilik unit yang dapat mengunggah SIA.');
   let unit;
@@ -2280,7 +2298,12 @@ function uploadContractorSia_(fleetId, payload, user) {
   // committed to the fleet register. A cleanup failure must not undo success.
   if (committed && oldFileId && oldFileId !== file.getId()) {
     try {
-      DriveApp.getFileById(oldFileId).setTrashed(true);
+      const oldFile = DriveApp.getFileById(oldFileId);
+      if (isContractorSiaDriveFile_(oldFile, companyCode)) {
+        oldFile.setTrashed(true);
+      } else {
+        logAudit_(user, 'CONTRACTOR_SIA_OLD_FILE_CLEANUP_SKIPPED', 'contractor_fleet', fleetId, { reason: 'File lama tidak terbukti berada di folder SIA perusahaan.' });
+      }
     } catch (cleanupError) {
       try {
         logAudit_(user, 'CONTRACTOR_SIA_OLD_FILE_CLEANUP_FAILED', 'contractor_fleet', fleetId, { oldFileId: oldFileId });
@@ -2305,6 +2328,7 @@ function previewContractorSia_(fleetId, user) {
   if (!canViewContractorComplianceReports_(user) || !isRecordVisibleToUser_(unit, user)) return error_(403, 'Anda tidak memiliki akses ke dokumen SIA unit ini.');
   if (!unit.siaFileId) return error_(404, 'Dokumen SIA belum dilampirkan.');
   const file = DriveApp.getFileById(String(unit.siaFileId));
+  if (!isContractorSiaDriveFile_(file, unit.companyCode)) return error_(403, 'Dokumen SIA tidak berada di folder penyimpanan perusahaan pemilik unit.');
   const blob = file.getBlob();
   logAudit_(user, 'CONTRACTOR_SIA_PREVIEWED', 'contractor_fleet', fleetId, { fileName: unit.siaFileName || file.getName() });
   return success_({ fileName: unit.siaFileName || file.getName(), mimeType: unit.siaMimeType || blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
