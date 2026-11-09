@@ -1017,13 +1017,30 @@ export class HDOSCentralStore {
     if (index === -1) return null;
 
     const current = this.picas[index];
-    const isApprovalOnlyUpdate = Object.keys(updates).length > 0 && Object.keys(updates).every((key) => key === 'approvalStages');
-    if (current.status === 'CLOSED' && !isApprovalOnlyUpdate) throw new Error('PICA sudah ditutup dan tidak dapat diubah.');
+    if (current.status === 'CLOSED') throw new Error('PICA sudah ditutup dan tidak dapat diubah.');
     const sessionUser = AuthState.getUser();
     const role = hdosAuth.getCurrentRole();
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
     const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((assignedRole) => ['Foreman Safety', 'SPV HSE'].includes(assignedRole));
+    const currentStages = current.approvalStages || { foreman: false, spvHse: false };
+    if (updates.approvalStages) {
+      if (Object.keys(updates).length !== 1 || current.status !== 'WAITING_HSE') throw new Error('Persetujuan hanya dapat diperbarui pada PICA yang menunggu validasi HSE.');
+      const nextStages = updates.approvalStages;
+      const stageKeys = ['foreman', 'spvHse'] as const;
+      if (Object.keys(nextStages).some((key) => !stageKeys.includes(key as typeof stageKeys[number])) ||
+          stageKeys.some((key) => typeof nextStages[key] !== 'boolean')) throw new Error('Tahapan persetujuan PICA tidak valid.');
+      const changedStages = stageKeys.filter((key) => nextStages[key] !== currentStages[key]);
+      if (changedStages.length !== 1 || currentStages[changedStages[0]] !== false || nextStages[changedStages[0]] !== true) {
+        throw new Error('Satu permintaan hanya boleh menyetujui satu tahapan yang belum disetujui.');
+      }
+      const stage = changedStages[0];
+      const requiredRole = stage === 'foreman' ? 'Foreman Safety' : 'SPV HSE';
+      if (sessionUser?.roleVerified !== true || !(sessionUser.roles || []).includes(requiredRole)) {
+        throw new Error(`Persetujuan tahap ${requiredRole} hanya dapat dilakukan oleh role terverifikasi.`);
+      }
+      if (stage === 'spvHse' && currentStages.foreman !== true) throw new Error('Persetujuan Foreman Safety harus diselesaikan terlebih dahulu.');
+    }
     const persistedPicas = await hdosDB.getAll<PICA>('pica');
     const persistedVersion = persistedPicas.find(pica => pica.id === id)?.updatedAt;
     const updated: PICA = { ...current, ...updates, updatedAt: persistedVersion || current.updatedAt, approvalStages: current.approvalStages || { foreman: false, spvHse: false } };
@@ -1039,6 +1056,7 @@ export class HDOSCentralStore {
     } else if (updates.status === 'CLOSED') {
       if (!isHSEValidator) throw new Error('Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE.');
       if (current.status !== 'WAITING_HSE') throw new Error('PICA belum diajukan PIC untuk validasi HSE.');
+      if (currentStages.foreman !== true || currentStages.spvHse !== true) throw new Error('Penutupan PICA memerlukan persetujuan Foreman Safety dan SPV HSE.');
       updated.status = 'CLOSED';
       updated.completionDate = new Date().toISOString().split('T')[0];
       updated.hseValidatedBy = sessionUser?.displayName || email;
@@ -1047,6 +1065,7 @@ export class HDOSCentralStore {
     } else if (updates.status === 'PROGRESS') {
       if (current.status === 'WAITING_HSE') {
         if (!isHSEValidator) throw new Error('Hanya HSE yang dapat mengembalikan pengajuan PICA kepada PIC.');
+        if (currentStages.foreman === true || currentStages.spvHse === true) throw new Error('PICA tidak dapat dikembalikan setelah proses persetujuan dimulai.');
         if (!String(updates.rejectionReason || '').trim()) throw new Error('Alasan pengembalian wajib diisi.');
       } else if (!isAssignedPIC || !['OPEN', 'PROGRESS'].includes(current.status)) {
         throw new Error('Perubahan status hanya dapat dilakukan PIC yang ditugaskan.');
