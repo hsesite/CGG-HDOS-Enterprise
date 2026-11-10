@@ -256,6 +256,67 @@ class HDOSDatabase {
     });
   }
 
+  async reconcileSnapshotBundle(
+    changes: Array<{ storeName: StoreName; deleteIds: string[]; records: Array<{ id: string }> }>,
+  ): Promise<void> {
+    const grouped = new Map<StoreName, { deleteIds: Set<string>; records: Map<string, { id: string }> }>();
+    for (const change of changes) {
+      const current = grouped.get(change.storeName) || { deleteIds: new Set<string>(), records: new Map<string, { id: string }>() };
+      for (const id of change.deleteIds) current.deleteIds.add(id);
+      for (const record of change.records) current.records.set(record.id, record);
+      grouped.set(change.storeName, current);
+    }
+    if (grouped.size === 0) return;
+
+    const db = await this.init();
+    if (!db) {
+      const snapshots = new Map<string, string | null>();
+      // Capture every affected key before the first mutation. If capture fails,
+      // no store has been changed and rollback is intentionally not attempted.
+      for (const storeName of grouped.keys()) {
+        const key = this.getFallbackKey(storeName);
+        snapshots.set(key, localStorage.getItem(key));
+      }
+      try {
+        for (const [storeName, change] of grouped) {
+          const current = this.readFallback<{ id: string }>(storeName);
+          const remaining = current.filter(item => !change.deleteIds.has(item.id));
+          const byId = new Map(remaining.map(item => [item.id, item]));
+          for (const record of change.records.values()) byId.set(record.id, record);
+          this.writeFallback(storeName, [...byId.values()]);
+        }
+      } catch (error) {
+        for (const [key, value] of snapshots) {
+          try {
+            if (value === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, value);
+          } catch (rollbackError) {
+            console.error('[HDOS DB] Multi-store snapshot rollback failed', rollbackError);
+          }
+        }
+        throw error;
+      }
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const storeNames = [...grouped.keys()];
+        const tx = db.transaction(storeNames, 'readwrite');
+        for (const [storeName, change] of grouped) {
+          const store = tx.objectStore(storeName);
+          for (const id of change.deleteIds) store.delete(id);
+          for (const record of change.records.values()) store.put(record);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB multi-store snapshot transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB multi-store snapshot transaction aborted'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async putBundle(entries: Array<{ storeName: StoreName; item: { id: string } }>): Promise<void> {
     if (entries.length === 0) return;
     const db = await this.init();
