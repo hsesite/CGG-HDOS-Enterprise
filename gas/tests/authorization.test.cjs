@@ -2595,3 +2595,26 @@ test('operational photo uploads carry an idempotency key and GAS reuses committe
   assert.match(gas, /existingFile\.getId\(\)/);
   assert.match(gas, /file\.setDescription\(marker\)/);
 });
+
+
+test('inspection and hazard evidence is persisted locally and uploaded during queue replay', () => {
+  const inspection = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'InspectionModule.tsx'), 'utf8');
+  const hazard = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'HazardModule.tsx'), 'utf8');
+  const offlinePhotos = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'offline-photos.ts'), 'utf8');
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const backup = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'backup.ts'), 'utf8');
+  for (const ui of [inspection, hazard]) {
+    assert.match(ui, /saveOfflineOperationalPhoto\(/);
+    assert.match(ui, /localPhotoId,/);
+    assert.doesNotMatch(ui, /uploadOperationalPhoto/);
+  }
+  assert.match(offlinePhotos, /await hdosDB\.put\('photos', record\)/);
+  assert.match(offlinePhotos, /photo\.ownerUserId !== owner\.userId/);
+  assert.match(offlinePhotos, /uploadKey: `hdos-\$\{photo\.id\}`/);
+  assert.match(sync, /getById<OfflineOperationalPhoto>\('photos', localPhotoId\)/);
+  assert.match(sync, /uploadOfflineOperationalPhoto\(localPhoto\)/);
+  assert.match(sync, /const \{ localPhotoId: _localPhotoId, \.\.\.cloudPayload \}/);
+  assert.match(sync, /hdosDB\.delete\('photos', String\(/);
+  assert.match(backup, /await encodeBinary\(scoped\)/);
+  assert.match(backup, /new Blob\(\[bytes\]/);
+});
