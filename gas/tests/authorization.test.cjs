@@ -1218,6 +1218,30 @@ test('unexpected sync engine errors release current-owner SYNCING items for retr
   assert.ok(catchBlock.lastIndexOf('await hdosDB.put') < catchBlock.indexOf('this.scheduleRetry()'));
 });
 
+test('successful sync removes its queue item and local evidence in one atomic transaction', () => {
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const cleanupStart = sync.indexOf('// Commit queue acknowledgement and local binary cleanup together.');
+  const cleanupEnd = sync.indexOf('this.queue =', cleanupStart);
+  assert.ok(cleanupStart >= 0 && cleanupEnd > cleanupStart);
+  const cleanup = sync.slice(cleanupStart, cleanupEnd);
+  assert.match(cleanup, /const completedPhotoId/);
+  assert.match(cleanup, /await hdosDB\.reconcileSnapshotBundle\(/);
+  assert.match(cleanup, /storeName: 'queue', deleteIds: \[item\.id\]/);
+  assert.match(cleanup, /storeName: 'photos' as const, deleteIds: \[completedPhotoId\]/);
+  assert.doesNotMatch(cleanup, /await hdosDB\.delete\(/);
+});
+
+test('unexpected sync recovery clears the interrupted lease timestamp', () => {
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const errorLog = sync.indexOf('[HDOS Sync] Sync engine error:');
+  const start = sync.lastIndexOf('    } catch (error) {', errorLog);
+  const end = sync.indexOf('    } finally {', errorLog);
+  const recovery = sync.slice(start, end);
+  assert.match(recovery, /status: 'PENDING' as const/);
+  assert.match(recovery, /syncStartedAt: undefined/);
+  assert.match(recovery, /await hdosDB\.put\('queue', recovered\)/);
+});
+
 test('offline sync replays queue by creation time and blocks later writes to a failed record', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   assert.match(sync, /function compareQueueItemsByTime\(a: SyncQueueItem, b: SyncQueueItem\)/);
