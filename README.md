@@ -51,6 +51,18 @@ Perintah `lint` saat ini menjalankan pemeriksaan TypeScript frontend dan konfigu
 - Login dan akun saat ini menggunakan endpoint GAS. UI daftar akun, Google Sign-In, sesi persisten, dan kontrol akun memerlukan versi GAS yang sesuai serta konfigurasi OAuth. Ikuti [panduan GAS dan Google OAuth](docs/GAS-AUTH-SETUP.md).
 - Ketersediaan master data lintas perangkat tetap bergantung pada URL GAS, deployment backend terbaru, izin Spreadsheet, dan pengujian dengan akun CGG/kontraktor/subkontraktor.
 
+## Instalasi pada ponsel dan akses offline
+
+HDOS dapat dipasang sebagai aplikasi web (PWA) setelah dibuka setidaknya satu kali saat perangkat online.
+
+- **Android (Chrome):** buka URL HDOS, pilih menu browser → **Install app** atau **Tambahkan ke layar utama**.
+- **iPhone/iPad (Safari):** buka URL HDOS, tekan **Share** → **Add to Home Screen**.
+- Buka kembali HDOS dari ikon layar utama untuk pengalaman layar penuh.
+- Service worker menyimpan app shell dan aset frontend same-origin agar aplikasi dapat dibuka kembali saat offline. Permintaan login, data pusat, Google Apps Script, dan Google Drive tetap memerlukan koneksi.
+- Data operasional offline tetap disimpan pada IndexedDB perangkat dan masuk antrean sinkronisasi. Pemasangan PWA bukan pengganti backup perangkat maupun pengujian sinkronisasi.
+
+Setelah versi baru dirilis, buka HDOS saat online agar browser mengambil aset terbaru. Uji instalasi, pembukaan ulang offline, dan pembaruan service worker pada perangkat Android/iOS sebelum distribusi.
+
 ## Konfigurasi cloud
 
 1. Deploy Google Apps Script sebagai Web App sesuai kode GAS yang benar-benar digunakan.
