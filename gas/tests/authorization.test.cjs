@@ -2130,3 +2130,17 @@ test('version conflicts preserve local queue payload and capture a tenant-scoped
   assert.match(syncUiSource, /JSON\.parse\(rawDraft\)/);
 
 });
+
+
+test('Repository DELETE serializes lookup, tenant authorization, Drive trashing, and row removal', () => {
+  const routeStart = source.indexOf('const repositoryDeleteMatch = path.match(');
+  const routeEnd = source.indexOf('const repositoryPreviewMatch =', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.ok(route.includes('deleteLock.waitLock(10000)'));
+  assert.ok(route.includes('finally {\n      deleteLock.releaseLock();'));
+  assert.ok(route.indexOf('findRecordRow_(sheet, documentId)') < route.indexOf('isRecordVisibleToUser_'));
+  assert.ok(route.indexOf('isRepositoryDriveFile_(repositoryFile)') < route.indexOf('sheet.deleteRow(rowNumber)'));
+  assert.ok(route.indexOf('sheet.deleteRow(rowNumber)') < route.indexOf('logAudit_(user, \'REPOSITORY_DOCUMENT_DELETED\''));
+  assert.match(route, /alreadyDeleted: true/);
+});
