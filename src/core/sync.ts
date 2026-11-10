@@ -518,7 +518,8 @@ export class HDOSSyncEngine {
   }
   async resolveConflict(queueItemId: string, revisedPayload: Record<string, unknown>): Promise<SyncQueueItem> {
     const owner = this.getCurrentOwner();
-    if (!owner) throw new Error('Login ulang diperlukan untuk menyelesaikan konflik.');
+    const resolutionToken = hseApi.authToken;
+    if (!owner || !resolutionToken) throw new Error('Login ulang diperlukan untuk menyelesaikan konflik.');
     if (this.isSyncing) throw new Error('Tunggu sinkronisasi aktif selesai sebelum menyelesaikan konflik.');
     const ownerKey = `${owner.userId}::${owner.companyCode}`;
     if (this.queueOwnerKey !== ownerKey) throw new Error('Cakupan antrean berubah. Muat ulang antrean sebelum menyelesaikan konflik.');
@@ -563,7 +564,7 @@ export class HDOSSyncEngine {
     const activeOwner = this.getCurrentOwner();
     if (!activeOwner || activeOwner.userId !== owner.userId ||
         activeOwner.companyCode !== owner.companyCode ||
-        hseApi.authToken === null || this.queueOwnerKey !== ownerKey) {
+        hseApi.authToken !== resolutionToken || this.queueOwnerKey !== ownerKey) {
       throw new Error('Sesi atau tenant berubah. Penyelesaian konflik dibatalkan.');
     }
 
@@ -609,7 +610,7 @@ export class HDOSSyncEngine {
     const ownerAfterWrite = this.getCurrentOwner();
     if (ownerAfterWrite && ownerAfterWrite.userId === owner.userId &&
         ownerAfterWrite.companyCode === owner.companyCode &&
-        this.queueOwnerKey === ownerKey) {
+        hseApi.authToken === resolutionToken && this.queueOwnerKey === ownerKey) {
       this.queue = this.queue.map(item => item.id === original.id ? resolvedOriginal : item);
       this.queue.push(revisedItem);
       this.queue.sort(compareQueueItemsByTime);
