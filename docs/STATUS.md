@@ -431,3 +431,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test mencakup kedua modul dan validasi ukuran foto.
 - [x] 169 regression tests, typecheck frontend/backend, dan production build berhasil pada commit 1faaf4ecd8e0366355506e4f9446e2ee63ec33c1.
 - [ ] Perilaku pemanggilan kamera perlu dikonfirmasi pada perangkat Android/iOS nyata; browser dapat tetap menampilkan pilihan kamera/galeri sesuai implementasi perangkat.
+
+
+### Penyimpanan foto operasional — retry unggah idempoten (10 November 2026)
+- [x] Endpoint `/api/photos` menerima `uploadKey` unik yang tervalidasi dan menandai file Drive dengan kunci tersebut.
+- [x] Jika permintaan unggah diulang dengan kunci yang sama, backend mencari dan mengembalikan file foto yang sudah tersimpan, alih-alih membuat salinan baru.
+- [x] Modul Inspection, Hazard, PICA, dan P2H telah diselaraskan untuk mengirim `uploadKey`.
+- [x] Regression test, typecheck frontend/backend, dan production build berhasil pada commit `0b1aeb05e14aa1ceeea1892d2702c928e6142629`.
+- [ ] Kunci saat ini dibuat per aksi unggah; persistensi kunci yang sama lintas percobaan ulang pengguna dan alur foto offline masih perlu diselesaikan.
+- [ ] Deployment frontend masih menunggu konfirmasi workflow; perubahan Apps Script tetap memerlukan deployment GAS versi terbaru dan uji unggah nyata.
