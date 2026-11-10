@@ -2373,6 +2373,14 @@ test('Repository preview and form generation abort when the active account chang
   assert.match(generate, /await store\.addFormDefinition\(formInput\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
 });
 
+test('Repository clears selected document and preview state when the tenant changes', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
+  assert.match(moduleSource, /Clear account-bound UI state immediately when the active tenant changes/);
+  assert.match(moduleSource, /setSelectedDoc\(null\);[\s\S]*?setModalNewDocOpen\(false\);[\s\S]*?URL\.revokeObjectURL\(originalFileUrl\)/);
+  assert.match(moduleSource, /\[sessionUser\?\.id, sessionUser\?\.companyCode, sessionUser\?\.parentCompanyCode\]\);/);
+  assert.match(moduleSource, /hseApi\.authToken, hseApi\.baseUrl, store\.documents\.length/);
+});
+
 test('central Repository snapshots are tenant-filtered before entering the shared client store', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const setterStart = storeSource.indexOf('setCentralRepositoryDocuments(documents: DocumentItem[]): void');
