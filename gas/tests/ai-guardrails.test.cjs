@@ -33,3 +33,11 @@ test('inspection records never substitute hard-coded sample GPS coordinates', ()
   assert.doesNotMatch(inspection, /lat: -2\.9395/);
   assert.doesNotMatch(inspection, /51S 385100 mE 9674800 mN/);
 });
+
+test('GIS map rejects blank and null coordinate values before numeric coercion', () => {
+  const map = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'MapModule.tsx'), 'utf8');
+  assert.match(map, /typeof value === 'string' && value\.trim\(\) !== ''/);
+  assert.match(map, /typeof value === 'number' && Number\.isFinite\(value\)/);
+  assert.match(map, /lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180/);
+  assert.doesNotMatch(map, /Number\.isFinite\(Number\(location\.lat\)\)/);
+});
