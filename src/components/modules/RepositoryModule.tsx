@@ -58,6 +58,37 @@ const base64ToBlob = (base64: string, mimeType: string): Blob => {
   return new Blob([bytes], { type: mimeType || 'application/octet-stream' });
 };
 
+type RepositorySessionSnapshot = {
+  token: string | null;
+  userId: string;
+  companyCode: string;
+  parentCompanyCode: string;
+};
+
+const captureRepositorySession = (): RepositorySessionSnapshot => {
+  const user = getSessionUser() as ApiUser | null;
+  return {
+    token: hseApi.authToken,
+    userId: String(user?.id || ''),
+    companyCode: String(user?.companyCode || '').trim().toUpperCase(),
+    parentCompanyCode: String(user?.parentCompanyCode || '').trim().toUpperCase(),
+  };
+};
+
+const isRepositorySessionCurrent = (snapshot: RepositorySessionSnapshot): boolean => {
+  const user = getSessionUser() as ApiUser | null;
+  return hseApi.authToken === snapshot.token &&
+    String(user?.id || '') === snapshot.userId &&
+    String(user?.companyCode || '').trim().toUpperCase() === snapshot.companyCode &&
+    String(user?.parentCompanyCode || '').trim().toUpperCase() === snapshot.parentCompanyCode;
+};
+
+const assertRepositorySessionCurrent = (snapshot: RepositorySessionSnapshot): void => {
+  if (!isRepositorySessionCurrent(snapshot)) {
+    throw new Error('Sesi atau perusahaan aktif berubah saat dokumen diproses. Operasi dibatalkan; silakan ulangi dari akun aktif.');
+  }
+};
+
 const fileToBase64 = (file: Blob): Promise<string> => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onerror = () => reject(new Error('Berkas gagal dibaca untuk sinkronisasi pusat.'));
@@ -602,6 +633,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   };
 
   const handlePreviewOriginal = async (doc: DocumentItem) => {
+    const sessionSnapshot = captureRepositorySession();
     setOriginalFileError('');
     setPreviewingOriginal(true);
     setOriginalFileUrl('');
@@ -617,15 +649,19 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         // authorization and preview audit. Do not trust a potentially stale
         // IndexedDB copy after an account, role, or tenant change.
         const remote = await hseApi.previewRepositoryFile(doc.id);
+        assertRepositorySessionCurrent(sessionSnapshot);
         blob = base64ToBlob(remote.base64, remote.mimeType);
         fileName = remote.fileName || fileName;
       } else {
         // Offline-only fallback: use a local copy only when the API is unavailable.
         const db = await hdosDB.init();
+        assertRepositorySessionCurrent(sessionSnapshot);
         if (!db) throw new Error('IndexedDB tidak tersedia pada browser ini.');
         let storedFile = await hdosDB.getById<StoredDocumentFile>('photos', `${DOCUMENT_FILE_PREFIX}${doc.id}`);
+        assertRepositorySessionCurrent(sessionSnapshot);
         if (!canUseLocalDocumentFile(storedFile, doc, sessionUser)) {
           const allFiles = await hdosDB.getAll<StoredDocumentFile>('photos');
+          assertRepositorySessionCurrent(sessionSnapshot);
           storedFile = allFiles.find((item) => item.documentId === doc.id && canUseLocalDocumentFile(item, doc, sessionUser) && Boolean(item.blob || item.file)) || null;
         }
         if (storedFile?.documentId && storedFile.documentId !== doc.id) {
@@ -641,14 +677,18 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         blob = new Blob([rawFile as BlobPart], { type: safePreviewMimeType });
         fileName = storedFile?.fileName || fileName;
       }
+      let html = '';
+      if (doc.fileType === 'XLSX') {
+        html = await renderDocumentPreviewHtml(blob, fileName);
+        assertRepositorySessionCurrent(sessionSnapshot);
+      }
+      assertRepositorySessionCurrent(sessionSnapshot);
       setOriginalFileName(fileName);
       setOriginalFileUrl(URL.createObjectURL(blob));
-      if (doc.fileType === 'XLSX') {
-        const html = await renderDocumentPreviewHtml(blob, fileName);
-        setOriginalFileHtml(html);
-      }
+      if (html) setOriginalFileHtml(html);
     } catch (error) {
-      setOriginalFileError(getErrorMessage(error));
+      setPreviewingOriginal(false);
+      if (isRepositorySessionCurrent(sessionSnapshot)) setOriginalFileError(getErrorMessage(error));
     }
   };
 
@@ -766,6 +806,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   };
 
   const handleGenerateForm = async (doc: DocumentItem): Promise<boolean> => {
+    const sessionSnapshot = captureRepositorySession();
     resetMessages();
     setGeneratingForm(true);
 
@@ -774,6 +815,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
       
       const db = await hdosDB.init();
+      assertRepositorySessionCurrent(sessionSnapshot);
       if (!db) {
         throw new Error('IndexedDB tidak tersedia pada browser ini.');
       }
@@ -782,6 +824,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         'photos',
         `${DOCUMENT_FILE_PREFIX}${doc.id}`
       );
+      assertRepositorySessionCurrent(sessionSnapshot);
 
       // When online, fetch through the tenant-scoped preview endpoint.
       // Do not use the CGG-only download endpoint for form extraction: Contractor
@@ -789,6 +832,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       // Keep the fetched bytes in memory only; do not create another unscoped local copy.
       if (hseApi.baseUrl && sessionUser) {
         const remote = await hseApi.previewRepositoryFile(doc.id);
+        assertRepositorySessionCurrent(sessionSnapshot);
         const blob = base64ToBlob(remote.base64, remote.mimeType);
         storedFile = {
           id: `${DOCUMENT_FILE_PREFIX}${doc.id}`,
@@ -826,12 +870,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         storedFile.fileName ||
           `${doc.docNumber}.${doc.fileType.toLowerCase()}`
       );
+      assertRepositorySessionCurrent(sessionSnapshot);
 
       const checklistItems = await extractChecklistItemsFromDocument(
         originalBlob,
         storedFile.fileName || `${doc.docNumber}.${doc.fileType.toLowerCase()}`,
         extracted.text
       );
+      assertRepositorySessionCurrent(sessionSnapshot);
 
       if (checklistItems.length === 0) {
         throw new Error(
@@ -887,12 +933,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         aiConfidence: 0.35,
       };
 
+      assertRepositorySessionCurrent(sessionSnapshot);
       if (existingForm) {
         const repairedForm = await store.updateFormDefinition(existingForm.id, {
           ...formInput,
           updatedAt: new Date().toISOString(),
           version: existingForm.version + 1,
         });
+        assertRepositorySessionCurrent(sessionSnapshot);
         setFormRefreshKey((value) => value + 1);
         setSuccessMessage(
           `Formulir ${repairedForm.title} diperbarui dari tabel checklist dokumen sumber: ${fields.length} pertanyaan.`
@@ -901,12 +949,14 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       }
 
       const newForm = await store.addFormDefinition(formInput);
+      assertRepositorySessionCurrent(sessionSnapshot);
       setFormRefreshKey((value) => value + 1);
       setSuccessMessage(
         `Formulir "${newForm.title}" langsung dibuat dan berstatus PUBLISHED dengan ${fields.length} pertanyaan dari tabel checklist dokumen sumber.`
       );
       return true;
     } catch (error) {
+      if (!isRepositorySessionCurrent(sessionSnapshot)) return false;
       console.error('[RepositoryModule] Gagal membuat draft formulir:', error);
       setErrorMessage(`Formulir otomatis gagal dibuat: ${getErrorMessage(error)}`);
       return false;
