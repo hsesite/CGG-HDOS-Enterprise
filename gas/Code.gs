@@ -2264,68 +2264,88 @@ function uploadContractorSia_(fleetId, payload, user) {
     : sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4E && sig[3] === 0x47;
   if (!valid) return error_(400, 'Isi dokumen tidak sesuai dengan tipe berkas.');
   const companyCode = String(unit.companyCode || '').trim().toUpperCase();
-  const props = PropertiesService.getScriptProperties();
-  const folderKey = 'HDOS_SIA_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
-  let folderId = props.getProperty(folderKey);
-  const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS SIA - ' + companyCode);
-  if (!folderId) props.setProperty(folderKey, folder.getId());
   const safeName = String(input.fileName || 'SIA').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
   const uploadKey = String(input.uploadKey || '').trim();
   if (uploadKey && !/^[a-zA-Z0-9_-]{8,160}$/.test(uploadKey)) return error_(400, 'Kunci unggah dokumen SIA tidak valid.');
-  const uploadMarker = uploadKey ? 'HDOS_SIA_UPLOAD_KEY:' + uploadKey : '';
-  let file = null;
-  if (uploadMarker) {
-    const existingFiles = folder.getFiles();
-    while (existingFiles.hasNext()) {
-      const candidate = existingFiles.next();
-      if (String(candidate.getDescription() || '').indexOf(uploadMarker) >= 0 && candidate.getMimeType() === mimeType) {
-        file = candidate;
-        break;
-      }
-    }
-  }
-  if (!file) {
-    file = folder.createFile(Utilities.newBlob(bytes, mimeType, safeName));
-    if (uploadMarker) file.setDescription(uploadMarker);
-  }
-  const sheet = getSheet_('contractor_fleet');
+  // Serialize idempotency lookup, Drive creation, and Spreadsheet commit. If
+  // lookup/create happens outside this lock, two simultaneous retries can both
+  // create a Drive file before either request records the result.
   const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
   let updated;
   let oldFileId = '';
   let targetRow = 0;
   let previousRowValues = null;
+  let file = null;
+  let createdFile = false;
   let committed = false;
-  lock.waitLock(10000);
+  let alreadyApplied = false;
   try {
+    const props = PropertiesService.getScriptProperties();
+    const folderKey = 'HDOS_SIA_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
+    let folderId = props.getProperty(folderKey);
+    const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS SIA - ' + companyCode);
+    if (!folderId) props.setProperty(folderKey, folder.getId());
+
+    const uploadMarker = uploadKey ? 'HDOS_SIA_UPLOAD_KEY:' + uploadKey + ':FLEET:' + fleetId : '';
+    if (uploadMarker) {
+      const existingFiles = folder.getFiles();
+      while (existingFiles.hasNext()) {
+        const candidate = existingFiles.next();
+        if (String(candidate.getDescription() || '').indexOf(uploadMarker) >= 0 && candidate.getMimeType() === mimeType) {
+          file = candidate;
+          break;
+        }
+      }
+    }
+    if (!file) {
+      file = folder.createFile(Utilities.newBlob(bytes, mimeType, safeName));
+      createdFile = true;
+      if (uploadMarker) file.setDescription(uploadMarker);
+    }
+
+    const sheet = getSheet_('contractor_fleet');
     targetRow = findRecordRow_(sheet, fleetId);
     if (!targetRow) {
-      file.setTrashed(true);
+      if (createdFile) file.setTrashed(true);
       return error_(404, 'Unit fleet tidak ditemukan.');
     }
     const latest = parseRow_(sheet, targetRow);
     if (String(latest.companyCode || '').trim().toUpperCase() !== companyCode) {
-      file.setTrashed(true);
+      if (createdFile) file.setTrashed(true);
       return error_(403, 'Kepemilikan unit berubah. Unggah dokumen dibatalkan.');
     }
-    previousRowValues = sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).getValues()[0];
-    oldFileId = String(latest.siaFileId || '');
-    updated = Object.assign({}, latest, { siaFileId: file.getId(), siaFileName: safeName, siaMimeType: mimeType, updatedAt: new Date().toISOString() });
-    sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
-      .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
-    SpreadsheetApp.flush();
-    committed = true;
+
+    // A retry after a successful but unacknowledged response is a no-op:
+    // preserve the original updatedAt and do not rewrite the register row.
+    if (!createdFile && latest.siaFileId === file.getId()) {
+      updated = latest;
+      committed = true;
+      alreadyApplied = true;
+    } else {
+      previousRowValues = sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).getValues()[0];
+      oldFileId = String(latest.siaFileId || '');
+      updated = Object.assign({}, latest, { siaFileId: file.getId(), siaFileName: safeName, siaMimeType: mimeType, updatedAt: new Date().toISOString() });
+      sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length)
+        .setValues([buildEntityRow_('contractor_fleet', updated, ENTITY_SCHEMAS.contractor_fleet)]);
+      SpreadsheetApp.flush();
+      committed = true;
+    }
   } catch (writeError) {
     let rollbackError = null;
     if (previousRowValues && targetRow > 0) {
       try {
+        const sheet = getSheet_('contractor_fleet');
         sheet.getRange(targetRow, 1, 1, ENTITY_SCHEMAS.contractor_fleet.length).setValues([previousRowValues]);
         SpreadsheetApp.flush();
       } catch (error) {
         rollbackError = error;
       }
     }
-    try { file.setTrashed(true); } catch (cleanupError) {
-      console.error('[HDOS SIA] Gagal membersihkan file baru setelah penulisan gagal.', cleanupError);
+    if (createdFile && file) {
+      try { file.setTrashed(true); } catch (cleanupError) {
+        console.error('[HDOS SIA] Gagal membersihkan file baru setelah penulisan gagal.', cleanupError);
+      }
     }
     if (rollbackError) {
       throw new Error('Penyimpanan SIA gagal dan pemulihan data fleet juga gagal. Perlu pemeriksaan administrator.', { cause: rollbackError });
@@ -2337,7 +2357,7 @@ function uploadContractorSia_(fleetId, payload, user) {
 
   // Replace the previous Drive file only after the new file reference is
   // committed to the fleet register. A cleanup failure must not undo success.
-  if (committed && oldFileId && oldFileId !== file.getId()) {
+  if (committed && !alreadyApplied && oldFileId && file && oldFileId !== file.getId()) {
     try {
       const oldFile = DriveApp.getFileById(oldFileId);
       if (isContractorSiaDriveFile_(oldFile, companyCode)) {
@@ -2354,7 +2374,7 @@ function uploadContractorSia_(fleetId, payload, user) {
     }
   }
   try {
-    logAudit_(user, 'CONTRACTOR_SIA_UPLOADED', 'contractor_fleet', fleetId, { companyCode: companyCode, fileName: safeName, mimeType: mimeType, size: bytes.length });
+    if (!alreadyApplied) logAudit_(user, 'CONTRACTOR_SIA_UPLOADED', 'contractor_fleet', fleetId, { companyCode: companyCode, fileName: safeName, mimeType: mimeType, size: bytes.length });
   } catch (auditError) {
     // Do not report a committed upload as failed: clients may retry and create
     // duplicate Drive files if an audit-only write failure becomes an API error.
