@@ -835,11 +835,25 @@ export class HDOSCentralStore {
     const published = forms.filter((form) =>
       form && form.status === 'PUBLISHED' && Array.isArray(form.fields) && form.fields.length > 0
     );
+    const user = AuthState.getUser();
+    if (!user) return;
+    const isVisibleToActiveTenant = (form: FormDefinition): boolean =>
+      isLocalRecordVisible(
+        form as unknown as Record<string, unknown>,
+        user,
+        this.getAllowedCompanyCodes()
+      );
+    // Preserve cached forms belonging to other tenants in the shared browser
+    // database; only the active tenant's visible snapshot may be reconciled.
     const previous = [...this.formDefinitions];
-    const next: FormDefinition[] = [];
+    const previousVisible = previous.filter(isVisibleToActiveTenant);
+    const previousOtherTenants = previous.filter(form => !isVisibleToActiveTenant(form));
+    if (shouldPublish && !shouldPublish()) return;
+    const nextVisible: FormDefinition[] = [];
 
     for (const remote of published) {
-      const local = previous.find((form) =>
+      if (!isVisibleToActiveTenant(remote)) continue;
+      const local = previousVisible.find((form) =>
         form.id === remote.id || Boolean(remote.sourceDocumentId && form.sourceDocumentId === remote.sourceDocumentId)
       );
       const merged: FormDefinition = {
@@ -849,15 +863,16 @@ export class HDOSCentralStore {
         createdAt: remote.createdAt || local?.createdAt || new Date().toISOString(),
         updatedAt: remote.updatedAt || local?.updatedAt || new Date().toISOString(),
       } as FormDefinition;
-      next.push(merged);
+      nextVisible.push(merged);
     }
 
-    const retainedIds = new Set(next.map((form) => form.id));
-    const staleIds = previous.filter(form => !retainedIds.has(form.id)).map(form => form.id);
-    await hdosDB.reconcileSnapshot('form-definition', staleIds, next);
+    const retainedIds = new Set(nextVisible.map((form) => form.id));
+    const staleIds = previousVisible.filter(form => !retainedIds.has(form.id)).map(form => form.id);
+    if (shouldPublish && !shouldPublish()) return;
+    await hdosDB.reconcileSnapshot('form-definition', staleIds, nextVisible);
     if (shouldPublish && !shouldPublish()) return;
 
-    this.formDefinitions = next;
+    this.formDefinitions = [...nextVisible, ...previousOtherTenants];
     this.notify();
   }
 
