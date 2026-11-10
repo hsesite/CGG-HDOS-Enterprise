@@ -180,40 +180,53 @@ export class HDOSSyncEngine {
     const initGeneration = ++this.initGeneration;
     const owner = this.getCurrentOwner();
     const requestedOwnerKey = owner ? `${owner.userId}::${owner.companyCode}` : '';
+    const requestedToken = hseApi.authToken;
     this.queueOwnerKey = requestedOwnerKey;
-    const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
-    if (initGeneration !== this.initGeneration) return;
 
-    // Account identity can change while IndexedDB is being read (for example,
-    // after a cross-tab login). Never publish a queue snapshot for that stale
-    // identity into the active UI/session.
-    const activeOwner = this.getCurrentOwner();
-    const activeOwnerKey = activeOwner ? `${activeOwner.userId}::${activeOwner.companyCode}` : '';
-    if (activeOwnerKey !== requestedOwnerKey) {
-      this.queue = [];
-      this.queueOwnerKey = '';
-      hdosEvents.emit('sync:queue_updated', []);
-      return;
-    }
+    const isCurrentInitialization = (): boolean => {
+      if (initGeneration !== this.initGeneration || this.queueOwnerKey !== requestedOwnerKey) return false;
+      const activeOwner = this.getCurrentOwner();
+      const activeOwnerKey = activeOwner ? `${activeOwner.userId}::${activeOwner.companyCode}` : '';
+      return activeOwnerKey === requestedOwnerKey && hseApi.authToken === requestedToken;
+    };
+    const abandonStaleInitialization = (): boolean => {
+      if (isCurrentInitialization()) return false;
+      // Do not clear a newer initialization's queue snapshot.
+      if (initGeneration === this.initGeneration && this.queueOwnerKey === requestedOwnerKey) {
+        this.queue = [];
+        this.queueOwnerKey = '';
+        hdosEvents.emit('sync:queue_updated', []);
+      }
+      return true;
+    };
+
+    const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    if (abandonStaleInitialization()) return;
 
     let quarantinedCount = 0;
     for (const item of storedQueue) {
+      if (abandonStaleInitialization()) return;
+      // Legacy entries without ownership metadata cannot safely be assigned
+      // to any account. Quarantine them globally, never replay them.
       if ((!item.ownerUserId || !item.ownerCompanyCode) && item.retryCount < MAX_RETRIES) {
         item.status = 'CONFLICT';
         item.retryCount = MAX_RETRIES;
         item.error = 'Item offline lama tidak memiliki identitas pemilik. Item ditahan; verifikasi dan input ulang diperlukan.';
         await hdosDB.put('queue', item);
+        if (abandonStaleInitialization()) return;
         quarantinedCount += 1;
       }
     }
+    if (abandonStaleInitialization()) return;
     this.queue = owner ? storedQueue.filter(item => item.ownerUserId === owner.userId && item.ownerCompanyCode === owner.companyCode).sort(compareQueueItemsByTime) : [];
 
     // Recover interrupted writes only when no other tab currently owns the
-    // tenant sync lock. This prevents a newly opened tab from resetting a
-    // legitimate in-flight request in another tab.
+    // tenant sync lock. Every awaited write is bound to the same account,
+    // token, and initialization generation that started this recovery.
     let recoveredCount = 0;
     const recoverInterruptedQueue = async (): Promise<void> => {
       for (const item of this.queue) {
+        if (abandonStaleInitialization()) return;
         if (item.status !== 'SYNCING' ||
             item.ownerUserId !== owner?.userId ||
             item.ownerCompanyCode !== owner?.companyCode) continue;
@@ -221,6 +234,7 @@ export class HDOSSyncEngine {
         item.syncStartedAt = undefined;
         item.error = 'Sinkronisasi sebelumnya terputus. Item dipulihkan dan akan dicoba kembali.';
         await hdosDB.put('queue', item);
+        if (abandonStaleInitialization()) return;
         recoveredCount += 1;
       }
     };
@@ -231,14 +245,16 @@ export class HDOSSyncEngine {
         recoveryLockName,
         { mode: 'exclusive', ifAvailable: true },
         async lock => {
-          if (lock) await recoverInterruptedQueue();
+          if (lock && !abandonStaleInitialization()) await recoverInterruptedQueue();
         }
       );
+      if (abandonStaleInitialization()) return;
     } else {
       // Without cross-tab locks, recover only leases that have clearly expired.
       // Never reset a fresh SYNCING item just because another tab initialized.
       const staleBefore = Date.now() - 2 * 60 * 1000;
       for (const item of this.queue) {
+        if (abandonStaleInitialization()) return;
         if (item.status !== 'SYNCING' ||
             item.ownerUserId !== owner?.userId ||
             item.ownerCompanyCode !== owner?.companyCode) continue;
@@ -248,9 +264,12 @@ export class HDOSSyncEngine {
         item.syncStartedAt = undefined;
         item.error = 'Lease sinkronisasi kedaluwarsa. Item dipulihkan dan akan dicoba kembali.';
         await hdosDB.put('queue', item);
+        if (abandonStaleInitialization()) return;
         recoveredCount += 1;
       }
     }
+    if (abandonStaleInitialization()) return;
+
     if (recoveredCount > 0) {
       this.syncLogs.unshift({
         time: formatTime(),
@@ -268,37 +287,18 @@ export class HDOSSyncEngine {
     if (this.queue.length > 0) {
       this.syncLogs.unshift({
         time: formatTime(),
-        message:
-          `${this.queue.length} item ditemukan di offline queue.`,
+        message: `${this.queue.length} item ditemukan di offline queue.`,
         type: 'warning',
       });
     }
 
-    // Recovery writes above are asynchronous too. Re-check the active
-    // identity immediately before publishing this snapshot so a cross-tab
-    // account switch cannot expose the previous tenant's queue in the new UI.
-    if (initGeneration !== this.initGeneration) return;
-    const finalOwner = this.getCurrentOwner();
-    const finalOwnerKey = finalOwner ? `${finalOwner.userId}::${finalOwner.companyCode}` : '';
-    if (finalOwnerKey !== requestedOwnerKey || this.queueOwnerKey !== requestedOwnerKey) {
-      this.queue = [];
-      this.queueOwnerKey = '';
-      hdosEvents.emit('sync:queue_updated', []);
-      return;
-    }
+    if (abandonStaleInitialization()) return;
+    hdosEvents.emit('sync:queue_updated', [...this.queue]);
 
-    hdosEvents.emit(
-      'sync:queue_updated',
-      [...this.queue]
-    );
-
-    if (
-      this.isOnline &&
-      this.queue.length > 0 &&
-      hseApi.isAuthenticated
-    ) {
+    if (this.isOnline && this.queue.length > 0 && hseApi.isAuthenticated &&
+        hseApi.authToken === requestedToken && isCurrentInitialization()) {
       setTimeout(() => {
-        void this.triggerSync();
+        if (isCurrentInitialization()) void this.triggerSync();
       }, 300);
     }
   }
