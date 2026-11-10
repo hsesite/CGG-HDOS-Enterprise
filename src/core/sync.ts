@@ -1094,14 +1094,36 @@ export class HDOSSyncEngine {
                 const localRecord = localStoreName
                   ? await hdosDB.getById<Record<string, unknown> & { id: string }>(localStoreName, recordId)
                   : null;
+                const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+                const laterUpdates = persistedQueue.filter(queued =>
+                  queued.id !== item.id && queued.ownerUserId === owner.userId &&
+                  queued.ownerCompanyCode === owner.companyCode && queued.entity === item.entity &&
+                  queued.action === 'UPDATE' && queued.status === 'PENDING' &&
+                  getRecordId(queued) === recordId &&
+                  Boolean(queued.payload) && typeof queued.payload === 'object' && !Array.isArray(queued.payload)
+                ).map(queued => ({
+                  ...queued,
+                  payload: {
+                    ...(queued.payload as Record<string, unknown>),
+                    evidencePhotoFileId: photoFileId,
+                    evidencePhotoUrl: photoUrl,
+                  },
+                }));
                 const bundle: Array<{ storeName: StoreName; item: Record<string, unknown> & { id: string } }> = [
                   { storeName: 'queue', item: item as unknown as Record<string, unknown> & { id: string } },
+                  ...laterUpdates.map(queued => ({ storeName: 'queue' as const, item: queued as unknown as Record<string, unknown> & { id: string } })),
                 ];
                 if (localStoreName && localRecord) bundle.push({
                   storeName: localStoreName,
                   item: { ...localRecord, evidencePhotoFileId: photoFileId, evidencePhotoUrl: photoUrl },
                 });
                 await hdosDB.putBundle(bundle);
+                const queueOwnerAfterPhotoWrite = this.getCurrentOwner();
+                if (queueOwnerAfterPhotoWrite && queueOwnerAfterPhotoWrite.userId === owner.userId &&
+                    queueOwnerAfterPhotoWrite.companyCode === owner.companyCode && this.queueOwnerKey === requestedOwnerKey) {
+                  const updatedById = new Map(laterUpdates.map(queued => [queued.id, queued]));
+                  this.queue = this.queue.map(current => updatedById.get(current.id) || current);
+                }
                 updatePayload = { ...(item.payload as Record<string, unknown>) };
                 delete (updatePayload as Record<string, unknown>).localPhotoId;
               }
