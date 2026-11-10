@@ -2139,7 +2139,7 @@ test('Repository DELETE serializes lookup, tenant authorization, Drive trashing,
   const route = source.slice(routeStart, routeEnd);
   assert.ok(route.includes('deleteLock.waitLock(10000)'));
   assert.ok(route.includes('finally {\n      deleteLock.releaseLock();'));
-  assert.ok(route.indexOf('findRecordRow_(sheet, documentId)') < route.indexOf('isRecordVisibleToUser_'));
+  assert.ok(route.indexOf('findRecordRow_(sheet, documentId)') < route.indexOf("String(doc.companyCode || '')"));
   assert.ok(route.indexOf('isRepositoryDriveFile_(repositoryFile)') < route.indexOf('sheet.deleteRow(rowNumber)'));
   assert.ok(route.indexOf('sheet.deleteRow(rowNumber)') < route.indexOf('logAudit_(user, \'REPOSITORY_DOCUMENT_DELETED\''));
   assert.match(route, /alreadyDeleted: true/);
