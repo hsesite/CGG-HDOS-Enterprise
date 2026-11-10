@@ -884,6 +884,7 @@ export class HDOSSyncEngine {
     );
 
     let successCount = 0;
+    const claimedQueueLeases = new Map<string, string>();
 
     try {
       // Revalidate identity immediately before sending queued writes. This also
@@ -1001,6 +1002,7 @@ export class HDOSSyncEngine {
           continue;
         }
         item = claimedItem;
+        claimedQueueLeases.set(item.id, String(item.syncStartedAt || ''));
         this.queue = this.queue.map(current => current.id === item.id ? item : current);
 
         const ownerAfterClaim = this.getCurrentOwner();
@@ -1430,16 +1432,22 @@ export class HDOSSyncEngine {
           hseApi.authToken === syncToken &&
           this.queueOwnerKey === requestedOwnerKey) {
         for (const queued of this.queue) {
-          if (queued.status !== 'SYNCING' ||
-              queued.ownerUserId !== owner.userId ||
+          const claimedLease = claimedQueueLeases.get(queued.id);
+          if (!claimedLease || queued.ownerUserId !== owner.userId ||
               queued.ownerCompanyCode !== owner.companyCode) continue;
-          const recovered = {
-            ...queued,
-            status: 'PENDING' as const,
-            syncStartedAt: undefined,
-            error: 'Sinkronisasi terhenti karena gangguan internal. Item dikembalikan ke antrean untuk dicoba kembali.'
-          };
           try {
+            const persisted = await hdosDB.getById<SyncQueueItem>('queue', queued.id);
+            // Never release a lease that another tab has since reclaimed.
+            if (!persisted || persisted.status !== 'SYNCING' ||
+                persisted.syncStartedAt !== claimedLease ||
+                persisted.ownerUserId !== owner.userId ||
+                persisted.ownerCompanyCode !== owner.companyCode) continue;
+            const recovered = {
+              ...persisted,
+              status: 'PENDING' as const,
+              syncStartedAt: undefined,
+              error: 'Sinkronisasi terhenti karena gangguan internal. Item dikembalikan ke antrean untuk dicoba kembali.'
+            };
             await hdosDB.put('queue', recovered);
             this.queue = this.queue.map(current => current.id === recovered.id ? recovered : current);
           } catch (recoveryError) {
