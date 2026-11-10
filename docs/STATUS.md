@@ -478,3 +478,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression tests ditambahkan untuk transaksi cleanup atomik dan pelepasan lease sinkronisasi.
 - [ ] UAT crash/reload tepat setelah respons cloud diterima tetap diperlukan pada browser/perangkat nyata dan GAS/Sheets staging.
 - [x] 191 regression tests, typecheck frontend/backend, production build, dan deployment GitHub Pages berhasil pada commit `47bb4daa819395262a6088362afa6cd6c867740b`.
+
+### Backend — idempotensi CREATE dengan pemeriksaan kesamaan payload (10 November 2026)
+- [x] Retry CREATE dengan ID dan payload yang sama mengembalikan record yang telah tersimpan tanpa membuat duplikat.
+- [x] Penggunaan ulang ID yang sama dengan payload berbeda ditolak sebagai HTTP 409 agar perubahan data tidak hilang diam-diam.
+- [x] Objek nested dibandingkan secara kanonis tanpa terpengaruh urutan key JSON; pemeriksaan diulang di dalam Script Lock untuk menutup race antarperangkat.
+- [x] Jalur upload Repository tetap memakai pemeriksaan ID/tenant yang sudah ada dan tidak ikut menerima payload operasional.
+- [x] 192 regression tests, typecheck frontend/backend, dan production build berhasil; deployment GitHub Pages berhasil pada commit `154dff3cfa798fb7f2ddfbd964fbf7bfd50ff31d`.
+- [ ] Perubahan `gas/Code.gs` harus dideploy ke project Apps Script staging/aktif secara terpisah, lalu diuji retry CREATE dengan respons hilang dan payload berbeda pada Spreadsheet nonproduksi.
