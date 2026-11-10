@@ -33,6 +33,15 @@ function loadScope() {
 }
 const applyRecordScope = loadScope();
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
+test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
+  const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
+  const resolutionEnd = syncEngineSource.indexOf('async retryFailedItems()', resolutionStart);
+  assert.ok(resolutionStart >= 0 && resolutionEnd > resolutionStart);
+  const resolutionBlock = syncEngineSource.slice(resolutionStart, resolutionEnd);
+  assert.match(resolutionBlock, /\(queued\.action === 'UPDATE' \|\| queued\.action === 'DELETE'\)/);
+  assert.match(resolutionBlock, /queued\.status === 'CONFLICT'/);
+  assert.match(resolutionBlock, /status: 'PENDING' as const/);
+});
 test('same-record sync operations use CREATE then UPDATE then DELETE when timestamps tie', () => {
   assert.ok(syncEngineSource.includes("const actionOrder: Record<SyncQueueItem['action'], number> = {"));
   assert.ok(syncEngineSource.includes('CREATE: 0,\n      UPDATE: 1,\n      DELETE: 2,'));
