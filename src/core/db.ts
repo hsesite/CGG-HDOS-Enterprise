@@ -68,10 +68,13 @@ class HDOSDatabase {
       console.error('[HDOS DB] Exception opening IndexedDB', err);
       this.db = null;
       this.initPromise = null;
-      return null;
+      // Do not silently switch to localStorage after an IndexedDB failure:
+      // that can create a second database and hide queued offline writes when
+      // IndexedDB becomes available again.
+      return Promise.reject(new Error('IndexedDB tidak dapat dibuka. Data lokal tidak dialihkan ke penyimpanan lain.', { cause: err }));
     }
 
-    this.initPromise = new Promise((resolve) => {
+    this.initPromise = new Promise((resolve, reject) => {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
@@ -112,7 +115,7 @@ class HDOSDatabase {
         console.error('[HDOS DB] IndexedDB open error', request.error);
         this.db = null;
         this.initPromise = null;
-        resolve(null);
+        reject(new Error('IndexedDB gagal dibuka. Penyimpanan lokal alternatif tidak digunakan agar antrean tidak terpecah.', { cause: request.error }));
       };
 
     });
