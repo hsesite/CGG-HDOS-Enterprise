@@ -531,3 +531,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test memverifikasi versi cache dan pembersihan cache lama.
 - [x] 203 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `261b1d0081e235d1be1715163e80d4c95d278460`.
 - [ ] Pemeriksaan storage quota dan update cache pada perangkat fisik tetap bagian dari UAT.
+
+### Backup enterprise — cakupan Admin CGG dan isolasi bukti lokal (10 November 2026)
+- [x] Backup Admin CGG mencakup seluruh tenant yang dapat diakses oleh akun pengelola pusat, bukan hanya record berkode CGG.
+- [x] Backup Admin CGG ditolak saat dipulihkan oleh akun non-Admin CGG; identitas Admin CGG juga harus konsisten dengan companyCode CGG.
+- [x] Queue dan Blob lampiran tetap dibatasi pada user serta tenant yang membuatnya, termasuk ketika backup dilakukan Admin CGG.
+- [x] Arsip versi lama tanpa metadata `isAdminCGG` tetap dapat dibaca sebagai arsip dengan cakupan tenant biasa.
+- [x] 204 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `14c8071b11f17a4f054cfdb33c1a104668fa505d`.
+- [ ] UAT backup Admin CGG lintas Contractor/Subkon dan restore pada perangkat staging tetap diperlukan.
