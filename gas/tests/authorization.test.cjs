@@ -1736,6 +1736,12 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(source, /id: requestId, code: 'P2H-'/);
 });
 
+test('Sync queue displays readable descriptions for Contractor P2H and monthly reports', () => {
+  assert.match(syncUiSource, /Laporan kepatuhan periode/);
+  assert.match(syncUiSource, /P2H \\{unit\\}/);
+  assert.match(p2hUiSource, /unitNumber: unit\.unitNumber/);
+});
+
 test('Contractor fleet register and P2H history use tenant-scoped offline caches', () => {
   assert.match(p2hUiSource, /contractor-fleet-cache:\$\{sessionUser\.id\}:\$\{ownCompanyCode\}/);
   assert.match(p2hUiSource, /contractor-p2h-history:\$\{sessionUser\.id\}:\$\{ownCompanyCode\}:\$\{unit\.id\}/);
