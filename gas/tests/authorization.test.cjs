@@ -1753,7 +1753,7 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /saveOfflineOperationalPhoto\(file\)/);
   assert.match(p2hUiSource, /localPhotoId: p2hLocalPhotoId \|\| undefined/);
   assert.match(p2hUiSource, /capture="environment"/);
-  assert.match(syncEngineSource, /hdosDB\.delete\('photos', String\(\(item\.payload as Record<string, unknown>\)\.localPhotoId\)\)/);
+  assert.match(syncEngineSource, /storeName: 'photos' as const, deleteIds: \[completedPhotoId\]/);
   assert.doesNotMatch(p2hUiSource, /p2hPhotoFile && !p2hPhotoReference/);
   assert.match(p2hUiSource, /photoReference: p2hPhotoReference/);
   assert.match(p2hUiSource, /setP2hPhotoReference\(null\)/);
@@ -2688,7 +2688,7 @@ test('inspection and hazard evidence is persisted locally and uploaded during qu
   assert.match(sync, /getById<OfflineOperationalPhoto>\('photos', localPhotoId\)/);
   assert.match(sync, /uploadOfflineOperationalPhoto\(localPhoto\)/);
   assert.match(sync, /delete cloudPayload\.localPhotoId/);
-  assert.match(sync, /hdosDB\.delete\('photos', String\(/);
+  assert.match(sync, /storeName: 'photos' as const, deleteIds: \[completedPhotoId\]/);
   assert.match(backup, /await encodeBinary\(scoped\)/);
   assert.match(backup, /storeName === 'photos'/);
   assert.match(backup, /photo\.ownerUserId === owner\.userId/);
@@ -2705,7 +2705,7 @@ test('PICA evidence photos are stored offline and uploaded during queued UPDATE 
   assert.match(syncEngineSource, /delete \(updatePayload as Record<string, unknown>\)\.localPhotoId/);
   assert.match(syncEngineSource, /const laterUpdates = persistedQueue\.filter/);
   assert.match(syncEngineSource, /evidencePhotoFileId: photoFileId,[\s\S]*?evidencePhotoUrl: photoUrl/);
-  assert.match(syncEngineSource, /item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
+  assert.match(syncEngineSource, /const completedPhotoId = item\.payload[\s\S]*?item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
 });
 
 
