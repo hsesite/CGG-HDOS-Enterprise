@@ -18,7 +18,7 @@ test('backup serializes Blob attachments with MIME type and restores them as Blo
 test('backup preserves ArrayBuffer attachments through export and restore', () => {
   assert.match(backupSource, /value instanceof ArrayBuffer/);
   assert.match(backupSource, /__hdosBackupBinary: 'arraybuffer'/);
-  assert.match(backupSource, /return bytes\.buffer/);
+  assert.match(backupSource, /:\s*bytes\.buffer/);
 });
 
 test('binary conversion traverses nested records and arrays', () => {
