@@ -1,10 +1,3 @@
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import mammoth from 'mammoth/mammoth.browser';
-import * as XLSX from 'xlsx';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-
 export interface ExtractedChecklistItem {
   question: string;
   standardRef: string;
@@ -35,6 +28,11 @@ export async function extractDocumentText(
   const buffer = await file.arrayBuffer();
 
   if (extension === 'pdf') {
+    const [pdfjsLib, pdfWorker] = await Promise.all([
+      import('pdfjs-dist'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+    ]);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker.default;
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
     });
@@ -65,7 +63,8 @@ export async function extractDocumentText(
   }
 
   if (extension === 'docx') {
-    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+    const mammothModule = await import('mammoth/mammoth.browser');
+    const result = await mammothModule.default.extractRawText({ arrayBuffer: buffer });
     const text = normalizeText(result.value || '');
     if (!text) {
       throw new Error('Teks DOCX tidak berhasil diekstrak atau dokumen kosong.');
@@ -74,6 +73,7 @@ export async function extractDocumentText(
   }
 
   if (extension === 'xlsx') {
+    const XLSX = await import('xlsx');
     const workbook = XLSX.read(buffer, { type: 'array', cellText: true });
     const sections = workbook.SheetNames.map((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
@@ -174,7 +174,8 @@ export async function extractChecklistItemsFromDocument(
 
   if (extension === 'docx') {
     const buffer = await file.arrayBuffer();
-    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+    const mammothModule = await import('mammoth/mammoth.browser');
+    const result = await mammothModule.default.convertToHtml({ arrayBuffer: buffer });
     if (typeof DOMParser !== 'undefined') {
       const parsed = new DOMParser().parseFromString(result.value || '', 'text/html');
       const tables = Array.from(parsed.querySelectorAll('table'));
@@ -319,12 +320,14 @@ export async function renderDocumentPreviewHtml(file: Blob, fileName: string): P
   const buffer = await file.arrayBuffer();
 
   if (extension === 'docx') {
-    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+    const mammothModule = await import('mammoth/mammoth.browser');
+    const result = await mammothModule.default.extractRawText({ arrayBuffer: buffer });
     if (!result.value.trim()) throw new Error('Isi DOCX tidak dapat ditampilkan.');
     return `<pre>${escapePreviewHtml(result.value)}</pre>`;
   }
 
   if (extension === 'xlsx') {
+    const XLSX = await import('xlsx');
     const workbook = XLSX.read(buffer, { type: 'array', cellText: true });
     return workbook.SheetNames.map((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
