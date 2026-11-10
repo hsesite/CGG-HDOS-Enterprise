@@ -2014,6 +2014,13 @@ test('sync refreshes persisted tenant queue after acquiring the cross-tab lock',
   assert.match(syncEngineSource, /hseApi\.authToken !== syncToken/);
 });
 
+test('sync safely defers when persisted queue cannot be read', () => {
+  assert.match(syncEngineSource, /let persistedQueue: SyncQueueItem\[\]/);
+  assert.match(syncEngineSource, /try \{\s*persistedQueue = await hdosDB\.getAll<SyncQueueItem>\('queue'\);\s*\} catch \(error\) \{/);
+  assert.match(syncEngineSource, /Antrean lokal gagal dibaca/);
+  assert.match(syncEngineSource, /this\.scheduleRetry\(\);\s*return false;/);
+});
+
 test('unresolved conflict items are not replayed by an unrelated sync trigger', () => {
   assert.match(syncEngineSource, /if \(item\.status === 'CONFLICT'\) \{[\s\S]*?blockedRecordIds\.add\(itemRecordId\);[\s\S]*?continue;/);
 });
