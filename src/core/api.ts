@@ -472,7 +472,7 @@ export const hseApi = {
     return request<Record<string, unknown>>('POST', '/api/repository', input);
   },
 
-  async uploadOperationalPhoto(input: { fileName: string; mimeType: string; fileBase64: string }): Promise<{ photoFileId: string; photoUrl: string; fileName: string; mimeType: string }> {
+  async uploadOperationalPhoto(input: { fileName: string; mimeType: string; fileBase64: string; uploadKey: string }): Promise<{ photoFileId: string; photoUrl: string; fileName: string; mimeType: string }> {
     return request<{ photoFileId: string; photoUrl: string; fileName: string; mimeType: string }>('POST', '/api/photos', input);
   },
 
