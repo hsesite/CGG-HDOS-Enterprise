@@ -2769,7 +2769,8 @@ function canPublishForms_(user) {
 }
 
 function canMonitorPicas_(user) {
-  const roles = user && user.roles || [];
+  if (!user) return false;
+  const roles = user.roles || [];
   return isAdminCGG_(user) || isCompanyAdmin_(user) ||
     (user.roleVerified === true && roles.some(function(role) {
       return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0;
