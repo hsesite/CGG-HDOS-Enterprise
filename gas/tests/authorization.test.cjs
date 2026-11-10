@@ -2620,3 +2620,15 @@ test('inspection and hazard evidence is persisted locally and uploaded during qu
   assert.match(backup, /item\.ownerUserId !== owner\.userId/);
   assert.match(backup, /new Blob\(\[bytes\]/);
 });
+
+test('PICA evidence photos are stored offline and uploaded during queued UPDATE replay', () => {
+  const picaSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
+  const typesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
+  assert.match(picaSource, /saveOfflineOperationalPhoto\(evidencePhotoFile\)/);
+  assert.match(picaSource, /offline:\$\{localPhotoId\}/);
+  assert.match(picaSource, /diunggah otomatis saat sinkronisasi/);
+  assert.match(typesSource, /evidencePhotoFileId\?: string;[\s\S]*?localPhotoId\?: string;/);
+  assert.match(syncSource, /item\.action === 'UPDATE'[\s\S]*?originalPayload\.localPhotoId/);
+  assert.match(syncSource, /delete \(updatePayload as Record<string, unknown>\)\.localPhotoId/);
+  assert.match(syncSource, /item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
+});
