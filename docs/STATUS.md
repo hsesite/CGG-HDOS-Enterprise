@@ -512,3 +512,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Panduan instalasi Android/iOS dan batas kemampuan offline ditambahkan ke README.
 - [x] 201 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `a822d35dcc8c415111ba52fe954c85d69a370ada`.
 - [ ] Uji instalasi, pembukaan ulang offline, update service worker, dan ikon pada perangkat Android/iOS nyata tetap diperlukan.
+
+### PWA offline — precache seluruh modul lazy-loaded (10 November 2026)
+- [x] Build Vite menghasilkan `.vite/manifest.json` agar daftar aset produksi tersedia untuk service worker.
+- [x] Service worker membaca manifest build dan melakukan precache terhadap seluruh entry JS, CSS, serta aset yang dirujuk, termasuk chunk modul operasional yang belum pernah dibuka.
+- [x] Jika manifest build tidak tersedia, worker tetap memiliki fallback untuk aset entry yang tertaut dari HTML.
+- [x] Regression suite: 202 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `5ad88375b02f3b7003322f0958ed00bd5c42a692`.
+- [ ] Verifikasi ukuran cache, penggunaan storage, pembukaan setiap modul saat offline, dan update antarversi pada Android/iOS nyata masih diperlukan.
