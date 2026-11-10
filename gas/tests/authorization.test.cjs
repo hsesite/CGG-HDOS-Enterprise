@@ -2144,3 +2144,16 @@ test('Repository DELETE serializes lookup, tenant authorization, Drive trashing,
   assert.ok(route.indexOf('sheet.deleteRow(rowNumber)') < route.indexOf('logAudit_(user, \'REPOSITORY_DOCUMENT_DELETED\''));
   assert.match(route, /alreadyDeleted: true/);
 });
+
+
+test('manual retry never reactivates unresolved CONFLICT or RESOLVED queue items', () => {
+  const start = syncEngineSource.indexOf('async retryFailedItems()');
+  const end = syncEngineSource.indexOf('async triggerSync()', start + 1);
+  assert.ok(start >= 0 && end > start);
+  const retryBlock = syncEngineSource.slice(start, end);
+  assert.match(retryBlock, /item\.status === 'CONFLICT'/);
+  assert.match(retryBlock, /item\.status === 'RESOLVED'/);
+  assert.match(retryBlock, /item\.retryCount < MAX_RETRIES/);
+  assert.ok(retryBlock.indexOf("item.status === 'CONFLICT'") < retryBlock.indexOf("item.status = 'PENDING'"));
+  assert.ok(retryBlock.indexOf("item.status === 'RESOLVED'") < retryBlock.indexOf("item.status = 'PENDING'"));
+});
