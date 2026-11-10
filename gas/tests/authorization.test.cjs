@@ -2748,3 +2748,33 @@ test('Contractor SIA queue and offline Blob are removed in one IndexedDB snapsho
   assert.match(replay, /await hdosDB\.reconcileSnapshotBundle\(\[[\s\S]*?storeName: 'photos', deleteIds: \[payload\.localDocumentId\], records: \[\][\s\S]*?storeName: 'queue', deleteIds: \[item\.id\], records: \[\]/);
   assert.doesNotMatch(replay, /await hdosDB\.delete\('photos', payload\.localDocumentId\)/);
 });
+
+
+test('backup and recovery copies preserve every required sheet dimension and header', () => {
+  const names = ['users','companies','locations','forms','inspections','hazards','picas','incidents','audit_logs','backup_logs','contractor_reports','contractor_fleet','contractor_p2h_history','repository'];
+  const context = { CONFIG: { SHEETS: names.slice(0, -1) } };
+  vm.createContext(context);
+  const start = source.indexOf('function compareDatabaseSpreadsheetSnapshots_(');
+  const end = source.indexOf('function getHealthReadiness_(', start + 1);
+  assert.ok(start >= 0 && end > start);
+  vm.runInContext(source.slice(start, end), context);
+  function makeSpreadsheet(overrides = {}) {
+    const sheets = {};
+    names.forEach(name => {
+      const rows = overrides[name] || [['id','payload'],['record-1','{}']];
+      sheets[name] = {
+        getLastRow: () => rows.length,
+        getLastColumn: () => rows[0].length,
+        getRange: () => ({ getValues: () => [rows[0]] })
+      };
+    });
+    return { getSheetByName: name => sheets[name] || null };
+  }
+  assert.equal(context.compareDatabaseSpreadsheetSnapshots_(makeSpreadsheet(), makeSpreadsheet()).valid, true);
+  const rowMismatch = context.compareDatabaseSpreadsheetSnapshots_(makeSpreadsheet(), makeSpreadsheet({hazards:[['id','payload'],['h1','{}'],['h2','{}']]}));
+  assert.equal(rowMismatch.valid, false);
+  assert.ok(rowMismatch.mismatches.some(item => item.includes('hazards: dimensi')));
+  const headerMismatch = context.compareDatabaseSpreadsheetSnapshots_(makeSpreadsheet(), makeSpreadsheet({picas:[['id','wrong'],['p1','{}']]}));
+  assert.equal(headerMismatch.valid, false);
+  assert.ok(headerMismatch.mismatches.some(item => item.includes('picas: header berbeda')));
+});
