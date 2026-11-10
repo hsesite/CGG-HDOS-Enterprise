@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -21,6 +21,8 @@ import {
   Settings,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
+import { getCurrentUser } from '../../core/auth-utils';
+import { canAccessModule, type HDOSModule } from '../../core/access-policy';
 import { hdosSync } from '../../core/sync';
 import { hseApi } from '../../core/api';
 import { DashboardModule } from '../modules/DashboardModule';
@@ -43,6 +45,16 @@ export const IOSMobileSimulator: React.FC = () => {
   const [moreOpen, setMoreOpen] = useState(false);
   const online = hdosSync.getIsOnline();
   const queueCount = hdosSync.getQueue().length;
+  const currentUser = getCurrentUser();
+  const roleKey = (currentUser?.roles || []).join('|');
+
+  // Match desktop authorization and reset stale mobile tabs after role changes.
+  useEffect(() => {
+    if (!canAccessModule(currentUser, activeTab)) {
+      setActiveTab('dashboard');
+      setMoreOpen(false);
+    }
+  }, [currentUser?.id, currentUser?.roleVerified, roleKey, activeTab]);
 
   return (
     <div className="fixed inset-0 z-[60] bg-[#060608] flex items-stretch justify-stretch overflow-hidden">
@@ -134,7 +146,7 @@ export const IOSMobileSimulator: React.FC = () => {
               ['ai', 'Asisten HSE', Flame],
               ['sync', 'Sinkronisasi Data', RefreshCw],
               ['settings', 'Pengaturan', Settings],
-            ] as const).map(([tab, label, Icon]) => (
+            ] as const).filter(([tab]) => canAccessModule(currentUser, tab)).map(([tab, label, Icon]) => (
               <button key={tab} type="button" onClick={() => { setActiveTab(tab); setMoreOpen(false); }}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-neutral-200 hover:bg-white/10 active:bg-white/15">
                 <Icon className="h-4 w-4 text-[#00E676]" />
@@ -146,7 +158,7 @@ export const IOSMobileSimulator: React.FC = () => {
 
         {/* Mobile bottom navigation */}
         <div className="absolute bottom-0 left-0 right-0 min-h-16 pb-[env(safe-area-inset-bottom)] bg-[#121216]/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-1 text-neutral-400 z-30 select-none">
-          <button
+          {canAccessModule(currentUser, 'dashboard') && <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
               activeTab === 'dashboard' ? 'text-[#00E676] font-semibold' : 'hover:text-white'
@@ -154,9 +166,9 @@ export const IOSMobileSimulator: React.FC = () => {
           >
             <LayoutDashboard className="w-4 h-4" />
             <span className="text-[10px]">Dashboard</span>
-          </button>
+          </button>}
 
-          <button
+          {canAccessModule(currentUser, 'inspection') && <button
             onClick={() => setActiveTab('inspection')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
               activeTab === 'inspection' ? 'text-[#00E676] font-semibold' : 'hover:text-white'
@@ -164,9 +176,9 @@ export const IOSMobileSimulator: React.FC = () => {
           >
             <ClipboardCheck className="w-4 h-4" />
             <span className="text-[10px]">Inspeksi</span>
-          </button>
+          </button>}
 
-          <button
+          {canAccessModule(currentUser, 'hazard') && <button
             onClick={() => setActiveTab('hazard')}
             className="flex flex-col items-center -mt-5 cursor-pointer group"
           >
@@ -174,9 +186,9 @@ export const IOSMobileSimulator: React.FC = () => {
               <Plus className="w-6 h-6" />
             </div>
             <span className="text-[10px] text-white mt-0.5 font-bold">Lapor</span>
-          </button>
+          </button>}
 
-          <button
+          {canAccessModule(currentUser, 'map') && <button
             onClick={() => setActiveTab('map')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
               activeTab === 'map' ? 'text-[#00E676] font-semibold' : 'hover:text-white'
@@ -184,9 +196,9 @@ export const IOSMobileSimulator: React.FC = () => {
           >
             <MapPin className="w-4 h-4" />
             <span className="text-[10px]">Peta GIS</span>
-          </button>
+          </button>}
 
-          <button
+          {canAccessModule(currentUser, 'pica') && <button
             onClick={() => setActiveTab('pica')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
               activeTab === 'pica' ? 'text-[#00E676] font-semibold' : 'hover:text-white'
@@ -194,8 +206,8 @@ export const IOSMobileSimulator: React.FC = () => {
           >
             <CheckSquare className="w-4 h-4" />
             <span className="text-[10px]">PICA</span>
-          </button>
-          <button
+          </button>}
+          {(['incident', 'repository', 'contractor', 'ai', 'sync', 'settings'] as HDOSModule[]).some(tab => canAccessModule(currentUser, tab)) && <button
             type="button"
             onClick={() => setMoreOpen((open) => !open)}
             aria-expanded={moreOpen}
@@ -204,7 +216,7 @@ export const IOSMobileSimulator: React.FC = () => {
           >
             <MoreHorizontal className="w-4 h-4" />
             <span className="text-[10px]">Lainnya</span>
-          </button>
+          </button>}
         </div>
 
         {/* Home Indicator Bar */}
