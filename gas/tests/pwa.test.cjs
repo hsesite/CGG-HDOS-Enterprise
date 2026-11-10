@@ -9,6 +9,7 @@ const worker = fs.readFileSync(path.join(root, 'public', 'sw.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'src', 'main.tsx'), 'utf8');
 const vite = fs.readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
+const buildValidator = fs.readFileSync(path.join(root, 'scripts', 'validate-pwa-build.mjs'), 'utf8');
 
 test('mobile web app manifest declares installable standalone HDOS scope', () => {
   const parsed = JSON.parse(manifest);
@@ -47,6 +48,14 @@ test('Vite exposes the complete build graph for lazy-module offline precaching',
   assert.match(vite, /manifest: 'manifest.json'/);
   assert.match(worker, /Array\.isArray\(assetEntry\.css\)/);
   assert.match(worker, /Array\.isArray\(assetEntry\.assets\)/);
+});
+
+test('production artifact validator checks the PWA shell and every manifest asset', () => {
+  assert.match(buildValidator, /manifest\.webmanifest/);
+  assert.match(buildValidator, /manifest\.json/);
+  assert.match(buildValidator, /entry\.isEntry/);
+  assert.match(buildValidator, /existsSync\(absolutePath\)/);
+  assert.match(buildValidator, /out-of-scope asset/);
 });
 
 test('PWA cache upgrades remove stale HDOS shell versions', () => {
