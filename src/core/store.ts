@@ -431,9 +431,8 @@ export class HDOSCentralStore {
       if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
       if (!failed.includes('repository')) {
         this.documents = merged;
-        this.formDefinitions = this.formDefinitions.filter(form =>
-          merged.some(document => document.id === form.sourceDocumentId)
-        );
+        // Published forms have their own tenant-scoped snapshot lifecycle.
+        // Repository refresh must not prune standalone or other-tenant forms.
         refreshed.push('repository');
       }
     } else if (repositoryResult.status === 'rejected') {
