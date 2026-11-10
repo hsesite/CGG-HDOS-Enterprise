@@ -477,3 +477,4 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Pemulihan akibat gangguan internal menghapus `syncStartedAt` saat item dikembalikan ke status `PENDING`.
 - [x] Regression tests ditambahkan untuk transaksi cleanup atomik dan pelepasan lease sinkronisasi.
 - [ ] UAT crash/reload tepat setelah respons cloud diterima tetap diperlukan pada browser/perangkat nyata dan GAS/Sheets staging.
+- [x] 191 regression tests, typecheck frontend/backend, production build, dan deployment GitHub Pages berhasil pada commit `47bb4daa819395262a6088362afa6cd6c867740b`.
