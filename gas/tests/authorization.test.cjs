@@ -2352,6 +2352,27 @@ test('repository metadata and original binary are committed atomically during up
 });
 
 
+test('Repository preview and form generation abort when the active account changes mid-operation', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
+  assert.match(moduleSource, /const captureRepositorySession = \(\): RepositorySessionSnapshot =>/);
+  assert.match(moduleSource, /const isRepositorySessionCurrent = \(snapshot: RepositorySessionSnapshot\): boolean =>/);
+  assert.match(moduleSource, /hseApi\.authToken === snapshot\.token/);
+  const previewStart = moduleSource.indexOf('const handlePreviewOriginal = async');
+  const previewEnd = moduleSource.indexOf('const handleDownloadDoc = async', previewStart);
+  const preview = moduleSource.slice(previewStart, previewEnd);
+  assert.match(preview, /const sessionSnapshot = captureRepositorySession\(\)/);
+  assert.match(preview, /await hseApi\.previewRepositoryFile\(doc\.id\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.ok(preview.indexOf('assertRepositorySessionCurrent(sessionSnapshot)') < preview.indexOf('URL.createObjectURL(blob)'));
+  const generateStart = moduleSource.indexOf('const handleGenerateForm = async');
+  const generateEnd = moduleSource.indexOf('// Automatically convert existing local Repository documents', generateStart);
+  const generate = moduleSource.slice(generateStart, generateEnd);
+  assert.match(generate, /const sessionSnapshot = captureRepositorySession\(\)/);
+  assert.match(generate, /await extractDocumentText\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(generate, /await extractChecklistItemsFromDocument\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(generate, /assertRepositorySessionCurrent\(sessionSnapshot\);\s*if \(existingForm\)/);
+  assert.match(generate, /await store\.addFormDefinition\(formInput\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
+});
+
 test('central Repository snapshots are tenant-filtered before entering the shared client store', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const setterStart = storeSource.indexOf('setCentralRepositoryDocuments(documents: DocumentItem[]): void');
