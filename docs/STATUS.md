@@ -414,3 +414,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Hasil build menunjukkan bundle awal turun dari sekitar 2.018 kB menjadi sekitar 339 kB (gzip sekitar 102 kB); parser PDF/XLSX dan DOCX berada di chunk terpisah.
 - [x] 163 regression tests, typecheck frontend/backend, build, konfigurasi produksi, dan deployment GitHub Pages berhasil pada commit `b77232eb`.
 - [ ] Pengukuran waktu muat nyata pada jaringan seluler dan perangkat Android/iOS tetap menjadi bagian UAT lapangan.
+
+
+### Sinkronisasi — replay antrean memakai versi terbaru (10 November 2026)
+- [x] Urutan replay tetap ditentukan oleh ID antrean yang diurutkan berdasarkan waktu dan dependensi record.
+- [x] Sebelum setiap operasi dikirim, engine mengambil ulang item dari snapshot antrean terbaru; pembaruan updatedAt hasil CREATE/UPDATE sebelumnya langsung dipakai oleh UPDATE lanjutan dalam batch yang sama.
+- [x] Mencegah UPDATE offline beruntun memproses referensi objek antrean yang sudah kedaluwarsa dan memicu konflik versi 409 yang dibuat oleh sinkronisasi sendiri.
+- [x] Regression test ditambahkan untuk memastikan replay memakai item terbaru dan aturan antrean tetap konsisten.
+- [x] 168 regression tests, typecheck frontend/backend, dan production build berhasil pada commit e6245274114d55b043740be80c22899dc13235fd.
+- [ ] UAT rangkaian CREATE → beberapa UPDATE offline pada satu record, termasuk respons cloud terlambat/hilang, tetap diperlukan pada GAS/Sheets staging.
