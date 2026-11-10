@@ -25,3 +25,11 @@ test('rule-based SMKP guidance does not invent KTT PICA closure approval or gene
   assert.doesNotMatch(ai, /diverifikasi oleh KTT sebelum penutupan status/);
   assert.match(ai, /Jangan menggunakan angka FK generik sebagai pengganti kajian geoteknik yang disahkan/);
 });
+
+test('inspection records never substitute hard-coded sample GPS coordinates', () => {
+  const inspection = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'InspectionModule.tsx'), 'utf8');
+  assert.match(inspection, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(inspection, /Never substitute hard-coded sample coordinates/);
+  assert.doesNotMatch(inspection, /lat: -2\.9395/);
+  assert.doesNotMatch(inspection, /51S 385100 mE 9674800 mN/);
+});
