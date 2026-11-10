@@ -1237,8 +1237,10 @@ test('unexpected sync engine errors release current-owner SYNCING items for retr
   const end = sync.indexOf('    } finally {', errorLog);
   const catchBlock = sync.slice(start, end);
   assert.match(catchBlock, /activeOwnerAfterError/);
-  assert.match(catchBlock, /queued\.status !== 'SYNCING'/);
-  assert.match(catchBlock, /queued\.ownerUserId !== owner\.userId/);
+  assert.match(catchBlock, /claimedQueueLeases\.get\(queued\.id\)/);
+  assert.match(catchBlock, /persisted\.status !== 'SYNCING'/);
+  assert.match(catchBlock, /persisted\.syncStartedAt !== claimedLease/);
+  assert.match(catchBlock, /persisted\.ownerUserId !== owner\.userId/);
   assert.match(catchBlock, /status: 'PENDING' as const/);
   assert.match(catchBlock, /await hdosDB\.put\('queue', recovered\)/);
   assert.match(catchBlock, /hseApi\.authToken === syncToken/);
