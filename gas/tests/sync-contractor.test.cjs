@@ -32,8 +32,10 @@ test('Contractor SIA queue replays CREATE only and quarantines unsupported UPDAT
 
 test('Unsupported Contractor SIA queue actions are retained as conflicts instead of silently removed', () => {
   const catchStart = syncSource.indexOf('} catch (error) {', syncSource.indexOf("endpoint === 'contractor-sia'"));
+  const catchEnd = syncSource.indexOf('if (itemRecordId) blockedRecordIds.add(itemRecordId);', catchStart);
   assert.ok(catchStart >= 0);
-  const catchBranch = syncSource.slice(catchStart, catchStart + 1300);
+  assert.ok(catchEnd > catchStart);
+  const catchBranch = syncSource.slice(catchStart, catchEnd);
   assert.match(catchBranch, /item\.status = retryable && item\.retryCount < MAX_RETRIES\s*\? 'PENDING'\s*:\s*'CONFLICT'/);
   assert.match(catchBranch, /item\.error = error instanceof Error \? error\.message : String\(error\)/);
   assert.match(catchBranch, /await hdosDB\.put\(\s*'queue',\s*item\s*\)/);
