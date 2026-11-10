@@ -2270,7 +2270,24 @@ function uploadContractorSia_(fleetId, payload, user) {
   const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS SIA - ' + companyCode);
   if (!folderId) props.setProperty(folderKey, folder.getId());
   const safeName = String(input.fileName || 'SIA').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
-  const file = folder.createFile(Utilities.newBlob(bytes, mimeType, safeName));
+  const uploadKey = String(input.uploadKey || '').trim();
+  if (uploadKey && !/^[a-zA-Z0-9_-]{8,160}$/.test(uploadKey)) return error_(400, 'Kunci unggah dokumen SIA tidak valid.');
+  const uploadMarker = uploadKey ? 'HDOS_SIA_UPLOAD_KEY:' + uploadKey : '';
+  let file = null;
+  if (uploadMarker) {
+    const existingFiles = folder.getFiles();
+    while (existingFiles.hasNext()) {
+      const candidate = existingFiles.next();
+      if (String(candidate.getDescription() || '').indexOf(uploadMarker) >= 0 && candidate.getMimeType() === mimeType) {
+        file = candidate;
+        break;
+      }
+    }
+  }
+  if (!file) {
+    file = folder.createFile(Utilities.newBlob(bytes, mimeType, safeName));
+    if (uploadMarker) file.setDescription(uploadMarker);
+  }
   const sheet = getSheet_('contractor_fleet');
   const lock = LockService.getScriptLock();
   let updated;
