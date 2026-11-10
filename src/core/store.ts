@@ -238,14 +238,17 @@ export class HDOSCentralStore {
         const centralLocations = await hseApi.listLocations();
         if (!isCurrentInitialization()) return;
         this.locations = centralLocations;
-        for (const location of centralLocations) await hdosDB.put('maps', location);
+        for (const location of centralLocations) {
+          if (!isCurrentInitialization()) return;
+          await hdosDB.put('maps', location);
+        }
       } catch (error) {
         console.warn('[HDOS Store] Master area pusat tidak tersedia; memakai cache lokal.', error);
       }
       try {
         const centralCompanies = await hseApi.listCompanies();
         if (!isCurrentInitialization()) return;
-        await this.setContractorsFromCompanyMaster(centralCompanies);
+        await this.setContractorsFromCompanyMaster(centralCompanies, isCurrentInitialization);
         if (!isCurrentInitialization()) return;
       } catch (error) {
         console.warn('[HDOS Store] Master kontraktor pusat tidak tersedia; memakai cache lokal.', error);
@@ -645,11 +648,14 @@ export class HDOSCentralStore {
     this.notify();
   }
 
-  async setContractorsFromCompanyMaster(companies: Array<{
-    code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; status: string;
-    passportStatus?: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName?: string;
-    picContact?: string; safetyPassportExpiry?: string;
-  }>): Promise<void> {
+  async setContractorsFromCompanyMaster(
+    companies: Array<{
+      code: string; name: string; role: 'Contractor' | 'Subkon'; parentCompanyCode?: string; status: string;
+      passportStatus?: 'ACTIVE' | 'WARNING' | 'SUSPENDED'; picName?: string;
+      picContact?: string; safetyPassportExpiry?: string;
+    }>,
+    shouldPublish?: () => boolean,
+  ): Promise<void> {
     const mapped: ContractorPassport[] = companies.map(company => ({
       id: company.code,
       code: company.code,
@@ -668,8 +674,13 @@ export class HDOSCentralStore {
       status: company.status === 'INACTIVE' ? 'SUSPENDED' : (company.passportStatus || 'ACTIVE'),
       safetyPassportExpiry: company.safetyPassportExpiry || '',
     }));
+    if (shouldPublish && !shouldPublish()) return;
     this.contractors = mapped;
-    for (const contractor of mapped) await hdosDB.put('contractor', contractor);
+    for (const contractor of mapped) {
+      if (shouldPublish && !shouldPublish()) return;
+      await hdosDB.put('contractor', contractor);
+    }
+    if (shouldPublish && !shouldPublish()) return;
     this.notify();
   }
 
