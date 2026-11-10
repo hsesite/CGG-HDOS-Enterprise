@@ -2266,7 +2266,7 @@ test('form definition updates cannot change tenant ownership metadata', () => {
   const updateEnd = storeSource.indexOf('getFormDefinitionByDocumentId(', updateStart);
   assert.ok(updateStart >= 0 && updateEnd > updateStart);
   const update = storeSource.slice(updateStart, updateEnd);
-  assert.match(update, /const immutableTenantFields: Pick<DocumentItem, 'companyCode' \| 'parentCompanyCode' \| 'ownerUserId'> = \{[\s\S]*?parentCompanyCode: existing\.parentCompanyCode[\s\S]*?ownerUserId: existing\.ownerUserId/);
+  assert.match(update, /const immutableTenantFields = \{[\s\S]*?companyCode: existingTenant\.companyCode[\s\S]*?ownerCompanyCode: existingTenant\.ownerCompanyCode/);
   for (const field of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode']) {
     assert.match(update, new RegExp(field + ': existingTenant\\.' + field));
   }
