@@ -59,6 +59,47 @@ function recordTenantMatches(record: unknown, owner: BackupOwner): boolean {
     (owner.parentCompanyCode !== '' && codes.includes(owner.parentCompanyCode));
 }
 
+
+async function encodeBinary(value: unknown): Promise<unknown> {
+  if (typeof Blob !== 'undefined' && value instanceof Blob) {
+    const bytes = new Uint8Array(await value.arrayBuffer());
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    return { __hdosBackupBinary: 'blob', type: value.type, base64: btoa(binary) };
+  }
+  if (value instanceof ArrayBuffer) {
+    const bytes = new Uint8Array(value);
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    return { __hdosBackupBinary: 'arraybuffer', base64: btoa(binary) };
+  }
+  if (Array.isArray(value)) return Promise.all(value.map(encodeBinary));
+  if (value && typeof value === 'object') {
+    const entries = await Promise.all(Object.entries(value as Record<string, unknown>).map(async ([key, item]) => [key, await encodeBinary(item)] as const));
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
+
+function decodeBinary(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(decodeBinary);
+  if (value && typeof value === 'object') {
+    const item = value as Record<string, unknown>;
+    if ((item.__hdosBackupBinary === 'blob' || item.__hdosBackupBinary === 'arraybuffer') && typeof item.base64 === 'string') {
+      const binary = atob(item.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return item.__hdosBackupBinary === 'blob'
+        ? new Blob([bytes], { type: String(item.type || 'application/octet-stream') })
+        : bytes.buffer;
+    }
+    return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, decodeBinary(child)]));
+  }
+  return value;
+}
+
 export const hdosBackup = {
   async create(): Promise<{ blob: Blob; filename: string; records: number }> {
     const owner = getOwner();
@@ -82,7 +123,7 @@ export const hdosBackup = {
               : value;
           })
         : all.filter(value => recordTenantMatches(value, owner));
-      stores[storeName as Exclude<StoreName, 'config'>] = scoped;
+      stores[storeName as Exclude<StoreName, 'config'>] = await encodeBinary(scoped) as unknown[];
       records += scoped.length;
     }
 
@@ -93,7 +134,8 @@ export const hdosBackup = {
       owner,
       stores,
     };
-    const archive: BackupArchive = { ...payload, checksum: await checksum(payload) };
+    const canonicalPayload = JSON.parse(JSON.stringify(payload)) as BackupPayload;
+    const archive: BackupArchive = { ...canonicalPayload, checksum: await checksum(canonicalPayload) };
     const date = new Date().toISOString().replace(/[:.]/g, '-');
     return {
       blob: new Blob([JSON.stringify(archive)], { type: 'application/json' }),
@@ -143,7 +185,8 @@ export const hdosBackup = {
       if (!Array.isArray(raw)) throw new Error(`Struktur data backup untuk ${storeName} tidak valid.`);
 
       const valid: Array<Record<string, unknown> & { id: string }> = [];
-      for (const candidate of raw) {
+      for (const encodedCandidate of raw) {
+        const candidate = decodeBinary(encodedCandidate);
         if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) ||
             typeof (candidate as Record<string, unknown>).id !== 'string' ||
             !(candidate as Record<string, unknown>).id) {
