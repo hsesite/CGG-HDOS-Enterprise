@@ -17,6 +17,7 @@ import { hseApi, type ContractorComplianceReport, type ContractorComplianceRepor
 import { getCurrentUser } from '../../core/auth-utils';
 import { canDownloadDocuments } from '../../core/access-policy';
 import { hdosDB } from '../../core/db';
+import { hdosSync } from '../../core/sync';
 import { saveOfflineOperationalPhoto, uploadOfflineOperationalPhoto, type OfflineOperationalPhoto } from '../../core/offline-photos';
 
 export const ContractorModule: React.FC = () => {
@@ -144,12 +145,14 @@ export const ContractorModule: React.FC = () => {
     let active = true;
     loadedP2HDraftKey.current = '';
     if (!p2hDraftKey || !draftOwner.ownerUserId || !draftOwner.ownerCompanyCode) return () => { active = false; };
-    void hdosDB.getById<{id:string;ownerUserId:string;ownerCompanyCode:string;draft:ContractorP2HInput;localPhotoId?:string}>('contractor', p2hDraftKey)
+    void hdosDB.getById<{id:string;ownerUserId:string;ownerCompanyCode:string;draft:ContractorP2HInput;localPhotoId?:string;requestId?:string;photoReference?:Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> | null}>('contractor', p2hDraftKey)
       .then(async saved => {
         if (!active || !isCurrentSessionScope(sessionScopeKey)) return;
         if (saved && saved.ownerUserId === draftOwner.ownerUserId && saved.ownerCompanyCode === draftOwner.ownerCompanyCode) {
           setP2hDraft(saved.draft);
           setP2hLocalPhotoId(saved.localPhotoId || '');
+          setP2hRequestId(saved.requestId || '');
+          setP2hPhotoReference(saved.photoReference || null);
           if (saved.localPhotoId) {
             const photo = await hdosDB.getById<OfflineOperationalPhoto>('photos', saved.localPhotoId);
             if (photo && active && photo.ownerUserId === draftOwner.ownerUserId && photo.ownerCompanyCode === draftOwner.ownerCompanyCode) {
@@ -180,11 +183,11 @@ export const ContractorModule: React.FC = () => {
   useEffect(() => {
     if (!p2hDraftKey || loadedP2HDraftKey.current !== p2hDraftKey) return;
     const timer = window.setTimeout(() => {
-      void hdosDB.put('contractor', { id: p2hDraftKey, ...draftOwner, draft: p2hDraft, localPhotoId: p2hLocalPhotoId || undefined, updatedAt: new Date().toISOString() })
+      void hdosDB.put('contractor', { id: p2hDraftKey, ...draftOwner, draft: p2hDraft, localPhotoId: p2hLocalPhotoId || undefined, requestId: p2hRequestId || undefined, photoReference: p2hPhotoReference, updatedAt: new Date().toISOString() })
         .catch(error => setFleetMessage(error instanceof Error ? error.message : 'Draft P2H gagal disimpan di perangkat.'));
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [p2hDraft, p2hLocalPhotoId, p2hDraftKey, sessionScopeKey]);
+  }, [p2hDraft, p2hLocalPhotoId, p2hRequestId, p2hPhotoReference, p2hDraftKey, sessionScopeKey]);
 
   useEffect(() => {
     if (!reportDraftKey || loadedReportDraftKey.current !== reportDraftKey) return;
@@ -279,34 +282,42 @@ export const ContractorModule: React.FC = () => {
     setFleetMessage('');
     try {
       const requestId = p2hRequestId || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `p2h_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`);
-      if (!p2hRequestId) setP2hRequestId(requestId);
-      let photoReference: Pick<ContractorP2HInput, 'photoFileId' | 'photoFileName' | 'photoMimeType'> = p2hPhotoReference || {};
-      if (p2hLocalPhotoId && !p2hPhotoReference) {
-        const localPhoto = await hdosDB.getById<OfflineOperationalPhoto>('photos', p2hLocalPhotoId);
-        if (!localPhoto) throw new Error('Bukti foto P2H lokal tidak ditemukan. Pilih ulang foto sebelum mengirim.');
-        if (!isCurrentSessionScope(requestScope)) return;
-        const uploaded = await uploadOfflineOperationalPhoto(localPhoto);
-        if (!isCurrentSessionScope(requestScope)) return;
-        photoReference = { photoFileId: uploaded.photoFileId, photoFileName: localPhoto.fileName, photoMimeType: localPhoto.mimeType };
-        setP2hPhotoReference(photoReference);
-      }
-      await hseApi.createContractorP2HRecord(unit.id, { ...p2hDraft, requestId, ...photoReference, hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter) });
+      const queueId = `contractor-p2h:${requestId}`;
+      const payload = {
+        id: queueId,
+        fleetId: unit.id,
+        input: {
+          ...p2hDraft,
+          requestId,
+          ...(p2hPhotoReference || {}),
+          hourMeter: p2hDraft.hourMeter === '' ? '' : Number(p2hDraft.hourMeter),
+        },
+        localPhotoId: p2hLocalPhotoId || undefined,
+      };
+      await hdosSync.enqueue({
+        action: 'CREATE',
+        entity: 'contractor',
+        payload,
+      });
       if (!isCurrentSessionScope(requestScope)) return;
-      setFleetMessage('Pemeriksaan P2H berhasil dicatat. Riwayat sebelumnya tetap tersimpan.');
       setP2hRequestId('');
       setP2hPhotoReference(null);
-      if (p2hLocalPhotoId) await hdosDB.delete('photos', p2hLocalPhotoId);
       setP2hLocalPhotoId('');
       setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
       if (p2hDraftKey) await hdosDB.delete('contractor', p2hDraftKey);
       loadedP2HDraftKey.current = '';
       setP2hPhotoPreview('');
-      const history = await hseApi.listContractorP2HHistory(unit.id);
-      if (!isCurrentSessionScope(requestScope)) return;
-      setP2hHistory(history);
-      await refreshFleet();
-    } catch (error) { if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal.'); }
-    finally { if (isCurrentSessionScope(requestScope)) setFleetBusy(false); }
+      setFleetMessage(navigator.onLine
+        ? 'P2H masuk antrean sinkronisasi. Status pengiriman dapat dipantau pada modul Sinkronisasi.'
+        : 'P2H tersimpan di antrean offline perangkat dan akan dikirim otomatis saat koneksi kembali.');
+      if (navigator.onLine) {
+        void hdosSync.triggerSync();
+      }
+    } catch (error) {
+      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal disimpan ke antrean.');
+    } finally {
+      if (isCurrentSessionScope(requestScope)) setFleetBusy(false);
+    }
   };
 
   const submitFleetUnit = async (event: React.FormEvent<HTMLFormElement>) => {
