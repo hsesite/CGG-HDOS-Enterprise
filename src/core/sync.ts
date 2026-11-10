@@ -737,7 +737,12 @@ export class HDOSSyncEngine {
     if (lockManager && typeof lockManager.request === 'function') {
       const lockName = `hdos-sync:${owner.userId}:${owner.companyCode}`;
       return lockManager.request(lockName, { mode: 'exclusive', ifAvailable: true }, async lock => {
-        if (!lock) return false;
+        if (!lock) {
+          // Another tab owns this tenant's sync lease. Retry after it releases
+          // the lock instead of dropping this tab's newly queued work.
+          this.scheduleRetry();
+          return false;
+        }
         return this.triggerSyncUnlocked();
       });
     }
@@ -766,10 +771,22 @@ export class HDOSSyncEngine {
         this.queueOwnerKey !== requestedOwnerKey) {
       return false;
     }
-    this.queue = this.queue.filter(item =>
+    // Refresh from IndexedDB after acquiring the cross-tab lock. Another
+    // tab may have committed queue entries while this instance was idle.
+    const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    const ownerAfterQueueRead = this.getCurrentOwner();
+    if (!ownerAfterQueueRead ||
+        ownerAfterQueueRead.userId !== owner.userId ||
+        ownerAfterQueueRead.companyCode !== owner.companyCode ||
+        hseApi.authToken !== syncToken ||
+        this.queueOwnerKey !== requestedOwnerKey) {
+      return false;
+    }
+    this.queue = persistedQueue.filter(item =>
       item.ownerUserId === owner.userId &&
       item.ownerCompanyCode === owner.companyCode
     ).sort(compareQueueItemsByTime);
+    hdosEvents.emit('sync:queue_updated', [...this.queue]);
     if (this.isSyncing) {
       return false;
     }
@@ -852,6 +869,12 @@ export class HDOSSyncEngine {
       for (const item of [...this.queue].sort(compareQueueItemsByTime)) {
         if (item.status === 'RESOLVED') continue;
         const itemRecordId = getRecordId(item);
+        if (item.status === 'CONFLICT') {
+          // Conflicts require explicit retry or reconciliation. Never replay
+          // a rejected write merely because another sync was triggered.
+          if (itemRecordId) blockedRecordIds.add(itemRecordId);
+          continue;
+        }
         if (itemRecordId && blockedRecordIds.has(itemRecordId)) {
           item.status = 'CONFLICT';
           item.retryCount = MAX_RETRIES;
