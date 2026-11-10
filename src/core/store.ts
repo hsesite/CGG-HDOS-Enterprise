@@ -201,7 +201,17 @@ export class HDOSCentralStore {
     this.picas = this.picas.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
     this.incidents = this.incidents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
     this.documents = this.documents.filter(record => isLocalRecordVisible(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes));
-    this.formDefinitions = this.formDefinitions.filter(form => this.documents.some(document => document.id === form.sourceDocumentId));
+    // Form definitions are tenant-scoped records in their own right.
+    // Do not require a matching repository document here: standalone published
+    // forms and forms whose source document is temporarily unavailable must
+    // survive application startup and offline refreshes.
+    this.formDefinitions = this.formDefinitions.filter(form =>
+      isLocalRecordVisible(
+        form as unknown as Record<string, unknown>,
+        currentUser,
+        allowedCompanyCodes
+      )
+    );
     this.contractors = this.contractors.filter(record => {
       if (!currentUser) return false;
       if (currentUser.roles.includes('Admin CGG')) return true;
@@ -447,11 +457,11 @@ export class HDOSCentralStore {
     } else if (!isSameSession()) {
       return { refreshed, failed: ['session-changed'] };
     } else {
-      const availableDocumentIds = new Set(this.documents.map(document => document.id));
-      const availableForms = formsResult.value.filter(form => {
-        const sourceDocumentId = String(form.sourceDocumentId || '').trim();
-        return !sourceDocumentId || availableDocumentIds.has(sourceDocumentId);
-      }) as unknown as FormDefinition[];
+      // The API already enforces tenant visibility. The form's own tenant
+      // metadata is checked again by mergePublishedFormDefinitions; requiring
+      // its source document in this possibly partial repository snapshot would
+      // incorrectly discard valid standalone/offline forms.
+      const availableForms = formsResult.value as unknown as FormDefinition[];
       try {
         await this.mergePublishedFormDefinitions(availableForms, isSameSession);
         if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
