@@ -773,7 +773,18 @@ export class HDOSSyncEngine {
     }
     // Refresh from IndexedDB after acquiring the cross-tab lock. Another
     // tab may have committed queue entries while this instance was idle.
-    const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    let persistedQueue: SyncQueueItem[];
+    try {
+      persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    } catch (error) {
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: 'Antrean lokal gagal dibaca. Sinkronisasi ditunda agar status antrean tidak berubah tanpa data yang valid.',
+        type: 'warning',
+      });
+      this.scheduleRetry();
+      return false;
+    }
     const ownerAfterQueueRead = this.getCurrentOwner();
     if (!ownerAfterQueueRead ||
         ownerAfterQueueRead.userId !== owner.userId ||
