@@ -78,3 +78,11 @@ test('service worker keeps app assets same-origin and within its registration sc
   assert.match(worker, /url\.href\.startsWith\(scopeUrl\.href\)/);
   assert.match(worker, /\['script', 'style', 'image', 'font'\]/);
 });
+
+
+test('uncached app assets return an explicit offline response instead of an empty service-worker result', () => {
+  assert.match(worker, /\.catch\(\(\) => cached \|\| new Response\(/);
+  assert.match(worker, /Aset HDOS ini belum tersimpan di cache/);
+  assert.match(worker, /status: 503/);
+  assert.match(worker, /Content-Type': 'text\/plain; charset=utf-8/);
+});
