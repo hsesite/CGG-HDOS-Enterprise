@@ -52,11 +52,20 @@ async function checksum(payload: BackupPayload): Promise<string> {
 function recordTenantMatches(record: unknown, owner: BackupOwner): boolean {
   if (!record || typeof record !== 'object' || Array.isArray(record)) return true;
   const item = record as Record<string, unknown>;
-  const codes = ['companyCode', 'contractorCode', 'ownerCompanyCode', 'subcontractorCode', 'subkonCode', 'parentCompanyCode']
-    .map(key => String(item[key] || '').trim().toUpperCase())
-    .filter(Boolean);
-  return codes.length === 0 || codes.includes(owner.companyCode) ||
-    (owner.parentCompanyCode !== '' && codes.includes(owner.parentCompanyCode));
+  const company = String(item.companyCode || item.contractorCode || item.ownerCompanyCode || '').trim().toUpperCase();
+  const subkon = String(item.subcontractorCode || item.subkonCode || '').trim().toUpperCase();
+  const parent = String(item.parentCompanyCode || '').trim().toUpperCase();
+
+  // A Subkon backup is strictly limited to its own operating company.
+  // Its parentCompanyCode identifies the Contractor, not an additional tenant
+  // whose records it may export. A Contractor root may include its registered
+  // Subkon records through the parent/subkon fields.
+  if (owner.parentCompanyCode) {
+    return company === owner.companyCode || subkon === owner.companyCode;
+  }
+  return !company && !subkon && !parent
+    ? true
+    : company === owner.companyCode || subkon === owner.companyCode || parent === owner.companyCode;
 }
 
 
