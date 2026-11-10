@@ -126,7 +126,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 
 - [x] Workflow deployment menjalankan typecheck frontend sebelum build.
 - [x] Build Vite berhasil pada workflow untuk commit yang diperiksa sebelum perubahan dokumentasi terakhir.
-- [ ] Workflow terakhir setelah seluruh perubahan berakhir dengan conclusion success.
+- [x] Workflow validasi dan deployment untuk commit `88204eeab52125546aeb1d5547629d3d6e7547b9` berakhir dengan conclusion success; build dan deploy GitHub Pages selesai.
 - [ ] Validasi build, typecheck, dan pengujian end-to-end untuk endpoint riwayat P2H dijadwalkan pada tahap pengujian menyeluruh setelah implementasi modul selesai.
 - [ ] Unit test untuk perhitungan risiko, validasi, dan utilitas.
 - [ ] Test integrasi transport GAS dengan environment nonproduksi.
@@ -355,3 +355,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - Resolved audit items are skipped by queue replay and do not block subsequent writes; server-side authorization, workflow, and optimistic concurrency checks remain authoritative.
 - Regression source tests cover owner checks, protected fields, retained audit metadata, atomic queue persistence, and UI action.
 - End-to-end UAT with GAS/Sheets, multi-user tenant sessions, and PICA lifecycle remains required before production sign-off.
+
+
+### Sinkronisasi — resolusi konflik manual dan pemulihan antrean lanjutan (10 November 2026)
+- [x] Operator dapat meninjau snapshot server dan payload lokal, lalu menyusun revisi UPDATE secara manual; sistem tidak melakukan auto-merge.
+- [x] Resolusi mengikat sesi/token, pemilik user, tenant, entity, ID record, dan versi `updatedAt` dari server sebelum membuat antrean baru.
+- [x] ID record, versi dasar, dan identitas tenant diproteksi menggunakan nilai dari snapshot server.
+- [x] Konflik lama dipertahankan sebagai `RESOLVED` dengan identitas operator, waktu, versi dasar, dan tautan ke queue item revisi.
+- [x] Queue item revisi dan status audit konflik disimpan atomik; perubahan lanjutan yang tertahan karena konflik yang sama diaktifkan kembali tanpa mengubah payload lokal.
+- [x] Revisi diprioritaskan sebelum UPDATE lanjutan pada record yang sama; versi server berikutnya dipropagasikan setelah revisi berhasil.
+- [x] Regression tests, typecheck, dan production build berhasil; workflow deployment untuk commit tersebut juga berhasil.
+- [ ] UAT dua pengguna/tenant, perubahan beruntun offline, session expiry, dan konflik nyata pada GAS/Sheets staging masih wajib sebelum sign-off produksi.
