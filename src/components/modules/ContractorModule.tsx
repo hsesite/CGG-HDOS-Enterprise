@@ -208,12 +208,23 @@ export const ContractorModule: React.FC = () => {
 
   const refreshFleet = async () => {
     const requestScope = sessionScopeKey;
+    const cacheKey = sessionUser ? `contractor-fleet-cache:${sessionUser.id}:${ownCompanyCode}` : '';
     setFleetLoading(true);
     try {
       const units = await hseApi.listContractorFleet();
-      if (isCurrentSessionScope(requestScope)) setFleetUnits(units);
+      if (!isCurrentSessionScope(requestScope)) return;
+      setFleetUnits(units);
+      if (cacheKey) await hdosDB.put('contractor', {
+        id: cacheKey, ownerUserId: String(sessionUser?.id || ''),
+        ownerCompanyCode: ownCompanyCode, records: units, updatedAt: new Date().toISOString(),
+      });
     } catch (error) {
-      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.');
+      if (!isCurrentSessionScope(requestScope)) return;
+      const cached = cacheKey ? await hdosDB.getById<{id:string;ownerUserId:string;ownerCompanyCode:string;records:ContractorFleetUnit[]}>('contractor', cacheKey) : null;
+      if (cached && cached.ownerUserId === String(sessionUser?.id || '') && cached.ownerCompanyCode === ownCompanyCode) {
+        setFleetUnits(cached.records);
+        setFleetMessage('Koneksi tidak tersedia. Register fleet ditampilkan dari cache perangkat.');
+      } else setFleetMessage(error instanceof Error ? error.message : 'Register fleet tidak dapat dimuat.');
     } finally {
       if (isCurrentSessionScope(requestScope)) setFleetLoading(false);
     }
@@ -222,14 +233,27 @@ export const ContractorModule: React.FC = () => {
   const openP2HHistory = async (unit: ContractorFleetUnit) => {
     if (p2hUnitId === unit.id) { setP2hUnitId(''); setP2hHistory([]); return; }
     const requestScope = sessionScopeKey;
+    const cacheKey = sessionUser ? `contractor-p2h-history:${sessionUser.id}:${ownCompanyCode}:${unit.id}` : '';
     setP2hUnitId(unit.id);
     setP2hHistory([]);
     setP2hLoading(true);
     try {
       const history = await hseApi.listContractorP2HHistory(unit.id);
-      if (isCurrentSessionScope(requestScope)) setP2hHistory(history);
+      if (!isCurrentSessionScope(requestScope)) return;
+      setP2hHistory(history);
+      if (cacheKey) await hdosDB.put('contractor', {
+        id: cacheKey, ownerUserId: String(sessionUser?.id || ''),
+        ownerCompanyCode: ownCompanyCode, fleetId: unit.id, records: history,
+        updatedAt: new Date().toISOString(),
+      });
     } catch (error) {
-      if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Riwayat P2H tidak dapat dimuat.');
+      if (!isCurrentSessionScope(requestScope)) return;
+      const cached = cacheKey ? await hdosDB.getById<{id:string;ownerUserId:string;ownerCompanyCode:string;fleetId:string;records:ContractorP2HRecord[]}>('contractor', cacheKey) : null;
+      if (cached && cached.ownerUserId === String(sessionUser?.id || '') &&
+          cached.ownerCompanyCode === ownCompanyCode && cached.fleetId === unit.id) {
+        setP2hHistory(cached.records);
+        setFleetMessage('Koneksi tidak tersedia. Riwayat P2H ditampilkan dari cache perangkat.');
+      } else setFleetMessage(error instanceof Error ? error.message : 'Riwayat P2H tidak dapat dimuat.');
     } finally {
       if (isCurrentSessionScope(requestScope)) setP2hLoading(false);
     }
