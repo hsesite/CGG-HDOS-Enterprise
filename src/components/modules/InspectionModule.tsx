@@ -157,6 +157,7 @@ export const InspectionModule: React.FC = () => {
         fileName: inspectionPhoto.name,
         mimeType: inspectionPhoto.type,
         fileBase64: await readImageBase64(inspectionPhoto),
+        uploadKey: `hdos-${crypto.randomUUID()}`,
       });
       const newInspection = await createInspectionAction({
         title: selectedRepositoryForm.title,
