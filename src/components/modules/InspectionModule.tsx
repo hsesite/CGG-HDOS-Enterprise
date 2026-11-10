@@ -406,7 +406,7 @@ export const InspectionModule: React.FC = () => {
                 );
               })}
               <label className="block text-xs text-neutral-300">Foto bukti pemeriksaan * (JPG/PNG/WEBP, maks. 5 MB)
-                <input type="file" accept="image/jpeg,image/png,image/webp" required onChange={(event) => setInspectionPhoto(event.target.files?.[0] || null)} className="mt-2 block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[#42A5F5]/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#8CCBFF]" />
+                <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required onChange={(event) => setInspectionPhoto(event.target.files?.[0] || null)} className="mt-2 block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[#42A5F5]/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#8CCBFF]" />
                 <span className="mt-1 block text-[10px] text-neutral-500">{inspectionPhoto ? `Terpilih: ${inspectionPhoto.name}` : 'Lampirkan foto kondisi aktual saat pemeriksaan.'}</span>
               </label>
               <label className="block text-xs text-neutral-400">Catatan umum pemeriksaan
