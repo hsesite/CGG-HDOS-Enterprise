@@ -2705,7 +2705,7 @@ test('PICA evidence photos are stored offline and uploaded during queued UPDATE 
   assert.match(syncEngineSource, /delete \(updatePayload as Record<string, unknown>\)\.localPhotoId/);
   assert.match(syncEngineSource, /const laterUpdates = persistedQueue\.filter/);
   assert.match(syncEngineSource, /evidencePhotoFileId: photoFileId,[\s\S]*?evidencePhotoUrl: photoUrl/);
-  assert.match(syncEngineSource, /const completedPhotoId = item\.payload[\s\S]*?item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
+  assert.match(syncEngineSource, /const completedPhotoId = item\.payload[\s\S]*?\.localPhotoId/);
 });
 
 
