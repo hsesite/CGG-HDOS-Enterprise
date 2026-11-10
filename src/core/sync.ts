@@ -1171,7 +1171,7 @@ export class HDOSSyncEngine {
                 delete (updatePayload as Record<string, unknown>).localPhotoId;
               }
             }
-            if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report') throw new Error('Antrean Contractor hanya mendukung operasi CREATE.');
+            if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report' || endpoint === 'contractor-sia') throw new Error('Antrean Contractor hanya mendukung operasi CREATE.');
             const serverRecord = await hseApi.update<Record<string, unknown>>(endpoint, recordId, updatePayload, syncToken);
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
