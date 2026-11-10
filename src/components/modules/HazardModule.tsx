@@ -19,13 +19,6 @@ import { createHazardAction } from '../../core/module-actions';
 import { getCurrentUser } from '../../core/auth-utils';
 import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 
-const readImageBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onerror = () => reject(new Error('Foto gagal dibaca.'));
-  reader.onload = () => { const value = String(reader.result || ''); const comma = value.indexOf(','); resolve(comma >= 0 ? value.slice(comma + 1) : value); };
-  reader.readAsDataURL(file);
-});
-
 export const HazardModule: React.FC = () => {
   const store = useHDOSStore();
   const currentUser = hdosAuth.getCurrentUser();
@@ -81,7 +74,7 @@ export const HazardModule: React.FC = () => {
         aiDetected: false,
       });
 
-      setSuccessMsg(`Laporan Bahaya ${newHaz.code} berhasil dicatat. Foto bukti tersimpan di Drive dan PICA ${newHaz.picaId} diterbitkan sesuai tingkat risiko ${riskLevel}.`);
+      setSuccessMsg(`Laporan Bahaya ${newHaz.code} berhasil disimpan di perangkat. Foto bukti menunggu sinkronisasi; PICA ${newHaz.picaId} diterbitkan sesuai tingkat risiko ${riskLevel}.`);
       setTitle('');
       setSpecificLocation('');
       setActionTaken('');
