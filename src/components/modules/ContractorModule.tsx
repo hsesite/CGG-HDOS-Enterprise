@@ -56,6 +56,7 @@ export const ContractorModule: React.FC = () => {
     mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '',
     inductionCompletedCount: '', safeHours: '', ltiCount: '0', remarks: ''
   });
+  const ownCompanyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const p2hDraftKey = sessionUser && p2hUnitId
     ? `contractor-p2h-draft:${sessionUser.id}:${ownCompanyCode}:${p2hUnitId}`
     : '';
@@ -66,7 +67,6 @@ export const ContractorModule: React.FC = () => {
   const loadedReportDraftKey = useRef('');
   const draftOwner = { ownerUserId: String(sessionUser?.id || ''), ownerCompanyCode: ownCompanyCode };
   const sessionRoles = sessionUser?.roles || [];
-  const ownCompanyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const canSubmitReport = Boolean(sessionUser && ownCompanyCode && ownCompanyCode !== 'CGG' &&
     sessionRoles.some(role => ['Company Admin', 'Contractor', 'Subkon', 'Contractor PIC'].includes(role)));
   const canReviewReport = Boolean(sessionUser && (
