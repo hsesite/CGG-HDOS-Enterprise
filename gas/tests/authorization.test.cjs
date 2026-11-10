@@ -2622,13 +2622,11 @@ test('inspection and hazard evidence is persisted locally and uploaded during qu
 });
 
 test('PICA evidence photos are stored offline and uploaded during queued UPDATE replay', () => {
-  const picaSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
-  const typesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
-  assert.match(picaSource, /saveOfflineOperationalPhoto\(evidencePhotoFile\)/);
-  assert.match(picaSource, /offline:\$\{localPhotoId\}/);
-  assert.match(picaSource, /diunggah otomatis saat sinkronisasi/);
-  assert.match(typesSource, /evidencePhotoFileId\?: string;[\s\S]*?localPhotoId\?: string;/);
-  assert.match(syncSource, /item\.action === 'UPDATE'[\s\S]*?originalPayload\.localPhotoId/);
-  assert.match(syncSource, /delete \(updatePayload as Record<string, unknown>\)\.localPhotoId/);
-  assert.match(syncSource, /item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
+  assert.match(picaUiSource, /saveOfflineOperationalPhoto\(evidencePhotoFile\)/);
+  assert.match(picaUiSource, /offline:\$\{localPhotoId\}/);
+  assert.match(picaUiSource, /diunggah otomatis saat sinkronisasi/);
+  assert.match(syncTypesSource, /evidencePhotoFileId\?: string;[\s\S]*?localPhotoId\?: string;/);
+  assert.match(syncEngineSource, /item\.action === 'UPDATE'[\s\S]*?originalPayload\.localPhotoId/);
+  assert.match(syncEngineSource, /delete \(updatePayload as Record<string, unknown>\)\.localPhotoId/);
+  assert.match(syncEngineSource, /item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
 });
