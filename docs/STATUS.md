@@ -525,3 +525,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Jika token sesi tidak ada atau server mengembalikan 401, profil lokal tidak dipakai untuk membuka data tenant; login ulang tetap diwajibkan.
 - [x] README menjelaskan bahwa PWA meng-cache shell/aset, bukan API atau autentikasi, dan ketersediaan sesi setelah aplikasi ditutup bergantung pada penyimpanan sesi browser.
 - [ ] UAT pembukaan ulang offline setelah menutup penuh PWA pada Android/iOS perlu memastikan perilaku sessionStorage pada browser target; akses offline lintas sesi belum dijanjikan.
+
+### PWA — migrasi cache aplikasi (10 November 2026)
+- [x] Cache shell diberi versi baru agar service worker dapat membersihkan cache HDOS versi sebelumnya ketika aktivasi.
+- [x] Regression test memverifikasi versi cache dan pembersihan cache lama.
+- [x] 203 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `261b1d0081e235d1be1715163e80d4c95d278460`.
+- [ ] Pemeriksaan storage quota dan update cache pada perangkat fisik tetap bagian dari UAT.
