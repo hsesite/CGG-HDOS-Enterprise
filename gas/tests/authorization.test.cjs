@@ -2177,3 +2177,21 @@ test('IndexedDB open failures reject instead of silently switching to a split lo
   assert.match(initBlock, /request\.onerror = \(\) => \{[\s\S]*?this\.initPromise = null;[\s\S]*?reject\(new Error\('IndexedDB gagal dibuka/);
   assert.match(initBlock, /if \(!window\.indexedDB\)[\s\S]*?return null/);
 });
+
+test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
+  assert.match(syncDbSource, /async reconcileSnapshot<T extends \{ id: string \}>/);
+  const start = syncDbSource.indexOf('async reconcileSnapshot<');
+  const end = syncDbSource.indexOf('async putBundle(', start);
+  assert.ok(start >= 0 && end > start);
+  const method = syncDbSource.slice(start, end);
+  assert.match(method, /db\.transaction\(storeName, 'readwrite'\)/);
+  assert.match(method, /for \(const id of deleteIds\) store\.delete\(id\)/);
+  assert.match(method, /for \(const record of records\) store\.put\(record\)/);
+  assert.match(method, /tx\.oncomplete = \(\) => resolve\(\)/);
+  assert.match(method, /localStorage\.setItem\(key, previous\)/);
+  const storeStart = storeSource.indexOf('async mergeCloudOperationalRecords(');
+  const storeEnd = storeSource.indexOf('async refreshCloudData()', storeStart);
+  const merge = storeSource.slice(storeStart, storeEnd);
+  assert.match(merge, /await hdosDB\.reconcileSnapshot\(storeName, staleIds, snapshot\)/);
+  assert.doesNotMatch(merge, /await hdosDB\.delete\(storeName, local\.id\)/);
+});
