@@ -1427,9 +1427,7 @@ function handleRoute_(
     return success_(records.filter(function(record) {
       if (!isRecordVisibleToUser_(record, user)) return false;
       if (entity !== 'picas') return true;
-      const roles = user.roles || [];
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
-      return canMonitorPicas || String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase();
+      return canMonitorPicas_(user) || String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase();
     }));
   }
 
@@ -1443,9 +1441,7 @@ function handleRoute_(
     if (!record) return error_(404, 'Record not found');
     if (!isRecordVisibleToUser_(record, user)) return error_(403, 'Anda tidak memiliki akses ke data ini.');
     if (entity === 'picas') {
-      const roles = user.roles || [];
-      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
-      if (!canMonitorPicas && String(record.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
+      if (!canMonitorPicas_(user) && String(record.assignedToEmail || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
         return error_(403, 'PICA ini tidak ditugaskan kepada akun Anda.');
       }
     }
@@ -2770,6 +2766,14 @@ function isCompanyAdmin_(user) {
 
 function canPublishForms_(user) {
   return isAdminCGG_(user) || isCompanyAdmin_(user);
+}
+
+function canMonitorPicas_(user) {
+  const roles = user && user.roles || [];
+  return isAdminCGG_(user) || isCompanyAdmin_(user) ||
+    (user.roleVerified === true && roles.some(function(role) {
+      return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0;
+    }));
 }
 
 function isReadOnlyController_(user) {
