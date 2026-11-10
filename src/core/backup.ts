@@ -173,8 +173,20 @@ export const hdosBackup = {
       throw new Error('File backup bukan JSON yang valid atau file rusak.');
     }
     if (!archive || archive.format !== BACKUP_FORMAT || archive.version !== BACKUP_VERSION ||
-        !archive.stores || typeof archive.stores !== 'object' || !archive.owner) {
-      throw new Error('Format backup tidak dikenali atau versi tidak didukung.');
+        !archive.stores || typeof archive.stores !== 'object' || Array.isArray(archive.stores) ||
+        !archive.owner || typeof archive.owner !== 'object' ||
+        typeof archive.owner.userId !== 'string' || !archive.owner.userId.trim() ||
+        typeof archive.owner.companyCode !== 'string' || !archive.owner.companyCode.trim() ||
+        typeof archive.owner.parentCompanyCode !== 'string' ||
+        typeof archive.createdAt !== 'string' || !Number.isFinite(Date.parse(archive.createdAt)) ||
+        typeof archive.checksum !== 'string' || !/^[a-f0-9]{64}$/i.test(archive.checksum)) {
+      throw new Error('Metadata backup tidak lengkap, format tidak dikenali, atau versi tidak didukung.');
+    }
+    const allowedStores = new Set(STORES.filter(storeName => storeName !== 'config'));
+    for (const key of Object.keys(archive.stores)) {
+      if (!allowedStores.has(key as StoreName)) {
+        throw new Error(`Backup memuat modul penyimpanan yang tidak dikenal: ${key}.`);
+      }
     }
     if (archive.owner.companyCode !== owner.companyCode ||
         archive.owner.parentCompanyCode !== owner.parentCompanyCode) {
@@ -202,6 +214,7 @@ export const hdosBackup = {
       if (!Array.isArray(raw)) throw new Error(`Struktur data backup untuk ${storeName} tidak valid.`);
 
       const valid: Array<Record<string, unknown> & { id: string }> = [];
+      const seenIds = new Set<string>();
       for (const encodedCandidate of raw) {
         const candidate = decodeBinary(encodedCandidate);
         if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) ||
@@ -211,6 +224,10 @@ export const hdosBackup = {
           continue;
         }
         const item = candidate as Record<string, unknown> & { id: string };
+        if (seenIds.has(item.id)) {
+          throw new Error(`Backup memiliki ID duplikat pada modul ${storeName}: ${item.id}.`);
+        }
+        seenIds.add(item.id);
         if (!recordTenantMatches(item, owner) ||
             (storeName === 'photos' &&
               (item.ownerUserId !== owner.userId || item.ownerCompanyCode !== owner.companyCode))) {
