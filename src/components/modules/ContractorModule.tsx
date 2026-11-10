@@ -298,6 +298,8 @@ export const ContractorModule: React.FC = () => {
       if (p2hLocalPhotoId) await hdosDB.delete('photos', p2hLocalPhotoId);
       setP2hLocalPhotoId('');
       setP2hDraft({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
+      if (p2hDraftKey) await hdosDB.delete('contractor', p2hDraftKey);
+      loadedP2HDraftKey.current = '';
       setP2hPhotoPreview('');
       const history = await hseApi.listContractorP2HHistory(unit.id);
       if (!isCurrentSessionScope(requestScope)) return;
