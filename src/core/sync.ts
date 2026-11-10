@@ -559,7 +559,7 @@ export class HDOSSyncEngine {
       id: recordId,
       updatedAt: serverUpdatedAt,
     };
-    for (const key of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode']) {
+    for (const key of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode']) {
       if (Object.prototype.hasOwnProperty.call(serverRecord, key)) {
         protectedPayload[key] = serverRecord[key];
       }
