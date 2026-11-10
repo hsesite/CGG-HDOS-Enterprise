@@ -519,3 +519,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Jika manifest build tidak tersedia, worker tetap memiliki fallback untuk aset entry yang tertaut dari HTML.
 - [x] Regression suite: 202 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `5ad88375b02f3b7003322f0958ed00bd5c42a692`.
 - [ ] Verifikasi ukuran cache, penggunaan storage, pembukaan setiap modul saat offline, dan update antarversi pada Android/iOS nyata masih diperlukan.
+
+### Batas autentikasi offline PWA (10 November 2026)
+- [x] Boot aplikasi mempertahankan profil lokal saat token sesi masih tersedia tetapi verifikasi server gagal karena gangguan jaringan.
+- [x] Jika token sesi tidak ada atau server mengembalikan 401, profil lokal tidak dipakai untuk membuka data tenant; login ulang tetap diwajibkan.
+- [x] README menjelaskan bahwa PWA meng-cache shell/aset, bukan API atau autentikasi, dan ketersediaan sesi setelah aplikasi ditutup bergantung pada penyimpanan sesi browser.
+- [ ] UAT pembukaan ulang offline setelah menutup penuh PWA pada Android/iOS perlu memastikan perilaku sessionStorage pada browser target; akses offline lintas sesi belum dijanjikan.
