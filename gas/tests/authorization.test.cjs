@@ -1431,7 +1431,8 @@ test('database recovery creates a validated isolated copy and never overwrites t
   assert.ok(recovery.includes('sourceFile.getMimeType() !== MimeType.GOOGLE_SHEETS'));
   assert.ok(recovery.includes("parents.next().getId() === backupFolderId"));
   assert.ok(recovery.includes('sourceFile.makeCopy(recoveryName, folder)'));
-  assert.ok(recovery.includes('recoveredSpreadsheet.getSheetByName(name)'));
+  assert.ok(recovery.includes('validateDatabaseSpreadsheet_(recoveredSpreadsheet)'));
+  assert.ok(source.includes('function validateDatabaseSpreadsheet_(spreadsheet)'));
   assert.ok(recovery.includes("'RECOVERY_COPY_VERIFIED'"));
   assert.ok(recovery.includes('recoveryFile.setTrashed(true)'));
   assert.ok(recovery.includes('liveDatabaseChanged: false'));
@@ -1888,10 +1889,13 @@ test('GAS readiness validates required sheet headers without exposing configurat
     error_: (status, message) => ({ success: false, status, message })
   };
   vm.createContext(context);
+  const validatorStart = source.indexOf('function validateDatabaseSpreadsheet_(spreadsheet) {');
+  const validatorEnd = source.indexOf('function getHealthReadiness_()', validatorStart + 1);
   const helperStart = source.indexOf('function getHealthReadiness_() {');
   const helperEnd = source.indexOf('function getSpreadsheet_()', helperStart + 1);
+  assert.ok(validatorStart >= 0 && validatorEnd > validatorStart);
   assert.ok(helperStart >= 0 && helperEnd > helperStart);
-  vm.runInContext(source.slice(helperStart, helperEnd), context);
+  vm.runInContext(source.slice(validatorStart, validatorEnd) + source.slice(helperStart, helperEnd), context);
   const ready = context.getHealthReadiness_();
   assert.equal(ready.success, true);
   assert.equal(ready.data.status, 'ready');
