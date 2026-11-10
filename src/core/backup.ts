@@ -182,7 +182,7 @@ export const hdosBackup = {
         typeof archive.checksum !== 'string' || !/^[a-f0-9]{64}$/i.test(archive.checksum)) {
       throw new Error('Metadata backup tidak lengkap, format tidak dikenali, atau versi tidak didukung.');
     }
-    const allowedStores = new Set(STORES.filter(storeName => storeName !== 'config'));
+    const allowedStores = new Set<string>(STORES.filter(storeName => storeName !== 'config'));
     for (const key of Object.keys(archive.stores)) {
       if (!allowedStores.has(key as StoreName)) {
         throw new Error(`Backup memuat modul penyimpanan yang tidak dikenal: ${key}.`);
