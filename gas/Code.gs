@@ -1137,9 +1137,23 @@ function handleRoute_(
       props.setProperty(folderKey, folder.getId());
     }
     const safeName = String(input.fileName || 'operational-photo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
+    const uploadKey = String(input.uploadKey || '').trim();
+    if (!uploadKey || !/^[a-zA-Z0-9_-]{12,100}$/.test(uploadKey)) return error_(400, 'Kunci unggah foto tidak valid. Silakan pilih ulang foto.');
+    // Reuse a previously committed Drive file when the client retries after a
+    // lost response. This prevents duplicate evidence files on flaky networks.
+    const marker = 'HDOS_UPLOAD_KEY:' + uploadKey;
+    const existingFiles = folder.getFiles();
+    while (existingFiles.hasNext()) {
+      const existingFile = existingFiles.next();
+      if (String(existingFile.getDescription() || '') === marker &&
+          String(existingFile.getMimeType() || '').toLowerCase() === mimeType) {
+        return success_({ photoFileId: existingFile.getId(), photoUrl: existingFile.getUrl(), fileName: existingFile.getName(), mimeType: mimeType });
+      }
+    }
     const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/png' ? 'png' : 'webp';
-    const fileName = safeName.replace(/\.(jpg|jpeg|png|webp)$/i, '') + '-' + Utilities.getUuid() + '.' + extension;
+    const fileName = safeName.replace(/\.(jpg|jpeg|png|webp)$/i, '') + '-' + uploadKey + '.' + extension;
     const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
+    file.setDescription(marker);
     try {
       logAudit_(user, 'OPERATIONAL_PHOTO_UPLOADED', 'photos', file.getId(), { companyCode: companyCode, mimeType: mimeType, size: bytes.length });
     } catch (auditError) {
