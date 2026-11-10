@@ -2168,3 +2168,12 @@ test('IndexedDB synchronous open exceptions do not leave a cached failed initial
   assert.match(openCatch, /this\.initPromise = null/);
   assert.match(openCatch, /return null/);
 });
+
+test('IndexedDB open failures reject instead of silently switching to a split localStorage queue', () => {
+  const initStart = syncDbSource.indexOf('async init(): Promise<IDBDatabase | null>');
+  const initEnd = syncDbSource.indexOf('private getFallbackKey(', initStart);
+  const initBlock = syncDbSource.slice(initStart, initEnd);
+  assert.match(initBlock, /return Promise\.reject\(new Error\('IndexedDB tidak dapat dibuka/);
+  assert.match(initBlock, /request\.onerror = \(\) => \{[\s\S]*?this\.initPromise = null;[\s\S]*?reject\(new Error\('IndexedDB gagal dibuka/);
+  assert.match(initBlock, /if \(!window\.indexedDB\)[\s\S]*?return null/);
+});
