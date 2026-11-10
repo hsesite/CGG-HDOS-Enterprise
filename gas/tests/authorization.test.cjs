@@ -2204,13 +2204,17 @@ test('repository and published-form snapshots reconcile atomically without parti
   const formsEnd = storeSource.indexOf('async addInspection(', formsStart);
   assert.ok(formsStart >= 0 && formsEnd > formsStart);
   const forms = storeSource.slice(formsStart, formsEnd);
-  assert.match(forms, /await hdosDB\.reconcileSnapshot\('form-definition', staleIds, next\)/);
+  assert.match(forms, /await hdosDB\.reconcileSnapshot\('form-definition', staleIds, nextVisible\)/);
+  assert.match(forms, /previousOtherTenants = previous\.filter\(form => !isVisibleToActiveTenant\(form\)\)/);
+  assert.match(forms, /if \(!isVisibleToActiveTenant\(remote\)\) continue/);
+  assert.match(forms, /if \(shouldPublish && !shouldPublish\(\)\) return;\s*await hdosDB\.reconcileSnapshot/);
   assert.doesNotMatch(forms, /await hdosDB\.put\('form-definition'/);
   assert.doesNotMatch(forms, /await hdosDB\.delete\('form-definition'/);
   assert.match(refresh, /Rekonsiliasi repository gagal; cache sebelumnya dipertahankan/);
   assert.match(refresh, /Rekonsiliasi formulir gagal; cache sebelumnya dipertahankan/);
   assert.match(refresh, /Rekonsiliasi snapshot \$\{entities\[index\]\} gagal; cache lokal dipertahankan/);
   assert.match(forms, /shouldPublish && !shouldPublish\(\)/);
+  assert.doesNotMatch(refresh, /this\.formDefinitions = this\.formDefinitions\.filter/);
 });
 
 test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
