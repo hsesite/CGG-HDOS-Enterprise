@@ -907,8 +907,17 @@ export class HDOSSyncEngine {
       // replay in timestamp order and prevent later writes to a record from
       // overtaking an earlier write that is still pending or has failed.
       const blockedRecordIds = new Set<string>();
-      for (const item of [...this.queue].sort(compareQueueItemsByTime)) {
-        if (item.status === 'RESOLVED') continue;
+      // Keep a stable ordering of queue IDs, but resolve each item from the
+      // latest in-memory snapshot before processing it. A successful CREATE
+      // or UPDATE may propagate the server version to later queued UPDATEs;
+      // iterating stale object references would otherwise send their old
+      // updatedAt value and create a self-inflicted 409 conflict.
+      const orderedQueueIds = [...this.queue]
+        .sort(compareQueueItemsByTime)
+        .map(queued => queued.id);
+      for (const queuedId of orderedQueueIds) {
+        const item = this.queue.find(queued => queued.id === queuedId);
+        if (!item || item.status === 'RESOLVED') continue;
         const itemRecordId = getRecordId(item);
         if (item.status === 'CONFLICT') {
           // Conflicts require explicit retry or reconciliation. Never replay
