@@ -702,6 +702,31 @@ test('PICA approval sequence requires Foreman, then SPV HSE', () => {
   assert.equal(context.isPicaApprovalSequenceValid_({foreman:true,spvHse:true},'ktt'),false);
 });
 
+test('PICA monitoring permission is centralized and requires verified HSE roles', () => {
+  const context = {
+    isAdminCGG_: user => Boolean(user && (user.roles || []).includes('Admin CGG')),
+    isCompanyAdmin_: user => Boolean(user && (user.roles || []).includes('Company Admin'))
+  };
+  vm.createContext(context);
+  const helperStart = source.indexOf('function canMonitorPicas_(user) {');
+  const helperEnd = source.indexOf('function isReadOnlyController_(user) {', helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  vm.runInContext(source.slice(helperStart, helperEnd), context);
+  assert.equal(context.canMonitorPicas_(null), false);
+  assert.equal(context.canMonitorPicas_({ roles: ['Foreman Safety'], roleVerified: true }), true);
+  assert.equal(context.canMonitorPicas_({ roles: ['SPV HSE'], roleVerified: true }), true);
+  assert.equal(context.canMonitorPicas_({ roles: ['Foreman Safety'], roleVerified: false }), false);
+  assert.equal(context.canMonitorPicas_({ roles: ['KTT'], roleVerified: true }), false);
+  assert.equal(context.canMonitorPicas_({ roles: ['Project Manager'], roleVerified: true }), false);
+  assert.equal(context.canMonitorPicas_({ roles: ['Company Admin'] }), true);
+  assert.equal(context.canMonitorPicas_({ roles: ['Admin CGG'] }), true);
+  const routeStart = source.indexOf("path.match(\n      /^\\/api\\/(inspections|hazards|picas|incidents)");
+  const getAllEnd = source.indexOf('// GET ONE', routeStart);
+  const getOneEnd = source.indexOf('// CREATE', getAllEnd);
+  assert.match(source.slice(routeStart, getAllEnd), /canMonitorPicas_\(user\)/);
+  assert.match(source.slice(getAllEnd, getOneEnd), /canMonitorPicas_\(user\)/);
+});
+
 test('PICA oversight reads and updates are limited to Foreman Safety and SPV HSE', () => {
   assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
