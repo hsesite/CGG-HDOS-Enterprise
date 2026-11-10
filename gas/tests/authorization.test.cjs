@@ -1737,6 +1737,18 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(source, /id: requestId, code: 'P2H-'/);
 });
 
+test('Contractor P2H and compliance report drafts persist locally with tenant ownership', () => {
+  assert.match(p2hUiSource, /contractor-p2h-draft:/);
+  assert.match(p2hUiSource, /getById<\{id:string;ownerUserId:string;ownerCompanyCode:string;draft:ContractorP2HInput/);
+  assert.match(p2hUiSource, /ownerUserId === draftOwner\.ownerUserId && saved\.ownerCompanyCode === draftOwner\.ownerCompanyCode/);
+  assert.match(p2hUiSource, /hdosDB\.put\('contractor', \{ id: p2hDraftKey/);
+  assert.match(p2hUiSource, /localPhotoId: p2hLocalPhotoId \|\| undefined/);
+  assert.match(p2hUiSource, /loadedP2HDraftKey\.current !== p2hDraftKey/);
+  assert.match(p2hUiSource, /contractor-report-draft:/);
+  assert.match(p2hUiSource, /hdosDB\.put\('contractor', \{ id: reportDraftKey/);
+  assert.match(p2hUiSource, /hdosDB\.delete\('contractor', p2hDraftKey\)/);
+});
+
 test('Contractor fleet refresh and P2H history ignore responses from a previous tenant session', () => {
   const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
   assert.match(moduleSource, /const isCurrentSessionScope = \(scopeKey: string\) =>/);
