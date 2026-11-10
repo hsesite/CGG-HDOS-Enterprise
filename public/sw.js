@@ -22,7 +22,7 @@ self.addEventListener('install', event => {
     // Vite's build manifest includes lazy-loaded modules that are not linked
     // from index.html. Precache all emitted JS/CSS/image assets so every HSE
     // module can open offline after the first online installation.
-    const buildManifestUrl = new URL('.vite/manifest.json', scopeUrl).href;
+    const buildManifestUrl = new URL('manifest.json', scopeUrl).href;
     try {
       const buildManifestResponse = await fetch(buildManifestUrl, { cache: 'reload' });
       if (buildManifestResponse.ok) {
