@@ -30,7 +30,7 @@ export async function saveOfflineOperationalPhoto(file: File): Promise<string> {
   const owner = getPhotoOwner();
   const id = `photo-${crypto.randomUUID()}`;
   const record: OfflineOperationalPhoto = {
-    id, ...owner, fileName: file.name.slice(0, 150), mimeType: file.type,
+    id, ownerUserId: owner.userId, ownerCompanyCode: owner.companyCode, fileName: file.name.slice(0, 150), mimeType: file.type,
     size: file.size, blob: file, createdAt: new Date().toISOString(),
   };
   await hdosDB.put('photos', record);
