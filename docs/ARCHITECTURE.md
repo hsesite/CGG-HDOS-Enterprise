@@ -69,7 +69,22 @@ Sync engine memetakan entity berikut ke endpoint:
 - `pica` → `/api/picas`
 - `incident` → `/api/incidents`
 
-Entity lain yang diketik pada antrean belum otomatis berarti sudah didukung cloud. Operasi DELETE juga ditahan sebagai konflik sampai kontrak API menyediakan dukungan yang benar. Jangan menghapus item konflik tanpa memahami payload dan memastikan data telah ditangani.
+Pemetaan antrean yang benar-benar ditangani oleh Sync Engine saat ini:
+
+| Entity antrean | Endpoint cloud | CREATE | UPDATE | DELETE |
+|---|---|---:|---:|---:|
+| `inspection` | `/api/inspections` | Ya | Ya | Ya |
+| `hazard` | `/api/hazards` | Ya | Ya | Ya |
+| `pica` | `/api/picas` | Ya | Ya | Ya |
+| `incident` | `/api/incidents` | Ya | Ya | Ya |
+| `repository` | `/api/repository` | Jalur upload khusus | Jalur metadata khusus | Ya, melalui kontrol dokumen |
+| `contractor` (P2H) | `/api/contractor/fleet/:id/p2h` | Ya | Tidak | Tidak |
+| `contractor-report` | endpoint laporan Contractor | Ya | Tidak | Tidak |
+| `contractor-sia` | endpoint upload SIA Contractor | Ya, upload khusus | Tidak | Tidak |
+
+Entity lain yang diketik pada antrean belum otomatis berarti sudah didukung cloud. Operasi UPDATE/DELETE untuk P2H, laporan Contractor, dan SIA sengaja tidak direplay otomatis; item tersebut harus ditampilkan sebagai konflik/tindakan manual, bukan di-retry tanpa batas. Perubahan metadata Repository juga memakai jalur kontrol dokumen khusus, bukan CRUD generik. Jangan menghapus item konflik tanpa memahami payload dan memastikan data telah ditangani.
+
+Tabel ini mendokumentasikan perilaku frontend saat ini, bukan bukti bahwa seluruh route sudah aktif pada deployment GAS. Kontrak dan implementasi GAS akan dicocokkan pada tahap integrasi backend setelah modul aplikasi dibekukan.
 
 ## Repository dokumen
 
