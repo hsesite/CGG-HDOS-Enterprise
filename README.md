@@ -46,7 +46,7 @@ Perintah `lint` saat ini menjalankan pemeriksaan TypeScript frontend dan konfigu
 - Data operasional lokal dimulai kosong; migrasi sekali jalan membersihkan data demo lama dari IndexedDB dan localStorage fallback browser.
 - Master Area Kerja dibaca dan ditulis melalui endpoint GAS ke Google Spreadsheet; cache IndexedDB dipakai saat layanan pusat tidak tersedia.
 - Master perusahaan Contractor/Subkon disimpan terpusat di sheet `companies`, termasuk status Safety Passport, PIC, kontak PIC, dan tanggal kedaluwarsa. Data profil ini dibaca ulang lintas perangkat melalui endpoint GAS.
-- Modul Contractor Passport masih menampilkan metrik manpower, fleet, KPI, Safe Hours, MCU, induksi, dan PICA sebagai belum tersedia sampai sumber data operasionalnya diintegrasikan; angka nol/placeholder bukan data kinerja aktual.
+- Contractor Passport menyediakan laporan kepatuhan bulanan, verifikasi internal, KPI manpower/fleet/MCU/induksi/Safe Hours/LTI dari laporan terverifikasi, register fleet, riwayat P2H, bukti foto, dokumen SIA, dan register PICA. Nilai KPI hanya tampil setelah laporan aktual diverifikasi; data yang belum tersedia tidak boleh ditafsirkan sebagai nol.
 - Form inspeksi bawaan yang berisi contoh data dinonaktifkan; formulir inspeksi dipilih dari dokumen Repository yang benar-benar diterbitkan.
 - Login dan akun saat ini menggunakan endpoint GAS. UI daftar akun, Google Sign-In, sesi persisten, dan kontrol akun memerlukan versi GAS yang sesuai serta konfigurasi OAuth. Ikuti [panduan GAS dan Google OAuth](docs/GAS-AUTH-SETUP.md).
 - Ketersediaan master data lintas perangkat tetap bergantung pada URL GAS, deployment backend terbaru, izin Spreadsheet, dan pengujian dengan akun CGG/kontraktor/subkontraktor.
