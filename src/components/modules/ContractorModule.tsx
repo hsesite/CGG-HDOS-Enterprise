@@ -310,6 +310,7 @@ export const ContractorModule: React.FC = () => {
       const payload = {
         id: queueId,
         fleetId: unit.id,
+        unitNumber: unit.unitNumber,
         input: {
           ...p2hDraft,
           requestId,
