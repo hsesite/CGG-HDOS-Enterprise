@@ -105,12 +105,16 @@ export const hdosBackup = {
     const owner = getOwner();
     const stores: BackupPayload['stores'] = {};
     let records = 0;
+    const includedStores = STORES.filter(storeName => storeName !== 'config');
+    // Capture every local store in one IndexedDB readonly transaction. This
+    // prevents a multi-module export from combining pre-write and post-write data.
+    const localSnapshot = await hdosDB.getAllBundle(includedStores);
 
     for (const storeName of STORES) {
       // The config store may contain device/session configuration and is deliberately
       // excluded. Authentication credentials are never part of a portable backup.
       if (storeName === 'config') continue;
-      const all = await hdosDB.getAll<unknown>(storeName);
+      const all = (localSnapshot[storeName] || []) as unknown[];
       const scoped = storeName === 'queue'
         ? all.filter(value => {
             if (!value || typeof value !== 'object') return false;
