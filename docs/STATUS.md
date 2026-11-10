@@ -575,3 +575,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test memastikan fallback offline eksplisit.
 - [x] 209 regression tests lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi artefak PWA berhasil pada commit `2b6283d0cdd8a566d4459ee69f9c6751d85fc01c`.
 - [ ] Pembukaan semua modul saat offline tetap harus diuji pada perangkat Android/iOS fisik; precache berhasil pada build tidak membuktikan setiap browser menyimpan seluruh aset di kondisi storage nyata.
+
+
+### AI Assist, Inspection GPS, GIS, dan batas tenant Dashboard (10 November 2026)
+- [x] AI Photo Scanner dan Document Parser diberi penandaan eksplisit sebagai simulasi/contoh statis; hasil simulasi tidak dapat diterbitkan sebagai Hazard operasional.
+- [x] Arahan AI terkait PICA diselaraskan dengan alur Foreman Safety → SPV HSE; saran terkait lereng tidak lagi menyajikan angka Faktor Keamanan generik sebagai pengganti kajian geoteknik.
+- [x] Form Inspection lama tidak lagi mengirim koordinat GPS contoh tetap; koordinat hanya dicatat jika perangkat berhasil memberikan lokasi aktual.
+- [x] Master GIS menolak koordinat kosong/null yang sebelumnya dapat terkonversi menjadi angka nol saat rendering peta.
+- [x] Dashboard Owner CGG mensyaratkan identitas tenant CGG sekaligus role Admin CGG sebelum mengaktifkan agregasi lintas perusahaan.
+- [x] Regression suite terakhir yang selesai: 215 tes lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi 5 file shell + 33 aset PWA berhasil pada commit `9e752a1a5d0baa5a86df4279f1b87093c34e60ce`.
+- [ ] Integrasi AI vision/parser aktual belum tersedia; fitur tersebut tetap simulasi dan tidak boleh dipakai sebagai bukti inspeksi atau dasar keputusan risiko.
+- [ ] Verifikasi GPS, koordinat GIS terhadap master survey, dan batas dashboard seluruh role/tenant tetap harus masuk UAT.
