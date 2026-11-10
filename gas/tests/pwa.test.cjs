@@ -8,6 +8,7 @@ const manifest = fs.readFileSync(path.join(root, 'public', 'manifest.webmanifest
 const worker = fs.readFileSync(path.join(root, 'public', 'sw.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'src', 'main.tsx'), 'utf8');
+const vite = fs.readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
 
 test('mobile web app manifest declares installable standalone HDOS scope', () => {
   const parsed = JSON.parse(manifest);
@@ -38,6 +39,12 @@ test('service worker precaches app shell and built entry assets for offline reop
   assert.match(worker, /assetPaths = \[\.\.\.html\.matchAll/);
   assert.match(worker, /cache\.put\(assetUrl\.href, assetResponse\)/);
   assert.match(worker, /self\.clients\.claim\(\)/);
+});
+
+test('Vite exposes the complete build graph for lazy-module offline precaching', () => {
+  assert.match(vite, /manifest: true/);
+  assert.match(worker, /Array\.isArray\(assetEntry\.css\)/);
+  assert.match(worker, /Array\.isArray\(assetEntry\.assets\)/);
 });
 
 test('service worker never intercepts non-GET or cross-origin API requests', () => {
