@@ -9,7 +9,7 @@ export default defineConfig({
   build: {
     // Expose the production asset graph so the PWA worker can precache lazy
     // operational modules as well as the initial entry chunk.
-    manifest: true,
+    manifest: 'manifest.json',
   },
   resolve: {
     alias: {
