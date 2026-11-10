@@ -50,3 +50,20 @@ test('mobile workspace exposes logout and delegates to the central session handl
   );
   assert.match(appSource, /<IOSMobileSimulator onLogout=\{handleLogout\} \/>/);
 });
+
+test('operational modules are lazy-loaded for desktop and mobile workspaces', () => {
+  const lazyModules = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'lazyModules.tsx'),
+    'utf8'
+  );
+  const appSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'App.tsx'), 'utf8');
+  const wrapperSource = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'components', 'layout', 'WindowWrapper.tsx'),
+    'utf8'
+  );
+  assert.equal((lazyModules.match(/lazy\(\(\) => import\(/g) || []).length, 12);
+  assert.match(appSource, /from '\.\/components\/modules\/lazyModules'/);
+  assert.match(mobileSource, /from '\.\.\/modules\/lazyModules'/);
+  assert.match(wrapperSource, /<Suspense fallback=/);
+  assert.match(mobileSource, /<Suspense fallback=/);
+});
