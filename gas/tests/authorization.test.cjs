@@ -2206,7 +2206,7 @@ test('repository and published-form snapshots reconcile atomically without parti
   const forms = storeSource.slice(formsStart, formsEnd);
   assert.match(forms, /await hdosDB\.reconcileSnapshot\('form-definition', staleIds, nextVisible\)/);
   assert.match(forms, /previousOtherTenants = previous\.filter\(form => !isVisibleToActiveTenant\(form\)\)/);
-  assert.match(forms, /if \(!isVisibleToActiveTenant\(remote\)\) continue/);
+  assert.match(forms, /getFormVisibilityRecord\(remote, this\.documents\)/);
   assert.match(forms, /if \(shouldPublish && !shouldPublish\(\)\) return;\s*await hdosDB\.reconcileSnapshot/);
   assert.doesNotMatch(forms, /await hdosDB\.put\('form-definition'/);
   assert.doesNotMatch(forms, /await hdosDB\.delete\('form-definition'/);
@@ -2223,7 +2223,7 @@ test('standalone published forms survive startup and partial repository refreshe
   const initEnd = storeSource.indexOf('async refreshCloudData()', initStart);
   assert.ok(initStart >= 0 && initEnd > initStart);
   const init = storeSource.slice(initStart, initEnd);
-  assert.match(init, /this\.formDefinitions = this\.formDefinitions\.filter\(form =>\s*isLocalRecordVisible\(/);
+  assert.match(init, /this\.formDefinitions = this\.formDefinitions\.filter\(form =>\s*isLocalRecordVisible\(\s*getFormVisibilityRecord\(form, this\.documents\)/);
   assert.doesNotMatch(init, /this\.formDefinitions = this\.formDefinitions\.filter\(form => this\.documents\.some/);
 
   const refreshStart = storeSource.indexOf('async refreshCloudData()');
@@ -2231,6 +2231,19 @@ test('standalone published forms survive startup and partial repository refreshe
   const refresh = storeSource.slice(refreshStart, refreshEnd);
   assert.match(refresh, /const availableForms = formsResult\.value as unknown as FormDefinition\[\]/);
   assert.doesNotMatch(refresh, /availableDocumentIds/);
+});
+
+test('form definition updates cannot change tenant ownership metadata', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const updateStart = storeSource.indexOf('async updateFormDefinition(');
+  const updateEnd = storeSource.indexOf('getFormDefinitionByDocumentId(', updateStart);
+  assert.ok(updateStart >= 0 && updateEnd > updateStart);
+  const update = storeSource.slice(updateStart, updateEnd);
+  assert.match(update, /const immutableTenantFields = \{/);
+  for (const field of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode']) {
+    assert.match(update, new RegExp(field + ': existingTenant\\.' + field));
+  }
+  assert.match(update, /\.\.\.updates,\s*\.\.\.immutableTenantFields/);
 });
 
 test('locally generated form definitions inherit immutable tenant ownership from their source document', () => {
