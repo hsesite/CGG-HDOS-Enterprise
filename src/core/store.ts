@@ -317,7 +317,21 @@ export class HDOSCentralStore {
 }
 
   setCentralRepositoryDocuments(documents: DocumentItem[]): void {
-    this.documents = documents;
+    const user = AuthState.getUser();
+    const allowedCompanyCodes = this.getAllowedCompanyCodes();
+    // The API already applies tenant authorization, but keep a second boundary
+    // before publishing its snapshot into the shared client store. Global
+    // controlled documents remain readable by every authenticated tenant.
+    this.documents = documents.filter(document => {
+      const companyCode = String(document.companyCode || '').trim();
+      const parentCompanyCode = String(document.parentCompanyCode || '').trim();
+      const isGlobalDocument = !companyCode && !parentCompanyCode;
+      return isGlobalDocument || isLocalRecordVisible(
+        document as unknown as Record<string, unknown>,
+        user,
+        allowedCompanyCodes
+      );
+    });
     this.notify();
   }
 
