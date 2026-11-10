@@ -829,7 +829,6 @@ export class HDOSCentralStore {
         createdAt: remote.createdAt || local?.createdAt || new Date().toISOString(),
         updatedAt: remote.updatedAt || local?.updatedAt || new Date().toISOString(),
       } as FormDefinition;
-      await hdosDB.put('form-definition', merged);
       next.push(merged);
     }
 
