@@ -123,17 +123,17 @@ export const IOSMobileSimulator: React.FC = () => {
           </div>
 
           {/* Dynamic Module Content inside Mobile */}
-          {activeTab === 'dashboard' && <DashboardModule />}
-          {activeTab === 'inspection' && <InspectionModule />}
-          {activeTab === 'map' && <MapModule />}
-          {activeTab === 'repository' && <RepositoryModule />}
-          {activeTab === 'pica' && <PICAModule />}
-          {activeTab === 'hazard' && <HazardModule />}
-          {activeTab === 'ai' && <AIModule />}
-          {activeTab === 'incident' && <IncidentModule />}
-          {activeTab === 'contractor' && <ContractorModule />}
-          {activeTab === 'sync' && <SyncModule />}
-          {activeTab === 'settings' && <><SettingsModule /><RoleVerificationPanel /></>}
+          {activeTab === 'dashboard' && canAccessModule(currentUser, 'dashboard') && <DashboardModule />}
+          {activeTab === 'inspection' && canAccessModule(currentUser, 'inspection') && <InspectionModule />}
+          {activeTab === 'map' && canAccessModule(currentUser, 'map') && <MapModule />}
+          {activeTab === 'repository' && canAccessModule(currentUser, 'repository') && <RepositoryModule />}
+          {activeTab === 'pica' && canAccessModule(currentUser, 'pica') && <PICAModule />}
+          {activeTab === 'hazard' && canAccessModule(currentUser, 'hazard') && <HazardModule />}
+          {activeTab === 'ai' && canAccessModule(currentUser, 'ai') && <AIModule />}
+          {activeTab === 'incident' && canAccessModule(currentUser, 'incident') && <IncidentModule />}
+          {activeTab === 'contractor' && canAccessModule(currentUser, 'contractor') && <ContractorModule />}
+          {activeTab === 'sync' && canAccessModule(currentUser, 'sync') && <SyncModule />}
+          {activeTab === 'settings' && canAccessModule(currentUser, 'settings') && <><SettingsModule /><RoleVerificationPanel /></>}
         </div>
 
         {/* Mobile quick access for secondary operational modules */}
