@@ -2847,3 +2847,42 @@ test('backup and recovery copies preserve every required sheet dimension and hea
   assert.equal(headerMismatch.valid, false);
   assert.ok(headerMismatch.mismatches.some(item => item.includes('picas: header berbeda')));
 });
+
+
+test('operational CREATE retry uses immutable original fingerprint after later record updates', () => {
+  const start = source.indexOf('function normalizeCreateValue_(');
+  const end = source.indexOf('function getExistingRecordForCreate_(', start);
+  assert.ok(start >= 0 && end > start);
+  const context = {
+    Utilities: {
+      DigestAlgorithm: { SHA_256: 'SHA_256' },
+      Charset: { UTF_8: 'UTF_8' },
+      computeDigest: (_algorithm, value) => Array.from(String(value)).map(char => char.charCodeAt(0)),
+      base64EncodeWebSafe: bytes => bytes.map(byte => String.fromCharCode(byte)).join('')
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(start, end), context);
+
+  const original = {
+    id: 'hazard-001',
+    companyCode: 'SLS',
+    description: 'Retak pada tangga akses',
+    riskMatrix: { severity: 3, likelihood: 2 }
+  };
+  const fingerprint = context.createPayloadFingerprint_(original);
+  const updatedRecord = {
+    ...original,
+    description: 'Tangga akses telah diperbaiki',
+    status: 'CLOSED',
+    _createFingerprint: fingerprint
+  };
+
+  assert.equal(context.isSameCreatePayload_(updatedRecord, original), true);
+  assert.equal(context.isSameCreatePayload_(updatedRecord, {
+    ...original, description: 'Temuan berbeda'
+  }), false);
+  assert.equal(context.isSameCreatePayload_({
+    id: 'legacy-001', description: 'Legacy finding'
+  }, { id: 'legacy-001', description: 'Legacy finding' }), true);
+});
