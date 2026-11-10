@@ -1313,7 +1313,7 @@ export class HDOSCentralStore {
     const role = hdosAuth.getCurrentRole();
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
-    const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((assignedRole) => ['Foreman Safety', 'SPV HSE'].includes(assignedRole));
+    const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).includes('SPV HSE');
     const currentStages = current.approvalStages || { foreman: false, spvHse: false };
     if (updates.approvalStages) {
       if (Object.keys(updates).length !== 1 || current.status !== 'WAITING_HSE') throw new Error('Persetujuan hanya dapat diperbarui pada PICA yang menunggu validasi HSE.');
@@ -1345,7 +1345,7 @@ export class HDOSCentralStore {
       updated.closeRequestedAt = updated.submittedAt;
       updated.rejectionReason = '';
     } else if (updates.status === 'CLOSED') {
-      if (!isHSEValidator) throw new Error('Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE.');
+      if (!isHSEValidator) throw new Error('Penutupan PICA hanya dapat divalidasi oleh SPV HSE.');
       if (current.status !== 'WAITING_HSE') throw new Error('PICA belum diajukan PIC untuk validasi HSE.');
       if (currentStages.foreman !== true || currentStages.spvHse !== true) throw new Error('Penutupan PICA memerlukan persetujuan Foreman Safety dan SPV HSE.');
       updated.status = 'CLOSED';
