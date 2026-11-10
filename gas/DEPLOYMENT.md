@@ -21,7 +21,7 @@ Deployment GitHub Pages tidak otomatis menerapkan perubahan pada backend GAS. Ik
 1. Pilih fungsi `setup` di editor Apps Script.
 2. Jalankan satu kali menggunakan akun pengelola database.
 3. Berikan izin Spreadsheet dan Google Drive yang diminta.
-4. Pastikan sheet `users`, `companies`, `locations`, `forms`, `inspections`, `hazards`, `picas`, `incidents`, `audit_logs`, `backup_logs`, `contractor_reports`, dan `contractor_fleet` terbentuk.
+4. Pastikan seluruh sheet `users`, `companies`, `locations`, `forms`, `inspections`, `hazards`, `picas`, `incidents`, `audit_logs`, `backup_logs`, `contractor_reports`, `contractor_fleet`, `contractor_p2h_history`, dan `repository` terbentuk.
 5. Periksa header setiap sheet.
 
 `setup()` menyiapkan struktur sheet. Fungsi ini tidak membuat akun Admin CGG otomatis. Jangan menganggapnya sebagai migrasi data produksi tanpa backup.
@@ -34,11 +34,14 @@ Deployment GitHub Pages tidak otomatis menerapkan perubahan pada backend GAS. Ik
 4. Setelah backup pertama berhasil, jalankan `installDailyDatabaseBackupTrigger()` satu kali.
 5. Trigger membuat backup harian sekitar pukul 02:00 sesuai timezone project. Setiap backup dicatat pada `backup_logs`.
 6. Batasi akses folder backup hanya kepada pengelola database. Lakukan kebijakan retensi dan uji pemulihan secara berkala; backup yang berhasil dibuat belum membuktikan proses restore sudah teruji.
+7. Untuk menguji pemulihan tanpa menyentuh database aktif, salin ID file backup berstatus `SUCCESS`, lalu jalankan `createDatabaseRecoveryCopy('ID_BACKUP')` dari editor Apps Script. Fungsi ini memeriksa nama, tipe file, lokasi folder, akses Spreadsheet, seluruh sheet dan header wajib. Hasilnya berupa salinan pemulihan terpisah; `HDOS_SPREADSHEET_ID` tidak diubah.
+8. Pastikan log mencatat `RECOVERY_COPY_VERIFIED` dan periksa salinan pemulihan. Jika validasi gagal, salinan sementara akan dipindahkan ke sampah dan detail sheet/skema yang gagal dicatat sebagai error.
+9. Endpoint `/api/health/ready` memeriksa akses Spreadsheet, kelengkapan sheet/header, konfigurasi OAuth, dan kebijakan registrasi CGG. Status `ready` hanya menunjukkan konfigurasi backend lolos pemeriksaan; tetap lakukan uji login dan transaksi nyata.
 
 
 ## 4. Siapkan akun dan master perusahaan
 
-1. Bootstrap akun Admin CGG pertama secara manual pada sheet `users), menggunakan format password hash/salt yang sesuai backend. Jangan menyimpan password polos.
+1. Bootstrap akun Admin CGG pertama secara manual pada sheet `users`, menggunakan format password hash/salt yang sesuai backend. Jangan menyimpan password polos.
 2. Masukkan CGG dan perusahaan kontraktor/subkontraktor yang telah disetujui ke sheet `companies`.
 3. Pastikan kode, status aktif, dan relasi parent perusahaan benar.
 4. Uji login Admin CGG sebelum onboarding akun lain.
