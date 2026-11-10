@@ -181,6 +181,12 @@ export class HDOSSyncEngine {
     const owner = this.getCurrentOwner();
     const requestedOwnerKey = owner ? `${owner.userId}::${owner.companyCode}` : '';
     const requestedToken = hseApi.authToken;
+    if (this.queueOwnerKey !== requestedOwnerKey) {
+      // Hide the previous account's in-memory queue immediately, including
+      // while IndexedDB is still loading or if that read subsequently fails.
+      this.queue = [];
+      hdosEvents.emit('sync:queue_updated', []);
+    }
     this.queueOwnerKey = requestedOwnerKey;
 
     const isCurrentInitialization = (): boolean => {
