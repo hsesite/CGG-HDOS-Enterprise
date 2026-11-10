@@ -767,7 +767,7 @@ export class HDOSCentralStore {
     ...input,
     ...tenantFields,
     ownerUserId: sessionUser.id,
-    owner: sessionUser.displayName || sessionUser.name || input.owner,
+    owner: sessionUser.displayName || input.owner,
   };
 
   // Persist repository metadata and its original binary together. A browser
