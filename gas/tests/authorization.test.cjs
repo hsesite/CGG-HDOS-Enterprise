@@ -2612,7 +2612,7 @@ test('inspection and hazard evidence is persisted locally and uploaded during qu
   assert.match(offlinePhotos, /uploadKey: `hdos-\$\{photo\.id\}`/);
   assert.match(sync, /getById<OfflineOperationalPhoto>\('photos', localPhotoId\)/);
   assert.match(sync, /uploadOfflineOperationalPhoto\(localPhoto\)/);
-  assert.match(sync, /const \{ localPhotoId: _localPhotoId, \.\.\.cloudPayload \}/);
+  assert.match(sync, /delete cloudPayload\.localPhotoId/);
   assert.match(sync, /hdosDB\.delete\('photos', String\(/);
   assert.match(backup, /await encodeBinary\(scoped\)/);
   assert.match(backup, /new Blob\(\[bytes\]/);
