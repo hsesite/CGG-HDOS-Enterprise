@@ -1716,7 +1716,7 @@ test('P2H idempotency helper accepts exact replay and rejects changed inspection
 
 test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /const requestId = p2hRequestId \|\|/);
-  assert.match(p2hUiSource, /createContractorP2HRecord\(unit\.id, \{ \.\.\.p2hDraft, requestId,/);
+  assert.match(p2hUiSource, /hdosSync\.enqueue\([\s\S]*?requestId,[\s\S]*?entity: 'contractor'/);
   assert.match(p2hUiSource, /setP2hRequestId\(''\)/);
   assert.match(source, /const requestId = String\(input\.requestId \|\| ''\)\.trim\(\)/);
   assert.match(source, /const existingRequestRow = findRecordRow_\(historySheet, requestId\)/);
@@ -1727,8 +1727,7 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   const offlinePhotoSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'offline-photos.ts'), 'utf8');
   assert.match(offlinePhotoSource, /uploadKey: `hdos-\$\{photo\.id\}`/);
   assert.match(p2hUiSource, /saveOfflineOperationalPhoto\(file\)/);
-  assert.match(p2hUiSource, /getById<OfflineOperationalPhoto>\('photos', p2hLocalPhotoId\)/);
-  assert.match(p2hUiSource, /uploadOfflineOperationalPhoto\(localPhoto\)/);
+  assert.match(p2hUiSource, /localPhotoId: p2hLocalPhotoId \|\| undefined/);
   assert.match(p2hUiSource, /capture="environment"/);
   assert.match(p2hUiSource, /hdosDB\.delete\('photos', p2hLocalPhotoId\)/);
   assert.doesNotMatch(p2hUiSource, /p2hPhotoFile && !p2hPhotoReference/);
@@ -1741,9 +1740,9 @@ test('Contractor P2H submissions enter the owner-scoped offline queue and replay
   assert.match(p2hUiSource, /hdosSync\.enqueue\([\s\S]*?entity: 'contractor'/);
   assert.match(p2hUiSource, /fleetId: unit\.id,[\s\S]*?input:[\s\S]*?requestId,[\s\S]*?localPhotoId: p2hLocalPhotoId \|\| undefined/);
   assert.match(p2hUiSource, /tersimpan di antrean offline perangkat/);
-  assert.match(syncSource, /case 'contractor':[\s\S]*?return 'contractor-p2h'/);
-  assert.match(syncSource, /createContractorP2HRecord\(payload\.fleetId, input/);
-  assert.match(syncSource, /uploadOfflineOperationalPhoto\(localPhoto\)/);
+  assert.match(syncEngineSource, /case 'contractor':[\s\S]*?return 'contractor-p2h'/);
+  assert.match(syncEngineSource, /createContractorP2HRecord\(payload\.fleetId, input/);
+  assert.match(syncEngineSource, /uploadOfflineOperationalPhoto\(localPhoto\)/);
 });
 
 test('Contractor P2H and compliance report drafts persist locally with tenant ownership', () => {
