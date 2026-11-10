@@ -471,3 +471,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [ ] Uji restore aktual dengan arsip foto/Blob, file rusak, dan data tenant berbeda pada perangkat serta GAS staging masih diperlukan.
 - [ ] Deployment GitHub Pages untuk commit ini masih menunggu workflow; perubahan GAS tidak termasuk dalam deployment frontend.
 
+### Sinkronisasi — penghapusan bukti lokal dan acknowledgement antrean atomik (10 November 2026)
+- [x] Setelah operasi cloud berhasil, penghapusan queue item dan Blob bukti lokal dilakukan dalam satu transaksi multi-store IndexedDB.
+- [x] Browser yang tertutup paksa atau kegagalan transaksi tidak lagi meninggalkan kondisi setengah bersih antara antrean dan berkas bukti lokal.
+- [x] Pemulihan akibat gangguan internal menghapus `syncStartedAt` saat item dikembalikan ke status `PENDING`.
+- [x] Regression tests ditambahkan untuk transaksi cleanup atomik dan pelepasan lease sinkronisasi.
+- [ ] UAT crash/reload tepat setelah respons cloud diterima tetap diperlukan pada browser/perangkat nyata dan GAS/Sheets staging.
