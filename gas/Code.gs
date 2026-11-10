@@ -3402,6 +3402,43 @@ function validateDatabaseSpreadsheet_(spreadsheet) {
   };
 }
 
+
+/**
+ * Compare the structural footprint of a copied database with its source.
+ * Detects incomplete Drive copies beyond checking that tabs exist.
+ * Compares sheet dimensions and headers, not individual cell contents.
+ */
+function compareDatabaseSpreadsheetSnapshots_(sourceSpreadsheet, copySpreadsheet) {
+  if (!sourceSpreadsheet || !copySpreadsheet) throw new Error('Spreadsheet sumber dan salinan wajib tersedia.');
+  const requiredSheets = CONFIG.SHEETS.concat(['repository']);
+  const mismatches = [];
+  requiredSheets.forEach(function(name) {
+    const sourceSheet = sourceSpreadsheet.getSheetByName(name);
+    const copySheet = copySpreadsheet.getSheetByName(name);
+    if (!sourceSheet || !copySheet) {
+      mismatches.push(name + ': sheet tidak ditemukan');
+      return;
+    }
+    const sourceLastRow = sourceSheet.getLastRow();
+    const copyLastRow = copySheet.getLastRow();
+    const sourceLastColumn = sourceSheet.getLastColumn();
+    const copyLastColumn = copySheet.getLastColumn();
+    if (sourceLastRow !== copyLastRow || sourceLastColumn !== copyLastColumn) {
+      mismatches.push(name + ': dimensi sumber ' + sourceLastRow + 'x' + sourceLastColumn +
+        ', salinan ' + copyLastRow + 'x' + copyLastColumn);
+      return;
+    }
+    if (sourceLastColumn > 0) {
+      const sourceHeaders = sourceSheet.getRange(1, 1, 1, sourceLastColumn).getValues()[0];
+      const copyHeaders = copySheet.getRange(1, 1, 1, copyLastColumn).getValues()[0];
+      if (sourceHeaders.length !== copyHeaders.length || sourceHeaders.some(function(value, index) {
+        return String(value == null ? '' : value) !== String(copyHeaders[index] == null ? '' : copyHeaders[index]);
+      })) mismatches.push(name + ': header berbeda');
+    }
+  });
+  return { valid: mismatches.length === 0, mismatches: mismatches };
+}
+
 function getHealthReadiness_() {
   const properties = PropertiesService.getScriptProperties();
   const spreadsheetId = String(properties.getProperty('HDOS_SPREADSHEET_ID') || CONFIG.SPREADSHEET_ID || '').trim();
@@ -4431,6 +4468,8 @@ function createDatabaseBackup() {
         backupValidation.invalidSheets.join(', ')
       );
     }
+    const snapshotComparison = compareDatabaseSpreadsheetSnapshots_(spreadsheet, backupSpreadsheet);
+    if (!snapshotComparison.valid) throw new Error('Salinan backup berbeda dari sumber: ' + snapshotComparison.mismatches.join('; '));
 
     logSheet.appendRow([backupId, createdAt, verifiedBackup.getId(), verifiedBackup.getName(), 'SUCCESS', 'SCRIPT', 'Database Spreadsheet berhasil dicadangkan dan diverifikasi di Google Drive.']);
     SpreadsheetApp.flush();
@@ -4506,6 +4545,8 @@ function createDatabaseRecoveryCopy(backupFileId) {
     if (!recoveryValidation.valid) {
       throw new Error('Validasi salinan pemulihan gagal. Sheet hilang: ' + recoveryValidation.missingSheets.join(', ') + '; skema tidak valid: ' + recoveryValidation.invalidSheets.join(', ') + '.');
     }
+    const recoveryComparison = compareDatabaseSpreadsheetSnapshots_(SpreadsheetApp.openById(sourceId), recoveredSpreadsheet);
+    if (!recoveryComparison.valid) throw new Error('Salinan pemulihan berbeda dari backup sumber: ' + recoveryComparison.mismatches.join('; '));
 
     const logSheet = getSheet_('backup_logs');
     logSheet.appendRow([Utilities.getUuid(), new Date().toISOString(), recoveryFile.getId(), recoveryName, 'RECOVERY_COPY_VERIFIED', 'SCRIPT', 'Salinan pemulihan diverifikasi; database aktif tidak diubah. Sumber backup: ' + sourceId]);
