@@ -1077,7 +1077,7 @@ test('operational records and matching sync queue entries use one atomic Indexed
   assert.match(dbSource, /tx\.oncomplete = \(\) => resolve\(\)/);
   assert.match(dbSource, /async putBundle\(/);
   assert.match(syncSource, /async enqueueBatch\(/);
-  assert.match(syncSource, /await hdosDB\.putBundle\(/);
+  assert.match(syncSource, /await hdosDB\.reconcileSnapshotBundle\(/);
   assert.match(syncSource, /ownerUserId: owner\.userId/);
   assert.match(syncSource, /ownerCompanyCode: owner\.companyCode/);
   for (const marker of ['async addInspection(', 'async addHazard(', 'async addIncident(', 'async updatePICAStatus(']) {
