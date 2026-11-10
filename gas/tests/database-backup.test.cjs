@@ -33,3 +33,12 @@ test('database backup is not marked successful until copied spreadsheet opens an
   assert.match(backup, /backupValidation\.missingSheets\.join\(', '\)/);
   assert.match(backup, /backupValidation\.invalidSheets\.join\(', '\)/);
 });
+
+test('recovery validation failure reports missing sheets and invalid schemas without undefined variables', () => {
+  const start = backend.indexOf('function createDatabaseRecoveryCopy(backupFileId)');
+  const end = backend.indexOf('function installDailyDatabaseBackupTrigger()', start);
+  const recovery = backend.slice(start, end);
+  assert.match(recovery, /recoveryValidation\.missingSheets\.join\(', '\)/);
+  assert.match(recovery, /recoveryValidation\.invalidSheets\.join\(', '\)/);
+  assert.doesNotMatch(recovery, /invalidSheets\.length/);
+});
