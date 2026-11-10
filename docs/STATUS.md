@@ -386,3 +386,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Foreman Safety dan SPV HSE hanya memperoleh akses pemantauan jika role telah diverifikasi; Admin CGG dan Admin Perusahaan tetap mengikuti kewenangan administratif yang sudah ditetapkan.
 - [x] Regression test mencakup role HSE terverifikasi/tidak terverifikasi, KTT, Project Manager, Admin Perusahaan, Admin CGG, serta pemakaian helper pada kedua route baca.
 - [ ] Hasil test lokal/GitHub Actions untuk perubahan ini belum terkonfirmasi; UAT lintas role dan tenant tetap diperlukan.
+
+### Sinkronisasi — pemisahan antrean aktif dan riwayat (10 November 2026)
+- [x] Modul Sinkronisasi memisahkan jumlah operasi aktif dari item audit berstatus `RESOLVED`; riwayat resolusi tidak lagi dihitung sebagai pekerjaan yang menunggu.
+- [x] Tombol sinkronisasi manual hanya aktif jika terdapat operasi yang belum berstatus `RESOLVED`.
+- [x] Kegagalan pemicu sinkronisasi manual ditampilkan pada log aktivitas dan status antrean disegarkan kembali.
+- [x] Regression test untuk antrean aktif/arsip dan umpan balik kegagalan sinkronisasi ditambahkan.
+- [x] Typecheck frontend/backend, seluruh regression tests, validasi konfigurasi produksi, build, dan deployment GitHub Pages berhasil pada commit `7a182764`.
+- [ ] Uji sinkronisasi online/offline, antrean RESOLVED, dan pemulihan konflik pada ponsel fisik serta akun staging tetap diperlukan.
