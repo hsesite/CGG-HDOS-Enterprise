@@ -40,6 +40,21 @@ const GAS_API_URL = (
 
 const TOKEN_KEY = 'hdos_api_session';
 
+// Prevent an older in-flight login response from replacing a newer session.
+let sessionMutationGeneration = 0;
+
+function beginSessionMutation(): number {
+  sessionMutationGeneration += 1;
+  return sessionMutationGeneration;
+}
+
+function commitSessionToken(token: string, generation: number): void {
+  if (generation !== sessionMutationGeneration) {
+    throw new ApiError(409, 'Respons autentikasi diabaikan karena sesi yang lebih baru sudah dimulai.');
+  }
+  setToken(token);
+}
+
 type ApiEnvelope<T> = {
   success: boolean;
   data: T;
@@ -328,6 +343,7 @@ export const hseApi = {
     email: string,
     password: string
   ): Promise<ApiUser> {
+    const sessionGeneration = beginSessionMutation();
     const data =
       await request<{
         token: string;
@@ -341,9 +357,7 @@ export const hseApi = {
         }
       );
 
-    setToken(
-      data.token
-    );
+    commitSessionToken(data.token, sessionGeneration);
 
     return data.user;
   },
@@ -353,18 +367,20 @@ export const hseApi = {
   },
 
   async loginWithGoogle(credential: string): Promise<ApiUser> {
+    const sessionGeneration = beginSessionMutation();
     const data = await request<{ token: string; user: ApiUser }>(
       'POST',
       '/api/auth/google',
       { credential }
     );
-    setToken(data.token);
+    commitSessionToken(data.token, sessionGeneration);
     return data.user;
   },
 
   async submitGoogleProfile(input: { credential: string; displayName: string; companyCode: string; position: string; department: string; section: string }): Promise<{ pending?: boolean; message?: string; token?: string; user?: ApiUser }> {
+    const sessionGeneration = beginSessionMutation();
     const result = await request<{ pending?: boolean; message?: string; token?: string; user?: ApiUser }>('POST', '/api/auth/google/onboard', input);
-    if (result.token) setToken(result.token);
+    if (result.token) commitSessionToken(result.token, sessionGeneration);
     return result;
   },
 
@@ -498,6 +514,12 @@ export const hseApi = {
 
   async logout(authToken?: string | null): Promise<void> {
     const tokenToRevoke = authToken === undefined ? getToken() : authToken;
+    // Only invalidate in-flight authentication when this logout targets the
+    // currently active token; revoking an older tab's token must not cancel a new login.
+    const ownsCurrentSession = getToken() === tokenToRevoke;
+    const sessionGeneration = ownsCurrentSession
+      ? beginSessionMutation()
+      : sessionMutationGeneration;
     try {
       if (tokenToRevoke) {
         await request<null>(
@@ -509,7 +531,11 @@ export const hseApi = {
       }
     } finally {
       // Never clear a newer user's token when revoking an older session.
-      if (getToken() === tokenToRevoke) setToken(null);
+      if (
+        ownsCurrentSession &&
+        sessionGeneration === sessionMutationGeneration &&
+        getToken() === tokenToRevoke
+      ) setToken(null);
     }
   },
 
