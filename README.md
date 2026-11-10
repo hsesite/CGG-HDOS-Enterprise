@@ -58,7 +58,8 @@ HDOS dapat dipasang sebagai aplikasi web (PWA) setelah dibuka setidaknya satu ka
 - **Android (Chrome):** buka URL HDOS, pilih menu browser → **Install app** atau **Tambahkan ke layar utama**.
 - **iPhone/iPad (Safari):** buka URL HDOS, tekan **Share** → **Add to Home Screen**.
 - Buka kembali HDOS dari ikon layar utama untuk pengalaman layar penuh.
-- Service worker menyimpan app shell dan aset frontend same-origin agar aplikasi dapat dibuka kembali saat offline. Permintaan login, data pusat, Google Apps Script, dan Google Drive tetap memerlukan koneksi.
+- Service worker menyimpan app shell dan aset frontend same-origin agar antarmuka dapat dibuka kembali saat offline. Permintaan login baru, verifikasi sesi, data pusat, Google Apps Script, dan Google Drive tetap memerlukan koneksi.
+- Akses data lokal saat offline hanya dapat dilanjutkan jika sesi dan profil akun yang tersimpan pada tab/perangkat masih tersedia. Jika sesi browser hilang atau akun harus login ulang, autentikasi memerlukan koneksi.
 - Data operasional offline tetap disimpan pada IndexedDB perangkat dan masuk antrean sinkronisasi. Pemasangan PWA bukan pengganti backup perangkat maupun pengujian sinkronisasi.
 
 Setelah versi baru dirilis, buka HDOS saat online agar browser mengambil aset terbaru. Uji instalasi, pembukaan ulang offline, dan pembaruan service worker pada perangkat Android/iOS sebelum distribusi.
