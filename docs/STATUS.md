@@ -404,3 +404,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test untuk visibilitas navigasi, render modul, perubahan role, dan integrasi logout ditambahkan.
 - [x] Typecheck, seluruh regression tests, production build, dan deployment GitHub Pages berhasil pada commit `c80f5bae`.
 - [ ] Uji langsung pada perangkat Android/iOS, orientasi layar, safe-area, serta pergantian akun lintas tab tetap diperlukan.
+
+
+### Optimasi performa — pemuatan modul bertahap (10 November 2026)
+- [x] Dua belas modul operasional dipisahkan menjadi lazy-loaded chunks untuk desktop dan mobile; modul baru diunduh saat dibuka.
+- [x] Window desktop dan workspace mobile menampilkan fallback pemuatan saat chunk sedang diambil.
+- [x] Parser PDF, DOCX, dan XLSX dimuat sesuai format dokumen yang diproses, bukan dibundel seluruhnya saat aplikasi pertama dibuka.
+- [x] Regression test memastikan pemisahan modul dan pemuatan parser sesuai kebutuhan.
+- [x] Hasil build menunjukkan bundle awal turun dari sekitar 2.018 kB menjadi sekitar 339 kB (gzip sekitar 102 kB); parser PDF/XLSX dan DOCX berada di chunk terpisah.
+- [x] 163 regression tests, typecheck frontend/backend, build, konfigurasi produksi, dan deployment GitHub Pages berhasil pada commit `b77232eb`.
+- [ ] Pengukuran waktu muat nyata pada jaringan seluler dan perangkat Android/iOS tetap menjadi bagian UAT lapangan.
