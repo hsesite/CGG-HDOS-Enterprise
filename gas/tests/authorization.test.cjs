@@ -2302,3 +2302,24 @@ test('repository deletion atomically removes local metadata, photo, forms, and q
   assert.match(syncSource, /await hdosDB\.reconcileSnapshotBundle\(/);
   assert.match(syncSource, /deleteIds: deletes\.filter\(entry => entry\.storeName === storeName\)/);
 });
+
+
+test('repository metadata and original binary are committed atomically during upload', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
+  const addStart = storeSource.indexOf('async addDocument(');
+  const addEnd = storeSource.indexOf('async updateDocument(', addStart);
+  assert.ok(addStart >= 0 && addEnd > addStart);
+  const add = storeSource.slice(addStart, addEnd);
+  assert.match(add, /localFile\?: \{ blob: Blob/);
+  assert.match(add, /await hdosDB\.putBundle\(\[/);
+  assert.match(add, /storeName: 'repository', item: newDocument/);
+  assert.match(add, /storeName: 'photos'/);
+  assert.match(add, /id: `document-file-\$\{newDocument\.id\}`/);
+  const uploadStart = moduleSource.indexOf('const handleCreateDoc');
+  const uploadEnd = moduleSource.indexOf('const closeOriginalPreview', uploadStart);
+  assert.ok(uploadStart >= 0 && uploadEnd > uploadStart);
+  const upload = moduleSource.slice(uploadStart, uploadEnd);
+  assert.match(upload, /store\.addDocument\([\s\S]*?blob: selectedFile[\s\S]*?ownerCompanyCode:/);
+  assert.doesNotMatch(upload, /await hdosDB\.put\('photos', storedFile\)/);
+});
