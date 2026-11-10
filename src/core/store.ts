@@ -310,20 +310,15 @@ export class HDOSCentralStore {
         if (pendingIds.has(local.id)) merged.set(local.id, local);
       }
 
-      // Remove stale records from this tenant's local cache, but never touch
-      // another tenant's cached data or any record still waiting to sync.
-      for (const local of visibleLocal) {
-        if (!isCurrentMerge() || activeOwnerKey() !== ownerKey) return [];
-        if (!remoteIds.has(local.id) && !pendingIds.has(local.id)) {
-          await hdosDB.delete(storeName, local.id);
-        }
-      }
-
+      // Build a complete tenant-scoped delta first, then commit removals and
+      // upserts in one IndexedDB transaction. A partial cloud refresh must not
+      // leave the local cache half-deleted or half-updated.
+      const staleIds = visibleLocal
+        .filter(local => !remoteIds.has(local.id) && !pendingIds.has(local.id))
+        .map(local => local.id);
       const snapshot = [...merged.values()];
-      for (const record of snapshot) {
-        if (!isCurrentMerge() || activeOwnerKey() !== ownerKey) return [];
-        await hdosDB.put(storeName, record);
-      }
+      if (!isCurrentMerge() || activeOwnerKey() !== ownerKey) return [];
+      await hdosDB.reconcileSnapshot(storeName, staleIds, snapshot);
       return snapshot;
     };
 
