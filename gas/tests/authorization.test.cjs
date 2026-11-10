@@ -2323,3 +2323,24 @@ test('repository metadata and original binary are committed atomically during up
   assert.match(upload, /store\.addDocument\([\s\S]*?blob: selectedFile[\s\S]*?ownerCompanyCode:/);
   assert.doesNotMatch(upload, /await hdosDB\.put\('photos', storedFile\)/);
 });
+
+
+test('tenant store initialization cannot publish stale account snapshots after a session switch', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const initStart = storeSource.indexOf('async init(): Promise<void>');
+  const initEnd = storeSource.indexOf('setCentralRepositoryDocuments(', initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart);
+  const init = storeSource.slice(initStart, initEnd);
+  assert.match(storeSource, /private initGeneration = 0/);
+  assert.match(init, /const generation = \\+\\+this\\.initGeneration/);
+  assert.match(init, /const initialOwnerKey = initialUser\\?\\.id/);
+  assert.match(init, /const initialToken = hseApi\\.authToken/);
+  assert.match(init, /generation === this\\.initGeneration/);
+  assert.match(init, /activeOwnerKey === initialOwnerKey/);
+  assert.match(init, /hseApi\\.authToken === initialToken/);
+  assert.match(init, /await hdosSync\\.init\\(\\);[\\s\\S]*?if \\(!isCurrentInitialization\\(\\)\\) return/);
+  assert.match(init, /await hdosDB\\.getAll<Inspection>\\('inspection'\\);[\\s\\S]*?if \\(!isCurrentInitialization\\(\\)\\) return/);
+  assert.match(init, /await hseApi\\.listLocations\\(\\);[\\s\\S]*?if \\(!isCurrentInitialization\\(\\)\\) return/);
+  assert.match(init, /await this\\.refreshCloudData\\(\\);[\\s\\S]*?if \\(!isCurrentInitialization\\(\\)\\) return/);
+  assert.match(storeSource, /setContractorsFromCompanyMaster\\(centralCompanies, isCurrentInitialization\\)/);
+});
