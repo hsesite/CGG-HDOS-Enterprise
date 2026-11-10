@@ -1015,7 +1015,7 @@ test('offline sync queue is bound to the authenticated user and company before r
   // queue, and must not expose another tenant's cached operational records.
   assert.match(storeSource, /isLocalRecordVisible\(record as unknown as Record<string, unknown>, currentUser, allowedCompanyCodes\)/);
   assert.match(storeSource, /pendingIds\.has\(local\.id\)/);
-  assert.match(storeSource, /if \(!remoteIds\.has\(local\.id\) && !pendingIds\.has\(local\.id\)\)/);
+  assert.match(storeSource, /\.filter\(local => !remoteIds\.has\(local\.id\) && !pendingIds\.has\(local\.id\)\)/);
 });
 
 
@@ -1075,7 +1075,7 @@ test('operational records and matching sync queue entries use one atomic Indexed
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(dbSource, /db\.transaction\(storeNames, 'readwrite'\)/);
   assert.match(dbSource, /tx\.oncomplete = \(\) => resolve\(\)/);
-  assert.match(dbSource, /async putBundle\(/);
+  assert.match(dbSource, /async putBundle(?:<[^>]+>)?\(/);
   assert.match(syncSource, /async enqueueBatch\(/);
   assert.match(syncSource, /await hdosDB\.reconcileSnapshotBundle\(/);
   assert.match(syncSource, /ownerUserId: owner\.userId/);
@@ -1101,7 +1101,7 @@ test('sync initialization recovers interrupted items only when the tenant lock i
   assert.ok(ownerFilter >= 0 && recovery > ownerFilter, 'owner filter precedes interrupted-item recovery');
   assert.match(initMethod, /navigator\.locks\.request\(/);
   assert.match(initMethod, /\{ mode: 'exclusive', ifAvailable: true \}/);
-  assert.match(initMethod, /if \(lock\) await recoverInterruptedQueue\(\)/);
+  assert.match(initMethod, /if \(lock && !abandonStaleInitialization\(\)\) await recoverInterruptedQueue\(\)/);
   assert.match(initMethod, /Date\.now\(\) - 2 \* 60 \* 1000/);
   assert.match(initMethod, /item\.status = 'PENDING'/);
   assert.match(initMethod, /item\.syncStartedAt = undefined/);
@@ -1157,8 +1157,10 @@ test('cloud snapshot merge cannot publish stale account data after an account sw
 
 test('unexpected sync engine errors release current-owner SYNCING items for retry', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
-  const start = sync.indexOf('    } catch (error) {', sync.indexOf('  async triggerSync()'));
-  const end = sync.indexOf('    } finally {', start);
+  const triggerStart = sync.indexOf('  async triggerSync()');
+  const errorLog = sync.indexOf("[HDOS Sync] Sync engine error:", triggerStart);
+  const start = sync.lastIndexOf('    } catch (error) {', errorLog);
+  const end = sync.indexOf('    } finally {', errorLog);
   const catchBlock = sync.slice(start, end);
   assert.match(catchBlock, /activeOwnerAfterError/);
   assert.match(catchBlock, /queued\.status !== 'SYNCING'/);
@@ -1166,7 +1168,7 @@ test('unexpected sync engine errors release current-owner SYNCING items for retr
   assert.match(catchBlock, /status: 'PENDING' as const/);
   assert.match(catchBlock, /await hdosDB\.put\('queue', recovered\)/);
   assert.match(catchBlock, /hseApi\.authToken === syncToken/);
-  assert.ok(catchBlock.indexOf('await hdosDB.put') < catchBlock.indexOf('this.scheduleRetry()'));
+  assert.ok(catchBlock.lastIndexOf('await hdosDB.put') < catchBlock.indexOf('this.scheduleRetry()'));
 });
 
 test('offline sync replays queue by creation time and blocks later writes to a failed record', () => {
@@ -1464,7 +1466,7 @@ test('dashboard and repository access follow the registered company master', () 
 test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(storeSource, /if \(own === 'CGG' && user\.roleVerified === true && oversightRoles\.some/);
-  assert.match(storeSource, /String\(currentUser\.companyCode \|\| ''\)\.trim\(\)\.toUpperCase\(\) === 'CGG'/);
+  assert.match(storeSource, /user\?\.roles \|\| \[\]\)\.includes\('Admin CGG'\) \? 'CGG' : ''/);
   assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
   assert.match(storeSource, /'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'/);
   assert.match(storeSource, /allowedCompanyCodes\.has\(company\)/);
@@ -1707,10 +1709,11 @@ test('Contractor SIA/photo previews and compliance refresh ignore stale tenant r
 
 test('Sync initialization revalidates tenant after asynchronous queue recovery before publishing', () => {
   const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
-  assert.match(syncSource, /const finalOwner = this\.getCurrentOwner\(\);/);
-  assert.match(syncSource, /finalOwnerKey !== requestedOwnerKey \|\| this\.queueOwnerKey !== requestedOwnerKey/);
-  assert.match(syncSource, /this\.queue = \[\];\s*this\.queueOwnerKey = '';\s*hdosEvents\.emit\('sync:queue_updated', \[\]\);\s*return;/);
-  assert.ok(syncSource.indexOf('const finalOwner = this.getCurrentOwner();') < syncSource.indexOf("hdosEvents.emit(\n      'sync:queue_updated',\n      [...this.queue]"));
+  assert.match(syncSource, /const abandonStaleInitialization = \(\): boolean =>/);
+  assert.match(syncSource, /initGeneration !== this\.initGeneration \|\| this\.queueOwnerKey !== requestedOwnerKey/);
+  assert.match(syncSource, /if \(initGeneration === this\.initGeneration && this\.queueOwnerKey === requestedOwnerKey\) \{\s*this\.queue = \[\];\s*this\.queueOwnerKey = '';\s*hdosEvents\.emit\('sync:queue_updated', \[\]\);/);
+  const emit = syncSource.indexOf("hdosEvents.emit('sync:queue_updated', [...this.queue]);");
+  assert.ok(syncSource.lastIndexOf('if (abandonStaleInitialization()) return;', emit) < emit);
 });
 
 test('Contractor Passport clears tenant-scoped registers and ignores stale responses on account changes', () => {
@@ -1765,8 +1768,10 @@ test('Overlapping sync initialization cannot let an older IndexedDB read clear a
   const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart);
   assert.ok(initStart >= 0 && initEnd > initStart);
   const initBlock = syncSource.slice(initStart, initEnd);
-  assert.ok(initBlock.indexOf('if (initGeneration !== this.initGeneration) return;') < initBlock.indexOf('const activeOwner = this.getCurrentOwner();'));
-  assert.ok(initBlock.lastIndexOf('if (initGeneration !== this.initGeneration) return;') < initBlock.indexOf('const finalOwner = this.getCurrentOwner();'));
+  const queueRead = initBlock.indexOf("storedQueue = await hdosDB.getAll<SyncQueueItem>('queue')");
+  const queuePublish = initBlock.indexOf("hdosEvents.emit('sync:queue_updated', [...this.queue]);");
+  assert.ok(queueRead >= 0 && initBlock.indexOf('if (abandonStaleInitialization()) return;', queueRead) > queueRead);
+  assert.ok(initBlock.lastIndexOf('if (abandonStaleInitialization()) return;', queuePublish) < queuePublish);
 });
 
 
@@ -2009,7 +2014,8 @@ test('PICA two-stage approval is required before final HSE closure', () => {
   assert.ok(source.includes("const approvalStages = existingRecord.approvalStages || {};\n    if (approvalStages.foreman !== true || approvalStages.spvHse !== true)"));
   assert.ok(source.includes("PICA tidak dapat dikembalikan setelah proses persetujuan dimulai."));
   assert.ok(source.includes("Persetujuan PICA hanya dapat dilakukan setelah PIC mengajukan penyelesaian."));
-  assert.ok(source.includes("return ['Foreman Safety', 'SPV HSE', 'Project Manager'].indexOf(role) >= 0;"));
+  assert.ok(source.includes("const requiredRole = stageKey === 'foreman' ? 'Foreman Safety' : 'SPV HSE';"));
+  assert.ok(source.includes("roles.indexOf(requiredRole) < 0"));
 });
 
 test('PICA close action requires only Foreman Safety and SPV HSE approvals', () => {
@@ -2046,7 +2052,7 @@ test('unresolved conflict items are not replayed by an unrelated sync trigger', 
 test('sync recovery does not reset another tab active lease and timestamps each attempt', () => {
   assert.match(syncEngineSource, /navigator\.locks\.request\(\s*recoveryLockName/);
   assert.match(syncEngineSource, /\{ mode: 'exclusive', ifAvailable: true \}/);
-  assert.match(syncEngineSource, /if \(lock\) await recoverInterruptedQueue\(\)/);
+  assert.match(syncEngineSource, /if \(lock && !abandonStaleInitialization\(\)\) await recoverInterruptedQueue\(\)/);
   assert.match(syncEngineSource, /Date\.now\(\) - 2 \* 60 \* 1000/);
   assert.match(syncEngineSource, /item\.syncStartedAt = new Date\(\)\.toISOString\(\)/);
   assert.match(syncEngineSource, /item\.ownerUserId !== owner\?\.userId/);
@@ -2166,7 +2172,7 @@ test('IndexedDB synchronous open exceptions do not leave a cached failed initial
   assert.ok(initBlock.indexOf('request = indexedDB.open(DB_NAME, DB_VERSION)') < initBlock.indexOf('this.initPromise = new Promise'));
   const openCatch = initBlock.slice(initBlock.indexOf('} catch (err) {'), initBlock.indexOf('this.initPromise = new Promise'));
   assert.match(openCatch, /this\.initPromise = null/);
-  assert.match(openCatch, /return null/);
+  assert.match(openCatch, /return Promise\.reject\(new Error\(/);
 });
 
 test('IndexedDB open failures reject instead of silently switching to a split localStorage queue', () => {
@@ -2175,13 +2181,13 @@ test('IndexedDB open failures reject instead of silently switching to a split lo
   const initBlock = syncDbSource.slice(initStart, initEnd);
   assert.match(initBlock, /return Promise\.reject\(new Error\('IndexedDB tidak dapat dibuka/);
   assert.match(initBlock, /request\.onerror = \(\) => \{[\s\S]*?this\.initPromise = null;[\s\S]*?reject\(new Error\('IndexedDB gagal dibuka/);
-  assert.match(initBlock, /if \(!window\.indexedDB\)[\s\S]*?return null/);
+  assert.match(initBlock, /typeof window === 'undefined' \|\| !window\.indexedDB\)[\s\S]*?return null/);
 });
 
 test('repository and published-form snapshots reconcile atomically without partial cache updates', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const bundleStart = syncDbSource.indexOf('async reconcileSnapshotBundle(');
-  const bundleEnd = syncDbSource.indexOf('async putBundle(', bundleStart);
+  const bundleEnd = syncDbSource.indexOf('async putBundle', bundleStart);
   assert.ok(bundleStart >= 0 && bundleEnd > bundleStart);
   const bundle = syncDbSource.slice(bundleStart, bundleEnd);
   assert.match(bundle, /db\.transaction\(storeNames, 'readwrite'\)/);
@@ -2265,7 +2271,7 @@ test('cloud operational snapshot applies tenant-scoped deletes and upserts atomi
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(syncDbSource, /async reconcileSnapshot<T extends \{ id: string \}>/);
   const start = syncDbSource.indexOf('async reconcileSnapshot<');
-  const end = syncDbSource.indexOf('async putBundle(', start);
+  const end = syncDbSource.indexOf('async putBundle', start);
   assert.ok(start >= 0 && end > start);
   const method = syncDbSource.slice(start, end);
   assert.match(method, /db\.transaction\(storeName, 'readwrite'\)/);

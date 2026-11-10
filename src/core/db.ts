@@ -317,7 +317,7 @@ class HDOSDatabase {
     });
   }
 
-  async putBundle(entries: Array<{ storeName: StoreName; item: { id: string } }>): Promise<void> {
+  async putBundle<T extends { storeName: StoreName; item: { id: string } }>(entries: T[]): Promise<void> {
     if (entries.length === 0) return;
     const db = await this.init();
 

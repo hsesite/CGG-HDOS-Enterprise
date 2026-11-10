@@ -1174,7 +1174,7 @@ function handleRoute_(
     const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';
     return success_(createRepositoryDocument_(input, bytes, fileMetadata, companyCode, parentCompanyCode, user));
   }
-  const repositoryDeleteMatch = path.match(/^\\/api\\/repository\\/([^/]+)$/);
+  const repositoryDeleteMatch = path.match(/^\/api\/repository\/([^/]+)$/);
   if (repositoryDeleteMatch && method === 'DELETE') {
     if (!isAdminCGG_(user) && !isCompanyAdmin_(user)) return error_(403, 'Hanya Admin CGG atau Admin Perusahaan yang dapat menghapus dokumen Repository.');
     const documentId = decodeURIComponent(repositoryDeleteMatch[1]);
