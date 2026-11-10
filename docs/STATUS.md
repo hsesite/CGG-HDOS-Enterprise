@@ -440,3 +440,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test, typecheck frontend/backend, dan production build berhasil pada commit `0b1aeb05e14aa1ceeea1892d2702c928e6142629`.
 - [ ] Kunci saat ini dibuat per aksi unggah; persistensi kunci yang sama lintas percobaan ulang pengguna dan alur foto offline masih perlu diselesaikan.
 - [ ] Deployment frontend masih menunggu konfirmasi workflow; perubahan Apps Script tetap memerlukan deployment GAS versi terbaru dan uji unggah nyata.
+
+
+### Offline-first — foto bukti Inspection dan Hazard (10 November 2026)
+- [x] Foto Inspection/Hazard disimpan sebagai Blob di IndexedDB sebelum record dan antrean CREATE dibuat; laporan tidak lagi menunggu unggah Drive saat form disubmit.
+- [x] Sync engine mengunggah foto ketika koneksi tersedia, menggunakan uploadKey stabil dari ID foto agar retry setelah respons hilang memakai berkas Drive yang sama.
+- [x] Referensi foto Drive disimpan pada antrean dan record lokal sebelum CREATE cloud; pointer lokal tidak dikirim ke API. Foto lokal dihapus hanya setelah CREATE berhasil.
+- [x] Pemeriksaan pemilik akun/perusahaan mencegah foto tenant atau akun lain ikut tersinkronisasi.
+- [x] Backup mengenkode Blob, restore mendekode kembali, dan foto dibatasi ke akun pembuat yang sama. IndexedDB diwajibkan untuk mencegah fallback localStorage merusak data binary.
+- [x] Regression coverage ditambahkan untuk penyimpanan lokal, upload queue replay, idempotensi dan cakupan backup.
+- [ ] Uji end-to-end pada perangkat nyata masih diperlukan: buat laporan offline, tutup browser/app, buka kembali, online-kan perangkat, verifikasi satu file Drive dan satu record cloud.
+- [ ] Deploy GAS versi terbaru dan uji kapasitas/quota IndexedDB serta restore backup foto pada Android/iOS staging masih pending.
