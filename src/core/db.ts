@@ -217,8 +217,10 @@ class HDOSDatabase {
     if (!db) {
       const key = this.getFallbackKey(storeName);
       let previous: string | null = null;
+      let snapshotCaptured = false;
       try {
         previous = localStorage.getItem(key);
+        snapshotCaptured = true;
         const current = this.readFallback<T>(storeName);
         const deleted = new Set(deleteIds);
         const merged = current.filter(item => !deleted.has(item.id));
@@ -226,11 +228,13 @@ class HDOSDatabase {
         for (const record of records) byId.set(record.id, record);
         this.writeFallback(storeName, [...byId.values()]);
       } catch (error) {
-        try {
-          if (previous === null) localStorage.removeItem(key);
-          else localStorage.setItem(key, previous);
-        } catch (rollbackError) {
-          console.error('[HDOS DB] Snapshot rollback failed', rollbackError);
+        if (snapshotCaptured) {
+          try {
+            if (previous === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, previous);
+          } catch (rollbackError) {
+            console.error('[HDOS DB] Snapshot rollback failed', rollbackError);
+          }
         }
         throw error;
       }
