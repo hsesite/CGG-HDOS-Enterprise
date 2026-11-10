@@ -2571,3 +2571,13 @@ test('sync replay reads each queued operation from the latest snapshot after ser
   assert.match(replay, /this\.queue = this\.queue\.map\(current => updatedById\.get\(current\.id\) \|\| current\)/);
   assert.doesNotMatch(replay, /for \(const item of \[\.\.\.this\.queue\]\.sort\(compareQueueItemsByTime\)\)/);
 });
+
+
+test('mobile field evidence inputs prefer the rear camera for inspections and hazards', () => {
+  const inspection = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'InspectionModule.tsx'), 'utf8');
+  const hazard = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'HazardModule.tsx'), 'utf8');
+  for (const source of [inspection, hazard]) {
+    assert.match(source, /type="file" accept="image\/jpeg,image\/png,image\/webp" capture="environment" required/);
+    assert.match(source, /5 \* 1024 \* 1024/);
+  }
+});
