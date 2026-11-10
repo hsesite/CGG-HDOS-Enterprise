@@ -42,6 +42,17 @@ test('GIS map rejects blank and null coordinate values before numeric coercion',
   assert.doesNotMatch(map, /Number\.isFinite\(Number\(location\.lat\)\)/);
 });
 
+test('incident report submission always releases busy state and surfaces save errors', () => {
+  const incident = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'IncidentModule.tsx'), 'utf8');
+  const start = incident.indexOf('const handleSubmit = async');
+  const end = incident.indexOf('\n  return (', start);
+  const handler = incident.slice(start, end);
+  assert.match(handler, /try \{/);
+  assert.match(handler, /catch \(error\)/);
+  assert.match(handler, /finally \{\s*setSubmitting\(false\);\s*\}/);
+  assert.match(handler, /if \(!title\.trim\(\) \|\| !location \|\| !date \|\| !time\)/);
+});
+
 test('PICA store rejects final closure by Foreman Safety alone', () => {
   const store = fs.readFileSync(path.join(root, 'src', 'core', 'store.ts'), 'utf8');
   assert.match(store, /const isHSEValidator = sessionUser\?\.roleVerified === true && \(sessionUser\.roles \|\| \[\]\)\.includes\('SPV HSE'\)/);
