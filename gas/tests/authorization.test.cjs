@@ -12,6 +12,27 @@ const syncEngineSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src',
 const syncTypesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
 const syncDbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
 const authStateSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'auth-state.ts'), 'utf8');
+const apiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'api.ts'), 'utf8');
+
+test('stale login responses cannot replace a newer active session or undo its logout', () => {
+  assert.match(apiSource, /let sessionMutationGeneration = 0/);
+  assert.match(apiSource, /function beginSessionMutation\(\): number/);
+  assert.match(apiSource, /function commitSessionToken\(token: string, generation: number\): void/);
+  for (const method of ['async login(', 'async loginWithGoogle(', 'async submitGoogleProfile(']) {
+    const start = apiSource.indexOf(method);
+    assert.ok(start >= 0, method + ' exists');
+    const end = apiSource.indexOf('  },', start);
+    const block = apiSource.slice(start, end);
+    assert.match(block, /beginSessionMutation\(\)/);
+    assert.match(block, /commitSessionToken\(/);
+  }
+  const logoutStart = apiSource.indexOf('async logout(');
+  const logoutEnd = apiSource.indexOf('me(authToken?', logoutStart);
+  const logoutBlock = apiSource.slice(logoutStart, logoutEnd);
+  assert.match(logoutBlock, /ownsCurrentSession &&/);
+  assert.match(logoutBlock, /sessionGeneration === sessionMutationGeneration/);
+  assert.match(logoutBlock, /getToken\(\) === tokenToRevoke/);
+});
 
 test('IndexedDB getById surfaces transaction setup failures instead of reporting a missing record', () => {
   const start = syncDbSource.indexOf('async getById<');
