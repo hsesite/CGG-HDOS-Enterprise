@@ -486,3 +486,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Jalur upload Repository tetap memakai pemeriksaan ID/tenant yang sudah ada dan tidak ikut menerima payload operasional.
 - [x] 192 regression tests, typecheck frontend/backend, dan production build berhasil; deployment GitHub Pages berhasil pada commit `154dff3cfa798fb7f2ddfbd964fbf7bfd50ff31d`.
 - [ ] Perubahan `gas/Code.gs` harus dideploy ke project Apps Script staging/aktif secara terpisah, lalu diuji retry CREATE dengan respons hilang dan payload berbeda pada Spreadsheet nonproduksi.
+
+### Backup lokal — isolasi tenant Contractor dan Subkon (10 November 2026)
+- [x] Pencocokan backup mengikuti cakupan store lokal: Subkon hanya mengekspor record milik perusahaan sendiri.
+- [x] Relasi parent tidak lagi dipakai sebagai izin tambahan bagi Subkon untuk mengambil record milik kontraktor induk atau sibling Subkon.
+- [x] Contractor root tetap dapat mengekspor record sendiri dan record Subkon yang terhubung melalui relasi parent.
+- [x] Record global tanpa metadata tenant tetap dipertahankan untuk kebutuhan master yang memang tidak memiliki pemilik perusahaan.
+- [x] Regression suite: 194 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `e63c8fa921f468fd4d0539c42e9a379d8f52c49c`.
+- [ ] Uji backup/restore menggunakan akun Contractor dan dua akun Subkon sibling pada Spreadsheet staging tetap diperlukan untuk mengonfirmasi cakupan data aktual.
