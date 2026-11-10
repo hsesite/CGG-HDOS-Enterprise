@@ -881,7 +881,7 @@ export const ContractorModule: React.FC = () => {
               <input type="date" value={fleetDraft.siaExpiry} onChange={e => setFleetDraft(current => ({...current,siaExpiry:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-neutral-950 px-3 py-2 text-white" />
             </label>
             <div className="flex items-end"><button type="submit" disabled={fleetBusy} className="w-full rounded-lg bg-[#00E676] px-4 py-2 text-xs font-bold text-black disabled:opacity-50">{fleetBusy ? 'Menyimpan...' : 'Daftarkan Unit'}</button></div>
-            <p className="text-[10px] text-neutral-500 sm:col-span-2 lg:col-span-4">Riwayat P2H disimpan sebagai catatan terpisah yang tidak menimpa pemeriksaan sebelumnya. Dokumen bukti inspeksi dan lampiran SIA masih dalam tahap pengembangan.</p>
+            <p className="text-[10px] text-neutral-500 sm:col-span-2 lg:col-span-4">Riwayat P2H disimpan sebagai catatan terpisah. Bukti foto inspeksi disimpan di perangkat dan diunggah saat sinkronisasi; dokumen SIA mengikuti antrean unggah yang sama.</p>
           </form>
         )}
         {canSubmitReport && ownCompanyCode !== selectedCompanyCode && (
