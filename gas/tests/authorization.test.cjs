@@ -2178,6 +2178,37 @@ test('IndexedDB open failures reject instead of silently switching to a split lo
   assert.match(initBlock, /if \(!window\.indexedDB\)[\s\S]*?return null/);
 });
 
+test('repository and published-form snapshots reconcile atomically without partial cache updates', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const bundleStart = syncDbSource.indexOf('async reconcileSnapshotBundle(');
+  const bundleEnd = syncDbSource.indexOf('async putBundle(', bundleStart);
+  assert.ok(bundleStart >= 0 && bundleEnd > bundleStart);
+  const bundle = syncDbSource.slice(bundleStart, bundleEnd);
+  assert.match(bundle, /db\.transaction\(storeNames, 'readwrite'\)/);
+  assert.match(bundle, /for \(const id of change\.deleteIds\) store\.delete\(id\)/);
+  assert.match(bundle, /for \(const record of change\.records\.values\(\)\) store\.put\(record\)/);
+  assert.match(bundle, /for \(const \[key, value\] of snapshots\)/);
+  assert.match(bundle, /Multi-store snapshot rollback failed/);
+
+  const refreshStart = storeSource.indexOf('async refreshCloudData()');
+  const refreshEnd = storeSource.indexOf('subscribe(listener:', refreshStart);
+  assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
+  const refresh = storeSource.slice(refreshStart, refreshEnd);
+  assert.match(refresh, /await hdosDB\.reconcileSnapshotBundle\(\[/);
+  assert.match(refresh, /storeName: 'repository', deleteIds: staleCloudDocuments\.map/);
+  assert.match(refresh, /storeName: 'photos', deleteIds: staleCloudDocuments\.map/);
+  assert.doesNotMatch(refresh, /await hdosDB\.put\('repository'/);
+  assert.doesNotMatch(refresh, /await hdosDB\.delete\('repository'/);
+
+  const formsStart = storeSource.indexOf('async mergePublishedFormDefinitions(');
+  const formsEnd = storeSource.indexOf('async addInspection(', formsStart);
+  assert.ok(formsStart >= 0 && formsEnd > formsStart);
+  const forms = storeSource.slice(formsStart, formsEnd);
+  assert.match(forms, /await hdosDB\.reconcileSnapshot\('form-definition', staleIds, next\)/);
+  assert.doesNotMatch(forms, /await hdosDB\.put\('form-definition'/);
+  assert.doesNotMatch(forms, /await hdosDB\.delete\('form-definition'/);
+});
+
 test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(syncDbSource, /async reconcileSnapshot<T extends \{ id: string \}>/);
