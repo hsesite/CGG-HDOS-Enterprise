@@ -509,22 +509,16 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         smkpElement: smkpElement.trim() || 'Belum ditentukan',
         summary: summary.trim() || 'Telah divalidasi KTT sebelum diunggah.',
         documentControl: { ...registerPreview.documentControl, sourceDocumentNumber: officialDocumentNumber.trim().replace(/\s*\/\s*/g, '/') },
-      });
-
-      const storedFile: StoredDocumentFile = {
-        id: `${DOCUMENT_FILE_PREFIX}${newDoc.id}`,
-        documentId: newDoc.id,
-        ownerUserId: sessionUser?.id || '',
-        ownerCompanyCode: String(sessionUser?.companyCode || '').trim().toUpperCase(),
+      }, {
         blob: selectedFile,
         fileName: selectedFile.name,
         mimeType: selectedFile.type || 'application/octet-stream',
         size: selectedFile.size,
-        uploadedAt: new Date().toISOString(),
-      };
+        ownerUserId: sessionUser?.id || '',
+        ownerCompanyCode: String(sessionUser?.companyCode || '').trim().toUpperCase(),
+      });
 
       try {
-        await hdosDB.put('photos', storedFile);
         if (hseApi.baseUrl && sessionUser) {
           const cloudDocument = await hseApi.uploadRepositoryDocument({
             ...newDoc,
