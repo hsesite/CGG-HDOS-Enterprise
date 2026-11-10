@@ -927,7 +927,7 @@ export class HDOSSyncEngine {
         .sort(compareQueueItemsByTime)
         .map(queued => queued.id);
       for (const queuedId of orderedQueueIds) {
-        const item = this.queue.find(queued => queued.id === queuedId);
+        let item = this.queue.find(queued => queued.id === queuedId);
         if (!item || item.status === 'RESOLVED') continue;
         const itemRecordId = getRecordId(item);
         if (item.status === 'CONFLICT') {
@@ -984,14 +984,38 @@ export class HDOSSyncEngine {
         }
 
 
-        item.status = 'SYNCING';
-        item.syncStartedAt = new Date().toISOString();
-        item.error = undefined;
-
-        await hdosDB.put(
-          'queue',
-          item
+        // IndexedDB readwrite transactions serialize claims across tabs even
+        // when the browser does not implement the Web Locks API.
+        const claimedItem = await hdosDB.claimQueueItem<SyncQueueItem>(
+          item.id,
+          owner.userId,
+          owner.companyCode,
+          new Date().toISOString(),
         );
+        if (!claimedItem) {
+          const latest = await hdosDB.getById<SyncQueueItem>('queue', item.id);
+          if (latest && latest.ownerUserId === owner.userId &&
+              latest.ownerCompanyCode === owner.companyCode) {
+            this.queue = this.queue.map(current => current.id === latest.id ? latest : current);
+          }
+          continue;
+        }
+        item = claimedItem;
+        this.queue = this.queue.map(current => current.id === item.id ? item : current);
+
+        const ownerAfterClaim = this.getCurrentOwner();
+        if (!ownerAfterClaim || ownerAfterClaim.userId !== owner.userId ||
+            ownerAfterClaim.companyCode !== owner.companyCode || hseApi.authToken !== syncToken) {
+          const released = {
+            ...item,
+            status: 'PENDING' as const,
+            syncStartedAt: undefined,
+            error: 'Sesi berubah sebelum sinkronisasi dimulai. Item dikembalikan ke antrean.',
+          };
+          await hdosDB.put('queue', released);
+          this.queue = this.queue.map(current => current.id === released.id ? released : current);
+          break;
+        }
 
         hdosEvents.emit(
           'sync:progress',
