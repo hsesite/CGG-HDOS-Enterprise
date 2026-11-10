@@ -2718,3 +2718,22 @@ test('Repository digital-form generation uses tenant-authorized cloud preview an
   assert.match(generate, /await extractChecklistItemsFromDocument\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
   assert.match(generate, /catch \(error\) \{[\s\S]*?if \(!isRepositorySessionCurrent\(sessionSnapshot\)\) return false/);
 });
+
+test('Contractor SIA idempotency lookup and Drive creation are serialized with the Spreadsheet commit', () => {
+  const gas = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
+  const start = gas.indexOf('function uploadContractorSia_(');
+  const end = gas.indexOf('function previewContractorSia_(', start);
+  assert.ok(start >= 0 && end > start);
+  const upload = gas.slice(start, end);
+  const lock = upload.indexOf('lock.waitLock(10000)');
+  const folderLookup = upload.indexOf('folder.getFiles()');
+  const driveCreate = upload.indexOf('folder.createFile(');
+  const sheetCommit = upload.indexOf('.setValues([buildEntityRow_');
+  const release = upload.indexOf('lock.releaseLock()');
+  assert.ok(lock >= 0 && folderLookup > lock && driveCreate > lock && sheetCommit > driveCreate && release > sheetCommit);
+  assert.match(upload, /HDOS_SIA_UPLOAD_KEY:' \+ uploadKey \+ ':FLEET:' \+ fleetId/);
+  assert.match(upload, /if \(!createdFile && latest\.siaFileId === file\.getId\(\)\) \{[\s\S]*?alreadyApplied = true/);
+  assert.match(upload, /if \(committed && !alreadyApplied && oldFileId/);
+  assert.match(upload, /if \(!alreadyApplied\) logAudit_\(user, 'CONTRACTOR_SIA_UPLOADED'/);
+  assert.match(upload, /if \(createdFile && file\) \{[\s\S]*?file\.setTrashed\(true\)/);
+});
