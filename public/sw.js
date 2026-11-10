@@ -13,9 +13,37 @@ self.addEventListener('install', event => {
     // Precache the built entry point and styles so the first successful
     // online visit can reopen the app shell without a network connection.
     const html = await response.text();
-    const assetPaths = [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g)]
-      .map(match => match[1]);
-    await Promise.all(assetPaths.map(async path => {
+    const assetPaths = new Set(
+      [...html.matchAll(/(?:src|href)=["']([^"']+\\.(?:js|css)(?:\\?[^"']*)?)["']/g)]
+        .map(match => match[1])
+    );
+
+    // Vite's build manifest includes lazy-loaded modules that are not linked
+    // from index.html. Precache all emitted JS/CSS/image assets so every HSE
+    // module can open offline after the first online installation.
+    const buildManifestUrl = new URL('.vite/manifest.json', scopeUrl).href;
+    try {
+      const buildManifestResponse = await fetch(buildManifestUrl, { cache: 'reload' });
+      if (buildManifestResponse.ok) {
+        await cache.put(buildManifestUrl, buildManifestResponse.clone());
+        const buildManifest = await buildManifestResponse.json();
+        for (const entry of Object.values(buildManifest)) {
+          if (!entry || typeof entry !== 'object') continue;
+          const assetEntry = entry;
+          if (typeof assetEntry.file === 'string') assetPaths.add(assetEntry.file);
+          if (Array.isArray(assetEntry.css)) assetEntry.css.forEach(path => {
+            if (typeof path === 'string') assetPaths.add(path);
+          });
+          if (Array.isArray(assetEntry.assets)) assetEntry.assets.forEach(path => {
+            if (typeof path === 'string') assetPaths.add(path);
+          });
+        }
+      }
+    } catch {
+      // Fall back to the initial HTML asset list if the build manifest is unavailable.
+    }
+
+    await Promise.all([...assetPaths].map(async path => {
       try {
         const assetUrl = new URL(path, indexUrl);
         if (assetUrl.origin !== self.location.origin || !assetUrl.href.startsWith(scopeUrl)) return;
