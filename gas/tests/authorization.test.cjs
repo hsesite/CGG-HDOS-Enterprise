@@ -2363,3 +2363,16 @@ test('sync queue recovery stops after account, token, or initialization generati
   assert.match(init, /if \(isCurrentInitialization\(\)\) void this\.triggerSync\(\)/);
   assert.match(init, /Do not clear a newer initialization's queue snapshot/);
 });
+
+
+test('store tenant ownership keys use the same Admin CGG company fallback as sync engine', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  assert.match(storeSource, /function getUserCompanyCode\(user: ReturnType<typeof AuthState\.getUser>\): string/);
+  assert.match(storeSource, /user\?\.companyCode \|\| \(\(user\?\.roles \|\| \[\]\)\.includes\('Admin CGG'\) \? 'CGG' : ''\)/);
+  assert.match(storeSource, /getUserCompanyCode\(initialUser\)/);
+  assert.match(storeSource, /getUserCompanyCode\(activeUser\)/);
+  assert.match(storeSource, /getUserCompanyCode\(currentUser\)/);
+  assert.match(storeSource, /getUserCompanyCode\(active\)/);
+  assert.match(syncSource, /user\.companyCode \|\| \(\(user\.roles \|\| \[\]\)\.includes\('Admin CGG'\) \? 'CGG' : ''\)/);
+});
