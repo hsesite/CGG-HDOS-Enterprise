@@ -218,7 +218,7 @@ export const ContractorModule: React.FC = () => {
       if (p2hPhotoFile && !p2hPhotoReference) {
         const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Bukti foto tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(p2hPhotoFile); });
         if (!isCurrentSessionScope(requestScope)) return;
-        const uploaded = await hseApi.uploadOperationalPhoto({ fileName: p2hPhotoFile.name, mimeType: p2hPhotoFile.type, fileBase64, uploadKey: `hdos-${crypto.randomUUID()}` });
+        const uploaded = await hseApi.uploadOperationalPhoto({ fileName: p2hPhotoFile.name, mimeType: p2hPhotoFile.type, fileBase64, uploadKey: `hdos-p2h-${requestId}` });
         if (!isCurrentSessionScope(requestScope)) return;
         photoReference = { photoFileId: uploaded.photoFileId, photoFileName: uploaded.fileName, photoMimeType: uploaded.mimeType };
         setP2hPhotoReference(photoReference);
