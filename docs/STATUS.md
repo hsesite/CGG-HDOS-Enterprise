@@ -494,3 +494,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Record global tanpa metadata tenant tetap dipertahankan untuk kebutuhan master yang memang tidak memiliki pemilik perusahaan.
 - [x] Regression suite: 194 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `e63c8fa921f468fd4d0539c42e9a379d8f52c49c`.
 - [ ] Uji backup/restore menggunakan akun Contractor dan dua akun Subkon sibling pada Spreadsheet staging tetap diperlukan untuk mengonfirmasi cakupan data aktual.
+
+### Sinkronisasi offline — klaim antrean atomik lintas-tab (10 November 2026)
+- [x] Queue item hanya dapat diklaim jika masih `PENDING` dan identitas user/tenant cocok; pembacaan status dan perubahan menjadi `SYNCING` berlangsung dalam satu transaksi readwrite IndexedDB.
+- [x] Browser yang memiliki IndexedDB tetapi tidak mendukung Web Locks tetap mencegah dua tab memproses queue item yang sama secara bersamaan.
+- [x] Jika klaim gagal karena tab lain telah mengambil item, tab pemanggil membaca ulang status terbaru dan melewati item tersebut.
+- [x] Pemulihan setelah error engine hanya melepas lease yang benar-benar diklaim oleh proses sinkronisasi tersebut dan timestamp lease masih sama; lease tab lain tidak ikut direset.
+- [x] Regression suite: 195 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil. Deployment GitHub Pages berhasil pada commit `5200e735232a5f0f4ad0fed4ef607bae8143670a`.
+- [ ] UAT multi-tab pada browser Android/iOS, browser tanpa Web Locks, dan jaringan terputus ketika request sedang berlangsung tetap diperlukan.
