@@ -269,7 +269,8 @@ export interface SyncQueueItem {
     | 'pica'
     | 'repository'
     | 'contractor'
-    | 'contractor-report';
+    | 'contractor-report'
+    | 'contractor-sia';
   payload: unknown;
   timestamp: string;
   status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT' | 'RESOLVED';
