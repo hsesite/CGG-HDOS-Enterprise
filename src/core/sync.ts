@@ -14,7 +14,8 @@ type SyncEntityEndpoint =
   | 'picas'
   | 'incidents'
   | 'repository'
-  | 'contractor-p2h';
+  | 'contractor-p2h'
+  | 'contractor-report';
 
 function getEntityEndpoint(
   entity: SyncQueueItem['entity']
@@ -32,6 +33,8 @@ function getEntityEndpoint(
       return 'repository';
     case 'contractor':
       return 'contractor-p2h';
+    case 'contractor-report':
+      return 'contractor-report';
     default:
       return null;
   }
@@ -997,6 +1000,7 @@ export class HDOSSyncEngine {
           ) {
             if (endpoint === 'repository') throw new Error('Upload Repository harus melalui alur unggah berkas khusus.');
             if (endpoint === 'contractor-p2h') {
+              if (item.action !== 'CREATE') throw new Error('Antrean P2H hanya mendukung operasi CREATE.');
               const payload = item.payload as { fleetId?: string; input?: Record<string, unknown>; localPhotoId?: string };
               if (!payload || typeof payload.fleetId !== 'string' || !payload.fleetId || !payload.input || typeof payload.input !== 'object') {
                 throw new Error('Payload antrean P2H tidak lengkap. Periksa draft sebelum mengirim ulang.');
@@ -1088,6 +1092,14 @@ export class HDOSSyncEngine {
                 this.queue = this.queue.map(current => updatedById.get(current.id) || current);
               }
             }
+            } else if (endpoint === 'contractor-report') {
+              if (item.action !== 'CREATE') throw new Error('Antrean laporan Contractor hanya mendukung pengiriman laporan baru.');
+              const payload = item.payload as { input?: unknown };
+              if (!payload || !payload.input || typeof payload.input !== 'object' || Array.isArray(payload.input)) {
+                throw new Error('Payload laporan Contractor tidak lengkap. Periksa draft sebelum mengirim ulang.');
+              }
+              await hseApi.submitContractorComplianceReport(payload.input as Parameters<typeof hseApi.submitContractorComplianceReport>[0]);
+            } else {
             }
           } else if (
             item.action === 'UPDATE'
