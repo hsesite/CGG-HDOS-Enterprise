@@ -1717,7 +1717,8 @@ test('Frontend module access and PICA approval helper match server-enforced role
   const picaApproval = authSource.slice(picaApprovalStart, picaApprovalEnd);
   assert.match(picaApproval, /user\.roleVerified !== true/);
   assert.match(picaApproval, /role === 'Foreman Safety' \|\| role === 'SPV HSE'/);
-  assert.doesNotMatch(picaApproval, /Admin CGG|KTT|Project Manager|PJO/);
+  const executablePicaApproval = picaApproval.replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(executablePicaApproval, /Admin CGG|KTT|Project Manager|PJO/);
   assert.ok(policySource.includes("if (requiresRoleVerification(user) && user.roleVerified !== true)"));
   assert.ok(policySource.includes("if (roles.includes('Employee'))"));
 });
