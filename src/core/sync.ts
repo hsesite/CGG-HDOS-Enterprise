@@ -1215,7 +1215,7 @@ export class HDOSSyncEngine {
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk penghapusan queue item ${item.id}.`);
             }
-            if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report') throw new Error('Antrean Contractor tidak mendukung penghapusan otomatis.');
+            if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report' || endpoint === 'contractor-sia') throw new Error('Antrean Contractor tidak mendukung penghapusan otomatis.');
             if (endpoint === 'repository') {
               await hseApi.deleteRepositoryDocument(recordId, syncToken);
             } else {
