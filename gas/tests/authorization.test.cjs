@@ -2190,6 +2190,8 @@ test('cloud operational snapshot applies tenant-scoped deletes and upserts atomi
   assert.match(method, /for \(const record of records\) store\.put\(record\)/);
   assert.match(method, /tx\.oncomplete = \(\) => resolve\(\)/);
   assert.match(method, /localStorage\.setItem\(key, previous\)/);
+  assert.match(method, /let snapshotCaptured = false/);
+  assert.match(method, /if \(snapshotCaptured\) \{/);
   const storeStart = storeSource.indexOf('async mergeCloudOperationalRecords(');
   const storeEnd = storeSource.indexOf('async refreshCloudData()', storeStart);
   const merge = storeSource.slice(storeStart, storeEnd);
