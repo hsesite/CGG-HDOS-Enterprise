@@ -2281,3 +2281,23 @@ test('cloud operational snapshot applies tenant-scoped deletes and upserts atomi
   assert.match(merge, /await hdosDB\.reconcileSnapshot\(storeName, staleIds, snapshot\)/);
   assert.doesNotMatch(merge, /await hdosDB\.delete\(storeName, local\.id\)/);
 });
+
+
+test('repository deletion atomically removes local metadata, photo, forms, and queues offline delete', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const deleteStart = storeSource.indexOf('async deleteDocument(documentId: string)');
+  const deleteEnd = storeSource.indexOf('async addFormDefinition(', deleteStart);
+  assert.ok(deleteStart >= 0 && deleteEnd > deleteStart);
+  const deletion = storeSource.slice(deleteStart, deleteEnd);
+  assert.match(deletion, /const deletes = \[/);
+  assert.match(deletion, /storeName: 'repository'/);
+  assert.match(deletion, /storeName: 'photos'/);
+  assert.match(deletion, /storeName: 'form-definition'/);
+  assert.match(deletion, /await hdosSync\.enqueueBatch\(\[\], \[[\s\S]*?\], deletes\)/);
+  assert.match(deletion, /await hseApi\.deleteRepositoryDocument\(documentId\);[\s\S]*?await hdosDB\.reconcileSnapshotBundle/);
+  assert.doesNotMatch(deletion, /await hdosDB\.delete\(/);
+  assert.match(syncSource, /deletes: Array<\{ storeName: StoreName; id: string \}> = \[\]/);
+  assert.match(syncSource, /await hdosDB\.reconcileSnapshotBundle\(/);
+  assert.match(syncSource, /deleteIds: deletes\.filter\(entry => entry\.storeName === storeName\)/);
+});
