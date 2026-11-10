@@ -30,3 +30,12 @@ test('mobile workspace returns to an authorized default when the active role los
   assert.match(mobileSource, /useEffect\(\(\) => \{\s*if \(!canAccessModule\(currentUser, activeTab\)\) \{\s*setActiveTab\('dashboard'\)/);
   assert.match(mobileSource, /currentUser\?\.roleVerified, roleKey, activeTab/);
 });
+
+test('mobile content rendering is guarded independently from navigation visibility', () => {
+  for (const moduleName of ['dashboard', 'inspection', 'map', 'repository', 'pica', 'hazard', 'ai', 'incident', 'contractor', 'sync', 'settings']) {
+    assert.ok(
+      mobileSource.includes(`activeTab === '${moduleName}' && canAccessModule(currentUser, '${moduleName}') &&`),
+      `Expected ${moduleName} mobile content to require authorization at render time`
+    );
+  }
+});
