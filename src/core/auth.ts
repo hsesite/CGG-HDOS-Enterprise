@@ -1,7 +1,7 @@
 import type { UserRole, UserProfile } from './types';
 import { hdosEvents } from './events';
 import { AuthState } from './auth-state';
-import { canAccessModule, isCggAdmin } from './access-policy';
+import { canAccessModule } from './access-policy';
 
 const VALID_ROLES: UserRole[] = ['Admin CGG', 'Company Admin', 'Contractor', 'Subkon', 'PJO', 'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC', 'Employee'];
 
