@@ -880,6 +880,19 @@ export class HDOSCentralStore {
   async addFormDefinition(
   input: Omit<FormDefinition, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<FormDefinition> {
+  const sessionUser = AuthState.getUser();
+  const sessionToken = hseApi.authToken;
+  const sessionGeneration = this.initGeneration;
+  const isCurrentSession = (): boolean => {
+    const currentUser = AuthState.getUser();
+    return this.initGeneration === sessionGeneration &&
+      currentUser?.id === sessionUser?.id &&
+      getUserCompanyCode(currentUser) === getUserCompanyCode(sessionUser) &&
+      hseApi.authToken === sessionToken;
+  };
+  if (!sessionUser || !isCurrentSession()) {
+    throw new Error('Sesi akun tidak valid untuk membuat formulir Repository.');
+  }
   // Form definitions are generated from an already registered repository document.
   // This is not a document-control edit: operational staff need to generate/use
   // the checklist from an approved source document without receiving repository
@@ -914,6 +927,9 @@ export class HDOSCentralStore {
   };
 
   await hdosDB.put('form-definition', formDefinition);
+  if (!isCurrentSession()) {
+    throw new Error('Sesi akun berubah saat formulir disimpan. Data tidak dipublikasikan ke akun yang baru.');
+  }
 
   this.formDefinitions = [
     formDefinition,
@@ -935,6 +951,19 @@ export class HDOSCentralStore {
     updates: Partial<Omit<FormDefinition, 'id' | 'createdAt'>>
   ): Promise<FormDefinition> {
     this.assertMutationAllowed('document');
+    const sessionUser = AuthState.getUser();
+    const sessionToken = hseApi.authToken;
+    const sessionGeneration = this.initGeneration;
+    const isCurrentSession = (): boolean => {
+      const currentUser = AuthState.getUser();
+      return this.initGeneration === sessionGeneration &&
+        currentUser?.id === sessionUser?.id &&
+        getUserCompanyCode(currentUser) === getUserCompanyCode(sessionUser) &&
+        hseApi.authToken === sessionToken;
+    };
+    if (!sessionUser || !isCurrentSession()) {
+      throw new Error('Sesi akun tidak valid untuk memperbarui formulir Repository.');
+    }
     const existing = this.formDefinitions.find((form) => form.id === formId);
     if (!existing) {
       throw new Error('Formulir tidak ditemukan.');
@@ -959,6 +988,9 @@ export class HDOSCentralStore {
     };
 
     await hdosDB.put('form-definition', updated);
+    if (!isCurrentSession()) {
+      throw new Error('Sesi akun berubah saat formulir diperbarui. Data tidak dipublikasikan ke akun yang baru.');
+    }
     this.formDefinitions = this.formDefinitions.map((form) =>
       form.id === formId ? updated : form
     );
