@@ -568,3 +568,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test melakukan round-trip build row → parse row untuk membuktikan fingerprint tetap tersimpan, serta memeriksa perlindungan metadata pada jalur UPDATE.
 - [x] 208 regression tests lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi artefak PWA berhasil pada commit `b00056b2bb07718254d33a2de64aa9de29bedcae`.
 - [ ] Skenario retry CREATE setelah UPDATE perlu tetap dijalankan pada Spreadsheet staging ketika integrasi GAS dimulai.
+
+
+### PWA — fallback aset ketika offline (10 November 2026)
+- [x] Request aset same-origin yang tidak ada di cache dan gagal di jaringan sekarang mengembalikan respons HTTP 503 dengan pesan koneksi yang jelas, bukan hasil kosong yang dapat memicu kegagalan Service Worker.
+- [x] Regression test memastikan fallback offline eksplisit.
+- [x] 209 regression tests lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi artefak PWA berhasil pada commit `2b6283d0cdd8a566d4459ee69f9c6751d85fc01c`.
+- [ ] Pembukaan semua modul saat offline tetap harus diuji pada perangkat Android/iOS fisik; precache berhasil pada build tidak membuktikan setiap browser menyimpan seluruh aset di kondisi storage nyata.
