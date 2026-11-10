@@ -33,6 +33,10 @@ function loadScope() {
 }
 const applyRecordScope = loadScope();
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
+test('manual sync conflict resolution preserves every tenant ownership field from server snapshot', () => {
+  assert.ok(syncEngineSource.includes("for (const key of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode'])"));
+  assert.ok(syncEngineSource.includes('protectedPayload[key] = serverRecord[key]'));
+});
 test('non-Admin CGG cannot change operational record tenant ownership fields', () => {
   const context = {
     isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
