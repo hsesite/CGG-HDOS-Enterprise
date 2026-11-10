@@ -1025,7 +1025,8 @@ export class HDOSSyncEngine {
                   item: { ...localRecord, photoFileId, photoUrl },
                 });
                 await hdosDB.putBundle(bundle);
-                const { localPhotoId: _localPhotoId, ...cloudPayload } = item.payload as Record<string, unknown>;
+                const cloudPayload = { ...(item.payload as Record<string, unknown>) };
+                delete cloudPayload.localPhotoId;
                 createPayload = cloudPayload;
               }
             }
