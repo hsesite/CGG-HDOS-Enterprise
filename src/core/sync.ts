@@ -1075,7 +1075,38 @@ export class HDOSSyncEngine {
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk queue item ${item.id}.`);
             }
-            const serverRecord = await hseApi.update<Record<string, unknown>>(endpoint, recordId, item.payload, syncToken);
+            let updatePayload = item.payload;
+            if (updatePayload && typeof updatePayload === 'object' && !Array.isArray(updatePayload)) {
+              const originalPayload = updatePayload as Record<string, unknown>;
+              const localPhotoId = typeof originalPayload.localPhotoId === 'string' ? originalPayload.localPhotoId : '';
+              if (localPhotoId) {
+                let photoFileId = String(originalPayload.evidencePhotoFileId || '');
+                let photoUrl = String(originalPayload.evidencePhotoUrl || '');
+                if (photoFileId.startsWith('offline:') || photoUrl.startsWith('offline:') || !photoFileId || !photoUrl) {
+                  const localPhoto = await hdosDB.getById<OfflineOperationalPhoto>('photos', localPhotoId);
+                  if (!localPhoto) throw new Error('Foto bukti PICA lokal tidak ditemukan. Pulihkan backup perangkat atau lampirkan ulang foto sebelum sinkronisasi.');
+                  const uploadedPhoto = await uploadOfflineOperationalPhoto(localPhoto);
+                  photoFileId = uploadedPhoto.photoFileId;
+                  photoUrl = uploadedPhoto.photoUrl;
+                }
+                item.payload = { ...originalPayload, evidencePhotoFileId: photoFileId, evidencePhotoUrl: photoUrl };
+                const localStoreName = getLocalStoreName(item.entity);
+                const localRecord = localStoreName
+                  ? await hdosDB.getById<Record<string, unknown> & { id: string }>(localStoreName, recordId)
+                  : null;
+                const bundle: Array<{ storeName: StoreName; item: Record<string, unknown> & { id: string } }> = [
+                  { storeName: 'queue', item: item as unknown as Record<string, unknown> & { id: string } },
+                ];
+                if (localStoreName && localRecord) bundle.push({
+                  storeName: localStoreName,
+                  item: { ...localRecord, evidencePhotoFileId: photoFileId, evidencePhotoUrl: photoUrl },
+                });
+                await hdosDB.putBundle(bundle);
+                updatePayload = { ...(item.payload as Record<string, unknown>) };
+                delete (updatePayload as Record<string, unknown>).localPhotoId;
+              }
+            }
+            const serverRecord = await hseApi.update<Record<string, unknown>>(endpoint, recordId, updatePayload, syncToken);
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
             if (localStoreName && serverUpdatedAt) {
@@ -1125,7 +1156,7 @@ export class HDOSSyncEngine {
             }
           }
 
-          if (item.action === 'CREATE' && item.payload && typeof item.payload === 'object' &&
+          if ((item.action === 'CREATE' || item.action === 'UPDATE') && item.payload && typeof item.payload === 'object' &&
               typeof (item.payload as Record<string, unknown>).localPhotoId === 'string') {
             await hdosDB.delete('photos', String((item.payload as Record<string, unknown>).localPhotoId));
           }
