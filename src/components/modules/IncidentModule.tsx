@@ -101,9 +101,13 @@ export const IncidentModule: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim() || !location || !date || !time) {
+      window.alert('Lengkapi judul, lokasi, tanggal, dan waktu kejadian.');
+      return;
+    }
     setSubmitting(true);
-
-    const fiveWhyAnalysis = [
+    try {
+      const fiveWhyAnalysis = [
       fiveWhy1 ? `1. Mengapa terjadi? ${fiveWhy1}` : '',
       fiveWhy2 ? `2. Mengapa hal tersebut terjadi? ${fiveWhy2}` : '',
       fiveWhy3 ? `3. Mengapa proteksi atau pengawasan tidak mencegahnya? ${fiveWhy3}` : '',
@@ -137,6 +141,11 @@ export const IncidentModule: React.FC = () => {
     setCorrectiveActionsDraft(correctiveAction.trim());
     setReviewNotesDraft('');
     setActiveTab('list');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Laporan insiden gagal disimpan. Periksa koneksi dan coba kembali.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
