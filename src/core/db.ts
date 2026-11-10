@@ -208,6 +208,50 @@ class HDOSDatabase {
     });
   }
 
+  async reconcileSnapshot<T extends { id: string }>(
+    storeName: StoreName,
+    deleteIds: string[],
+    records: T[],
+  ): Promise<void> {
+    const db = await this.init();
+    if (!db) {
+      const key = this.getFallbackKey(storeName);
+      let previous: string | null = null;
+      try {
+        previous = localStorage.getItem(key);
+        const current = this.readFallback<T>(storeName);
+        const deleted = new Set(deleteIds);
+        const merged = current.filter(item => !deleted.has(item.id));
+        const byId = new Map(merged.map(item => [item.id, item]));
+        for (const record of records) byId.set(record.id, record);
+        this.writeFallback(storeName, [...byId.values()]);
+      } catch (error) {
+        try {
+          if (previous === null) localStorage.removeItem(key);
+          else localStorage.setItem(key, previous);
+        } catch (rollbackError) {
+          console.error('[HDOS DB] Snapshot rollback failed', rollbackError);
+        }
+        throw error;
+      }
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        for (const id of deleteIds) store.delete(id);
+        for (const record of records) store.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB snapshot transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB snapshot transaction aborted'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async putBundle(entries: Array<{ storeName: StoreName; item: { id: string } }>): Promise<void> {
     if (entries.length === 0) return;
     const db = await this.init();
