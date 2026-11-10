@@ -2217,6 +2217,22 @@ test('repository and published-form snapshots reconcile atomically without parti
   assert.doesNotMatch(refresh, /this\.formDefinitions = this\.formDefinitions\.filter/);
 });
 
+test('standalone published forms survive startup and partial repository refreshes', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const initStart = storeSource.indexOf('async init(): Promise<void>');
+  const initEnd = storeSource.indexOf('async refreshCloudData()', initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart);
+  const init = storeSource.slice(initStart, initEnd);
+  assert.match(init, /this\.formDefinitions = this\.formDefinitions\.filter\(form =>\s*isLocalRecordVisible\(/);
+  assert.doesNotMatch(init, /this\.formDefinitions = this\.formDefinitions\.filter\(form => this\.documents\.some/);
+
+  const refreshStart = storeSource.indexOf('async refreshCloudData()');
+  const refreshEnd = storeSource.indexOf('subscribe(listener:', refreshStart);
+  const refresh = storeSource.slice(refreshStart, refreshEnd);
+  assert.match(refresh, /const availableForms = formsResult\.value as unknown as FormDefinition\[\]/);
+  assert.doesNotMatch(refresh, /availableDocumentIds/);
+});
+
 test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(syncDbSource, /async reconcileSnapshot<T extends \{ id: string \}>/);
