@@ -115,7 +115,10 @@ self.addEventListener('fetch', event => {
     const network = fetch(request).then(async response => {
       if (response.ok) await cache.put(request, response.clone());
       return response;
-    }).catch(() => cached);
+    }).catch(() => cached || new Response('Aset HDOS ini belum tersimpan di cache. Hubungkan internet lalu buka ulang modul.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+    }));
     return cached || network;
   })());
 });
