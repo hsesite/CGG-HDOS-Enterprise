@@ -13,7 +13,6 @@ import {
   Layers,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
-import { createHazardAction } from '../../core/module-actions';
 import { hdosAI, BoundingBox } from '../../core/ai';
 
 export const AIModule: React.FC = () => {
