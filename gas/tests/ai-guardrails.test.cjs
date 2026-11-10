@@ -42,6 +42,14 @@ test('GIS map rejects blank and null coordinate values before numeric coercion',
   assert.doesNotMatch(map, /Number\.isFinite\(Number\(location\.lat\)\)/);
 });
 
+test('PICA final closure is restricted to verified SPV HSE after both sequential approvals', () => {
+  const pica = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
+  assert.match(pica, /const isHSEValidator = sessionUser\?\.roleVerified === true && sessionRoles\.includes\('SPV HSE'\)/);
+  assert.match(pica, /!stages\.foreman \|\| !stages\.spvHse \|\| !isHSEValidator/);
+  assert.match(pica, /SPV HSE menjadi pejabat final untuk validasi dan penutupan; tidak ada tahap persetujuan KTT/);
+  assert.doesNotMatch(pica, /const isHSEValidator = .*Foreman Safety.*SPV HSE/);
+});
+
 test('dashboard owner-wide data scope requires both Admin CGG role and CGG tenant', () => {
   const dashboard = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'DashboardModule.tsx'), 'utf8');
   assert.match(dashboard, /companyCode === 'CGG' && roles\.includes\('Admin CGG'\)/);
