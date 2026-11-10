@@ -29,6 +29,18 @@ test('Contractor root backup retains its own and registered Subkon records', () 
   assert.match(helper, /!company && !subkon && !parent/);
 });
 
+test('Admin CGG backup includes all authorized company tenants', () => {
+  assert.match(backupSource, /isAdminCGG: \(user\.roles \|\| \[\]\)\.includes\('Admin CGG'\)/);
+  const start = backupSource.indexOf('function recordTenantMatches(');
+  const end = backupSource.indexOf('\n}\n', start);
+  const helper = backupSource.slice(start, end + 2);
+  assert.match(helper, /if \(owner\.isAdminCGG\) return true/);
+  assert.match(backupSource, /archive\.owner\.isAdminCGG === true && !owner\.isAdminCGG/);
+  // Queue entries and binary attachments remain bound to the exporting user.
+  assert.match(backupSource, /item\.ownerUserId === owner\.userId && item\.ownerCompanyCode === owner\.companyCode/);
+  assert.match(backupSource, /photo\.ownerUserId === owner\.userId/);
+});
+
 test('backup serializes Blob attachments with MIME type and restores them as Blob', () => {
   assert.match(backupSource, /value instanceof Blob/);
   assert.match(backupSource, /__hdosBackupBinary: 'blob'/);
