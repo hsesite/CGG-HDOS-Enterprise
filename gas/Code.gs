@@ -768,7 +768,7 @@ function createRepositoryDocument_(input, bytes, fileMetadata, companyCode, pare
   // critical section so simultaneous retries cannot create duplicate files.
   lock.waitLock(10000);
   try {
-    const existing = getExistingRecordForCreate_(sheet, id, user, safePayload);
+    const existing = getExistingRecordForCreate_(sheet, id, user);
     if (existing) return publicRepositoryDocument_(existing);
 
     const props = PropertiesService.getScriptProperties();
@@ -3647,7 +3647,7 @@ function createRecord_(
   // IDEMPOTENCY
   // ----------------------------------------------------------
 
-  const existing = getExistingRecordForCreate_(sheet, id, user);
+  const existing = getExistingRecordForCreate_(sheet, id, user, safePayload);
   if (existing) return existing;
 
 
