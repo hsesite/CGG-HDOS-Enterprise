@@ -1716,7 +1716,7 @@ test('P2H idempotency helper accepts exact replay and rejects changed inspection
 
 test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /const requestId = p2hRequestId \|\|/);
-  assert.match(p2hUiSource, /hdosSync\.enqueue\([\s\S]*?requestId,[\s\S]*?entity: 'contractor'/);
+  assert.match(p2hUiSource, /hdosSync\.enqueue\(\{[\s\S]*?entity: 'contractor'[\s\S]*?fleetId: unit\.id/);
   assert.match(p2hUiSource, /setP2hRequestId\(''\)/);
   assert.match(source, /const requestId = String\(input\.requestId \|\| ''\)\.trim\(\)/);
   assert.match(source, /const existingRequestRow = findRecordRow_\(historySheet, requestId\)/);
