@@ -63,3 +63,10 @@ test('backup export enforces the same 100 MB limit as restore after binary encod
   assert.match(backupSource, /Backup melebihi batas 100 MB setelah lampiran dikodekan/);
   assert.match(backupSource, /file\.size > MAX_BACKUP_BYTES/);
 });
+
+
+test('backup captures all local stores from one IndexedDB readonly snapshot', () => {
+  assert.match(backupSource, /const localSnapshot = await hdosDB\.getAllBundle\(includedStores\)/);
+  assert.match(backupSource, /const all = \(localSnapshot\[storeName\] \|\| \[\]\) as unknown\[\]/);
+  assert.doesNotMatch(backupSource, /const all = await hdosDB\.getAll/);
+});
