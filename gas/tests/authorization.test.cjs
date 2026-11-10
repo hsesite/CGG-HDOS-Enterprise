@@ -2381,6 +2381,25 @@ test('Repository clears selected document and preview state when the tenant chan
   assert.match(moduleSource, /hseApi\.authToken, hseApi\.baseUrl, store\.documents\.length/);
 });
 
+test('form-definition store writes do not publish into a newer account session', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const addStart = storeSource.indexOf('async addFormDefinition(');
+  const addEnd = storeSource.indexOf('async updateFormDefinition(', addStart);
+  const updateStart = addEnd;
+  const updateEnd = storeSource.indexOf('async deleteFormDefinition(', updateStart);
+  assert.ok(addStart >= 0 && addEnd > addStart && updateEnd > updateStart);
+  const add = storeSource.slice(addStart, addEnd);
+  const update = storeSource.slice(updateStart, updateEnd);
+  for (const method of [add, update]) {
+    assert.match(method, /const sessionToken = hseApi\.authToken/);
+    assert.match(method, /const sessionGeneration = this\.initGeneration/);
+    assert.match(method, /currentUser\?\.id === sessionUser\?\.id/);
+    assert.match(method, /hseApi\.authToken === sessionToken/);
+    assert.match(method, /await hdosDB\.put\('form-definition'/);
+    assert.match(method, /if \(!isCurrentSession\(\)\)[\s\S]*?Data tidak dipublikasikan ke akun yang baru/);
+  }
+});
+
 test('central Repository snapshots are tenant-filtered before entering the shared client store', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const setterStart = storeSource.indexOf('setCentralRepositoryDocuments(documents: DocumentItem[]): void');
