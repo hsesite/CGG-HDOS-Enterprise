@@ -25,13 +25,17 @@ type BackupArchive = BackupPayload & { checksum: string };
 function getOwner(): BackupOwner {
   const user = AuthState.getUser();
   if (!user?.id) throw new Error('Sesi pengguna tidak ditemukan. Silakan login kembali.');
-  const companyCode = String(user.companyCode || (user.roles?.includes('Admin CGG') ? 'CGG' : '')).trim().toUpperCase();
+  const isAdminCGG = (user.roles || []).includes('Admin CGG');
+  const companyCode = String(user.companyCode || (isAdminCGG ? 'CGG' : '')).trim().toUpperCase();
   if (!companyCode) throw new Error('Identitas perusahaan akun tidak tersedia; backup dihentikan.');
+  if (isAdminCGG && companyCode !== 'CGG') {
+    throw new Error('Identitas perusahaan Admin CGG tidak konsisten. Backup dihentikan.');
+  }
   return {
     userId: String(user.id),
     companyCode,
     parentCompanyCode: String(user.parentCompanyCode || '').trim().toUpperCase(),
-    isAdminCGG: (user.roles || []).includes('Admin CGG'),
+    isAdminCGG,
   };
 }
 
