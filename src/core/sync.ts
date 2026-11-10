@@ -13,7 +13,8 @@ type SyncEntityEndpoint =
   | 'hazards'
   | 'picas'
   | 'incidents'
-  | 'repository';
+  | 'repository'
+  | 'contractor-p2h';
 
 function getEntityEndpoint(
   entity: SyncQueueItem['entity']
@@ -29,6 +30,8 @@ function getEntityEndpoint(
       return 'incidents';
     case 'repository':
       return 'repository';
+    case 'contractor':
+      return 'contractor-p2h';
     default:
       return null;
   }
@@ -993,6 +996,24 @@ export class HDOSSyncEngine {
             item.action === 'CREATE'
           ) {
             if (endpoint === 'repository') throw new Error('Upload Repository harus melalui alur unggah berkas khusus.');
+            if (endpoint === 'contractor-p2h') {
+              const payload = item.payload as { fleetId?: string; input?: Record<string, unknown>; localPhotoId?: string };
+              if (!payload || typeof payload.fleetId !== 'string' || !payload.fleetId || !payload.input || typeof payload.input !== 'object') {
+                throw new Error('Payload antrean P2H tidak lengkap. Periksa draft sebelum mengirim ulang.');
+              }
+              const input = { ...payload.input };
+              if (payload.localPhotoId && (!input.photoFileId || !input.photoFileName || !input.photoMimeType)) {
+                const localPhoto = await hdosDB.getById<OfflineOperationalPhoto>('photos', payload.localPhotoId);
+                if (!localPhoto) throw new Error('Foto P2H lokal tidak ditemukan. Pulihkan backup perangkat atau lampirkan ulang foto sebelum sinkronisasi.');
+                const uploadedPhoto = await uploadOfflineOperationalPhoto(localPhoto);
+                input.photoFileId = uploadedPhoto.photoFileId;
+                input.photoFileName = localPhoto.fileName;
+                input.photoMimeType = localPhoto.mimeType;
+                item.payload = { ...payload, input };
+                await hdosDB.put('queue', item);
+              }
+              await hseApi.createContractorP2HRecord(payload.fleetId, input as Parameters<typeof hseApi.createContractorP2HRecord>[1]);
+            } else {
             let createPayload = item.payload;
             let localPhotoId: string | undefined;
             if (createPayload && typeof createPayload === 'object' && !Array.isArray(createPayload)) {
@@ -1066,6 +1087,7 @@ export class HDOSSyncEngine {
                 const updatedById = new Map(versionedQueueItems.map(queued => [queued.id, queued]));
                 this.queue = this.queue.map(current => updatedById.get(current.id) || current);
               }
+            }
             }
           } else if (
             item.action === 'UPDATE'
