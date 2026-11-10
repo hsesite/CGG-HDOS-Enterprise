@@ -208,6 +208,38 @@ class HDOSDatabase {
     });
   }
 
+  /**
+   * Read several stores from one IndexedDB readonly transaction so exports
+   * cannot mix records from different moments while another write is active.
+   * The localStorage compatibility path is best-effort and reads each store
+   * independently; production binary backups require IndexedDB.
+   */
+  async getAllBundle(storeNames: StoreName[]): Promise<Partial<Record<StoreName, unknown[]>>> {
+    const uniqueNames = [...new Set(storeNames)];
+    const db = await this.init();
+    if (!db) {
+      const entries = await Promise.all(uniqueNames.map(async name => [name, await this.getAll(name)] as const));
+      return Object.fromEntries(entries) as Partial<Record<StoreName, unknown[]>>;
+    }
+    if (uniqueNames.length === 0) return {};
+    return new Promise((resolve, reject) => {
+      const snapshot: Partial<Record<StoreName, unknown[]>> = {};
+      try {
+        const tx = db.transaction(uniqueNames, 'readonly');
+        for (const name of uniqueNames) {
+          const request = tx.objectStore(name).getAll();
+          request.onsuccess = () => { snapshot[name] = (request.result as unknown[]) || []; };
+          request.onerror = () => reject(new Error(`Gagal membaca snapshot "${name}" dari IndexedDB.`, { cause: request.error }));
+        }
+        tx.oncomplete = () => resolve(snapshot);
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB snapshot read failed'));
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB snapshot read aborted'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async reconcileSnapshot<T extends { id: string }>(
     storeName: StoreName,
     deleteIds: string[],
