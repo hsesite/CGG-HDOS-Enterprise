@@ -16,8 +16,8 @@ import { useHDOSStore } from '../../core/store';
 import { MiningArea, Hazard } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
 import { createHazardAction } from '../../core/module-actions';
-import { hseApi } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
+import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 
 const readImageBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -65,12 +65,8 @@ export const HazardModule: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const uploadedPhoto = await hseApi.uploadOperationalPhoto({
-        fileName: hazardPhoto.name,
-        mimeType: hazardPhoto.type,
-        fileBase64: await readImageBase64(hazardPhoto),
-        uploadKey: `hdos-${crypto.randomUUID()}`,
-      });
+      // Save the photo in IndexedDB first; cloud upload is handled by queue replay.
+      const localPhotoId = await saveOfflineOperationalPhoto(hazardPhoto);
       const newHaz = await createHazardAction({
         title,
         category,
@@ -81,8 +77,7 @@ export const HazardModule: React.FC = () => {
         reporterRole: currentUser.role,
         status: riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'PICA_ISSUED' : 'OPEN',
         actionTaken,
-        photoFileId: uploadedPhoto.photoFileId,
-        photoUrl: uploadedPhoto.photoUrl,
+        localPhotoId,
         aiDetected: false,
       });
 
