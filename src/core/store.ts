@@ -723,6 +723,20 @@ export class HDOSCentralStore {
   localFile?: { blob: Blob; fileName: string; mimeType: string; size: number; ownerUserId: string; ownerCompanyCode: string },
 ): Promise<DocumentItem> {
    this.assertMutationAllowed('document');
+  const sessionUser = AuthState.getUser();
+  const sessionToken = hseApi.authToken;
+  const sessionGeneration = this.initGeneration;
+  const tenantFields = getCurrentTenantFields();
+  const isCurrentSession = (): boolean => {
+    const currentUser = AuthState.getUser();
+    return this.initGeneration === sessionGeneration &&
+      currentUser?.id === sessionUser?.id &&
+      getUserCompanyCode(currentUser) === getUserCompanyCode(sessionUser) &&
+      hseApi.authToken === sessionToken;
+  };
+  if (!sessionUser || !sessionToken || !isCurrentSession()) {
+    throw new Error('Sesi akun tidak valid untuk menyimpan dokumen Repository.');
+  }
   const categoryCode: Partial<Record<DocumentItem['category'], string>> = {
     SOP: 'SOP', JSA: 'JSA', WI: 'WI', IBPR: 'IBPR', Kebijakan: 'KEBIJAKAN',
     Form: 'FORM', Memo: 'MEMO', 'Work Permit': 'WP', Lainnya: 'DOC',
@@ -751,6 +765,9 @@ export class HDOSCentralStore {
     docNumber,
     revision: 1,
     ...input,
+    ...tenantFields,
+    ownerUserId: sessionUser.id,
+    owner: sessionUser.displayName || sessionUser.name || input.owner,
   };
 
   // Persist repository metadata and its original binary together. A browser
@@ -763,8 +780,8 @@ export class HDOSCentralStore {
         item: {
           id: `document-file-${newDocument.id}`,
           documentId: newDocument.id,
-          ownerUserId: localFile.ownerUserId,
-          ownerCompanyCode: localFile.ownerCompanyCode,
+          ownerUserId: sessionUser.id,
+          ownerCompanyCode: tenantFields.companyCode,
           blob: localFile.blob,
           fileName: localFile.fileName,
           mimeType: localFile.mimeType,
@@ -777,6 +794,9 @@ export class HDOSCentralStore {
     await hdosDB.put('repository', newDocument);
   }
 
+  if (!isCurrentSession()) {
+    throw new Error('Sesi akun berubah saat dokumen disimpan. Dokumen tidak dipublikasikan ke akun yang baru.');
+  }
   this.documents = [newDocument, ...this.documents];
 
   this.notify();
@@ -796,6 +816,19 @@ export class HDOSCentralStore {
     updates: Partial<Omit<DocumentItem, 'id' | 'docNumber'>>
   ): Promise<DocumentItem> {
     this.assertMutationAllowed('document');
+    const sessionUser = AuthState.getUser();
+    const sessionToken = hseApi.authToken;
+    const sessionGeneration = this.initGeneration;
+    const isCurrentSession = (): boolean => {
+      const currentUser = AuthState.getUser();
+      return this.initGeneration === sessionGeneration &&
+        currentUser?.id === sessionUser?.id &&
+        getUserCompanyCode(currentUser) === getUserCompanyCode(sessionUser) &&
+        hseApi.authToken === sessionToken;
+    };
+    if (!sessionUser || !sessionToken || !isCurrentSession()) {
+      throw new Error('Sesi akun tidak valid untuk memperbarui dokumen Repository.');
+    }
     const existing = this.documents.find((doc) => doc.id === documentId);
     if (!existing) {
       throw new Error('Dokumen tidak ditemukan.');
@@ -809,6 +842,9 @@ export class HDOSCentralStore {
     };
 
     await hdosDB.put('repository', updated);
+    if (!isCurrentSession()) {
+      throw new Error('Sesi akun berubah saat dokumen diperbarui. Perubahan tidak dipublikasikan ke akun yang baru.');
+    }
     this.documents = this.documents.map((doc) =>
       doc.id === documentId ? updated : doc
     );
@@ -824,6 +860,19 @@ export class HDOSCentralStore {
 
   async deleteDocument(documentId: string): Promise<void> {
     this.assertMutationAllowed('document');
+    const sessionUser = AuthState.getUser();
+    const sessionToken = hseApi.authToken;
+    const sessionGeneration = this.initGeneration;
+    const isCurrentSession = (): boolean => {
+      const currentUser = AuthState.getUser();
+      return this.initGeneration === sessionGeneration &&
+        currentUser?.id === sessionUser?.id &&
+        getUserCompanyCode(currentUser) === getUserCompanyCode(sessionUser) &&
+        hseApi.authToken === sessionToken;
+    };
+    if (!sessionUser || !sessionToken || !isCurrentSession()) {
+      throw new Error('Sesi akun tidak valid untuk menghapus dokumen Repository.');
+    }
     const existing = this.documents.find((doc) => doc.id === documentId);
     if (!existing) throw new Error('Dokumen tidak ditemukan.');
 
@@ -840,6 +889,9 @@ export class HDOSCentralStore {
       // The cloud must acknowledge Drive/metadata deletion before the local
       // cache is changed. A failed API request leaves every local item intact.
       await hseApi.deleteRepositoryDocument(documentId);
+      if (!isCurrentSession()) {
+        throw new Error('Sesi akun berubah saat penghapusan cloud berlangsung. Cache lokal tidak diubah; silakan sinkronkan ulang.');
+      }
       await hdosDB.reconcileSnapshotBundle(
         [...new Set(deletes.map(entry => entry.storeName))].map(storeName => ({
           storeName,
@@ -856,6 +908,9 @@ export class HDOSCentralStore {
         payload: { id: documentId },
         note: `Penghapusan dokumen Repository ${existing.docNumber}`,
       }], deletes);
+      if (!isCurrentSession()) {
+        throw new Error('Sesi akun berubah saat penghapusan offline berlangsung. Cache akun aktif tidak diubah.');
+      }
     } else {
       // Local-only document removal also uses one atomic multi-store update.
       await hdosDB.reconcileSnapshotBundle(
@@ -867,6 +922,9 @@ export class HDOSCentralStore {
       );
     }
 
+    if (!isCurrentSession()) {
+      throw new Error('Sesi akun berubah sebelum penghapusan dipublikasikan. Muat ulang Repository akun aktif.');
+    }
     this.documents = this.documents.filter((doc) => doc.id !== documentId);
     this.formDefinitions = this.formDefinitions.filter((form) => form.sourceDocumentId !== documentId);
     this.notify();
