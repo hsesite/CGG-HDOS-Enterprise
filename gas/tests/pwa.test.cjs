@@ -37,14 +37,14 @@ test('service worker precaches app shell and built entry assets for offline reop
   assert.match(worker, /fetch\(indexUrl, \{ cache: 'reload' \}\)/);
   assert.match(worker, /cache\.put\(indexUrl, response\.clone\(\)\)/);
   assert.match(worker, /const assetPaths = new Set/);
-  assert.match(worker, /new URL\('\.vite\/manifest\.json', scopeUrl\)/);
+  assert.match(worker, /new URL\\('manifest\\.json', scopeUrl\\)/);
   assert.match(worker, /assetPaths\.add\(assetEntry\.file\)/);
   assert.match(worker, /cache\.put\(assetUrl\.href, assetResponse\)/);
   assert.match(worker, /self\.clients\.claim\(\)/);
 });
 
 test('Vite exposes the complete build graph for lazy-module offline precaching', () => {
-  assert.match(vite, /manifest: true/);
+  assert.match(vite, /manifest: 'manifest.json'/);
   assert.match(worker, /Array\.isArray\(assetEntry\.css\)/);
   assert.match(worker, /Array\.isArray\(assetEntry\.assets\)/);
 });
