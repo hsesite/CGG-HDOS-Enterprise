@@ -560,3 +560,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Record lama tanpa fingerprint tetap memakai pemeriksaan kesamaan field untuk menjaga kompatibilitas arsip/data yang sudah ada.
 - [x] 206 regression tests lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi artefak PWA berhasil pada commit `536d8e6a4cd3c7ed4d19add0add2409c45df0e11`.
 - [ ] Karena perubahan berada di `gas/Code.gs`, deploy ke Apps Script staging tetap terpisah dari GitHub Pages dan wajib diuji dengan skenario respons CREATE hilang, UPDATE sesudahnya, lalu retry CREATE.
+
+
+### Backend — metadata idempotensi CREATE dilindungi dari UPDATE klien (10 November 2026)
+- [x] Fingerprint SHA-256 CREATE tersimpan di kolom JSON payload kanonis Spreadsheet sehingga tetap terbaca walaupun tidak menjadi kolom sheet terpisah.
+- [x] UPDATE mempertahankan fingerprint yang dibaca dari record lama dan mengabaikan nilai fingerprint yang mungkin dikirim klien.
+- [x] Regression test melakukan round-trip build row → parse row untuk membuktikan fingerprint tetap tersimpan, serta memeriksa perlindungan metadata pada jalur UPDATE.
+- [x] 208 regression tests lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi artefak PWA berhasil pada commit `b00056b2bb07718254d33a2de64aa9de29bedcae`.
+- [ ] Skenario retry CREATE setelah UPDATE perlu tetap dijalankan pada Spreadsheet staging ketika integrasi GAS dimulai.
