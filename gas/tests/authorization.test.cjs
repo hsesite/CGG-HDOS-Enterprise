@@ -1724,6 +1724,7 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(source, /if \(!sameRequest\) return error_\(409/);
   assert.match(source, /function isSameContractorP2HRequest_\(existing, requested\)/);
   assert.match(source, /if \(!sameRequest\) return error_\(409/);
+  assert.match(p2hUiSource, /uploadKey: `hdos-p2h-\$\{requestId\}`/);
   assert.match(p2hUiSource, /p2hPhotoFile && !p2hPhotoReference/);
   assert.match(p2hUiSource, /setP2hPhotoReference\(photoReference\)/);
   assert.match(p2hUiSource, /setP2hPhotoReference\(null\)/);
