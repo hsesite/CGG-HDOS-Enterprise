@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CheckSquare, Clock, CheckCircle2, AlertCircle, UserCheck, Calendar, Filter, ShieldCheck } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { PICA } from '../../core/types';
-import { hseApi } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
 import { hdosAuth } from '../../core/auth';
+import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 
 export const PICAModule: React.FC = () => {
   const store = useHDOSStore();
@@ -56,20 +56,12 @@ export const PICAModule: React.FC = () => {
 
   const uploadEvidenceIfSelected = async () => {
     if (!evidencePhotoFile) return { evidencePhotoUrl, evidencePhotoFileId };
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(evidencePhotoFile.type) || evidencePhotoFile.size > 5 * 1024 * 1024) {
-      throw new Error('Foto harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
-    }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Foto gagal dibaca.'));
-      reader.onload = () => { const value = String(reader.result || ''); const comma = value.indexOf(','); resolve(comma >= 0 ? value.slice(comma + 1) : value); };
-      reader.readAsDataURL(evidencePhotoFile);
-    });
-    const uploaded = await hseApi.uploadOperationalPhoto({ fileName: evidencePhotoFile.name, mimeType: evidencePhotoFile.type, fileBase64: dataUrl, uploadKey: `hdos-${crypto.randomUUID()}` });
-    setEvidencePhotoUrl(uploaded.photoUrl);
-    setEvidencePhotoFileId(uploaded.photoFileId);
+    const localPhotoId = await saveOfflineOperationalPhoto(evidencePhotoFile);
+    const offlineReference = `offline:${localPhotoId}`;
+    setEvidencePhotoUrl(offlineReference);
+    setEvidencePhotoFileId(offlineReference);
     setEvidencePhotoFile(null);
-    return { evidencePhotoUrl: uploaded.photoUrl, evidencePhotoFileId: uploaded.photoFileId };
+    return { evidencePhotoUrl: offlineReference, evidencePhotoFileId: offlineReference, localPhotoId };
   };
 
   const savePICProgress = async () => {
@@ -161,7 +153,7 @@ export const PICAModule: React.FC = () => {
             <p className="text-[10px] text-neutral-400">Foto bukti penyelesaian *</p>
             {evidencePhotoUrl && <a href={evidencePhotoUrl} target="_blank" rel="noreferrer" className="inline-flex mt-2 text-xs text-blue-300 underline">Lihat foto bukti tersimpan</a>}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setEvidencePhotoFile(e.target.files?.[0] || null)} disabled={!isPIC(selectedPica) || selectedPica.status === 'CLOSED' || selectedPica.status === 'WAITING_HSE'} className="w-full mt-2 text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-400/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-amber-200 disabled:opacity-60" />
-            <p className="mt-1 text-[10px] text-neutral-500">{evidencePhotoFile ? `Foto dipilih: ${evidencePhotoFile.name}` : 'Pilih foto JPG, PNG, atau WEBP (maks. 5 MB). Foto akan diunggah ke Google Drive saat disimpan.'}</p>
+            <p className="mt-1 text-[10px] text-neutral-500">{evidencePhotoFile ? `Foto dipilih: ${evidencePhotoFile.name}` : 'Pilih foto JPG, PNG, atau WEBP (maks. 5 MB). Foto disimpan di perangkat terlebih dahulu dan diunggah otomatis saat sinkronisasi.'}</p>
           </div>
           {selectedPica.rejectionReason && <p className="text-xs text-red-300 bg-red-500/10 p-2 rounded-lg">Dikembalikan HSE: {selectedPica.rejectionReason}</p>}
           {selectedPica.status === 'WAITING_HSE' && <div className="text-xs text-purple-200 bg-purple-500/10 p-3 rounded-lg space-y-2">
