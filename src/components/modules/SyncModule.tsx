@@ -16,6 +16,7 @@ import { hdosSync } from '../../core/sync';
 import { hdosEvents } from '../../core/events';
 import { hseApi } from '../../core/api';
 import { getCurrentUser } from '../../core/auth-utils';
+import { hdosBackup } from '../../core/backup';
 
 export const SyncModule: React.FC = () => {
   const store = useHDOSStore();
@@ -28,6 +29,8 @@ export const SyncModule: React.FC = () => {
   const [logs, setLogs] = useState(hdosSync.getSyncLogs());
   const [conflictDrafts, setConflictDrafts] = useState<Record<string, string>>({});
   const [resolvingConflictId, setResolvingConflictId] = useState<string | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMessage, setBackupMessage] = useState('');
 
   useEffect(() => {
     const un1 = hdosEvents.on('sync:offline_status_changed', (payload) => {
@@ -111,6 +114,47 @@ export const SyncModule: React.FC = () => {
   };
 
 
+
+  const handleCreateBackup = async () => {
+    setBackupBusy(true);
+    setBackupMessage('');
+    try {
+      const result = await hdosBackup.create();
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setBackupMessage(`Backup berhasil dibuat: ${result.records} record disertakan. Simpan file di lokasi aman.`);
+    } catch (error) {
+      setBackupMessage(error instanceof Error ? error.message : 'Pembuatan backup gagal.');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    const approved = window.confirm('Pemulihan akan menggabungkan data dari backup ke penyimpanan lokal. Data yang sudah ada tidak dihapus. Lanjutkan?');
+    if (!approved) return;
+    setBackupBusy(true);
+    setBackupMessage('');
+    try {
+      const result = await hdosBackup.restore(file);
+      setBackupMessage(`Pemulihan selesai: ${result.restored} record dipulihkan, ${result.skipped} record dilewati. Data lama yang tidak ada di backup tetap dipertahankan.`);
+      setQueue(hdosSync.getQueue());
+      setLogs(hdosSync.getSyncLogs());
+    } catch (error) {
+      setBackupMessage(error instanceof Error ? error.message : 'Pemulihan backup gagal.');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
 
   const handleExportInspections = () => {
     hdosSync.exportToGoogleSheetsCSV(store.inspections, 'Inspections');
@@ -380,6 +424,34 @@ export const SyncModule: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Full local backup and merge restore */}
+      <section className="apple-glass-card p-5 rounded-2xl space-y-4">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+          <Database className="w-4 h-4 text-emerald-400" />
+          <div>
+            <h3 className="text-sm font-bold text-white">Backup & Pemulihan Data HDOS</h3>
+            <p className="text-xs text-neutral-400 mt-1">Cadangan data lokal operasional, dokumen, foto, formulir, dan antrean sinkronisasi.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button type="button" onClick={() => void handleCreateBackup()} disabled={backupBusy}
+            className="min-h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-4 py-3 disabled:opacity-50">
+            {backupBusy ? 'Memproses...' : 'Buat & Unduh Backup'}
+          </button>
+          <label className="min-h-12 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white font-semibold text-sm px-4 py-3 flex items-center justify-center cursor-pointer">
+            Pilih File untuk Pemulihan
+            <input type="file" accept=".json,application/json" className="sr-only" disabled={backupBusy}
+              onChange={event => void handleRestoreBackup(event)} />
+          </label>
+        </div>
+        {backupMessage && <p role="status" aria-live="polite" className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-neutral-200 break-words">{backupMessage}</p>}
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200 space-y-1">
+          <p className="font-semibold">Catatan pemulihan</p>
+          <p>Backup memuat data operasional sensitif. Simpan file di media/lokasi yang terlindungi. Pemulihan hanya menerima cakupan perusahaan yang sama, memeriksa checksum, dan menggabungkan data tanpa menghapus data lokal yang sudah ada.</p>
+          <p>Antrean aktif dari backup dikembalikan menjadi menunggu sinkronisasi. Kredensial dan konfigurasi sesi tidak disertakan.</p>
+        </div>
+      </section>
 
       {/* Google Sheets Integration Export Center */}
       <div className="apple-glass-card p-5 rounded-2xl space-y-4">
