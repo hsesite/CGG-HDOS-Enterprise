@@ -36,7 +36,9 @@ test('production frontend registers the service worker relative to the deployed 
 test('service worker precaches app shell and built entry assets for offline reopening', () => {
   assert.match(worker, /fetch\(indexUrl, \{ cache: 'reload' \}\)/);
   assert.match(worker, /cache\.put\(indexUrl, response\.clone\(\)\)/);
-  assert.match(worker, /assetPaths = \[\.\.\.html\.matchAll/);
+  assert.match(worker, /const assetPaths = new Set/);
+  assert.match(worker, /new URL\('\.vite\/manifest\.json', scopeUrl\)/);
+  assert.match(worker, /assetPaths\.add\(assetEntry\.file\)/);
   assert.match(worker, /cache\.put\(assetUrl\.href, assetResponse\)/);
   assert.match(worker, /self\.clients\.claim\(\)/);
 });
