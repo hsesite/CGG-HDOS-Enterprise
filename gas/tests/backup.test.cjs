@@ -83,3 +83,12 @@ test('restore rejects duplicate record IDs instead of silently overwriting archi
   assert.match(backupSource, /if \(seenIds\.has\(item\.id\)\)/);
   assert.match(backupSource, /Backup memiliki ID duplikat/);
 });
+
+test('restore validates offline photo and Contractor SIA Blob metadata before writing', () => {
+  assert.match(backupSource, /item\.blob instanceof Blob/);
+  assert.match(backupSource, /item\.blob\.type !== item\.mimeType/);
+  assert.match(backupSource, /item\.blob\.size !== item\.size/);
+  assert.match(backupSource, /const maxBytes = isSia \? 10 \* 1024 \* 1024 : 5 \* 1024 \* 1024/);
+  assert.match(backupSource, /item\.fleetId !== 'string'/);
+  assert.match(backupSource, /Lampiran pada backup modul photos tidak valid/);
+});
