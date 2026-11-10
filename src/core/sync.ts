@@ -366,7 +366,8 @@ export class HDOSSyncEngine {
 
   async enqueueBatch(
     records: Array<{ storeName: StoreName; item: { id: string } }>,
-    items: Array<Omit<SyncQueueItem, 'id' | 'timestamp' | 'status' | 'retryCount'>>
+    items: Array<Omit<SyncQueueItem, 'id' | 'timestamp' | 'status' | 'retryCount'>>,
+    deletes: Array<{ storeName: StoreName; id: string }> = [],
   ): Promise<SyncQueueItem[]> {
     const currentOwner = this.getCurrentOwner();
     if (!currentOwner) throw new Error('Login ulang diperlukan sebelum menyimpan data ke antrean offline.');
@@ -389,10 +390,18 @@ export class HDOSSyncEngine {
       ownerCompanyCode: owner.companyCode,
     }));
 
-    // Operational records and their queue entries commit together in IndexedDB.
-    await hdosDB.putBundle([
-      ...records,
-      ...queueItems.map(item => ({ storeName: 'queue' as const, item })),
+    // Queue writes, related record writes, and requested cache removals commit
+    // in one multi-store transaction. A failed delete cannot leave a queued
+    // cloud operation detached from its local repository/photo/form state.
+    await hdosDB.reconcileSnapshotBundle([
+      ...[...new Set([...records.map(entry => entry.storeName), ...deletes.map(entry => entry.storeName), 'queue' as const])].map(storeName => ({
+        storeName,
+        deleteIds: deletes.filter(entry => entry.storeName === storeName).map(entry => entry.id),
+        records: [
+          ...records.filter(entry => entry.storeName === storeName).map(entry => entry.item),
+          ...(storeName === 'queue' ? queueItems : []),
+        ],
+      })),
     ]);
 
     const activeOwner = this.getCurrentOwner();
