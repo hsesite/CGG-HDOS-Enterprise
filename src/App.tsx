@@ -385,7 +385,7 @@ export default function App() {
       <MissionControl />
 
       {/* iOS 18 Mobile Simulator (Blueprint §8) */}
-      {store.isMobileMode && <IOSMobileSimulator />}
+      {store.isMobileMode && <IOSMobileSimulator onLogout={handleLogout} />}
     </div>
   );
 }
