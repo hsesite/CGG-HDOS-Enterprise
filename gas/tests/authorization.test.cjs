@@ -11,6 +11,7 @@ const p2hUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'com
 const syncEngineSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
 const syncTypesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
 const syncDbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
+const authStateSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'auth-state.ts'), 'utf8');
 
 test('IndexedDB getById surfaces transaction setup failures instead of reporting a missing record', () => {
   const start = syncDbSource.indexOf('async getById<');
@@ -40,6 +41,15 @@ function loadScope() {
   return context.applyRecordScope_;
 }
 const applyRecordScope = loadScope();
+
+test('KTT client permission matrix does not expose PICA create, update, or oversight read access', () => {
+  const row = authStateSource.split('\n').find(line => line.trim().startsWith("KTT: ")) || '';
+  assert.match(row, /'inspection\.read'/);
+  assert.match(row, /'hazard\.read'/);
+  assert.doesNotMatch(row, /'pica\.(?:read|create|update)'/);
+  assert.match(source, /canMonitorPicas[\s\S]*\['Foreman Safety', 'SPV HSE'\]/);
+});
+
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
 test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
   const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
