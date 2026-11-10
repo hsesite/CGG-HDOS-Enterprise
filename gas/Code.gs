@@ -768,7 +768,7 @@ function createRepositoryDocument_(input, bytes, fileMetadata, companyCode, pare
   // critical section so simultaneous retries cannot create duplicate files.
   lock.waitLock(10000);
   try {
-    const existing = getExistingRecordForCreate_(sheet, id, user);
+    const existing = getExistingRecordForCreate_(sheet, id, user, safePayload);
     if (existing) return publicRepositoryDocument_(existing);
 
     const props = PropertiesService.getScriptProperties();
@@ -3578,12 +3578,34 @@ function readOne_(
 // CRUD — CREATE
 // ============================================================
 
-function getExistingRecordForCreate_(sheet, id, user) {
+function normalizeCreateValue_(value) {
+  if (Array.isArray(value)) return value.map(normalizeCreateValue_);
+  if (value && typeof value === 'object') {
+    const normalized = {};
+    Object.keys(value).sort().forEach(function(key) {
+      normalized[key] = normalizeCreateValue_(value[key]);
+    });
+    return normalized;
+  }
+  return value;
+}
+
+function isSameCreatePayload_(existing, payload) {
+  return Object.keys(payload || {}).every(function(key) {
+    return JSON.stringify(normalizeCreateValue_(existing[key])) ===
+      JSON.stringify(normalizeCreateValue_(payload[key]));
+  });
+}
+
+function getExistingRecordForCreate_(sheet, id, user, payload) {
   const rowNumber = findRecordRow_(sheet, id);
   if (!rowNumber) return null;
   const existing = parseRow_(sheet, rowNumber);
   if (!isAdminCGG_(user) && !isRecordVisibleToUser_(existing, user)) {
     throw httpError_(403, 'ID record sudah digunakan di luar cakupan perusahaan Anda.');
+  }
+  if (payload && !isSameCreatePayload_(existing, payload)) {
+    throw httpError_(409, 'ID record sudah pernah digunakan untuk data yang berbeda. Periksa antrean dan buat laporan baru jika memang merupakan kejadian berbeda.');
   }
   return existing;
 }
@@ -3683,7 +3705,7 @@ function createRecord_(
 
     // Recheck after lock to prevent duplicate records and duplicate
     // human-readable codes when two devices create records concurrently.
-    const duplicate = getExistingRecordForCreate_(sheet, id, user);
+    const duplicate = getExistingRecordForCreate_(sheet, id, user, safePayload);
     if (duplicate) return duplicate;
 
     // Allocate row-dependent codes only after acquiring the lock so
