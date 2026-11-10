@@ -39,3 +39,14 @@ test('mobile content rendering is guarded independently from navigation visibili
     );
   }
 });
+
+test('mobile workspace exposes logout and delegates to the central session handler', () => {
+  assert.match(mobileSource, /interface IOSMobileSimulatorProps\s*\{\s*onLogout: \(\) => void/);
+  assert.match(mobileSource, /onClick=\{onLogout\}/);
+  assert.match(mobileSource, /aria-label="Keluar dari akun"/);
+  const appSource = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'App.tsx'),
+    'utf8'
+  );
+  assert.match(appSource, /<IOSMobileSimulator onLogout=\{handleLogout\} \/>/);
+});
