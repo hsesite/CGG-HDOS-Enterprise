@@ -221,7 +221,7 @@ export const HazardModule: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-medium text-neutral-300 mb-1">Foto bukti temuan * (JPG/PNG/WEBP, maks. 5 MB)</label>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" required onChange={(event) => setHazardPhoto(event.target.files?.[0] || null)} className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-red-500/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-red-200" />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required onChange={(event) => setHazardPhoto(event.target.files?.[0] || null)} className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-red-500/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-red-200" />
                   <p className="mt-1 text-[10px] text-neutral-500">{hazardPhoto ? `Terpilih: ${hazardPhoto.name}` : 'Lampirkan foto kondisi bahaya aktual di lapangan.'}</p>
                 </div>
                 <div>
