@@ -32,7 +32,9 @@ export const DashboardModule: React.FC = () => {
   const sessionUser = AuthState.getUser();
   const roles = sessionUser?.roles || [];
   const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
-  const isOwnerAdmin = roles.includes('Admin CGG');
+  // Match backend Admin CGG identity requirements; a role label alone must not
+  // unlock enterprise-wide dashboard aggregation for another tenant.
+  const isOwnerAdmin = companyCode === 'CGG' && roles.includes('Admin CGG');
   const isOversight = companyCode === 'CGG' && sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
   const isContractor = store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor');
   const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
