@@ -53,6 +53,16 @@ export default function App() {
   const [bootAttempt, setBootAttempt] = useState(0);
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
 
+  // HDOS is mobile-first for field operations: select the mobile workspace
+  // automatically on phone-sized viewports and desktop workspaces on larger screens.
+  useEffect(() => {
+    const viewport = window.matchMedia('(max-width: 767px)');
+    const syncViewportMode = () => store.setMobileMode(viewport.matches);
+    syncViewportMode();
+    viewport.addEventListener('change', syncViewportMode);
+    return () => viewport.removeEventListener('change', syncViewportMode);
+  }, [store]);
+
   useEffect(() => {
     let requestVersion = 0;
     const handleStorage = (event: StorageEvent) => {
