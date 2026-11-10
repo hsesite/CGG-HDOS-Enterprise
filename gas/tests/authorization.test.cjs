@@ -2295,6 +2295,7 @@ test('repository deletion atomically removes local metadata, photo, forms, and q
   assert.match(deletion, /storeName: 'photos'/);
   assert.match(deletion, /storeName: 'form-definition'/);
   assert.match(deletion, /await hdosSync\.enqueueBatch\(\[\], \[[\s\S]*?\], deletes\)/);
+  assert.match(deletion, /existing\.cloudStored && hseApi\.baseUrl && hseApi\.isAuthenticated && hdosSync\.getIsOnline\(\)/);
   assert.match(deletion, /await hseApi\.deleteRepositoryDocument\(documentId\);[\s\S]*?await hdosDB\.reconcileSnapshotBundle/);
   assert.doesNotMatch(deletion, /await hdosDB\.delete\(/);
   assert.match(syncSource, /deletes: Array<\{ storeName: StoreName; id: string \}> = \[\]/);
