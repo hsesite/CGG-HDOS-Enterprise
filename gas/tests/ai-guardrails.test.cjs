@@ -41,3 +41,9 @@ test('GIS map rejects blank and null coordinate values before numeric coercion',
   assert.match(map, /lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180/);
   assert.doesNotMatch(map, /Number\.isFinite\(Number\(location\.lat\)\)/);
 });
+
+test('dashboard owner-wide data scope requires both Admin CGG role and CGG tenant', () => {
+  const dashboard = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'DashboardModule.tsx'), 'utf8');
+  assert.match(dashboard, /companyCode === 'CGG' && roles\.includes\('Admin CGG'\)/);
+  assert.doesNotMatch(dashboard, /const isOwnerAdmin = roles\.includes\('Admin CGG'\)/);
+});
