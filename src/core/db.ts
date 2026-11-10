@@ -58,18 +58,20 @@ class HDOSDatabase {
       return null;
     }
 
+    let request: IDBOpenDBRequest;
+    try {
+      // Open outside the cached promise so a synchronous browser exception
+      // cannot leave a permanently cached Promise<null> and disable future
+      // IndexedDB initialization attempts for this page session.
+      request = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (err) {
+      console.error('[HDOS DB] Exception opening IndexedDB', err);
+      this.db = null;
+      this.initPromise = null;
+      return null;
+    }
+
     this.initPromise = new Promise((resolve) => {
-      let request: IDBOpenDBRequest;
-
-      try {
-        request = indexedDB.open(DB_NAME, DB_VERSION);
-      } catch (err) {
-        console.error('[HDOS DB] Exception opening IndexedDB', err);
-        this.initPromise = null;
-        resolve(null);
-        return;
-      }
-
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
