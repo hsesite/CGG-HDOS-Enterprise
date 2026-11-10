@@ -167,6 +167,8 @@ export interface PICA {
   };
   evidencePhotoUrl?: string;
   evidencePhotoFileId?: string;
+  /** Local IndexedDB evidence pointer; removed before cloud API writes. */
+  localPhotoId?: string;
   submittedAt?: string;
   closeRequestedAt?: string;
   hseValidatedBy?: string;
