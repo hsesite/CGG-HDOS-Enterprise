@@ -1230,15 +1230,19 @@ export class HDOSSyncEngine {
             }
           }
 
-          if ((item.action === 'CREATE' || item.action === 'UPDATE') && item.payload && typeof item.payload === 'object' &&
-              typeof (item.payload as Record<string, unknown>).localPhotoId === 'string') {
-            await hdosDB.delete('photos', String((item.payload as Record<string, unknown>).localPhotoId));
-          }
-
-          await hdosDB.delete(
-            'queue',
-            item.id
-          );
+          // Commit queue acknowledgement and local binary cleanup together.
+          // If the browser closes or IndexedDB fails after the cloud accepted
+          // the operation, the queue and its evidence must not be left half-cleaned.
+          const completedPhotoId = item.payload && typeof item.payload === 'object' &&
+            typeof (item.payload as Record<string, unknown>).localPhotoId === 'string'
+              ? String((item.payload as Record<string, unknown>).localPhotoId)
+              : '';
+          await hdosDB.reconcileSnapshotBundle([
+            { storeName: 'queue', deleteIds: [item.id], records: [] },
+            ...(completedPhotoId
+              ? [{ storeName: 'photos' as const, deleteIds: [completedPhotoId], records: [] }]
+              : []),
+          ]);
 
           this.queue =
             this.queue.filter(
@@ -1408,6 +1412,7 @@ export class HDOSSyncEngine {
           const recovered = {
             ...queued,
             status: 'PENDING' as const,
+            syncStartedAt: undefined,
             error: 'Sinkronisasi terhenti karena gangguan internal. Item dikembalikan ke antrean untuk dicoba kembali.'
           };
           try {
