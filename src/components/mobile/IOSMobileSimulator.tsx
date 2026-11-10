@@ -36,12 +36,12 @@ export const IOSMobileSimulator: React.FC = () => {
   const queueCount = hdosSync.getQueue().length;
 
   return (
-    <div className="fixed inset-0 z-40 bg-[#060608] flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-[#060608] flex items-stretch justify-stretch overflow-hidden">
       {/* Device Frame */}
-      <div className="relative w-full max-w-[420px] h-[860px] max-h-[96vh] rounded-[52px] bg-[#090909] border-[10px] border-[#222226] shadow-[0_0_80px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden">
+      <div className="relative w-full h-[100dvh] min-h-0 max-w-none rounded-none bg-[#090909] border-0 shadow-none flex flex-col overflow-hidden">
         {/* iOS Status Bar */}
-        <div className="h-11 pt-2 px-7 flex items-center justify-between text-white text-xs font-semibold select-none z-30">
-          <span className="font-mono text-[13px] tracking-tight">DEMO</span>
+        <div className="min-h-11 pt-[max(env(safe-area-inset-top),0.5rem)] px-4 sm:px-6 flex items-center justify-between text-white text-xs font-semibold select-none z-30">
+          <span className="font-semibold text-[11px] tracking-wide">CGG HDOS</span>
 
           {/* Dynamic Island (Blueprint §8) */}
           <div
@@ -68,7 +68,7 @@ export const IOSMobileSimulator: React.FC = () => {
               <>
                 <div className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#00E676]" />
-                  <span className="text-[10px] font-mono text-neutral-300">GPS DEMO</span>
+                  <span className="text-[10px] font-mono text-neutral-300">HDOS</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono">
                   {online ? (
@@ -89,7 +89,7 @@ export const IOSMobileSimulator: React.FC = () => {
         </div>
 
         {/* Scrollable Mobile Viewport */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 pb-24 space-y-4 overscroll-contain">
           {/* Quick Switch Header */}
           <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs">
             <div className="flex items-center gap-2">
@@ -98,13 +98,7 @@ export const IOSMobileSimulator: React.FC = () => {
               </span>
               <span className="font-bold text-white">HDOS Mobile</span>
             </div>
-            <button
-              onClick={() => store.setMobileMode(false)}
-              className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 cursor-pointer"
-            >
-              <span>Desktop</span>
-              <X className="w-3 h-3" />
-            </button>
+            <span className="text-[10px] text-neutral-500">Mode Lapangan</span>
           </div>
 
           {/* Dynamic Module Content inside Mobile */}
@@ -118,7 +112,7 @@ export const IOSMobileSimulator: React.FC = () => {
         </div>
 
         {/* iOS Bottom Navigation Bar (Blueprint §8) */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-[#121216]/90 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-2 text-neutral-400 z-30 select-none">
+        <div className="absolute bottom-0 left-0 right-0 min-h-16 pb-[env(safe-area-inset-bottom)] bg-[#121216]/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-2 text-neutral-400 z-30 select-none">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
@@ -171,7 +165,7 @@ export const IOSMobileSimulator: React.FC = () => {
         </div>
 
         {/* Home Indicator Bar */}
-        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/40 rounded-full z-40 pointer-events-none" />
+        
       </div>
     </div>
   );
