@@ -69,6 +69,7 @@ export const HazardModule: React.FC = () => {
         fileName: hazardPhoto.name,
         mimeType: hazardPhoto.type,
         fileBase64: await readImageBase64(hazardPhoto),
+        uploadKey: `hdos-${crypto.randomUUID()}`,
       });
       const newHaz = await createHazardAction({
         title,
