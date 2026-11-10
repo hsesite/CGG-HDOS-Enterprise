@@ -2683,3 +2683,23 @@ test('PICA evidence photos are stored offline and uploaded during queued UPDATE 
   assert.match(syncEngineSource, /evidencePhotoFileId: photoFileId,[\s\S]*?evidencePhotoUrl: photoUrl/);
   assert.match(syncEngineSource, /item\.action === 'CREATE' \|\| item\.action === 'UPDATE'/);
 });
+
+
+test('Contractor SIA documents are stored offline and replayed with an idempotent upload key', () => {
+  const helper = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'offline-documents.ts'), 'utf8');
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const api = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'api.ts'), 'utf8');
+  const gas = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
+  assert.match(helper, /kind: 'contractor-sia'/);
+  assert.match(helper, /10 \* 1024 \* 1024/);
+  assert.match(helper, /uploadKey: `hdos-\$\{document\.id\}`/);
+  assert.match(moduleSource, /saveOfflineContractorSia\(file, unit\.id\)/);
+  assert.match(moduleSource, /entity: 'contractor-sia'/);
+  assert.match(sync, /endpoint === 'contractor-sia'/);
+  assert.match(sync, /uploadOfflineContractorSia\(localDocument\)/);
+  assert.match(sync, /localDocument\.kind !== 'contractor-sia'/);
+  assert.match(api, /uploadKey\?: string/);
+  assert.match(gas, /HDOS_SIA_UPLOAD_KEY:/);
+  assert.match(gas, /candidate\.getDescription\(\)/);
+});
