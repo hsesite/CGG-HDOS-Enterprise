@@ -2376,3 +2376,21 @@ test('store tenant ownership keys use the same Admin CGG company fallback as syn
   assert.match(storeSource, /getUserCompanyCode\(active\)/);
   assert.match(syncSource, /user\.companyCode \|\| \(\(user\.roles \|\| \[\]\)\.includes\('Admin CGG'\) \? 'CGG' : ''\)/);
 });
+
+
+test('sync initialization invalidates its queue scope when persisted queue read fails', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const initStart = syncSource.indexOf('async init(): Promise<void>');
+  const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart);
+  const init = syncSource.slice(initStart, initEnd);
+  const readStart = init.indexOf("storedQueue = await hdosDB.getAll<SyncQueueItem>('queue')");
+  const readEnd = init.indexOf('if (abandonStaleInitialization()) return;', readStart);
+  assert.ok(readStart >= 0 && readEnd > readStart);
+  const read = init.slice(readStart, readEnd);
+  assert.match(read, /catch \(error\)/);
+  assert.match(read, /this\.queue = \[\]/);
+  assert.match(read, /this\.queueOwnerKey = ''/);
+  assert.match(read, /hdosEvents\.emit\('sync:queue_updated', \[\]\)/);
+  assert.match(read, /throw error/);
+});
