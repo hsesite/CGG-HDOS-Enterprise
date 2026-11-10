@@ -24,6 +24,11 @@ function getPhotoOwner(): { userId: string; companyCode: string } {
 }
 
 export async function saveOfflineOperationalPhoto(file: File): Promise<string> {
+  // Binary evidence must never fall back to JSON/localStorage, which cannot
+  // preserve Blob bytes. Fail clearly rather than reporting a false save.
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    throw new Error('Penyimpanan foto offline memerlukan IndexedDB pada perangkat ini. Foto belum disimpan.');
+  }
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
     throw new Error('Foto harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
   }
