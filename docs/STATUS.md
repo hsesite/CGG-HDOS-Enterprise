@@ -366,3 +366,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Revisi diprioritaskan sebelum UPDATE lanjutan pada record yang sama; versi server berikutnya dipropagasikan setelah revisi berhasil.
 - [x] Regression tests, typecheck, dan production build berhasil; workflow deployment untuk commit tersebut juga berhasil.
 - [ ] UAT dua pengguna/tenant, perubahan beruntun offline, session expiry, dan konflik nyata pada GAS/Sheets staging masih wajib sebelum sign-off produksi.
+
+
+### Otorisasi PICA frontend — penyelarasan peran approver (10 November 2026)
+- [x] Helper `canApprovePICA()` hanya mengizinkan Foreman Safety atau SPV HSE yang telah diverifikasi, sesuai pemeriksaan tahapan di backend.
+- [x] KTT, Project Manager, PJO, dan Admin CGG tidak memperoleh kewenangan menyetujui tahapan PICA hanya karena kewenangan pengawasan atau administrasi.
+- [x] Regression test memastikan daftar peran helper frontend tetap sama dengan aturan server.
+- [x] Typecheck, 115 regression tests, dan production build berhasil pada commit `dd8d3fcdc28a2637b3de3ab6213c134a6474bc03`.
+- [x] Workflow deploy GitHub Pages untuk commit tersebut selesai dengan conclusion success.
