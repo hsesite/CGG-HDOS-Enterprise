@@ -1520,6 +1520,7 @@ function handleRoute_(
     const existingRecord = readOne_(entity, id);
     if (!existingRecord) return error_(404, 'Record not found');
     if (!isRecordVisibleToUser_(existingRecord, user)) return error_(403, 'Anda tidak memiliki akses untuk mengubah data ini.');
+    try { assertTenantOwnershipUnchanged_(existingRecord, requestedPayload, user); } catch (ownershipError) { return error_(ownershipError.status || 403, ownershipError.message); }
     if (entity === 'picas') {
       const roles = user.roles || [];
       const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));
@@ -3027,6 +3028,20 @@ function requiresRoleVerification_(user) {
 function assertVerifiedRole_(user, actionLabel) {
   if (requiresRoleVerification_(user) && user.roleVerified !== true) {
     throw httpError_(403, 'Jabatan belum diverifikasi. Akun hanya dapat menggunakan akses dasar sampai verifikasi disetujui.');
+  }
+}
+
+function assertTenantOwnershipUnchanged_(existingRecord, requestedPayload, user) {
+  if (isAdminCGG_(user)) return;
+  const ownershipFields = ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode'];
+  for (let index = 0; index < ownershipFields.length; index++) {
+    const field = ownershipFields[index];
+    if (!Object.prototype.hasOwnProperty.call(requestedPayload, field)) continue;
+    const currentValue = String(existingRecord && existingRecord[field] || '').trim().toUpperCase();
+    const requestedValue = String(requestedPayload[field] || '').trim().toUpperCase();
+    if (currentValue !== requestedValue) {
+      throw httpError_(403, 'Identitas kepemilikan perusahaan pada record tidak dapat diubah melalui proses edit.');
+    }
   }
 }
 
