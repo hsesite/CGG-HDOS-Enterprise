@@ -377,8 +377,14 @@ export class HDOSCentralStore {
         continue;
       }
       if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
-      await this.mergeCloudOperationalRecords(entities[index], result.value);
-      refreshed.push(entities[index]);
+      try {
+        await this.mergeCloudOperationalRecords(entities[index], result.value);
+        if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
+        refreshed.push(entities[index]);
+      } catch (error) {
+        failed.push(entities[index]);
+        console.warn(`[HDOS Store] Rekonsiliasi snapshot ${entities[index]} gagal; cache lokal dipertahankan.`, error);
+      }
     }
 
     const repositoryResult = results[4];
