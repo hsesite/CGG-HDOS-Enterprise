@@ -2179,6 +2179,7 @@ test('IndexedDB open failures reject instead of silently switching to a split lo
 });
 
 test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(syncDbSource, /async reconcileSnapshot<T extends \{ id: string \}>/);
   const start = syncDbSource.indexOf('async reconcileSnapshot<');
   const end = syncDbSource.indexOf('async putBundle(', start);
