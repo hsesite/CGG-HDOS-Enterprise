@@ -70,3 +70,16 @@ test('backup captures all local stores from one IndexedDB readonly snapshot', ()
   assert.match(backupSource, /const all = \(localSnapshot\[storeName\] \|\| \[\]\) as unknown\[\]/);
   assert.doesNotMatch(backupSource, /const all = await hdosDB\.getAll/);
 });
+
+test('restore validates archive metadata and rejects unknown store names', () => {
+  assert.match(backupSource, /typeof archive\.owner\.userId !== 'string'/);
+  assert.match(backupSource, /Number\.isFinite\(Date\.parse\(archive\.createdAt\)\)/);
+  assert.match(backupSource, /!\/\^\[a-f0-9\]\{64\}\$\/i\.test\(archive\.checksum\)/);
+  assert.match(backupSource, /allowedStores\.has\(key as StoreName\)/);
+});
+
+test('restore rejects duplicate record IDs instead of silently overwriting archive entries', () => {
+  assert.match(backupSource, /const seenIds = new Set<string>\(\)/);
+  assert.match(backupSource, /if \(seenIds\.has\(item\.id\)\)/);
+  assert.match(backupSource, /Backup memiliki ID duplikat/);
+});
