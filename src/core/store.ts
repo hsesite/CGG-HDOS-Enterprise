@@ -401,21 +401,22 @@ export class HDOSCentralStore {
         .filter(record => !pendingRepositoryDeletes.has(record.id))
         .filter(record => isLocalRecordVisible(record, user, this.getAllowedCompanyCodes())) as unknown as DocumentItem[];
       const remoteById = new Map(remote.map(document => [document.id, document]));
-      const localOffline = this.documents.filter(document =>
-        isLocalRecordVisible(document as unknown as Record<string, unknown>, user, this.getAllowedCompanyCodes()) &&
-        !remoteById.has(document.id) &&
-        document.cloudStored !== true
+      const visibleLocalDocuments = this.documents.filter(document =>
+        isLocalRecordVisible(document as unknown as Record<string, unknown>, user, this.getAllowedCompanyCodes())
+      );
+      const localOffline = visibleLocalDocuments.filter(document =>
+        !remoteById.has(document.id) && document.cloudStored !== true
       );
       const merged = [...remote, ...localOffline];
-      for (const document of remote) await hdosDB.put('repository', document);
       const remoteIds = new Set(remote.map(document => document.id));
-      for (const local of this.documents) {
-        if (isLocalRecordVisible(local as unknown as Record<string, unknown>, user, this.getAllowedCompanyCodes()) &&
-            local.cloudStored === true && !remoteIds.has(local.id)) {
-          await hdosDB.delete('repository', local.id);
-          await hdosDB.delete('photos', `document-file-${local.id}`);
-        }
-      }
+      const staleCloudDocuments = visibleLocalDocuments.filter(document =>
+        document.cloudStored === true && !remoteIds.has(document.id)
+      );
+      if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
+      await hdosDB.reconcileSnapshotBundle([
+        { storeName: 'repository', deleteIds: staleCloudDocuments.map(document => document.id), records: remote },
+        { storeName: 'photos', deleteIds: staleCloudDocuments.map(document => `document-file-${document.id}`), records: [] },
+      ]);
       if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
       this.documents = merged;
       this.formDefinitions = this.formDefinitions.filter(form =>
@@ -833,11 +834,8 @@ export class HDOSCentralStore {
     }
 
     const retainedIds = new Set(next.map((form) => form.id));
-    for (const stale of previous) {
-      if (!retainedIds.has(stale.id)) {
-        await hdosDB.delete('form-definition', stale.id);
-      }
-    }
+    const staleIds = previous.filter(form => !retainedIds.has(form.id)).map(form => form.id);
+    await hdosDB.reconcileSnapshot('form-definition', staleIds, next);
 
     this.formDefinitions = next;
     this.notify();
