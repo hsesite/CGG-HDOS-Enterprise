@@ -1162,7 +1162,7 @@ export class HDOSSyncEngine {
                 delete (updatePayload as Record<string, unknown>).localPhotoId;
               }
             }
-            if (endpoint === 'contractor-p2h') throw new Error('Antrean P2H hanya mendukung operasi CREATE.');
+            if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report') throw new Error('Antrean Contractor hanya mendukung operasi CREATE.');
             const serverRecord = await hseApi.update<Record<string, unknown>>(endpoint, recordId, updatePayload, syncToken);
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
@@ -1206,7 +1206,7 @@ export class HDOSSyncEngine {
             if (!recordId) {
               throw new Error(`ID record tidak ditemukan untuk penghapusan queue item ${item.id}.`);
             }
-            if (endpoint === 'contractor-p2h') throw new Error('Antrean P2H tidak mendukung penghapusan otomatis.');
+            if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report') throw new Error('Antrean Contractor tidak mendukung penghapusan otomatis.');
             if (endpoint === 'repository') {
               await hseApi.deleteRepositoryDocument(recordId, syncToken);
             } else {
