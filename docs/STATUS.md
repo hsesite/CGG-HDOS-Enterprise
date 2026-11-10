@@ -461,3 +461,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] 185 regression tests, typecheck, dan production build berhasil pada commit `c4606580930a10ce8b7b0d987754aac14746ac4b`; deployment GitHub Pages berhasil.
 - [ ] Uji restore aktual dari file backup pada project Apps Script nonproduksi tetap diperlukan. Pemeriksaan ini memvalidasi struktur/dimensi, bukan checksum seluruh isi sel.
 - [ ] Deployment perubahan Apps Script ke project GAS aktif dan uji Drive/Spreadsheet masih merupakan langkah terpisah dari deployment GitHub Pages.
+
+### Backup lokal — validasi metadata dan identitas record arsip (10 November 2026)
+- [x] Restore memvalidasi kelengkapan metadata pemilik arsip, timestamp pembuatan, dan format checksum SHA-256 sebelum memproses record.
+- [x] Nama store yang tidak dikenal ditolak; arsip tidak dapat menyisipkan modul penyimpanan di luar daftar store HDOS.
+- [x] ID record duplikat dalam satu modul ditolak agar tidak terjadi penimpaan diam-diam saat rekonsiliasi.
+- [x] Restore tetap merge-only dan multi-store write tetap atomik pada IndexedDB.
+- [x] 188 regression tests, typecheck frontend/backend, dan production build berhasil pada commit `620c389a3ab4b4660f50b2d1f249c564ebe1e9eb`.
+- [ ] Uji restore aktual dengan arsip foto/Blob, file rusak, dan data tenant berbeda pada perangkat serta GAS staging masih diperlukan.
+- [ ] Deployment GitHub Pages untuk commit ini masih menunggu workflow; perubahan GAS tidak termasuk dalam deployment frontend.
+
