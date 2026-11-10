@@ -2557,3 +2557,16 @@ test('sync initialization invalidates its queue scope when persisted queue read 
   assert.match(read, /hdosEvents\.emit\('sync:queue_updated', \[\]\)/);
   assert.match(read, /throw error/);
 });
+
+
+test('sync replay reads each queued operation from the latest snapshot after server-version propagation', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const replayStart = syncSource.indexOf('const blockedRecordIds = new Set<string>()');
+  const replayEnd = syncSource.indexOf('this.lastSyncTime =', replayStart);
+  assert.ok(replayStart >= 0 && replayEnd > replayStart);
+  const replay = syncSource.slice(replayStart, replayEnd);
+  assert.match(replay, /const orderedQueueIds = \[\.\.\.this\.queue\][\s\S]*?\.map\(queued => queued\.id\)/);
+  assert.match(replay, /for \(const queuedId of orderedQueueIds\) \{\s*const item = this\.queue\.find\(queued => queued\.id === queuedId\)/);
+  assert.match(replay, /this\.queue = this\.queue\.map\(current => updatedById\.get\(current\.id\) \|\| current\)/);
+  assert.doesNotMatch(replay, /for \(const item of \[\.\.\.this\.queue\]\.sort\(compareQueueItemsByTime\)\)/);
+});
