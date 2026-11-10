@@ -627,7 +627,7 @@ export class HDOSSyncEngine {
       queued.ownerUserId === owner.userId &&
       queued.ownerCompanyCode === owner.companyCode &&
       queued.entity === original.entity &&
-      queued.action === 'UPDATE' &&
+      (queued.action === 'UPDATE' || queued.action === 'DELETE') &&
       getRecordId(queued) === recordId &&
       queued.status === 'CONFLICT' &&
       String(queued.error || '').startsWith('Perubahan ditahan karena sinkronisasi perubahan sebelumnya')
