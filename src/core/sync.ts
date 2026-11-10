@@ -3,6 +3,7 @@ import { hdosDB, type StoreName } from './db';
 import { hdosEvents } from './events';
 import { hseApi, ApiError } from './api';
 import { AuthState } from './auth-state';
+import { uploadOfflineOperationalPhoto, type OfflineOperationalPhoto } from './offline-photos';
 
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY_MS = 2000;
@@ -992,7 +993,43 @@ export class HDOSSyncEngine {
             item.action === 'CREATE'
           ) {
             if (endpoint === 'repository') throw new Error('Upload Repository harus melalui alur unggah berkas khusus.');
-            const serverRecord = await hseApi.create<Record<string, unknown>>(endpoint, item.payload, syncToken);
+            let createPayload = item.payload;
+            let localPhotoId: string | undefined;
+            if (createPayload && typeof createPayload === 'object' && !Array.isArray(createPayload)) {
+              const originalPayload = createPayload as Record<string, unknown>;
+              localPhotoId = typeof originalPayload.localPhotoId === 'string' ? originalPayload.localPhotoId : undefined;
+              if (localPhotoId) {
+                let photoFileId = String(originalPayload.photoFileId || '');
+                let photoUrl = String(originalPayload.photoUrl || '');
+                if (!photoFileId || !photoUrl) {
+                  const localPhoto = await hdosDB.getById<OfflineOperationalPhoto>('photos', localPhotoId);
+                  if (!localPhoto) throw new Error('Foto bukti lokal tidak ditemukan. Pulihkan backup perangkat atau lampirkan ulang foto sebelum sinkronisasi.');
+                  const uploadedPhoto = await uploadOfflineOperationalPhoto(localPhoto);
+                  photoFileId = uploadedPhoto.photoFileId;
+                  photoUrl = uploadedPhoto.photoUrl;
+                }
+                // Persist the cloud photo reference before creating the report.
+                // If the response is lost, replay reuses the same Drive file and
+                // does not need the original binary to upload again.
+                item.payload = { ...originalPayload, photoFileId, photoUrl };
+                const localStoreName = getLocalStoreName(item.entity);
+                const recordId = getRecordId(item);
+                const localRecord = localStoreName && recordId
+                  ? await hdosDB.getById<Record<string, unknown> & { id: string }>(localStoreName, recordId)
+                  : null;
+                const bundle: Array<{ storeName: StoreName; item: Record<string, unknown> & { id: string } }> = [
+                  { storeName: 'queue', item: item as unknown as Record<string, unknown> & { id: string } },
+                ];
+                if (localStoreName && localRecord) bundle.push({
+                  storeName: localStoreName,
+                  item: { ...localRecord, photoFileId, photoUrl },
+                });
+                await hdosDB.putBundle(bundle);
+                const { localPhotoId: _localPhotoId, ...cloudPayload } = item.payload as Record<string, unknown>;
+                createPayload = cloudPayload;
+              }
+            }
+            const serverRecord = await hseApi.create<Record<string, unknown>>(endpoint, createPayload, syncToken);
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
             if (localStoreName && serverUpdatedAt) {
@@ -1085,6 +1122,11 @@ export class HDOSSyncEngine {
             } else {
               await hseApi.deleteOperationalRecord(endpoint, recordId, syncToken);
             }
+          }
+
+          if (item.action === 'CREATE' && item.payload && typeof item.payload === 'object' &&
+              typeof (item.payload as Record<string, unknown>).localPhotoId === 'string') {
+            await hdosDB.delete('photos', String((item.payload as Record<string, unknown>).localPhotoId));
           }
 
           await hdosDB.delete(
