@@ -687,7 +687,9 @@ export class HDOSSyncEngine {
 
       if (item.ownerUserId !== owner.userId ||
           item.ownerCompanyCode !== owner.companyCode ||
-          item.retryCount < MAX_RETRIES) continue;
+          item.retryCount < MAX_RETRIES ||
+          item.status === 'CONFLICT' ||
+          item.status === 'RESOLVED') continue;
 
       // An unsupported entity is a configuration gap, not a transient
       // failure. Keep it quarantined until its cloud endpoint is implemented.
