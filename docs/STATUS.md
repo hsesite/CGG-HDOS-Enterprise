@@ -394,3 +394,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test untuk antrean aktif/arsip dan umpan balik kegagalan sinkronisasi ditambahkan.
 - [x] Typecheck frontend/backend, seluruh regression tests, validasi konfigurasi produksi, build, dan deployment GitHub Pages berhasil pada commit `7a182764`.
 - [ ] Uji sinkronisasi online/offline, antrean RESOLVED, dan pemulihan konflik pada ponsel fisik serta akun staging tetap diperlukan.
+
+
+### Penyempurnaan mobile — otorisasi navigasi dan logout (10 November 2026)
+- [x] Navigasi utama dan menu modul tambahan pada workspace mobile menggunakan helper otorisasi yang sama dengan desktop.
+- [x] Render isi modul mobile memeriksa ulang hak akses; tab yang tidak lagi diizinkan tidak ditampilkan.
+- [x] Perubahan role/verification mengembalikan tab aktif ke Dashboard bila akses modul sebelumnya dicabut.
+- [x] Tombol logout tersedia pada header workspace mobile dan menggunakan handler sesi utama aplikasi.
+- [x] Regression test untuk visibilitas navigasi, render modul, perubahan role, dan integrasi logout ditambahkan.
+- [x] Typecheck, seluruh regression tests, production build, dan deployment GitHub Pages berhasil pada commit `c80f5bae`.
+- [ ] Uji langsung pada perangkat Android/iOS, orientasi layar, safe-area, serta pergantian akun lintas tab tetap diperlukan.
