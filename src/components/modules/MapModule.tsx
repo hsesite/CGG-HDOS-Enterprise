@@ -4,13 +4,17 @@ import { useHDOSStore } from '../../core/store';
 
 export const MapModule: React.FC = () => {
   const store = useHDOSStore();
-  const mappedLocations = useMemo(() => store.locations.filter((location) =>
-    Number.isFinite(Number(location.lat)) &&
-    Number.isFinite(Number(location.lng)) &&
-    Number(location.lat) >= -90 && Number(location.lat) <= 90 &&
-    Number(location.lng) >= -180 && Number(location.lng) <= 180 &&
-    !(Number(location.lat) === 0 && Number(location.lng) === 0)
-  ), [store.locations]);
+  const mappedLocations = useMemo(() => store.locations.filter((location) => {
+    // Do not coerce empty strings/null into 0° coordinates. Legacy sheet values
+    // may arrive as strings, so accept only non-empty numeric values.
+    const hasCoordinate = (value: unknown) =>
+      (typeof value === 'number' && Number.isFinite(value)) ||
+      (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
+    if (!hasCoordinate(location.lat) || !hasCoordinate(location.lng)) return false;
+    const lat = Number(location.lat);
+    const lng = Number(location.lng);
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat === 0 && lng === 0);
+  }), [store.locations]);
 
   const bounds = useMemo(() => {
     if (mappedLocations.length === 0) return null;
