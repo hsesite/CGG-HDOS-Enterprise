@@ -42,6 +42,13 @@ test('GIS map rejects blank and null coordinate values before numeric coercion',
   assert.doesNotMatch(map, /Number\.isFinite\(Number\(location\.lat\)\)/);
 });
 
+test('PICA store rejects final closure by Foreman Safety alone', () => {
+  const store = fs.readFileSync(path.join(root, 'src', 'core', 'store.ts'), 'utf8');
+  assert.match(store, /const isHSEValidator = sessionUser\?\.roleVerified === true && \(sessionUser\.roles \|\| \[\]\)\.includes\('SPV HSE'\)/);
+  assert.match(store, /Penutupan PICA hanya dapat divalidasi oleh SPV HSE/);
+  assert.doesNotMatch(store, /Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE/);
+});
+
 test('PICA final closure is restricted to verified SPV HSE after both sequential approvals', () => {
   const pica = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
   assert.match(pica, /const isHSEValidator = sessionUser\?\.roleVerified === true && sessionRoles\.includes\('SPV HSE'\)/);
