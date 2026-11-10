@@ -6,6 +6,11 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
+  build: {
+    // Expose the production asset graph so the PWA worker can precache lazy
+    // operational modules as well as the initial entry chunk.
+    manifest: true,
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('.', import.meta.url)),
