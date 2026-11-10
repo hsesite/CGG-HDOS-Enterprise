@@ -354,7 +354,25 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
     };
     void syncCentralRepository();
     return () => { cancelled = true; };
-  }, [sessionUser?.id, sessionUser?.roles?.join(','), hseApi.baseUrl, store.documents.length]);
+  }, [sessionUser?.id, sessionUser?.companyCode, sessionUser?.parentCompanyCode, sessionUser?.roles?.join(','), hseApi.authToken, hseApi.baseUrl, store.documents.length]);
+
+  // Clear account-bound UI state immediately when the active tenant changes.
+  // This prevents a previously selected document or its object URL from
+  // remaining visible while the next tenant's Repository snapshot is loading.
+  useEffect(() => {
+    setSelectedDoc(null);
+    setModalNewDocOpen(false);
+    setSelectedFile(null);
+    if (originalFileUrl) URL.revokeObjectURL(originalFileUrl);
+    setOriginalFileUrl('');
+    setOriginalFileName('');
+    setOriginalFileHtml('');
+    setOriginalFileType(null);
+    setOriginalFileError('');
+    setPreviewingOriginal(false);
+    setRegisterPreview(null);
+    setOfficialDocumentNumber('');
+  }, [sessionUser?.id, sessionUser?.companyCode, sessionUser?.parentCompanyCode]);
 
   // Repair documents uploaded by the earlier flow: a PUBLISHED form means
   // the source document should also be EFFECTIVE in Repository.
