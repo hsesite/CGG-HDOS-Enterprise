@@ -2157,3 +2157,14 @@ test('manual retry never reactivates unresolved CONFLICT or RESOLVED queue items
   assert.ok(retryBlock.indexOf("item.status === 'CONFLICT'") < retryBlock.indexOf("item.status = 'PENDING'"));
   assert.ok(retryBlock.indexOf("item.status === 'RESOLVED'") < retryBlock.indexOf("item.status = 'PENDING'"));
 });
+
+test('IndexedDB synchronous open exceptions do not leave a cached failed initialization promise', () => {
+  const initStart = syncDbSource.indexOf('async init(): Promise<IDBDatabase | null>');
+  const initEnd = syncDbSource.indexOf('private getFallbackKey(', initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart);
+  const initBlock = syncDbSource.slice(initStart, initEnd);
+  assert.ok(initBlock.indexOf('request = indexedDB.open(DB_NAME, DB_VERSION)') < initBlock.indexOf('this.initPromise = new Promise'));
+  const openCatch = initBlock.slice(initBlock.indexOf('} catch (err) {'), initBlock.indexOf('this.initPromise = new Promise'));
+  assert.match(openCatch, /this\.initPromise = null/);
+  assert.match(openCatch, /return null/);
+});
