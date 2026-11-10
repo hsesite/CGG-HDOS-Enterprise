@@ -452,8 +452,8 @@ class HDOSDatabase {
   async claimQueueItem<T extends {
     id: string;
     status: string;
-    ownerUserId: string;
-    ownerCompanyCode: string;
+    ownerUserId?: string;
+    ownerCompanyCode?: string;
     syncStartedAt?: string;
     error?: string;
   }>(
