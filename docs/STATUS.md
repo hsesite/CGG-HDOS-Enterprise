@@ -343,3 +343,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test diperbarui untuk memastikan lookup terarah digunakan.
 - [x] Snapshot konflik hanya diterima jika ID pada respons detail sama persis dengan ID queue item yang ditolak; respons detail yang tidak cocok diabaikan.
 - [ ] UAT konflik lintas pengguna/tenant dan pemeriksaan izin route detail tetap diperlukan pada GAS/Sheets staging.
+
+
+### Manual conflict resolution with retained audit record
+- Sync UI now provides an explicit JSON revision editor for UPDATE conflicts when a verified server snapshot is available.
+- Draft starts from the server snapshot; local payload remains separately visible and must be manually reviewed/copied by the operator. No automatic merge is performed.
+- Resolution validates current user/tenant ownership, conflict status, exact record ID, and server `updatedAt` before queueing a new UPDATE.
+- Record ID, version token, and tenant ownership fields are protected from client edits and are taken from the server snapshot.
+- Original conflict item is retained as `RESOLVED` with actor, timestamp, base server version, and the new queue item ID. A separate pending UPDATE is created atomically in IndexedDB.
+- Resolved audit items are skipped by queue replay and do not block subsequent writes; server-side authorization, workflow, and optimistic concurrency checks remain authoritative.
+- Regression source tests cover owner checks, protected fields, retained audit metadata, atomic queue persistence, and UI action.
+- End-to-end UAT with GAS/Sheets, multi-user tenant sessions, and PICA lifecycle remains required before production sign-off.
