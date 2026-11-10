@@ -351,6 +351,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - Resolution validates current user/tenant ownership, conflict status, exact record ID, and server `updatedAt` before queueing a new UPDATE.
 - Record ID, version token, and tenant ownership fields are protected from client edits and are taken from the server snapshot.
 - Original conflict item is retained as `RESOLVED` with actor, timestamp, base server version, and the new queue item ID. A separate pending UPDATE is created atomically in IndexedDB.
+- Follow-up UPDATE items that were automatically held behind this exact conflict are reactivated atomically without changing their local payloads. The resolved revision is ordered first; normal server-version propagation advances the follow-up updates after the revision succeeds.
 - Resolved audit items are skipped by queue replay and do not block subsequent writes; server-side authorization, workflow, and optimistic concurrency checks remain authoritative.
 - Regression source tests cover owner checks, protected fields, retained audit metadata, atomic queue persistence, and UI action.
 - End-to-end UAT with GAS/Sheets, multi-user tenant sessions, and PICA lifecycle remains required before production sign-off.
