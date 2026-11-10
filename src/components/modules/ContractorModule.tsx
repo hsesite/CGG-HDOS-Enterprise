@@ -17,6 +17,7 @@ import { hseApi, type ContractorComplianceReport, type ContractorComplianceRepor
 import { getCurrentUser } from '../../core/auth-utils';
 import { canDownloadDocuments } from '../../core/access-policy';
 import { hdosDB } from '../../core/db';
+import { saveOfflineContractorSia } from '../../core/offline-documents';
 import { hdosSync } from '../../core/sync';
 import { saveOfflineOperationalPhoto, uploadOfflineOperationalPhoto, type OfflineOperationalPhoto } from '../../core/offline-photos';
 
@@ -265,13 +266,17 @@ export const ContractorModule: React.FC = () => {
     const requestScope = sessionScopeKey;
     setFleetBusy(true); setFleetMessage('');
     try {
-      const fileBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Dokumen SIA tidak dapat dibaca.')); reader.onload = () => resolve(String(reader.result || '').split(',')[1] || ''); reader.readAsDataURL(file); });
+      const localDocumentId = await saveOfflineContractorSia(file, unit.id);
       if (!isCurrentSessionScope(requestScope)) return;
-      await hseApi.uploadContractorSia(unit.id, { fileName: file.name, mimeType: file.type, fileBase64 });
+      await hdosSync.enqueue({
+        action: 'CREATE', entity: 'contractor-sia',
+        payload: { fleetId: unit.id, localDocumentId, fileName: file.name },
+      });
       if (!isCurrentSessionScope(requestScope)) return;
-      setFleetMessage('Dokumen SIA berhasil diunggah dan ditautkan ke unit.');
-      await refreshFleet();
-    } catch (error) { if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Unggah dokumen SIA gagal.'); }
+      setFleetMessage(hdosSync.getIsOnline()
+        ? 'Dokumen SIA tersimpan dan masuk antrean unggah. Status dapat dipantau pada Sinkronisasi.'
+        : 'Dokumen SIA tersimpan aman di perangkat dan akan diunggah otomatis saat koneksi tersedia.');
+    } catch (error) { if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Dokumen SIA gagal disimpan.'); }
     finally { if (isCurrentSessionScope(requestScope)) setFleetBusy(false); }
   };
 
