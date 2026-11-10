@@ -68,7 +68,7 @@ test('KTT client permission matrix does not expose PICA create, update, or overs
   assert.match(row, /'inspection\.read'/);
   assert.match(row, /'hazard\.read'/);
   assert.doesNotMatch(row, /'pica\.(?:read|create|update)'/);
-  assert.match(source, /canMonitorPicas[\s\S]*\['Foreman Safety', 'SPV HSE'\]/);
+  assert.match(source, /function canMonitorPicas_\(user\)[\s\S]*\['Foreman Safety', 'SPV HSE'\]/);
 });
 
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
