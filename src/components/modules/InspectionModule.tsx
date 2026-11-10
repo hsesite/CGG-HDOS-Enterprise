@@ -19,9 +19,10 @@ import {
 import { useHDOSStore } from '../../core/store';
 import { MiningArea, InspectionItem, Inspection, FormDefinition } from '../../core/types';
 import { hdosAuth } from '../../core/auth';
-import { hseApi } from '../../core/api';
 import { createInspectionAction } from '../../core/module-actions';
+import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 import { getCurrentUser } from '../../core/auth-utils';
+import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 
 interface TemplateDef {
   id: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
@@ -153,12 +154,9 @@ export const InspectionModule: React.FC = () => {
           gpsCoordinates = undefined;
         }
       }
-      const uploadedPhoto = await hseApi.uploadOperationalPhoto({
-        fileName: inspectionPhoto.name,
-        mimeType: inspectionPhoto.type,
-        fileBase64: await readImageBase64(inspectionPhoto),
-        uploadKey: `hdos-${crypto.randomUUID()}`,
-      });
+      // Persist the original photo locally before creating the report. The sync
+      // engine uploads it later, including after the device reconnects.
+      const localPhotoId = await saveOfflineOperationalPhoto(inspectionPhoto);
       const newInspection = await createInspectionAction({
         title: selectedRepositoryForm.title,
         templateType: 'WORKSHOP',
@@ -173,8 +171,7 @@ export const InspectionModule: React.FC = () => {
         smkpElement: sourceDoc?.smkpElement || selectedRepositoryForm.category || 'SMKP Document Control',
         scorePercent,
         items,
-        photoFileId: uploadedPhoto.photoFileId,
-        photoUrl: uploadedPhoto.photoUrl,
+        localPhotoId,
         notes: generalNotes,
         picaDepartment: picaDepartment.trim() || String(selectedRepositoryForm.department || '').trim(),
         picaPicName: picaPicName.trim(),
