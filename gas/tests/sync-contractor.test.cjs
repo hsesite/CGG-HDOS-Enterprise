@@ -12,7 +12,7 @@ test('Contractor SIA queue replays CREATE only and quarantines unsupported UPDAT
   const createStart = syncSource.indexOf("if (\n            item.action === 'CREATE'");
   const updateStart = syncSource.indexOf("} else if (\n            item.action === 'UPDATE'", createStart);
   const deleteStart = syncSource.indexOf("} else if (item.action === 'DELETE'", updateStart);
-  const successStart = syncSource.indexOf('await hdosDB.delete(\n            \'queue\'', deleteStart);
+  const successStart = syncSource.indexOf('// Commit queue acknowledgement and local binary cleanup together.', deleteStart);
 
   assert.ok(createStart >= 0, 'CREATE replay branch must exist');
   assert.ok(updateStart > createStart, 'UPDATE replay branch must follow CREATE');
