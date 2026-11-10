@@ -1737,6 +1737,15 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(source, /id: requestId, code: 'P2H-'/);
 });
 
+test('Contractor P2H submissions enter the owner-scoped offline queue and replay with photo evidence', () => {
+  assert.match(p2hUiSource, /hdosSync\.enqueue\([\s\S]*?entity: 'contractor'/);
+  assert.match(p2hUiSource, /fleetId: unit\.id,[\s\S]*?input:[\s\S]*?requestId,[\s\S]*?localPhotoId: p2hLocalPhotoId \|\| undefined/);
+  assert.match(p2hUiSource, /tersimpan di antrean offline perangkat/);
+  assert.match(syncSource, /case 'contractor':[\s\S]*?return 'contractor-p2h'/);
+  assert.match(syncSource, /createContractorP2HRecord\(payload\.fleetId, input/);
+  assert.match(syncSource, /uploadOfflineOperationalPhoto\(localPhoto\)/);
+});
+
 test('Contractor P2H and compliance report drafts persist locally with tenant ownership', () => {
   assert.match(p2hUiSource, /contractor-p2h-draft:/);
   assert.match(p2hUiSource, /getById<\{id:string;ownerUserId:string;ownerCompanyCode:string;draft:ContractorP2HInput/);
