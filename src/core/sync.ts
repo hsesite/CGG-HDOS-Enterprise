@@ -1011,7 +1011,6 @@ export class HDOSSyncEngine {
               await uploadOfflineContractorSia(localDocument);
               await hdosDB.delete('photos', payload.localDocumentId);
             } else if (endpoint === 'contractor-p2h') {
-            if (endpoint === 'contractor-p2h') {
               if (item.action !== 'CREATE') throw new Error('Antrean P2H hanya mendukung operasi CREATE.');
               const payload = item.payload as { fleetId?: string; input?: Record<string, unknown>; localPhotoId?: string };
               if (!payload || typeof payload.fleetId !== 'string' || !payload.fleetId || !payload.input || typeof payload.input !== 'object') {
