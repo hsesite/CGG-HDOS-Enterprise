@@ -423,7 +423,7 @@ class HDOSDatabase {
           error
         );
 
-        resolve(null);
+        reject(new Error(`Gagal membuka data "${storeName}/${id}" dari IndexedDB.`, { cause: error }));
       }
     });
   }
