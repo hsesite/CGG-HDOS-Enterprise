@@ -2685,7 +2685,7 @@ test('sync replay reads each queued operation from the latest snapshot after ser
   assert.ok(replayStart >= 0 && replayEnd > replayStart);
   const replay = syncSource.slice(replayStart, replayEnd);
   assert.match(replay, /const orderedQueueIds = \[\.\.\.this\.queue\][\s\S]*?\.map\(queued => queued\.id\)/);
-  assert.match(replay, /for \(const queuedId of orderedQueueIds\) \{\s*const item = this\.queue\.find\(queued => queued\.id === queuedId\)/);
+  assert.match(replay, /for \(const queuedId of orderedQueueIds\) \{\s*let item = this\.queue\.find\(queued => queued\.id === queuedId\)/);
   assert.match(replay, /this\.queue = this\.queue\.map\(current => updatedById\.get\(current\.id\) \|\| current\)/);
   assert.doesNotMatch(replay, /for \(const item of \[\.\.\.this\.queue\]\.sort\(compareQueueItemsByTime\)\)/);
 });
