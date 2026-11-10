@@ -265,7 +265,7 @@ export interface SyncQueueItem {
     | 'contractor';
   payload: unknown;
   timestamp: string;
-  status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT';
+  status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT' | 'RESOLVED';
   retryCount: number;
   /** Timestamp of the current sync lease; cleared when the item leaves SYNCING. */
   syncStartedAt?: string;
@@ -277,6 +277,12 @@ export interface SyncQueueItem {
   conflictServerRecord?: Record<string, unknown>;
   /** Timestamp when the server-side conflict snapshot was captured. */
   conflictDetectedAt?: string;
+  /** Explicit human resolution audit metadata; original conflict remains retained. */
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolvedQueueItemId?: string;
+  resolutionBaseUpdatedAt?: string;
+  resolutionOfQueueItemId?: string;
   note?: string;
   error?: string;
 }
