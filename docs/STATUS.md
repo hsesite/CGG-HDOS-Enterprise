@@ -374,3 +374,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test memastikan daftar peran helper frontend tetap sama dengan aturan server.
 - [x] Typecheck, 115 regression tests, dan production build berhasil pada commit `dd8d3fcdc28a2637b3de3ab6213c134a6474bc03`.
 - [x] Workflow deploy GitHub Pages untuk commit tersebut selesai dengan conclusion success.
+
+### Penyelarasan otorisasi baca PICA (10 November 2026)
+- [x] Daftar PICA (GET seluruh register) dan detail PICA (GET per ID) kini menggunakan cakupan pengawas yang konsisten: Admin CGG/Admin Perusahaan atau Foreman Safety/SPV HSE dengan role terverifikasi; pengguna lain hanya melihat PICA yang ditugaskan kepadanya.
+- [x] KTT dan Project Manager tidak lagi memperoleh akses pengawasan lintas-register PICA hanya karena jabatannya; kewenangan persetujuan/penutupan PICA tetap mengikuti alur Foreman Safety → SPV HSE.
+- [x] Regression test ditambahkan untuk memastikan aturan GET ALL dan GET ONE tetap selaras.
+- [ ] Hasil workflow test setelah perubahan dan UAT dengan akun role berbeda masih harus diverifikasi sebelum sign-off.
