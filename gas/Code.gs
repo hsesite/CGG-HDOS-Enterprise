@@ -4453,7 +4453,7 @@ function createDatabaseRecoveryCopy(backupFileId) {
     const recoveredSpreadsheet = SpreadsheetApp.openById(recoveryFile.getId());
     const recoveryValidation = validateDatabaseSpreadsheet_(recoveredSpreadsheet);
     if (!recoveryValidation.valid) {
-      throw new Error('Validasi salinan pemulihan gagal. Jumlah sheet dengan skema tidak valid: ' + invalidSheets.length + '.');
+      throw new Error('Validasi salinan pemulihan gagal. Sheet hilang: ' + recoveryValidation.missingSheets.join(', ') + '; skema tidak valid: ' + recoveryValidation.invalidSheets.join(', ') + '.');
     }
 
     const logSheet = getSheet_('backup_logs');
