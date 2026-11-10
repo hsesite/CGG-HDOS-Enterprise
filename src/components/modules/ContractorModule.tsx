@@ -386,13 +386,31 @@ export const ContractorModule: React.FC = () => {
       remarks: reportDraft.remarks.trim()
     };
     try {
-      if (editingReportId) await hseApi.updateContractorComplianceReport(editingReportId, payload);
-      else await hseApi.submitContractorComplianceReport(payload);
+      if (editingReportId) {
+        await hseApi.updateContractorComplianceReport(editingReportId, payload);
+        if (!isCurrentSessionScope(requestScope)) return;
+        setReportMessage('Perbaikan laporan berhasil dikirim dan menunggu verifikasi HSE.');
+        await refreshComplianceReports();
+      } else {
+        const requestId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `report_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+        await hdosSync.enqueue({
+          action: 'CREATE',
+          entity: 'contractor-report',
+          payload: { id: `contractor-report:${requestId}`, input: payload },
+        });
+        if (!isCurrentSessionScope(requestScope)) return;
+        setReportMessage(navigator.onLine
+          ? 'Laporan masuk antrean sinkronisasi dan akan dikirim ke HSE.'
+          : 'Laporan tersimpan di perangkat dan akan dikirim otomatis saat koneksi kembali.');
+        if (navigator.onLine) void hdosSync.triggerSync();
+      }
       if (!isCurrentSessionScope(requestScope)) return;
       setEditingReportId('');
       setReportDraft({ period: currentPeriod, manpowerCount: '', equipmentCount: '', mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '', inductionCompletedCount: '', safeHours: '', ltiCount: '0', remarks: '' });
-      setReportMessage('Laporan berhasil dikirim dan menunggu verifikasi HSE.');
-      await refreshComplianceReports();
+      if (reportDraftKey) await hdosDB.delete('contractor', reportDraftKey);
+      loadedReportDraftKey.current = '';
     } catch (error) {
       if (isCurrentSessionScope(requestScope)) setReportMessage(error instanceof Error ? error.message : 'Laporan gagal disimpan.');
     } finally {
