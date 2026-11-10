@@ -420,7 +420,7 @@ export const hseApi = {
     return request<ContractorFleetUnit>('PATCH', `/api/contractor/fleet/${encodeURIComponent(id)}`, input);
   },
 
-  async uploadContractorSia(fleetId: string, input: { fileName: string; mimeType: string; fileBase64: string }): Promise<{ id: string; siaFileName: string; siaMimeType: string; updatedAt: string }> {
+  async uploadContractorSia(fleetId: string, input: { fileName: string; mimeType: string; fileBase64: string; uploadKey?: string }): Promise<{ id: string; siaFileName: string; siaMimeType: string; updatedAt: string }> {
     return request('POST', `/api/contractor/fleet/${encodeURIComponent(fleetId)}/sia`, input);
   },
 
