@@ -1010,7 +1010,7 @@ export class HDOSSyncEngine {
                 input.photoFileName = localPhoto.fileName;
                 input.photoMimeType = localPhoto.mimeType;
                 item.payload = { ...payload, input };
-                await hdosDB.put('queue', item);
+                await hdosDB.putBundle([{ storeName: 'queue', item }]);
               }
               await hseApi.createContractorP2HRecord(payload.fleetId, input as Parameters<typeof hseApi.createContractorP2HRecord>[1]);
             } else {
