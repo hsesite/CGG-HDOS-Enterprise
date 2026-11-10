@@ -1729,9 +1729,9 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /saveOfflineOperationalPhoto\(file\)/);
   assert.match(p2hUiSource, /localPhotoId: p2hLocalPhotoId \|\| undefined/);
   assert.match(p2hUiSource, /capture="environment"/);
-  assert.match(p2hUiSource, /hdosDB\.delete\('photos', p2hLocalPhotoId\)/);
+  assert.match(syncEngineSource, /hdosDB\.delete\('photos', String\(\(item\.payload as Record<string, unknown>\)\.localPhotoId\)\)/);
   assert.doesNotMatch(p2hUiSource, /p2hPhotoFile && !p2hPhotoReference/);
-  assert.match(p2hUiSource, /setP2hPhotoReference\(photoReference\)/);
+  assert.match(p2hUiSource, /photoReference: p2hPhotoReference/);
   assert.match(p2hUiSource, /setP2hPhotoReference\(null\)/);
   assert.match(source, /id: requestId, code: 'P2H-'/);
 });
