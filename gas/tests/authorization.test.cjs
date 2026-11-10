@@ -33,6 +33,23 @@ function loadScope() {
 }
 const applyRecordScope = loadScope();
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
+test('non-Admin CGG cannot change operational record tenant ownership fields', () => {
+  const context = {
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    httpError_: (status, message) => Object.assign(new Error(message), {status})
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function assertTenantOwnershipUnchanged_(');
+  const end = source.indexOf('function applyRecordScope_(', start + 1);
+  assert.notEqual(start, -1); assert.notEqual(end, -1);
+  vm.runInContext(source.slice(start, end), context);
+  const old = {companyCode:'SLS',contractorCode:'SLS',parentCompanyCode:'',subcontractorCode:'BCJ'};
+  assert.doesNotThrow(() => context.assertTenantOwnershipUnchanged_(old, {companyCode:'sls',subcontractorCode:'BCJ'}, {roles:['Company Admin']}));
+  for (const field of ['companyCode','contractorCode','parentCompanyCode','subcontractorCode','subkonCode','ownerCompanyCode']) {
+    assert.throws(() => context.assertTenantOwnershipUnchanged_(old, {[field]:'VIP'}, {roles:['Company Admin']}), error => error.status === 403);
+  }
+  assert.doesNotThrow(() => context.assertTenantOwnershipUnchanged_(old, {companyCode:'VIP'}, {roles:['Admin CGG']}));
+});
 test('PJO, SPV HSE, Foreman Safety cannot create operational records', () => {
   for (const role of ['PJO','SPV HSE','Foreman Safety']) assert.throws(
     () => applyRecordScope('hazards', {}, {roles:[role],roleVerified:true,companyCode:'SLS'}, true),
