@@ -3878,7 +3878,10 @@ function updateRecord_(
         id: String(id),
         code: old.code,
         createdAt: old.createdAt,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        // The original CREATE fingerprint is server-owned immutable metadata.
+        // Never accept a client-supplied replacement during a later UPDATE.
+        _createFingerprint: old._createFingerprint
       });
 
       if (entity === 'hazards' && safePayload.riskMatrix && isObject_(safePayload.riskMatrix)) {
