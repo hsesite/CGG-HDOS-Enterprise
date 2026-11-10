@@ -1174,39 +1174,52 @@ function handleRoute_(
     const parentCompanyCode = registeredCompany && registeredCompany.role === 'Subkon' ? String(registeredCompany.parentCompanyCode || '').trim().toUpperCase() : '';
     return success_(createRepositoryDocument_(input, bytes, fileMetadata, companyCode, parentCompanyCode, user));
   }
-  const repositoryDeleteMatch = path.match(/^\/api\/repository\/([^/]+)$/);
+  const repositoryDeleteMatch = path.match(/^\\/api\\/repository\\/([^/]+)$/);
   if (repositoryDeleteMatch && method === 'DELETE') {
     if (!isAdminCGG_(user) && !isCompanyAdmin_(user)) return error_(403, 'Hanya Admin CGG atau Admin Perusahaan yang dapat menghapus dokumen Repository.');
     const documentId = decodeURIComponent(repositoryDeleteMatch[1]);
-    const sheet = getSheet_('repository');
-    const rowNumber = findRecordRow_(sheet, documentId);
-    if (!rowNumber) return success_({ id: documentId, deleted: true, alreadyDeleted: true });
-    const doc = parseRow_(sheet, rowNumber);
-    if (!isAdminCGG_(user) && String(doc.companyCode || '').trim().toUpperCase() !== String(user.companyCode || '').trim().toUpperCase()) return error_(403, 'Anda tidak dapat menghapus dokumen perusahaan lain.');
-    const driveFileId = String(doc.driveFileId || '');
-    if (driveFileId) {
-      try {
-        const repositoryFile = DriveApp.getFileById(driveFileId);
-        if (!isRepositoryDriveFile_(repositoryFile)) throw httpError_(403, 'Berkas tidak berada di folder Repository HDOS yang terdaftar.');
-        repositoryFile.setTrashed(true);
-      } catch (driveError) {
-        throw httpError_(getErrorStatus_(driveError) || 500, 'Metadata tidak dihapus karena kepemilikan berkas Repository tidak dapat diverifikasi: ' + driveError.message);
-      }
-    }
-    sheet.deleteRow(rowNumber);
-    // Remove published form definitions sourced from this document so they cannot remain as orphaned forms.
+    const deleteLock = LockService.getScriptLock();
+    let deleted = false;
+    let formCleanupFailed = false;
+    // Serialize lookup, tenant authorization, Drive trashing, and row removal.
+    // Without this lock, concurrent retries can act on a stale row index.
+    deleteLock.waitLock(10000);
     try {
-      const formsSheet = getSheet_('forms');
-      const formRows = formsSheet.getDataRange().getValues();
-      for (let formIndex = formRows.length - 1; formIndex >= 1; formIndex--) {
-        const formRecord = parseRow_(formsSheet, formIndex + 1);
-        if (String(formRecord.sourceDocumentId || '') === documentId) formsSheet.deleteRow(formIndex + 1);
+      const sheet = getSheet_('repository');
+      const rowNumber = findRecordRow_(sheet, documentId);
+      if (!rowNumber) return success_({ id: documentId, deleted: true, alreadyDeleted: true });
+      const doc = parseRow_(sheet, rowNumber);
+      if (!isAdminCGG_(user) && String(doc.companyCode || '').trim().toUpperCase() !== String(user.companyCode || '').trim().toUpperCase()) return error_(403, 'Anda tidak dapat menghapus dokumen perusahaan lain.');
+      const driveFileId = String(doc.driveFileId || '');
+      if (driveFileId) {
+        try {
+          const repositoryFile = DriveApp.getFileById(driveFileId);
+          if (!isRepositoryDriveFile_(repositoryFile)) throw httpError_(403, 'Berkas tidak berada di folder Repository HDOS yang terdaftar.');
+          repositoryFile.setTrashed(true);
+        } catch (driveError) {
+          throw httpError_(getErrorStatus_(driveError) || 500, 'Metadata tidak dihapus karena kepemilikan berkas Repository tidak dapat diverifikasi: ' + driveError.message);
+        }
       }
-    } catch (formDeleteError) {
-      // Repository deletion remains successful; the failure is captured in audit for administrator follow-up.
-      logAudit_(user, 'REPOSITORY_FORM_CLEANUP_FAILED', 'repository', documentId);
+      sheet.deleteRow(rowNumber);
+      SpreadsheetApp.flush();
+      deleted = true;
+      // Remove published form definitions sourced from this document so they cannot remain as orphaned forms.
+      try {
+        const formsSheet = getSheet_('forms');
+        const formRows = formsSheet.getDataRange().getValues();
+        for (let formIndex = formRows.length - 1; formIndex >= 1; formIndex--) {
+          const formRecord = parseRow_(formsSheet, formIndex + 1);
+          if (String(formRecord.sourceDocumentId || '') === documentId) formsSheet.deleteRow(formIndex + 1);
+        }
+        SpreadsheetApp.flush();
+      } catch (formDeleteError) {
+        formCleanupFailed = true;
+      }
+    } finally {
+      deleteLock.releaseLock();
     }
-    logAudit_(user, 'REPOSITORY_DOCUMENT_DELETED', 'repository', documentId);
+    if (formCleanupFailed) logAudit_(user, 'REPOSITORY_FORM_CLEANUP_FAILED', 'repository', documentId);
+    if (deleted) logAudit_(user, 'REPOSITORY_DOCUMENT_DELETED', 'repository', documentId);
     return success_({ id: documentId, deleted: true });
   }
 
