@@ -31,6 +31,8 @@ export const SyncModule: React.FC = () => {
   const [resolvingConflictId, setResolvingConflictId] = useState<string | null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState('');
+  const actionableQueue = queue.filter(item => item.status !== 'RESOLVED');
+  const resolvedQueueCount = queue.length - actionableQueue.length;
 
   useEffect(() => {
     const un1 = hdosEvents.on('sync:offline_status_changed', (payload) => {
@@ -57,8 +59,18 @@ export const SyncModule: React.FC = () => {
   }, []);
 
   const handleTriggerSync = async () => {
-    await hdosSync.retryFailedItems();
-    await hdosSync.triggerSync();
+    try {
+      await hdosSync.retryFailedItems();
+      await hdosSync.triggerSync();
+    } catch (error) {
+      setLogs(current => [{
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        message: error instanceof Error ? `Sinkronisasi gagal dijalankan: ${error.message}` : 'Sinkronisasi gagal dijalankan.',
+        type: 'warning' as const,
+      }, ...current].slice(0, 100));
+      setQueue(hdosSync.getQueue());
+      setSyncing(hdosSync.getIsSyncing());
+    }
   };
 
   const handleResolveConflict = async (queueItemId: string) => {
@@ -207,7 +219,7 @@ export const SyncModule: React.FC = () => {
           </button>
           <button
             onClick={handleTriggerSync}
-            disabled={syncing || !online || queue.length === 0}
+            disabled={syncing || !online || actionableQueue.length === 0}
             className="px-4 py-1.5 rounded-xl bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-xs flex items-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer disabled:opacity-40"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
@@ -261,10 +273,10 @@ export const SyncModule: React.FC = () => {
         <div className="apple-glass-card p-5 rounded-2xl space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
-              Antrean Sinkronisasi (Queue: {queue.length})
+              Antrean Sinkronisasi (Aktif: {actionableQueue.length} · Arsip: {resolvedQueueCount})
             </span>
             <span className="text-[10px] font-mono text-amber-400">
-              {queue.length > 0 ? 'Menunggu koneksi / pemicu' : 'Seluruh antrean bersih'}
+              {actionableQueue.length > 0 ? 'Operasi menunggu / perlu ditinjau' : resolvedQueueCount > 0 ? 'Tidak ada operasi tertunda' : 'Antrean kosong'}
             </span>
           </div>
 
