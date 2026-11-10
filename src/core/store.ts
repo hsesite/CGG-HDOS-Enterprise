@@ -35,6 +35,17 @@ function isLocalRecordVisible(
   return company === own || subkon === own || parent === own;
 }
 
+function getFormVisibilityRecord(
+  form: FormDefinition,
+  documents: DocumentItem[],
+): Record<string, unknown> {
+  const source = documents.find(document => document.id === form.sourceDocumentId);
+  return {
+    ...(source as unknown as Record<string, unknown> || {}),
+    ...(form as unknown as Record<string, unknown>),
+  };
+}
+
 function getCurrentTenantFields() {
   const user = AuthState.getUser();
   const companyCode = String(user?.companyCode || (user?.roles?.includes('Admin CGG') ? 'CGG' : '')).trim().toUpperCase();
@@ -207,7 +218,7 @@ export class HDOSCentralStore {
     // survive application startup and offline refreshes.
     this.formDefinitions = this.formDefinitions.filter(form =>
       isLocalRecordVisible(
-        form as unknown as Record<string, unknown>,
+        getFormVisibilityRecord(form, this.documents),
         currentUser,
         allowedCompanyCodes
       )
@@ -817,9 +828,19 @@ export class HDOSCentralStore {
       throw new Error('Formulir tidak ditemukan.');
     }
 
+    const existingTenant = existing as unknown as Record<string, unknown>;
+    const immutableTenantFields = {
+      companyCode: existingTenant.companyCode,
+      contractorCode: existingTenant.contractorCode,
+      parentCompanyCode: existingTenant.parentCompanyCode,
+      subcontractorCode: existingTenant.subcontractorCode,
+      subkonCode: existingTenant.subkonCode,
+      ownerCompanyCode: existingTenant.ownerCompanyCode,
+    };
     const updated: FormDefinition = {
       ...existing,
       ...updates,
+      ...immutableTenantFields,
       id: existing.id,
       createdAt: existing.createdAt,
       updatedAt: new Date().toISOString(),
@@ -860,7 +881,7 @@ export class HDOSCentralStore {
     if (!user) return;
     const isVisibleToActiveTenant = (form: FormDefinition): boolean =>
       isLocalRecordVisible(
-        form as unknown as Record<string, unknown>,
+        getFormVisibilityRecord(form, this.documents),
         user,
         this.getAllowedCompanyCodes()
       );
@@ -873,7 +894,11 @@ export class HDOSCentralStore {
     const nextVisible: FormDefinition[] = [];
 
     for (const remote of published) {
-      if (!isVisibleToActiveTenant(remote)) continue;
+      if (!isLocalRecordVisible(
+        getFormVisibilityRecord(remote, this.documents),
+        user,
+        this.getAllowedCompanyCodes()
+      )) continue;
       const local = previousVisible.find((form) =>
         form.id === remote.id || Boolean(remote.sourceDocumentId && form.sourceDocumentId === remote.sourceDocumentId)
       );
