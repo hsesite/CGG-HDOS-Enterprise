@@ -14,19 +14,21 @@ import { ApiError, hseApi } from './core/api';
 import { hdosEvents } from './core/events';
 import { hdosStore } from './core/store';
 
-// Module Components
-import { DashboardModule } from './components/modules/DashboardModule';
-import { InspectionModule } from './components/modules/InspectionModule';
-import { HazardModule } from './components/modules/HazardModule';
-import { PICAModule } from './components/modules/PICAModule';
-import { IncidentModule } from './components/modules/IncidentModule';
-import { RepositoryModule } from './components/modules/RepositoryModule';
-import { ContractorModule } from './components/modules/ContractorModule';
-import { MapModule } from './components/modules/MapModule';
-import { AIModule } from './components/modules/AIModule';
-import { SyncModule } from './components/modules/SyncModule';
-import { SettingsModule } from './components/modules/SettingsModule';
-import { RoleVerificationPanel } from './components/modules/RoleVerificationPanel';
+// Lazy-loaded operational modules keep the initial application bundle small.
+import {
+  DashboardModule,
+  InspectionModule,
+  HazardModule,
+  PICAModule,
+  IncidentModule,
+  RepositoryModule,
+  ContractorModule,
+  MapModule,
+  AIModule,
+  SyncModule,
+  SettingsModule,
+  RoleVerificationPanel,
+} from './components/modules/lazyModules';
 
 // Module Icons
 import {
