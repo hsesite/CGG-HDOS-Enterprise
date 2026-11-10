@@ -451,3 +451,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression coverage ditambahkan untuk penyimpanan lokal, upload queue replay, idempotensi dan cakupan backup.
 - [ ] Uji end-to-end pada perangkat nyata masih diperlukan: buat laporan offline, tutup browser/app, buka kembali, online-kan perangkat, verifikasi satu file Drive dan satu record cloud.
 - [ ] Deploy GAS versi terbaru dan uji kapasitas/quota IndexedDB serta restore backup foto pada Android/iOS staging masih pending.
+
+### Backup database — verifikasi kesetaraan struktur salinan (10 November 2026)
+- [x] Backup Google Drive memvalidasi seluruh sheet dan skema kanonis sebelum dicatat berhasil.
+- [x] Backup membandingkan jumlah baris, jumlah kolom, dan header seluruh sheet wajib terhadap database sumber; salinan yang berbeda tidak dinyatakan valid.
+- [x] Salinan pemulihan non-destruktif dibandingkan kembali dengan backup asal sebelum status `RECOVERY_COPY_VERIFIED` dicatat.
+- [x] Kegagalan verifikasi menyebabkan salinan pemulihan dibersihkan; database aktif tidak diubah.
+- [x] Regression test mencakup perbedaan jumlah baris dan header.
+- [x] 185 regression tests, typecheck, dan production build berhasil pada commit `c4606580930a10ce8b7b0d987754aac14746ac4b`; deployment GitHub Pages berhasil.
+- [ ] Uji restore aktual dari file backup pada project Apps Script nonproduksi tetap diperlukan. Pemeriksaan ini memvalidasi struktur/dimensi, bukan checksum seluruh isi sel.
+- [ ] Deployment perubahan Apps Script ke project GAS aktif dan uji Drive/Spreadsheet masih merupakan langkah terpisah dari deployment GitHub Pages.
