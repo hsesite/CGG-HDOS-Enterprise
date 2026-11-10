@@ -423,3 +423,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test ditambahkan untuk memastikan replay memakai item terbaru dan aturan antrean tetap konsisten.
 - [x] 168 regression tests, typecheck frontend/backend, dan production build berhasil pada commit e6245274114d55b043740be80c22899dc13235fd.
 - [ ] UAT rangkaian CREATE → beberapa UPDATE offline pada satu record, termasuk respons cloud terlambat/hilang, tetap diperlukan pada GAS/Sheets staging.
+
+
+### Mobile — akses kamera bukti lapangan (10 November 2026)
+- [x] Input foto pada Inspection dan Hazard menggunakan preferensi kamera belakang perangkat mobile melalui atribut capture environment.
+- [x] Validasi format JPG/PNG/WEBP dan batas ukuran 5 MB tetap diberlakukan.
+- [x] Regression test mencakup kedua modul dan validasi ukuran foto.
+- [x] 169 regression tests, typecheck frontend/backend, dan production build berhasil pada commit 1faaf4ecd8e0366355506e4f9446e2ee63ec33c1.
+- [ ] Perilaku pemanggilan kamera perlu dikonfirmasi pada perangkat Android/iOS nyata; browser dapat tetap menampilkan pilihan kamera/galeri sesuai implementasi perangkat.
