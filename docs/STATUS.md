@@ -502,3 +502,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Pemulihan setelah error engine hanya melepas lease yang benar-benar diklaim oleh proses sinkronisasi tersebut dan timestamp lease masih sama; lease tab lain tidak ikut direset.
 - [x] Regression suite: 195 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil. Deployment GitHub Pages berhasil pada commit `5200e735232a5f0f4ad0fed4ef607bae8143670a`.
 - [ ] UAT multi-tab pada browser Android/iOS, browser tanpa Web Locks, dan jaringan terputus ketika request sedang berlangsung tetap diperlukan.
+
+### Mobile PWA — instalasi dan pembukaan ulang app shell offline (10 November 2026)
+- [x] Manifest PWA menetapkan nama HDOS, scope relatif GitHub Pages, tampilan standalone, tema, dan ikon aplikasi.
+- [x] Metadata HTML mendukung instalasi layar utama Android dan iOS.
+- [x] Service worker mendaftarkan dirinya relatif terhadap `BASE_URL`, sehingga tidak mengasumsikan hosting pada domain root.
+- [x] App shell, entry JS/CSS, manifest, dan ikon dicache; navigasi memakai network-first dengan fallback ke app shell lokal.
+- [x] Hanya GET same-origin dalam scope aplikasi yang ditangani; request API lintas origin dan operasi non-GET tidak dicache.
+- [x] Panduan instalasi Android/iOS dan batas kemampuan offline ditambahkan ke README.
+- [x] 201 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `a822d35dcc8c415111ba52fe954c85d69a370ada`.
+- [ ] Uji instalasi, pembukaan ulang offline, update service worker, dan ikon pada perangkat Android/iOS nyata tetap diperlukan.
