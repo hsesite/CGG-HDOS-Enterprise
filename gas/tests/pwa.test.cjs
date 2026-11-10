@@ -49,6 +49,12 @@ test('Vite exposes the complete build graph for lazy-module offline precaching',
   assert.match(worker, /Array\.isArray\(assetEntry\.assets\)/);
 });
 
+test('PWA cache upgrades remove stale HDOS shell versions', () => {
+  assert.match(worker, /CACHE_NAME = CACHE_PREFIX \+ 'v2'/);
+  assert.match(worker, /key\.startsWith\(CACHE_PREFIX\) && key !== CACHE_NAME/);
+  assert.match(worker, /caches\.delete\(key\)/);
+});
+
 test('service worker never intercepts non-GET or cross-origin API requests', () => {
   assert.match(worker, /if \(request\.method !== 'GET'\) return/);
   assert.match(worker, /url\.origin !== self\.location\.origin/);
