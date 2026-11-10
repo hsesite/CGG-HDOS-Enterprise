@@ -170,8 +170,8 @@ export const InspectionModule: React.FC = () => {
 
       setSuccessMessage(
         failedCount > 0
-          ? `Pemeriksaan ${newInspection.code} tersimpan. ${failedCount} temuan dicatat dan PICA dibuat otomatis.`
-          : `Pemeriksaan ${newInspection.code} selesai tanpa temuan dan tersimpan di Riwayat Pemeriksaan.`
+          ? `Pemeriksaan ${newInspection.code} tersimpan di perangkat. Foto bukti menunggu sinkronisasi; ${failedCount} temuan dicatat dan PICA dibuat otomatis.`
+          : `Pemeriksaan ${newInspection.code} selesai tanpa temuan. Data dan foto bukti tersimpan di perangkat dan menunggu sinkronisasi.`
       );
       setActiveTab('history');
       setSelectedRepositoryFormId('');
