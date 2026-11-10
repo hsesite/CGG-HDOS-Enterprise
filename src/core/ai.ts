@@ -36,10 +36,10 @@ export class HDOSAIEngine {
     suggestedAction: string;
     boundingBoxes: BoundingBox[];
   }> {
-    // Simulate high-fidelity vision detection pipeline (or integrate with Gemini when online)
+    // DEMO ONLY: this deterministic sample does not inspect imageUrl or run a vision model.
     await new Promise((r) => setTimeout(r, 600));
 
-    // Sample dynamic detection results based on mining scenarios
+    // Fixed illustrative detections for UI demonstration; never treat as field evidence.
     const detections: BoundingBox[] = [
       {
         id: 'box_1',
@@ -123,13 +123,13 @@ export class HDOSAIEngine {
   askSMKPAdvisor(query: string): string {
     const q = query.toLowerCase();
     if (q.includes('apar') || q.includes('kebakaran')) {
-      return 'Berdasarkan Kepdirjen Minerba No. 185.K/37.04/DJB/2019 Lampiran I, pemeriksaan APAR di area tambang dan workshop wajib dilaksanakan minimal setiap 1 (satu) bulan sekali oleh petugas berkompeten, dengan tagging riwayat inspeksi terverifikasi.';
+      return 'Pastikan APAR diperiksa dan dipelihara oleh petugas berkompeten sesuai ketentuan K3, standar teknis, instruksi pabrikan, dan prosedur perusahaan yang berlaku. Catat hasil pemeriksaan, kondisi segel, tekanan, aksesibilitas, serta tindak lanjut ketidaksesuaian. Verifikasi interval pemeriksaan pada dokumen regulasi dan prosedur terkendali sebelum menetapkannya sebagai kewajiban.';
     }
     if (q.includes('pica') || q.includes('tindakan perbaikan')) {
-      return 'Sesuai SMKP Elemen VI (Evaluasi dan Tindak Lanjut), setiap temuan ketidaksesuaian/hazard kategori Critical wajib ditindaklanjuti maksimal 1x24 jam dengan penugasan PIC definitif dan diverifikasi oleh KTT sebelum penutupan status.';
+      return 'Untuk temuan Critical, lakukan pengendalian segera sesuai tingkat risiko, tetapkan PIC dan target waktu berdasarkan prosedur perusahaan, lalu verifikasi efektivitas tindakan oleh pejabat HSE berwenang. Alur PICA HDOS berakhir pada persetujuan SPV HSE; KTT bukan tahap persetujuan penutupan PICA.';
     }
     if (q.includes('lereng') || q.includes('slope') || q.includes('pit')) {
-      return 'Kestabilan lereng tambang (Pit Jaja KM10) mengacu pada Kepmen ESDM 1827 K/30/MEM/2018 Lampiran II tentang Keselamatan Operasi Pertambangan: Faktor Keamanan (FK) lereng tunggal min 1.1 dan lereng keseluruhan min 1.3, wajib dimonitor rutin oleh tim geoteknik.';
+      return 'Kestabilan lereng harus dievaluasi oleh tenaga teknis geoteknik berdasarkan desain lereng yang disetujui, data geologi-geoteknik, kondisi air, hasil pemantauan deformasi, dan kriteria Faktor Keamanan yang berlaku untuk desain serta kondisi tambang. Jangan menggunakan angka FK generik sebagai pengganti kajian geoteknik yang disahkan.';
     }
     return 'Berdasarkan regulasi SMKP Pertambangan (Kepmen ESDM 1827 K/30/MEM/2018), seluruh modul HDOS memastikan kepatuhan 7 Elemen SMKP: Kebijakan, Perencanaan, Organisasi & Personil, Implementasi, Evaluasi, Dokumentasi, serta Tinjauan Manajemen.';
   }
