@@ -2408,7 +2408,7 @@ test('Repository store document mutations bind ownership and publication to the 
   assert.match(add, /\.\.\.tenantFields/);
   assert.match(add, /if \(!isCurrentSession\(\)\)[\s\S]*?Dokumen tidak dipublikasikan ke akun yang baru/);
   assert.match(update, /if \(!isCurrentSession\(\)\)[\s\S]*?Perubahan tidak dipublikasikan ke akun yang baru/);
-  assert.match(update, /const immutableTenantFields = \{[\s\S]*?ownerCompanyCode: existingTenant\.ownerCompanyCode[\s\S]*?ownerUserId: existing\.ownerUserId/);
+  assert.match(update, /const immutableTenantFields: Pick<DocumentItem, 'companyCode' \| 'parentCompanyCode' \| 'ownerUserId'> = \{[\s\S]*?parentCompanyCode: existing\.parentCompanyCode[\s\S]*?ownerUserId: existing\.ownerUserId/);
   assert.match(update, /\.\.\.immutableTenantFields/);
   assert.match(remove, /await hseApi\.deleteRepositoryDocument\(documentId\);\s*if \(!isCurrentSession\(\)\)/);
   assert.match(remove, /await hdosSync\.enqueueBatch\([\s\S]*?if \(!isCurrentSession\(\)\)/);
