@@ -630,6 +630,15 @@ test('PICA approval sequence requires Foreman, then SPV HSE', () => {
 test('PICA oversight reads and updates are limited to Foreman Safety and SPV HSE', () => {
   assert.ok(source.includes("const roles = user.roles || [];\n      const canMonitorPicas = isAdminCGG_(user) || isCompanyAdmin_(user) || (user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }));"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
+}  const routeStart = source.indexOf("path.match(\n      /^\\/api\\/(inspections|hazards|picas|incidents)");
+  const getAllEnd = source.indexOf('// GET ONE', routeStart);
+  const getOneEnd = source.indexOf('// CREATE', getAllEnd);
+  const getAllRoute = source.slice(routeStart, getAllEnd);
+  const getOneRoute = source.slice(getAllEnd, getOneEnd);
+  assert.match(getAllRoute, /\['Foreman Safety', 'SPV HSE'\]/);
+  assert.match(getOneRoute, /\['Foreman Safety', 'SPV HSE'\]/);
+  assert.doesNotMatch(getAllRoute, /\['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'\]/);
+  assert.doesNotMatch(getOneRoute, /Project Manager/);
 });
 test('operational photo upload requires an active registered tenant', () => {
   assert.ok(source.includes("const registeredCompany = findCompanyRegistry_(companyCode);\n      if (!registeredCompany || registeredCompany.status !== 'ACTIVE') return error_(403, 'Perusahaan akun belum terdaftar aktif pada master perusahaan.');"));
