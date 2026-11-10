@@ -326,11 +326,11 @@ export class HDOSCentralStore {
       const companyCode = String(document.companyCode || '').trim();
       const parentCompanyCode = String(document.parentCompanyCode || '').trim();
       const isGlobalDocument = !companyCode && !parentCompanyCode;
-      return isGlobalDocument || isLocalRecordVisible(
+      return Boolean(user) && (isGlobalDocument || isLocalRecordVisible(
         document as unknown as Record<string, unknown>,
         user,
         allowedCompanyCodes
-      );
+      ));
     });
     this.notify();
   }
