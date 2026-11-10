@@ -497,6 +497,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   };
 
   const handleCreateDoc = async (event: React.FormEvent<HTMLFormElement>) => {
+    const sessionSnapshot = captureRepositorySession();
     event.preventDefault();
     resetMessages();
 
@@ -538,6 +539,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       // Do not silently fall back to localStorage for binary files:
       // JSON serialization would not preserve the original file.
       const db = await hdosDB.init();
+      assertRepositorySessionCurrent(sessionSnapshot);
       if (!db) {
         throw new Error('Penyimpanan IndexedDB tidak tersedia. Aktifkan dukungan penyimpanan browser lalu coba lagi.');
       }
@@ -566,25 +568,34 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         ownerUserId: sessionUser?.id || '',
         ownerCompanyCode: String(sessionUser?.companyCode || '').trim().toUpperCase(),
       });
+      assertRepositorySessionCurrent(sessionSnapshot);
 
       try {
         if (hseApi.baseUrl && sessionUser) {
+          const fileBase64 = await fileToBase64(selectedFile);
+          assertRepositorySessionCurrent(sessionSnapshot);
           const cloudDocument = await hseApi.uploadRepositoryDocument({
             ...newDoc,
             fileName: selectedFile.name,
             mimeType: selectedFile.type || 'application/octet-stream',
-            fileBase64: await fileToBase64(selectedFile),
+            fileBase64,
           });
+          assertRepositorySessionCurrent(sessionSnapshot);
           // Keep the local index aligned with the authoritative Drive metadata.
           try {
+            assertRepositorySessionCurrent(sessionSnapshot);
             await store.updateDocument(newDoc.id, {
               ...(cloudDocument as Partial<DocumentItem>),
               cloudStored: true,
             });
+            assertRepositorySessionCurrent(sessionSnapshot);
           } catch (localIndexError) {
             // Avoid leaving an orphaned Drive object if the local metadata index
             // cannot be committed after the central upload has succeeded.
-            try { await hseApi.deleteRepositoryDocument(newDoc.id); }
+            try {
+              assertRepositorySessionCurrent(sessionSnapshot);
+              await hseApi.deleteRepositoryDocument(newDoc.id);
+            }
             catch (cleanupError) {
               console.error('[RepositoryModule] Dokumen cloud perlu rekonsiliasi karena rollback Drive gagal:', cleanupError);
             }
@@ -595,6 +606,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         // Roll back the repository record if the original binary could not be saved.
         // This prevents a document appearing available when its file is missing.
         try {
+          assertRepositorySessionCurrent(sessionSnapshot);
           await store.deleteDocument(newDoc.id);
         } catch (rollbackError) {
           console.error(
@@ -605,6 +617,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
         throw storageError;
       }
 
+      assertRepositorySessionCurrent(sessionSnapshot);
       setSelectedDoc(newDoc);
       setModalNewDocOpen(false);
 
@@ -633,6 +646,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       );
       setOfficialDocumentNumber('');
     } catch (error) {
+      if (!isRepositorySessionCurrent(sessionSnapshot)) return;
       console.error('[RepositoryModule] Gagal mengunggah dokumen:', error);
       setErrorMessage(`Dokumen gagal disimpan: ${getErrorMessage(error)}`);
     } finally {
@@ -797,6 +811,7 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
   };
 
   const handleDeleteDocument = async (doc: DocumentItem) => {
+    const sessionSnapshot = captureRepositorySession();
     const roles = sessionUser?.roles || [];
     const canDelete = roles.includes('Admin CGG') || roles.includes('Company Admin');
     if (!canDelete) {
@@ -814,10 +829,13 @@ const [selectedFile, setSelectedFile] = useState<File | null>(null);
       // The central store handles cloud acknowledgment online and durable
       // queueing offline before removing local Repository metadata.
       await store.deleteDocument(doc.id);
+      assertRepositorySessionCurrent(sessionSnapshot);
       setSelectedDoc(store.documents.find((item) => item.id !== doc.id) || null);
       setSuccessMessage(`Dokumen ${doc.docNumber} berhasil dihapus.`);
     } catch (error) {
-      setErrorMessage(`Dokumen gagal dihapus: ${getErrorMessage(error)}`);
+      if (isRepositorySessionCurrent(sessionSnapshot)) {
+        setErrorMessage(`Dokumen gagal dihapus: ${getErrorMessage(error)}`);
+      }
     } finally {
       setDeleting(false);
     }
