@@ -586,3 +586,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression suite terakhir yang selesai: 215 tes lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi 5 file shell + 33 aset PWA berhasil pada commit `9e752a1a5d0baa5a86df4279f1b87093c34e60ce`.
 - [ ] Integrasi AI vision/parser aktual belum tersedia; fitur tersebut tetap simulasi dan tidak boleh dipakai sebagai bukti inspeksi atau dasar keputusan risiko.
 - [ ] Verifikasi GPS, koordinat GIS terhadap master survey, dan batas dashboard seluruh role/tenant tetap harus masuk UAT.
+
+
+### Penguatan otorisasi penutupan PICA (10 November 2026)
+
+- Penutupan PICA dibatasi pada akun SPV HSE dengan role terverifikasi.
+- Validasi akhir mensyaratkan status `WAITING_HSE` serta persetujuan berurutan Foreman Safety dan SPV HSE.
+- Foreman Safety tetap menjadi pemberi persetujuan tahap pertama, bukan pejabat penutup.
+- Tidak ada tahap persetujuan KTT pada alur PICA.
+- Pengamanan diterapkan pada UI dan lapisan store agar pemanggilan langsung tidak melewati pembatasan.
+- Regression suite: 217 tes lulus, 0 gagal pada commit `20592561b95255bf54333a4ca55b19cc67cdb5a9`; typecheck, production build, dan validasi aset PWA berhasil.
+- UAT lintas role dan tenant serta verifikasi sinkronisasi terhadap Apps Script aktif tetap wajib dilakukan sebelum distribusi produksi.
