@@ -3314,6 +3314,43 @@ function publicUser_(
 // SPREADSHEET FUNCTIONS
 // ============================================================
 
+function validateDatabaseSpreadsheet_(spreadsheet) {
+  if (!spreadsheet) throw new Error('Spreadsheet database tidak tersedia untuk validasi.');
+  const requiredSheets = CONFIG.SHEETS.concat(['repository']);
+  const requiredHeaders = Object.assign({}, ENTITY_SCHEMAS, {
+    users: ['id', 'email', 'password', 'displayName', 'role', 'status', 'passwordHash', 'passwordSalt', 'googleSub', 'companyCode', 'parentCompanyCode', 'position', 'department', 'section', 'roleVerified'],
+    companies: ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry']
+  });
+  const missingSheets = [];
+  const invalidSheets = [];
+  requiredSheets.forEach(function(name) {
+    const sheet = spreadsheet.getSheetByName(name);
+    if (!sheet) {
+      missingSheets.push(name);
+      return;
+    }
+    const expected = requiredHeaders[name] || [];
+    if (expected.length === 0) {
+      invalidSheets.push(name);
+      return;
+    }
+    const lastColumn = sheet.getLastColumn();
+    const headers = lastColumn > 0
+      ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(value) {
+          return String(value || '').trim();
+        })
+      : [];
+    if (expected.some(function(header) { return headers.indexOf(header) < 0; })) {
+      invalidSheets.push(name);
+    }
+  });
+  return {
+    valid: missingSheets.length === 0 && invalidSheets.length === 0,
+    missingSheets: missingSheets,
+    invalidSheets: invalidSheets
+  };
+}
+
 function getHealthReadiness_() {
   const properties = PropertiesService.getScriptProperties();
   const spreadsheetId = String(properties.getProperty('HDOS_SPREADSHEET_ID') || CONFIG.SPREADSHEET_ID || '').trim();
@@ -3331,44 +3368,17 @@ function getHealthReadiness_() {
     return error_(503, 'Backend belum siap: Spreadsheet tidak dapat diakses.');
   }
 
-  const requiredSheets = CONFIG.SHEETS.concat(['repository']);
-  const requiredHeaders = Object.assign({}, ENTITY_SCHEMAS, {
-    users: ['id', 'email', 'password', 'displayName', 'role', 'status', 'passwordHash', 'passwordSalt', 'googleSub', 'companyCode', 'parentCompanyCode', 'position', 'department', 'section', 'roleVerified'],
-    companies: ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry']
-  });
-  let missingSheets = [];
-  let invalidSheets = [];
-  requiredSheets.forEach(function(name) {
-    const sheet = spreadsheet.getSheetByName(name);
-    if (!sheet) {
-      missingSheets.push(name);
-      return;
-    }
-    const expected = requiredHeaders[name];
-    if (!expected || expected.length === 0) {
-      invalidSheets.push(name);
-      return;
-    }
-    const lastColumn = sheet.getLastColumn();
-    const headers = lastColumn > 0
-      ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(value) {
-          return String(value || '').trim();
-        })
-      : [];
-    const missing = expected.filter(function(header) { return headers.indexOf(header) < 0; });
-    if (missing.length > 0) invalidSheets.push(name);
-  });
-  const schemaReady = missingSheets.length === 0 && invalidSheets.length === 0;
-  const ready = schemaReady && googleOAuthConfigured && cggRegistrationPolicyConfigured;
+  const validation = validateDatabaseSpreadsheet_(spreadsheet);
+  const ready = validation.valid && googleOAuthConfigured && cggRegistrationPolicyConfigured;
   return success_({
     status: ready ? 'ready' : 'not_ready',
     checks: {
       spreadsheetAccessible: true,
-      schemaReady: schemaReady,
+      schemaReady: validation.valid,
       googleOAuthConfigured: googleOAuthConfigured,
       cggRegistrationPolicyConfigured: cggRegistrationPolicyConfigured,
-      missingSheetCount: missingSheets.length,
-      invalidSchemaSheetCount: invalidSheets.length
+      missingSheetCount: validation.missingSheets.length,
+      invalidSchemaSheetCount: validation.invalidSheets.length
     }
   });
 }
@@ -4358,6 +4368,18 @@ function createDatabaseBackup() {
     if (!verifiedBackup || verifiedBackup.getMimeType() !== MimeType.GOOGLE_SHEETS) {
       throw new Error('Salinan backup tidak dapat diverifikasi sebagai Google Spreadsheet.');
     }
+    // Verify that the copied spreadsheet opens and retains every required HDOS
+    // sheet/header before logging the backup as successful.
+    const backupSpreadsheet = SpreadsheetApp.openById(verifiedBackup.getId());
+    const backupValidation = validateDatabaseSpreadsheet_(backupSpreadsheet);
+    if (!backupValidation.valid) {
+      throw new Error(
+        'Validasi struktur backup gagal. Sheet hilang: ' +
+        backupValidation.missingSheets.join(', ') +
+        '; skema tidak valid: ' +
+        backupValidation.invalidSheets.join(', ')
+      );
+    }
 
     logSheet.appendRow([backupId, createdAt, verifiedBackup.getId(), verifiedBackup.getName(), 'SUCCESS', 'SCRIPT', 'Database Spreadsheet berhasil dicadangkan dan diverifikasi di Google Drive.']);
     SpreadsheetApp.flush();
@@ -4429,26 +4451,8 @@ function createDatabaseRecoveryCopy(backupFileId) {
     }
 
     const recoveredSpreadsheet = SpreadsheetApp.openById(recoveryFile.getId());
-    const requiredSheets = CONFIG.SHEETS.concat(['repository']);
-    const requiredHeaders = Object.assign({}, ENTITY_SCHEMAS, {
-      users: ['id', 'email', 'password', 'displayName', 'role', 'status', 'passwordHash', 'passwordSalt', 'googleSub', 'companyCode', 'parentCompanyCode', 'position', 'department', 'section', 'roleVerified'],
-      companies: ['companyCode', 'companyName', 'role', 'parentCompanyCode', 'emailDomains', 'autoProvision', 'status', 'passportStatus', 'picName', 'picContact', 'safetyPassportExpiry']
-    });
-    const invalidSheets = [];
-    requiredSheets.forEach(function(name) {
-      const sheet = recoveredSpreadsheet.getSheetByName(name);
-      const expected = requiredHeaders[name] || [];
-      if (!sheet || expected.length === 0) {
-        invalidSheets.push(name);
-        return;
-      }
-      const lastColumn = sheet.getLastColumn();
-      const headers = lastColumn > 0
-        ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(value) { return String(value || '').trim(); })
-        : [];
-      if (expected.some(function(header) { return headers.indexOf(header) < 0; })) invalidSheets.push(name);
-    });
-    if (invalidSheets.length > 0) {
+    const recoveryValidation = validateDatabaseSpreadsheet_(recoveredSpreadsheet);
+    if (!recoveryValidation.valid) {
       throw new Error('Validasi salinan pemulihan gagal. Jumlah sheet dengan skema tidak valid: ' + invalidSheets.length + '.');
     }
 
