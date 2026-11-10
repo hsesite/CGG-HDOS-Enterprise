@@ -642,7 +642,8 @@ export class HDOSCentralStore {
   }
 
   async addDocument(
-  input: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'> & { docNumber?: string; revision?: number }
+  input: Omit<DocumentItem, 'id' | 'docNumber' | 'revision'> & { docNumber?: string; revision?: number },
+  localFile?: { blob: Blob; fileName: string; mimeType: string; size: number; ownerUserId: string; ownerCompanyCode: string },
 ): Promise<DocumentItem> {
    this.assertMutationAllowed('document');
   const categoryCode: Partial<Record<DocumentItem['category'], string>> = {
@@ -675,8 +676,29 @@ export class HDOSCentralStore {
     ...input,
   };
 
-  // Offline First: persist to IndexedDB before updating the UI state.
-  await hdosDB.put('repository', newDocument);
+  // Persist repository metadata and its original binary together. A browser
+  // interruption cannot leave a visible document without its source file.
+  if (localFile) {
+    await hdosDB.putBundle([
+      { storeName: 'repository', item: newDocument },
+      {
+        storeName: 'photos',
+        item: {
+          id: `document-file-${newDocument.id}`,
+          documentId: newDocument.id,
+          ownerUserId: localFile.ownerUserId,
+          ownerCompanyCode: localFile.ownerCompanyCode,
+          blob: localFile.blob,
+          fileName: localFile.fileName,
+          mimeType: localFile.mimeType,
+          size: localFile.size,
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+    ]);
+  } else {
+    await hdosDB.put('repository', newDocument);
+  }
 
   this.documents = [newDocument, ...this.documents];
 
