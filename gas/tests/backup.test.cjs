@@ -55,3 +55,11 @@ test('in-flight queue items are reset to pending when restored', () => {
   assert.match(backupSource, /item\.status = 'PENDING'/);
   assert.match(backupSource, /delete item\.syncStartedAt/);
 });
+
+test('backup export enforces the same 100 MB limit as restore after binary encoding', () => {
+  assert.match(backupSource, /const serialized = JSON\.stringify\(archive\)/);
+  assert.match(backupSource, /const backupBlob = new Blob\(\[serialized\], \{ type: 'application\/json' \}\)/);
+  assert.match(backupSource, /backupBlob\.size <= 0 \|\| backupBlob\.size > MAX_BACKUP_BYTES/);
+  assert.match(backupSource, /Backup melebihi batas 100 MB setelah lampiran dikodekan/);
+  assert.match(backupSource, /file\.size > MAX_BACKUP_BYTES/);
+});
