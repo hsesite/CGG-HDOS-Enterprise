@@ -2896,3 +2896,41 @@ test('Contractor Passport guidance reflects implemented offline P2H photo and SI
   assert.match(moduleSource, /saveOfflineOperationalPhoto\(file\)/);
   assert.match(moduleSource, /saveOfflineContractorSia\(file, unit\.id\)/);
 });
+
+
+test('CREATE fingerprint survives Spreadsheet payload round-trip and cannot be replaced by UPDATE', () => {
+  const parseStart = source.indexOf('function parseRowValues_(');
+  const parseEnd = source.indexOf('function parseRow_(', parseStart);
+  const buildStart = source.indexOf('function buildEntityRow_(');
+  const buildEnd = source.indexOf('function findRecordRow_(', buildStart);
+  assert.ok(parseStart >= 0 && parseEnd > parseStart);
+  assert.ok(buildStart >= 0 && buildEnd > buildStart);
+
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(
+    source.slice(parseStart, parseEnd) + '\n' + source.slice(buildStart, buildEnd),
+    context
+  );
+
+  const headers = ['id', 'code', 'status', 'createdAt', 'updatedAt', 'payload'];
+  const original = {
+    id: 'hazard-roundtrip-01',
+    code: 'HZ-2026-001',
+    status: 'OPEN',
+    createdAt: '2026-11-10T00:00:00.000Z',
+    updatedAt: '2026-11-10T00:00:00.000Z',
+    description: 'Retak pada tangga akses',
+    _createFingerprint: 'immutable-server-fingerprint'
+  };
+  const row = context.buildEntityRow_('inspections', original, headers);
+  const restored = context.parseRowValues_('inspections', headers, row);
+  assert.equal(restored._createFingerprint, original._createFingerprint);
+
+  const updateStart = source.indexOf('function updateRecord_(');
+  const updateEnd = source.indexOf('// ============================================================\n// PARSE SHEET ROW', updateStart);
+  assert.ok(updateStart >= 0 && updateEnd > updateStart);
+  const updateSource = source.slice(updateStart, updateEnd);
+  assert.match(updateSource, /_createFingerprint:\s*old\._createFingerprint/);
+  assert.match(updateSource, /Object\.assign\(\{\}, old, safePayload, \{/);
+});
