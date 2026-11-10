@@ -736,8 +736,8 @@ test('PICA oversight reads and updates are limited to Foreman Safety and SPV HSE
   const getOneEnd = source.indexOf('// CREATE', getAllEnd);
   const getAllRoute = source.slice(routeStart, getAllEnd);
   const getOneRoute = source.slice(getAllEnd, getOneEnd);
-  assert.match(getAllRoute, /\['Foreman Safety', 'SPV HSE'\]/);
-  assert.match(getOneRoute, /\['Foreman Safety', 'SPV HSE'\]/);
+  assert.match(getAllRoute, /canMonitorPicas_\(user\)/);
+  assert.match(getOneRoute, /canMonitorPicas_\(user\)/);
   assert.doesNotMatch(getAllRoute, /\['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'\]/);
   assert.doesNotMatch(getOneRoute, /Project Manager/);
 });
