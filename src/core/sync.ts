@@ -34,6 +34,10 @@ function getEntityEndpoint(
 }
 
 function compareQueueItemsByTime(a: SyncQueueItem, b: SyncQueueItem): number {
+  const sameRecord = getRecordId(a) && getRecordId(a) === getRecordId(b) && a.entity === b.entity;
+  if (sameRecord && Boolean(a.resolutionOfQueueItemId) !== Boolean(b.resolutionOfQueueItemId)) {
+    return a.resolutionOfQueueItemId ? -1 : 1;
+  }
   const timeOrder = String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
   return timeOrder || String(a.id).localeCompare(String(b.id));
 }
@@ -600,18 +604,43 @@ export class HDOSSyncEngine {
       note: [original.note, `Revisi manual dari konflik ${original.id}; basis versi server ${serverUpdatedAt}.`].filter(Boolean).join(' '),
     };
 
-    // Keep the original conflict as an audit record and create a separate
-    // pending update atomically. Never rewrite the original local payload.
+    // Queue items that were only blocked behind this conflict are safe to
+    // resume after the new revision succeeds. Keep their payloads unchanged;
+    // the normal atomic version propagation will advance their base timestamp.
+    const persistedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    const dependentItems = persistedQueue.filter(queued =>
+      queued.id !== original.id &&
+      queued.ownerUserId === owner.userId &&
+      queued.ownerCompanyCode === owner.companyCode &&
+      queued.entity === original.entity &&
+      queued.action === 'UPDATE' &&
+      getRecordId(queued) === recordId &&
+      queued.status === 'CONFLICT' &&
+      String(queued.error || '').startsWith('Perubahan ditahan karena sinkronisasi perubahan sebelumnya')
+    ).map(queued => ({
+      ...queued,
+      status: 'PENDING' as const,
+      retryCount: 0,
+      error: undefined,
+      note: [queued.note, `Antrean dilanjutkan setelah penyelesaian konflik ${original.id}; menunggu versi server terbaru.`].filter(Boolean).join(' '),
+    }));
+
+    // Keep the original conflict as an audit record, create a separate
+    // pending update, and resume dependent local edits atomically.
     await hdosDB.putBundle([
       { storeName: 'queue', item: resolvedOriginal },
       { storeName: 'queue', item: revisedItem },
+      ...dependentItems.map(item => ({ storeName: 'queue' as const, item })),
     ]);
 
     const ownerAfterWrite = this.getCurrentOwner();
     if (ownerAfterWrite && ownerAfterWrite.userId === owner.userId &&
         ownerAfterWrite.companyCode === owner.companyCode &&
         hseApi.authToken === resolutionToken && this.queueOwnerKey === ownerKey) {
-      this.queue = this.queue.map(item => item.id === original.id ? resolvedOriginal : item);
+      const dependentById = new Map(dependentItems.map(item => [item.id, item]));
+      this.queue = this.queue.map(item =>
+        item.id === original.id ? resolvedOriginal : (dependentById.get(item.id) || item)
+      );
       this.queue.push(revisedItem);
       this.queue.sort(compareQueueItemsByTime);
       hdosEvents.emit('sync:queue_updated', [...this.queue]);
