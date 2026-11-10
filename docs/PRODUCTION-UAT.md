@@ -47,6 +47,7 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | DB-09 | Dua pengguna mengubah data berdekatan | Konflik/versi ditangani tanpa menimpa perubahan secara diam-diam | | |
 | DB-10 | Audit trail untuk create/update/delete/approval | Pelaku, aksi, objek, dan waktu tercatat | | |
 | DB-11 | Dua perangkat membuat record bersamaan pada entity yang sama | ID tetap unik dan kode referensi tidak duplikat; kedua record tersimpan | | |
+| DB-12 | CREATE berhasil tersimpan tetapi respons hilang; record kemudian di-UPDATE; payload CREATE awal dikirim ulang | Retry dikenali dari fingerprint CREATE asli, tidak membuat duplikasi, dan payload CREATE berbeda dengan ID sama tetap ditolak 409 | | |
 
 ## 3. Offline-first dan sinkronisasi
 
@@ -63,6 +64,7 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | SYNC-09 | Update record yang sama beberapa kali offline | Urutan perubahan dipertahankan dan konflik versi ditangani | | |
 | SYNC-10 | Browser storage penuh / IndexedDB gagal | Kesalahan terlihat; aplikasi tidak menyatakan data berhasil tersimpan | | |
 | SYNC-11 | Dua tab pada browser yang sama memproses antrean tenant yang sama | Web Locks mencegah replay paralel; antrean tetap konsisten dan tidak ada pengiriman ganda yang tidak perlu | | |
+| SYNC-12 | CREATE dikirim ulang setelah record yang sama telah diperbarui | Fingerprint CREATE asli tetap menjadi acuan; retry sah tidak menjadi konflik palsu | | |
 
 ## 4. Repository, Drive, dan isolasi tenant
 
@@ -101,13 +103,14 @@ Dokumen ini adalah lembar uji operasional. Status implementasi kode, hasil CI, d
 | UAT-02 | Hazard report dan risk rating | Kategori, likelihood, severity, risk score, status, dan bukti konsisten | | |
 | UAT-03 | PICA assignment dan approval | PIC, target, aging, bukti, dan approval sesuai matriks kewenangan | | |
 | UAT-04 | Incident investigation | Kronologi, 5-Why, tindakan, review, dan penutupan tercatat | | |
-| UAT-05 | Contractor Passport dan fleet/P2H | Tenant hanya mengelola data perusahaan sendiri; KPI berasal dari laporan terverifikasi | | |
+| UAT-05 | Contractor Passport dan fleet/P2H/SIA | Tenant hanya mengelola data perusahaan sendiri; KPI berasal dari laporan terverifikasi; foto P2H dan SIA tersimpan/terunggah serta dapat dipratinjau sesuai akses | | |
 | UAT-06 | Dashboard dan laporan | Angka sesuai register sumber, periode, dan freshness data | | |
 | UAT-07 | User acceptance lintas role | Crew, Foreman, Foreman Safety, SPV HSE, KTT, Admin CGG, Contractor, dan Subkon diuji sesuai kewenangan | | |
 | UAT-08 | Distribusi frontend | URL, build, akses, dan panduan pengguna disetujui | | |
 | UAT-09 | Deployment backend GAS | Versi Web App, akses, Script Properties, OAuth, dan Spreadsheet produksi diverifikasi | | |
 | UAT-10 | Go-live approval | Temuan kritis ditutup; pemilik proses, HSE, IT/admin, dan KTT menyetujui | | |
 | UAT-11 | Formulir inspeksi ditarik dari publikasi pada Repository | Setelah snapshot cloud berhasil diperbarui, formulir yang tidak lagi PUBLISHED tidak muncul sebagai pilihan inspeksi baru, termasuk setelah reload/offline cache reconciliation | | |
+| UAT-12 | Alur penutupan PICA | Persetujuan berurutan Foreman Safety → SPV HSE; penutupan selesai pada SPV HSE tanpa persetujuan KTT | | |
 
 ## Kriteria keputusan
 
