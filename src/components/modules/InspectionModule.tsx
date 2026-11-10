@@ -240,6 +240,27 @@ export const InspectionModule: React.FC = () => {
     const passCount = items.filter((i) => i.result === 'PASS').length;
     const scorePercent = Math.round((passCount / items.length) * 100);
 
+    let gpsCoordinates: Inspection['gpsCoordinates'];
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+          })
+        );
+        gpsCoordinates = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          utm: '',
+        };
+      } catch {
+        // GPS is optional. Never substitute hard-coded sample coordinates.
+        gpsCoordinates = undefined;
+      }
+    }
+
     const newInspection = await createInspectionAction({
       title: currentTemplate.title,
       templateType: currentTemplate.id,
@@ -252,11 +273,7 @@ export const InspectionModule: React.FC = () => {
       scorePercent,
       items,
       notes: generalNotes,
-      gpsCoordinates: {
-        lat: -2.9395,
-        lng: 121.9618,
-        utm: '51S 385100 mE 9674800 mN',
-      },
+      ...(gpsCoordinates ? { gpsCoordinates } : {}),
     });
 
     setSubmitting(false);
