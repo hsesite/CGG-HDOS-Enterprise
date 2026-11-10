@@ -206,7 +206,20 @@ export class HDOSSyncEngine {
       return true;
     };
 
-    const storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    let storedQueue: SyncQueueItem[];
+    try {
+      storedQueue = await hdosDB.getAll<SyncQueueItem>('queue');
+    } catch (error) {
+      // Keep the account queue hidden and force the next sync attempt to
+      // initialize again. A failed read must not leave an empty snapshot
+      // marked as successfully loaded for this tenant.
+      if (initGeneration === this.initGeneration && this.queueOwnerKey === requestedOwnerKey) {
+        this.queue = [];
+        this.queueOwnerKey = '';
+        hdosEvents.emit('sync:queue_updated', []);
+      }
+      throw error;
+    }
     if (abandonStaleInitialization()) return;
 
     let quarantinedCount = 0;
