@@ -516,6 +516,113 @@ export class HDOSSyncEngine {
       type: 'warning',
     });
   }
+  async resolveConflict(queueItemId: string, revisedPayload: Record<string, unknown>): Promise<SyncQueueItem> {
+    const owner = this.getCurrentOwner();
+    if (!owner) throw new Error('Login ulang diperlukan untuk menyelesaikan konflik.');
+    if (this.isSyncing) throw new Error('Tunggu sinkronisasi aktif selesai sebelum menyelesaikan konflik.');
+    const ownerKey = `${owner.userId}::${owner.companyCode}`;
+    if (this.queueOwnerKey !== ownerKey) throw new Error('Cakupan antrean berubah. Muat ulang antrean sebelum menyelesaikan konflik.');
+
+    const original = this.queue.find(item => item.id === queueItemId);
+    if (!original || original.status !== 'CONFLICT' ||
+        original.action !== 'UPDATE' ||
+        original.ownerUserId !== owner.userId ||
+        original.ownerCompanyCode !== owner.companyCode ||
+        !original.conflictServerRecord) {
+      throw new Error('Item konflik tidak ditemukan atau tidak lagi memenuhi syarat penyelesaian.');
+    }
+    const endpoint = getEntityEndpoint(original.entity);
+    const recordId = getRecordId(original);
+    const serverRecord = original.conflictServerRecord;
+    const serverRecordId = String(serverRecord.id || '');
+    const serverUpdatedAt = String(serverRecord.updatedAt || '');
+    if (!endpoint || endpoint === 'repository' || !recordId ||
+        serverRecordId !== recordId || !serverUpdatedAt) {
+      throw new Error('Snapshot server tidak lengkap atau tidak cocok. Ambil data pusat dan periksa kembali konflik.');
+    }
+    if (!revisedPayload || typeof revisedPayload !== 'object' || Array.isArray(revisedPayload)) {
+      throw new Error('Data revisi harus berupa objek JSON yang valid.');
+    }
+    if (String(revisedPayload.id || '') !== recordId) {
+      throw new Error('ID record pada data revisi tidak boleh diubah.');
+    }
+
+    // The server snapshot is the concurrency base. Client edits cannot alter
+    // record identity, version token, or tenant ownership metadata.
+    const protectedPayload: Record<string, unknown> = {
+      ...revisedPayload,
+      id: recordId,
+      updatedAt: serverUpdatedAt,
+    };
+    for (const key of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode']) {
+      if (Object.prototype.hasOwnProperty.call(serverRecord, key)) {
+        protectedPayload[key] = serverRecord[key];
+      }
+    }
+
+    const activeOwner = this.getCurrentOwner();
+    if (!activeOwner || activeOwner.userId !== owner.userId ||
+        activeOwner.companyCode !== owner.companyCode ||
+        hseApi.authToken === null || this.queueOwnerKey !== ownerKey) {
+      throw new Error('Sesi atau tenant berubah. Penyelesaian konflik dibatalkan.');
+    }
+
+    const now = new Date().toISOString();
+    const nextId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `queue_${crypto.randomUUID()}`
+      : `queue_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const resolvedOriginal: SyncQueueItem = {
+      ...original,
+      status: 'RESOLVED',
+      resolvedAt: now,
+      resolvedBy: owner.userId,
+      resolvedQueueItemId: nextId,
+      resolutionBaseUpdatedAt: serverUpdatedAt,
+      error: `Konflik diselesaikan secara manual; revisi baru ${nextId} dibuat berdasarkan versi server ${serverUpdatedAt}.`,
+    };
+    const revisedItem: SyncQueueItem = {
+      ...original,
+      id: nextId,
+      timestamp: now,
+      payload: protectedPayload,
+      status: 'PENDING',
+      retryCount: 0,
+      syncStartedAt: undefined,
+      conflictServerRecord: undefined,
+      conflictDetectedAt: undefined,
+      resolvedAt: undefined,
+      resolvedBy: undefined,
+      resolvedQueueItemId: undefined,
+      resolutionBaseUpdatedAt: undefined,
+      resolutionOfQueueItemId: original.id,
+      error: undefined,
+      note: [original.note, `Revisi manual dari konflik ${original.id}; basis versi server ${serverUpdatedAt}.`].filter(Boolean).join(' '),
+    };
+
+    // Keep the original conflict as an audit record and create a separate
+    // pending update atomically. Never rewrite the original local payload.
+    await hdosDB.putBundle([
+      { storeName: 'queue', item: resolvedOriginal },
+      { storeName: 'queue', item: revisedItem },
+    ]);
+
+    const ownerAfterWrite = this.getCurrentOwner();
+    if (ownerAfterWrite && ownerAfterWrite.userId === owner.userId &&
+        ownerAfterWrite.companyCode === owner.companyCode &&
+        this.queueOwnerKey === ownerKey) {
+      this.queue = this.queue.map(item => item.id === original.id ? resolvedOriginal : item);
+      this.queue.push(revisedItem);
+      this.queue.sort(compareQueueItemsByTime);
+      hdosEvents.emit('sync:queue_updated', [...this.queue]);
+      this.syncLogs.unshift({
+        time: formatTime(),
+        message: `Konflik ${original.entity} diselesaikan manual; revisi baru dibuat berdasarkan versi server terbaru.`,
+        type: 'info',
+      });
+    }
+    return revisedItem;
+  }
+
   async retryFailedItems(): Promise<number> {
     const owner = this.getCurrentOwner();
     if (!owner) return 0;
@@ -699,6 +806,7 @@ export class HDOSSyncEngine {
       // overtaking an earlier write that is still pending or has failed.
       const blockedRecordIds = new Set<string>();
       for (const item of [...this.queue].sort(compareQueueItemsByTime)) {
+        if (item.status === 'RESOLVED') continue;
         const itemRecordId = getRecordId(item);
         if (itemRecordId && blockedRecordIds.has(itemRecordId)) {
           item.status = 'CONFLICT';
