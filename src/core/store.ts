@@ -133,6 +133,9 @@ export class HDOSCentralStore {
   private listeners: Set<() => void> = new Set();
   // Monotonic generations prevent an older cloud snapshot from publishing after a newer refresh starts.
   private cloudMergeGeneration = new Map<'inspections' | 'hazards' | 'picas' | 'incidents', number>();
+  // Prevent slower initialization from a previous account/session from publishing
+  // its tenant snapshot after a newer login or logout has started.
+  private initGeneration = 0;
   private maxZIndex: number = 20;
 
   private getAllowedCompanyCodes(): Set<string> {
@@ -143,39 +146,78 @@ export class HDOSCentralStore {
   }
 
   async init(): Promise<void> {
+  const generation = ++this.initGeneration;
+  const initialUser = AuthState.getUser();
+  const initialOwnerKey = initialUser?.id
+    ? `${String(initialUser.id)}::${String(initialUser.companyCode || '').trim().toUpperCase()}`
+    : '';
+  const initialToken = hseApi.authToken;
+  const isCurrentInitialization = (): boolean => {
+    const activeUser = AuthState.getUser();
+    const activeOwnerKey = activeUser?.id
+      ? `${String(activeUser.id)}::${String(activeUser.companyCode || '').trim().toUpperCase()}`
+      : '';
+    return generation === this.initGeneration &&
+      activeOwnerKey === initialOwnerKey &&
+      hseApi.authToken === initialToken;
+  };
   try {
-    // Never carry another account's freshness indicator across a workspace switch.
+    // Never carry another account's freshness indicator or cached records across
+    // a workspace switch while the new tenant snapshot is being assembled.
     this.lastCloudRefreshAt = null;
     this.cloudRefreshFailedSources = [];
+    this.inspections = [];
+    this.hazards = [];
+    this.picas = [];
+    this.incidents = [];
+    this.documents = [];
+    this.formDefinitions = [];
+    this.contractors = [];
+    this.locations = [];
 
     // Load the active account's durable queue before reconciling cloud snapshots.
     // This ensures pending offline writes are never overwritten by older server data.
     await hdosSync.init();
+    if (!isCurrentInitialization()) return;
 
     // Preserve all operational offline data during application upgrades.
     // Only explicitly identified demo seed records are removed below.
-    this.inspections = await hdosDB.getAll<Inspection>('inspection');
+    const storedInspections = await hdosDB.getAll<Inspection>('inspection');
+    if (!isCurrentInitialization()) return;
+    this.inspections = storedInspections;
 
-    this.hazards = await hdosDB.getAll<Hazard>('hazard');
+    const storedHazards = await hdosDB.getAll<Hazard>('hazard');
+    if (!isCurrentInitialization()) return;
+    this.hazards = storedHazards;
 
-    this.picas = await hdosDB.getAll<PICA>('pica');
+    const storedPicas = await hdosDB.getAll<PICA>('pica');
+    if (!isCurrentInitialization()) return;
+    this.picas = storedPicas;
 
-    this.incidents = await hdosDB.getAll<Incident>('incident');
+    const storedIncidents = await hdosDB.getAll<Incident>('incident');
+    if (!isCurrentInitialization()) return;
+    this.incidents = storedIncidents;
 
     // Repository persistence. Remove the known demo seed from older browser databases.
     // Real uploaded documents and their linked forms are preserved.
     const storedDocuments = await hdosDB.getAll<DocumentItem>('repository');
+    if (!isCurrentInitialization()) return;
     const seededDemoDocument = storedDocuments.find((doc) => doc.id === 'doc_1');
     if (seededDemoDocument) {
       await hdosDB.delete('repository', seededDemoDocument.id);
       await hdosDB.delete('photos', 'document-file-doc_1');
     }
     this.documents = storedDocuments.filter((doc) => doc.id !== 'doc_1');
-    this.contractors = await hdosDB.getAll<ContractorPassport>('contractor');
-    this.locations = await hdosDB.getAll<MiningLocationGIS>('maps');
+    const storedContractors = await hdosDB.getAll<ContractorPassport>('contractor');
+    if (!isCurrentInitialization()) return;
+    this.contractors = storedContractors;
+    const storedLocations = await hdosDB.getAll<MiningLocationGIS>('maps');
+    if (!isCurrentInitialization()) return;
+    this.locations = storedLocations;
 
     const storedFormDefinitions =
       await hdosDB.getAll<FormDefinition>('form-definition');
+    if (!isCurrentInitialization()) return;
     const seededDemoForms = storedFormDefinitions.filter((form) => form.sourceDocumentId === 'doc_1');
     for (const form of seededDemoForms) {
       await hdosDB.delete('form-definition', form.id);
@@ -194,6 +236,7 @@ export class HDOSCentralStore {
         // The server master is authoritative across devices. Keep the cached
         // IndexedDB copy only when the API is unavailable (offline mode).
         const centralLocations = await hseApi.listLocations();
+        if (!isCurrentInitialization()) return;
         this.locations = centralLocations;
         for (const location of centralLocations) await hdosDB.put('maps', location);
       } catch (error) {
@@ -201,7 +244,9 @@ export class HDOSCentralStore {
       }
       try {
         const centralCompanies = await hseApi.listCompanies();
+        if (!isCurrentInitialization()) return;
         await this.setContractorsFromCompanyMaster(centralCompanies);
+        if (!isCurrentInitialization()) return;
       } catch (error) {
         console.warn('[HDOS Store] Master kontraktor pusat tidak tersedia; memakai cache lokal.', error);
       }
@@ -243,11 +288,14 @@ export class HDOSCentralStore {
       return recordCode === ownCompanyCode || parentCode === ownCompanyCode;
     });
 
+    if (!isCurrentInitialization()) return;
     if (currentUser && hseApi.isAuthenticated) {
       await this.refreshCloudData();
+      if (!isCurrentInitialization()) return;
     }
 
   } catch (err) {
+    if (!isCurrentInitialization()) return;
     console.error('[HDOS Store] Gagal memuat data lokal secara lengkap', err);
     this.liveFeed.unshift({
       id: `storage-read-error-${Date.now()}`,
