@@ -2209,6 +2209,7 @@ test('repository and published-form snapshots reconcile atomically without parti
   assert.doesNotMatch(forms, /await hdosDB\.delete\('form-definition'/);
   assert.match(refresh, /Rekonsiliasi repository gagal; cache sebelumnya dipertahankan/);
   assert.match(refresh, /Rekonsiliasi formulir gagal; cache sebelumnya dipertahankan/);
+  assert.match(refresh, /Rekonsiliasi snapshot \\$\{entities\[index\]\} gagal; cache lokal dipertahankan/);
   assert.match(forms, /shouldPublish && !shouldPublish\(\)/);
 });
 
