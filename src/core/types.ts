@@ -69,6 +69,8 @@ export interface Inspection {
   notes?: string;
   photoFileId?: string;
   photoUrl?: string;
+  /** Local IndexedDB attachment; removed from the cloud API payload after upload. */
+  localPhotoId?: string;
   picaDepartment?: string;
   picaPicName?: string;
   picaPicEmail?: string;
@@ -99,6 +101,8 @@ export interface Hazard {
   status: 'OPEN' | 'INVESTIGATION' | 'PICA_ISSUED' | 'CLOSED';
   photoUrl?: string;
   photoFileId?: string;
+  /** Local IndexedDB attachment; removed from the cloud API payload after upload. */
+  localPhotoId?: string;
   aiDetected?: boolean;
   aiSuggestions?: string[];
   picaId?: string;
