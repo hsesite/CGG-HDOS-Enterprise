@@ -322,6 +322,10 @@ export const SyncModule: React.FC = () => {
                         if (item.entity === 'contractor-report') {
                           return typeof p2hInput.period === 'string' ? `Laporan kepatuhan periode ${p2hInput.period}` : 'Laporan kepatuhan Contractor';
                         }
+                        if (item.entity === 'contractor-sia') {
+                          const fileName = typeof payload.fileName === 'string' ? payload.fileName : 'Dokumen SIA';
+                          return `Dokumen SIA · ${fileName}`;
+                        }
                         if (item.entity === 'contractor' && typeof payload.fleetId === 'string') {
                           const date = typeof p2hInput.inspectionDate === 'string' ? p2hInput.inspectionDate : '';
                           const unit = typeof payload.unitNumber === 'string' ? payload.unitNumber : payload.fleetId;
