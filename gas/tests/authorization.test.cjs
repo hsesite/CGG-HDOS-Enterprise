@@ -2703,3 +2703,18 @@ test('Contractor SIA documents are stored offline and replayed with an idempoten
   assert.match(gas, /HDOS_SIA_UPLOAD_KEY:/);
   assert.match(gas, /candidate\.getDescription\(\)/);
 });
+
+test('Repository digital-form generation uses tenant-authorized cloud preview and never falls back after a denied preview', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
+  const start = moduleSource.indexOf('const handleGenerateForm = async');
+  const end = moduleSource.indexOf('// Automatically convert existing local Repository documents', start);
+  assert.ok(start >= 0 && end > start);
+  const generate = moduleSource.slice(start, end);
+  assert.match(generate, /const sessionSnapshot = captureRepositorySession\(\)/);
+  assert.match(generate, /if \(hseApi\.baseUrl && sessionUser\) \{[\s\S]*?await hseApi\.previewRepositoryFile\(doc\.id\)[\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.doesNotMatch(generate, /downloadRepositoryDocument/);
+  assert.match(generate, /if \(\(!hseApi\.baseUrl \|\| !sessionUser\) && !canUseLocalDocumentFile\(/);
+  assert.match(generate, /await extractDocumentText\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(generate, /await extractChecklistItemsFromDocument\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(generate, /catch \(error\) \{[\s\S]*?if \(!isRepositorySessionCurrent\(sessionSnapshot\)\) return false/);
+});
