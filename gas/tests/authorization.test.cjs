@@ -2022,6 +2022,7 @@ test('version conflicts preserve local queue payload and capture a tenant-scoped
   const resolutionBlock = syncEngineSource.slice(resolutionStart, resolutionEnd);
   assert.match(resolutionBlock, /original\.status !== 'CONFLICT'/);
   assert.match(resolutionBlock, /original\.ownerUserId !== owner\.userId/);
+  assert.match(resolutionBlock, /hseApi\.authToken !== resolutionToken/, 'resolution must remain bound to the same login session');
   assert.match(resolutionBlock, /serverRecordId !== recordId \|\| !serverUpdatedAt/);
   assert.match(resolutionBlock, /updatedAt: serverUpdatedAt/);
   assert.match(resolutionBlock, /protectedPayload\[key\] = serverRecord\[key\]/);
