@@ -729,7 +729,7 @@ test('PICA monitoring permission is centralized and requires verified HSE roles'
 
 test('PICA oversight reads and updates are limited to Foreman Safety and SPV HSE', () => {
   assert.match(source, /function canMonitorPicas_\(user\) \{/);
-  assert.equal((source.match(/canMonitorPicas_\(user\)/g) || []).length, 2);
+  assert.equal((source.match(/canMonitorPicas_\(user\)/g) || []).length, 3);
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
   const routeStart = source.indexOf("path.match(\n      /^\\/api\\/(inspections|hazards|picas|incidents)");
   const getAllEnd = source.indexOf('// GET ONE', routeStart);
