@@ -48,10 +48,10 @@ export class HDOSAuthEngine {
 
   canApprovePICA(): boolean {
     const user = AuthState.getUser();
-    if (!user) return false;
-    if (isCggAdmin(user)) return true;
-    const approvalRoles = ['KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'];
-    return user.roleVerified === true && user.roles.some((role) => approvalRoles.includes(role));
+    if (!user || user.roleVerified !== true) return false;
+    // Match the server-enforced PICA stages exactly. Admin/KTT/PM/PJO
+    // oversight does not grant authority to approve either HSE stage.
+    return user.roles.some((role) => role === 'Foreman Safety' || role === 'SPV HSE');
   }
 
   init(): void {
