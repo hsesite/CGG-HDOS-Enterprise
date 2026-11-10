@@ -1707,11 +1707,17 @@ test('Overlapping sync initialization cannot let an older IndexedDB read clear a
 });
 
 
-test('Frontend module access uses one server-role policy and blocks unverified PICA approvers', () => {
+test('Frontend module access and PICA approval helper match server-enforced roles', () => {
   const authSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'auth.ts'), 'utf8');
   const policySource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'access-policy.ts'), 'utf8');
   assert.ok(authSource.includes("return canAccessModule(sessionUser, moduleName as import('./access-policy').HDOSModule);"));
-  assert.ok(authSource.includes("return user.roleVerified === true && user.roles.some((role) => approvalRoles.includes(role));"));
+  const picaApprovalStart = authSource.indexOf('canApprovePICA(): boolean {');
+  const picaApprovalEnd = authSource.indexOf('\n  }', picaApprovalStart);
+  assert.ok(picaApprovalStart >= 0 && picaApprovalEnd > picaApprovalStart);
+  const picaApproval = authSource.slice(picaApprovalStart, picaApprovalEnd);
+  assert.match(picaApproval, /user\.roleVerified !== true/);
+  assert.match(picaApproval, /role === 'Foreman Safety' \|\| role === 'SPV HSE'/);
+  assert.doesNotMatch(picaApproval, /Admin CGG|KTT|Project Manager|PJO/);
   assert.ok(policySource.includes("if (requiresRoleVerification(user) && user.roleVerified !== true)"));
   assert.ok(policySource.includes("if (roles.includes('Employee'))"));
 });
