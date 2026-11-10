@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Minus, Square, X, Maximize2 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { WindowId } from '../../core/types';
@@ -112,7 +112,9 @@ export const WindowWrapper: React.FC<WindowWrapperProps> = ({ id, title, childre
 
       {/* Window Body Canvas */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-black/40 text-neutral-100">
-        {children}
+        <Suspense fallback={<div className="flex min-h-40 items-center justify-center text-sm text-neutral-400" role="status" aria-live="polite">Memuat modul operasional...</div>}>
+          {children}
+        </Suspense>
       </div>
     </div>
   );
