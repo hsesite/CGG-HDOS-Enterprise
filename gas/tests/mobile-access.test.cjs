@@ -67,3 +67,14 @@ test('operational modules are lazy-loaded for desktop and mobile workspaces', ()
   assert.match(wrapperSource, /<Suspense fallback=/);
   assert.match(mobileSource, /<Suspense fallback=/);
 });
+
+test('PDF and office parsing libraries are loaded only when their file format is used', () => {
+  const parserSource = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'core', 'document-parser.ts'),
+    'utf8'
+  );
+  assert.doesNotMatch(parserSource, /^import\s+(?:\*\s+as\s+)?(?:pdfjsLib|mammoth|XLSX|pdfWorkerUrl).*from\s+['"](?:pdfjs-dist|mammoth|xlsx)/m);
+  assert.match(parserSource, /import\('pdfjs-dist'\)/);
+  assert.match(parserSource, /import\('mammoth\/mammoth\.browser'\)/);
+  assert.match(parserSource, /import\('xlsx'\)/);
+});
