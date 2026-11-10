@@ -2361,7 +2361,7 @@ test('central Repository snapshots are tenant-filtered before entering the share
   assert.match(setter, /const user = AuthState\.getUser\(\)/);
   assert.match(setter, /const allowedCompanyCodes = this\.getAllowedCompanyCodes\(\)/);
   assert.match(setter, /const isGlobalDocument = !companyCode && !parentCompanyCode/);
-  assert.match(setter, /return isGlobalDocument \|\| isLocalRecordVisible\(/);
+  assert.match(setter, /return Boolean\(user\) && \(isGlobalDocument \|\| isLocalRecordVisible\(/);
   assert.match(setter, /Boolean\(user\) && \(isGlobalDocument \|\| isLocalRecordVisible\(/);
   assert.match(setter, /this\.documents = documents\.filter\(document =>/);
   assert.match(setter, /this\.notify\(\)/);
