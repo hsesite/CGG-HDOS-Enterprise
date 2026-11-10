@@ -65,7 +65,7 @@ export const PICAModule: React.FC = () => {
       reader.onload = () => { const value = String(reader.result || ''); const comma = value.indexOf(','); resolve(comma >= 0 ? value.slice(comma + 1) : value); };
       reader.readAsDataURL(evidencePhotoFile);
     });
-    const uploaded = await hseApi.uploadOperationalPhoto({ fileName: evidencePhotoFile.name, mimeType: evidencePhotoFile.type, fileBase64: dataUrl });
+    const uploaded = await hseApi.uploadOperationalPhoto({ fileName: evidencePhotoFile.name, mimeType: evidencePhotoFile.type, fileBase64: dataUrl, uploadKey: `hdos-${crypto.randomUUID()}` });
     setEvidencePhotoUrl(uploaded.photoUrl);
     setEvidencePhotoFileId(uploaded.photoFileId);
     setEvidencePhotoFile(null);
