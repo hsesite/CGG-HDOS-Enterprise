@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -26,18 +26,20 @@ import { getCurrentUser } from '../../core/auth-utils';
 import { canAccessModule, type HDOSModule } from '../../core/access-policy';
 import { hdosSync } from '../../core/sync';
 import { hseApi } from '../../core/api';
-import { DashboardModule } from '../modules/DashboardModule';
-import { InspectionModule } from '../modules/InspectionModule';
-import { HazardModule } from '../modules/HazardModule';
-import { PICAModule } from '../modules/PICAModule';
-import { MapModule } from '../modules/MapModule';
-import { RepositoryModule } from '../modules/RepositoryModule';
-import { AIModule } from '../modules/AIModule';
-import { IncidentModule } from '../modules/IncidentModule';
-import { ContractorModule } from '../modules/ContractorModule';
-import { SyncModule } from '../modules/SyncModule';
-import { SettingsModule } from '../modules/SettingsModule';
-import { RoleVerificationPanel } from '../modules/RoleVerificationPanel';
+import {
+  DashboardModule,
+  InspectionModule,
+  HazardModule,
+  PICAModule,
+  MapModule,
+  RepositoryModule,
+  AIModule,
+  IncidentModule,
+  ContractorModule,
+  SyncModule,
+  SettingsModule,
+  RoleVerificationPanel,
+} from '../modules/lazyModules';
 
 interface IOSMobileSimulatorProps {
   onLogout: () => void;
@@ -128,6 +130,7 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
           </div>
 
           {/* Dynamic Module Content inside Mobile */}
+          <Suspense fallback={<div className="flex min-h-40 items-center justify-center text-sm text-neutral-400" role="status" aria-live="polite">Memuat modul operasional...</div>}>
           {activeTab === 'dashboard' && canAccessModule(currentUser, 'dashboard') && <DashboardModule />}
           {activeTab === 'inspection' && canAccessModule(currentUser, 'inspection') && <InspectionModule />}
           {activeTab === 'map' && canAccessModule(currentUser, 'map') && <MapModule />}
@@ -139,6 +142,7 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
           {activeTab === 'contractor' && canAccessModule(currentUser, 'contractor') && <ContractorModule />}
           {activeTab === 'sync' && canAccessModule(currentUser, 'sync') && <SyncModule />}
           {activeTab === 'settings' && canAccessModule(currentUser, 'settings') && <><SettingsModule /><RoleVerificationPanel /></>}
+          </Suspense>
         </div>
 
         {/* Mobile quick access for secondary operational modules */}
