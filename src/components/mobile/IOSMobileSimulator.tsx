@@ -19,6 +19,7 @@ import {
   HardHat,
   RefreshCw,
   Settings,
+  LogOut,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { getCurrentUser } from '../../core/auth-utils';
@@ -38,7 +39,11 @@ import { SyncModule } from '../modules/SyncModule';
 import { SettingsModule } from '../modules/SettingsModule';
 import { RoleVerificationPanel } from '../modules/RoleVerificationPanel';
 
-export const IOSMobileSimulator: React.FC = () => {
+interface IOSMobileSimulatorProps {
+  onLogout: () => void;
+}
+
+export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout }) => {
   const store = useHDOSStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inspection' | 'map' | 'repository' | 'pica' | 'hazard' | 'ai' | 'incident' | 'contractor' | 'sync' | 'settings'>('dashboard');
   const [islandExpanded, setIslandExpanded] = useState(false);
@@ -119,7 +124,7 @@ export const IOSMobileSimulator: React.FC = () => {
               </span>
               <span className="font-bold text-white">HDOS Mobile</span>
             </div>
-            <span className="text-[10px] text-neutral-500">Mode Lapangan</span>
+            <div className="flex items-center gap-2"><span className="text-[10px] text-neutral-500">Mode Lapangan</span><button type="button" onClick={onLogout} aria-label="Keluar dari akun" title="Keluar dari akun" className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-neutral-300 hover:bg-red-500/15 hover:text-red-300 active:bg-red-500/20"><LogOut className="h-4 w-4" /></button></div>
           </div>
 
           {/* Dynamic Module Content inside Mobile */}
