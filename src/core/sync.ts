@@ -1017,6 +1017,12 @@ export class HDOSSyncEngine {
                 await hdosDB.putBundle([{ storeName: 'queue', item }]);
               }
               await hseApi.createContractorP2HRecord(payload.fleetId, input as Parameters<typeof hseApi.createContractorP2HRecord>[1]);
+            } else if (endpoint === 'contractor-report') {
+              const payload = item.payload as { input?: unknown };
+              if (!payload || !payload.input || typeof payload.input !== 'object' || Array.isArray(payload.input)) {
+                throw new Error('Payload laporan Contractor tidak lengkap. Periksa draft sebelum mengirim ulang.');
+              }
+              await hseApi.submitContractorComplianceReport(payload.input as Parameters<typeof hseApi.submitContractorComplianceReport>[0]);
             } else {
             let createPayload = item.payload;
             let localPhotoId: string | undefined;
@@ -1092,14 +1098,6 @@ export class HDOSSyncEngine {
                 this.queue = this.queue.map(current => updatedById.get(current.id) || current);
               }
             }
-            } else if (endpoint === 'contractor-report') {
-              if (item.action !== 'CREATE') throw new Error('Antrean laporan Contractor hanya mendukung pengiriman laporan baru.');
-              const payload = item.payload as { input?: unknown };
-              if (!payload || !payload.input || typeof payload.input !== 'object' || Array.isArray(payload.input)) {
-                throw new Error('Payload laporan Contractor tidak lengkap. Periksa draft sebelum mengirim ulang.');
-              }
-              await hseApi.submitContractorComplianceReport(payload.input as Parameters<typeof hseApi.submitContractorComplianceReport>[0]);
-            } else {
             }
           } else if (
             item.action === 'UPDATE'
