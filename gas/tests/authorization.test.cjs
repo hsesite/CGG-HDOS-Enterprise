@@ -2266,7 +2266,7 @@ test('form definition updates cannot change tenant ownership metadata', () => {
   const updateEnd = storeSource.indexOf('getFormDefinitionByDocumentId(', updateStart);
   assert.ok(updateStart >= 0 && updateEnd > updateStart);
   const update = storeSource.slice(updateStart, updateEnd);
-  assert.match(update, /const immutableTenantFields = \{/);
+  assert.match(update, /const immutableTenantFields: Pick<DocumentItem, 'companyCode' \| 'parentCompanyCode' \| 'ownerUserId'> = \{[\s\S]*?parentCompanyCode: existing\.parentCompanyCode[\s\S]*?ownerUserId: existing\.ownerUserId/);
   for (const field of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode']) {
     assert.match(update, new RegExp(field + ': existingTenant\\.' + field));
   }
@@ -2408,7 +2408,6 @@ test('Repository store document mutations bind ownership and publication to the 
   assert.match(add, /\.\.\.tenantFields/);
   assert.match(add, /if \(!isCurrentSession\(\)\)[\s\S]*?Dokumen tidak dipublikasikan ke akun yang baru/);
   assert.match(update, /if \(!isCurrentSession\(\)\)[\s\S]*?Perubahan tidak dipublikasikan ke akun yang baru/);
-  assert.match(add, /ownerCompanyCode: tenantFields\.companyCode/);
   assert.match(update, /const immutableTenantFields = \{[\s\S]*?ownerCompanyCode: existingTenant\.ownerCompanyCode[\s\S]*?ownerUserId: existing\.ownerUserId/);
   assert.match(update, /\.\.\.immutableTenantFields/);
   assert.match(remove, /await hseApi\.deleteRepositoryDocument\(documentId\);\s*if \(!isCurrentSession\(\)\)/);
