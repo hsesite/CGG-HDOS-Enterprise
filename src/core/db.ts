@@ -445,6 +445,71 @@ class HDOSDatabase {
     });
   }
 
+  /**
+   * Atomically claims a pending queue item so tabs without Web Locks cannot
+   * replay the same IndexedDB operation at the same time.
+   */
+  async claimQueueItem<T extends {
+    id: string;
+    status: string;
+    ownerUserId: string;
+    ownerCompanyCode: string;
+    syncStartedAt?: string;
+    error?: string;
+  }>(
+    id: string,
+    ownerUserId: string,
+    ownerCompanyCode: string,
+    startedAt: string,
+  ): Promise<T | null> {
+    const db = await this.init();
+    if (!db) {
+      const queue = this.readFallback<T>('queue');
+      const current = queue.find(item => item.id === id);
+      if (!current || current.status !== 'PENDING' ||
+          current.ownerUserId !== ownerUserId ||
+          current.ownerCompanyCode !== ownerCompanyCode) return null;
+      const claimed = {
+        ...current,
+        status: 'SYNCING',
+        syncStartedAt: startedAt,
+        error: undefined,
+      } as T;
+      this.writeFallback('queue', queue.map(item => item.id === id ? claimed : item));
+      return claimed;
+    }
+
+    return new Promise((resolve, reject) => {
+      let claimed: T | null = null;
+      try {
+        const tx = db.transaction('queue', 'readwrite');
+        const store = tx.objectStore('queue');
+        const request = store.get(id);
+        request.onsuccess = () => {
+          const current = request.result as T | undefined;
+          if (!current || current.status !== 'PENDING' ||
+              current.ownerUserId !== ownerUserId ||
+              current.ownerCompanyCode !== ownerCompanyCode) return;
+          claimed = {
+            ...current,
+            status: 'SYNCING',
+            syncStartedAt: startedAt,
+            error: undefined,
+          } as T;
+          store.put(claimed);
+        };
+        request.onerror = () => {
+          try { tx.abort(); } catch { /* transaction may already be inactive */ }
+        };
+        tx.oncomplete = () => resolve(claimed);
+        tx.onerror = () => reject(tx.error || new Error('Gagal mengklaim antrean sinkronisasi.'));
+        tx.onabort = () => reject(tx.error || new Error('Klaim antrean sinkronisasi dibatalkan.'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async delete(storeName: StoreName, id: string): Promise<void> {
     const db = await this.init();
 
