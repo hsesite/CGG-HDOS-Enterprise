@@ -2588,7 +2588,7 @@ test('operational photo uploads carry an idempotency key and GAS reuses committe
   const offlinePhotos = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'offline-photos.ts'), 'utf8');
   const gas = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
   assert.match(api, /fileBase64: string; uploadKey: string/);
-  assert.match(offlinePhotos, /uploadKey: `hdos-\\$\\{photo\\.id\\}`/);
+  assert.match(offlinePhotos, /uploadKey: `hdos-\$\{photo\.id\}`/);
   assert.match(gas, /HDOS_UPLOAD_KEY:/);
   assert.match(gas, /existingFile\.getDescription\(\)/);
   assert.match(gas, /existingFile\.getId\(\)/);
