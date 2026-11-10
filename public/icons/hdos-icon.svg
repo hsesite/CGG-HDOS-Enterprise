@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0b1220"/>
+  <path d="M256 54 410 112v116c0 108-62 183-154 230C164 411 102 336 102 228V112L256 54Z" fill="#132b46" stroke="#72b7e8" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M256 142v180M166 232h180" stroke="#f4f8fc" stroke-width="34" stroke-linecap="round"/>
+  <path d="M178 354h156" stroke="#72b7e8" stroke-width="18" stroke-linecap="round"/>
+  <text x="256" y="414" fill="#f4f8fc" font-family="Arial,sans-serif" font-size="38" font-weight="700" text-anchor="middle">HDOS</text>
+</svg>
