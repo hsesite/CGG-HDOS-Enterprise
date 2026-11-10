@@ -2344,3 +2344,21 @@ test('tenant store initialization cannot publish stale account snapshots after a
   assert.ok(init.includes('await this.refreshCloudData();\n      if (!isCurrentInitialization()) return;'));
   assert.ok(storeSource.includes('setContractorsFromCompanyMaster(centralCompanies, isCurrentInitialization)'));
 });
+
+
+test('sync queue recovery stops after account, token, or initialization generation changes', () => {
+  const syncSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const initStart = syncSource.indexOf('async init(): Promise<void>');
+  const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart);
+  const init = syncSource.slice(initStart, initEnd);
+  assert.match(init, /const requestedToken = hseApi\.authToken/);
+  assert.match(init, /initGeneration !== this\.initGeneration/);
+  assert.match(init, /activeOwnerKey === requestedOwnerKey && hseApi\.authToken === requestedToken/);
+  assert.match(init, /const abandonStaleInitialization = \(\): boolean =>/);
+  assert.match(init, /if \(abandonStaleInitialization\(\)\) return;/);
+  assert.match(init, /await hdosDB\.put\('queue', item\);\s*if \(abandonStaleInitialization\(\)\) return;/);
+  assert.match(init, /if \(lock && !abandonStaleInitialization\(\)\) await recoverInterruptedQueue\(\)/);
+  assert.match(init, /if \(isCurrentInitialization\(\)\) void this\.triggerSync\(\)/);
+  assert.match(init, /Do not clear a newer initialization's queue snapshot/);
+});
