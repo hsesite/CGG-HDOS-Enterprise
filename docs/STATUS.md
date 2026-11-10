@@ -380,3 +380,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] KTT dan Project Manager tidak lagi memperoleh akses pengawasan lintas-register PICA hanya karena jabatannya; kewenangan persetujuan/penutupan PICA tetap mengikuti alur Foreman Safety → SPV HSE.
 - [x] Regression test ditambahkan untuk memastikan aturan GET ALL dan GET ONE tetap selaras.
 - [ ] Hasil workflow test setelah perubahan dan UAT dengan akun role berbeda masih harus diverifikasi sebelum sign-off.
+
+### Konsolidasi otorisasi baca PICA (10 November 2026)
+- [x] Aturan pemantau PICA dipusatkan pada helper backend `canMonitorPicas_` agar cakupan GET register dan GET detail memakai aturan yang sama.
+- [x] Foreman Safety dan SPV HSE hanya memperoleh akses pemantauan jika role telah diverifikasi; Admin CGG dan Admin Perusahaan tetap mengikuti kewenangan administratif yang sudah ditetapkan.
+- [x] Regression test mencakup role HSE terverifikasi/tidak terverifikasi, KTT, Project Manager, Admin Perusahaan, Admin CGG, serta pemakaian helper pada kedua route baca.
+- [ ] Hasil test lokal/GitHub Actions untuk perubahan ini belum terkonfirmasi; UAT lintas role dan tenant tetap diperlukan.
