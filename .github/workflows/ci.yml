@@ -33,3 +33,5 @@ jobs:
 
       - name: Build frontend
         run: bun run build
+      - name: Validate PWA production artifacts
+        run: node scripts/validate-pwa-build.mjs
