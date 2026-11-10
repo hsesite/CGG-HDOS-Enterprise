@@ -737,7 +737,7 @@ export class HDOSCentralStore {
       ...relatedForms.map(form => ({ storeName: 'form-definition' as const, id: form.id })),
     ];
 
-    if (existing.cloudStored && hseApi.baseUrl && hseApi.isAuthenticated) {
+    if (existing.cloudStored && hseApi.baseUrl && hseApi.isAuthenticated && hdosSync.getIsOnline()) {
       // The cloud must acknowledge Drive/metadata deletion before the local
       // cache is changed. A failed API request leaves every local item intact.
       await hseApi.deleteRepositoryDocument(documentId);
