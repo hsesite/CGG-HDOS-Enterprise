@@ -1738,7 +1738,7 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
 
 test('Sync queue displays readable descriptions for Contractor P2H and monthly reports', () => {
   assert.match(syncUiSource, /Laporan kepatuhan periode/);
-  assert.match(syncUiSource, /P2H \\$\\{unit\\}/);
+  assert.match(syncUiSource, /P2H \$\{unit\}/);
   assert.match(p2hUiSource, /unitNumber: unit\.unitNumber/);
 });
 
