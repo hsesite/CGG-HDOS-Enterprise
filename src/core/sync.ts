@@ -4,6 +4,7 @@ import { hdosEvents } from './events';
 import { hseApi, ApiError } from './api';
 import { AuthState } from './auth-state';
 import { uploadOfflineOperationalPhoto, type OfflineOperationalPhoto } from './offline-photos';
+import { uploadOfflineContractorSia, type OfflineContractorSiaDocument } from './offline-documents';
 
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY_MS = 2000;
@@ -15,7 +16,8 @@ type SyncEntityEndpoint =
   | 'incidents'
   | 'repository'
   | 'contractor-p2h'
-  | 'contractor-report';
+  | 'contractor-report'
+  | 'contractor-sia';
 
 function getEntityEndpoint(
   entity: SyncQueueItem['entity']
@@ -35,6 +37,8 @@ function getEntityEndpoint(
       return 'contractor-p2h';
     case 'contractor-report':
       return 'contractor-report';
+    case 'contractor-sia':
+      return 'contractor-sia';
     default:
       return null;
   }
@@ -999,6 +1003,14 @@ export class HDOSSyncEngine {
             item.action === 'CREATE'
           ) {
             if (endpoint === 'repository') throw new Error('Upload Repository harus melalui alur unggah berkas khusus.');
+            if (endpoint === 'contractor-sia') {
+              const payload = item.payload as { fleetId?: string; localDocumentId?: string };
+              if (!payload?.fleetId || !payload.localDocumentId) throw new Error('Payload dokumen SIA tidak lengkap.');
+              const localDocument = await hdosDB.getById<OfflineContractorSiaDocument>('photos', payload.localDocumentId);
+              if (!localDocument || localDocument.kind !== 'contractor-sia' || localDocument.fleetId !== payload.fleetId) throw new Error('Dokumen SIA lokal tidak ditemukan. Pulihkan backup perangkat atau lampirkan ulang dokumen.');
+              await uploadOfflineContractorSia(localDocument);
+              await hdosDB.delete('photos', payload.localDocumentId);
+            } else if (endpoint === 'contractor-p2h') {
             if (endpoint === 'contractor-p2h') {
               if (item.action !== 'CREATE') throw new Error('Antrean P2H hanya mendukung operasi CREATE.');
               const payload = item.payload as { fleetId?: string; input?: Record<string, unknown>; localPhotoId?: string };
