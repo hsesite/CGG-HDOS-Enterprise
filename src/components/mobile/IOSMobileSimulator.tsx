@@ -15,7 +15,10 @@ import {
   CheckSquare,
   Flame,
   Sun,
-  X,
+  ShieldAlert,
+  HardHat,
+  RefreshCw,
+  Settings,
 } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { hdosSync } from '../../core/sync';
