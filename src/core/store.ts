@@ -413,34 +413,48 @@ export class HDOSCentralStore {
         document.cloudStored === true && !remoteIds.has(document.id)
       );
       if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
-      await hdosDB.reconcileSnapshotBundle([
-        { storeName: 'repository', deleteIds: staleCloudDocuments.map(document => document.id), records: remote },
-        { storeName: 'photos', deleteIds: staleCloudDocuments.map(document => `document-file-${document.id}`), records: [] },
-      ]);
+      try {
+        await hdosDB.reconcileSnapshotBundle([
+          { storeName: 'repository', deleteIds: staleCloudDocuments.map(document => document.id), records: remote },
+          { storeName: 'photos', deleteIds: staleCloudDocuments.map(document => `document-file-${document.id}`), records: [] },
+        ]);
+      } catch (error) {
+        failed.push('repository');
+        console.warn('[HDOS Store] Rekonsiliasi repository gagal; cache sebelumnya dipertahankan.', error);
+      }
       if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
-      this.documents = merged;
-      this.formDefinitions = this.formDefinitions.filter(form =>
-        merged.some(document => document.id === form.sourceDocumentId)
-      );
-      refreshed.push('repository');
+      if (!failed.includes('repository')) {
+        this.documents = merged;
+        this.formDefinitions = this.formDefinitions.filter(form =>
+          merged.some(document => document.id === form.sourceDocumentId)
+        );
+        refreshed.push('repository');
+      }
     } else if (repositoryResult.status === 'rejected') {
       failed.push('repository');
       console.warn('[HDOS Store] Repository pusat belum tersedia; cache lokal dipertahankan.', repositoryResult.reason);
     }
 
     const formsResult = results[5];
-    if (formsResult.status === 'fulfilled' && isSameSession()) {
+    if (formsResult.status === 'rejected') {
+      failed.push('forms');
+      console.warn('[HDOS Store] Formulir terbit pusat belum tersedia; cache lokal dipertahankan.', formsResult.reason);
+    } else if (!isSameSession()) {
+      return { refreshed, failed: ['session-changed'] };
+    } else {
       const availableDocumentIds = new Set(this.documents.map(document => document.id));
       const availableForms = formsResult.value.filter(form => {
         const sourceDocumentId = String(form.sourceDocumentId || '').trim();
         return !sourceDocumentId || availableDocumentIds.has(sourceDocumentId);
       }) as unknown as FormDefinition[];
-      await this.mergePublishedFormDefinitions(availableForms);
-    } else if (formsResult.status === 'rejected') {
-      failed.push('forms');
-      console.warn('[HDOS Store] Formulir terbit pusat belum tersedia; cache lokal dipertahankan.', formsResult.reason);
-    } else {
-      refreshed.push('forms');
+      try {
+        await this.mergePublishedFormDefinitions(availableForms, isSameSession);
+        if (!isSameSession()) return { refreshed, failed: ['session-changed'] };
+        refreshed.push('forms');
+      } catch (error) {
+        failed.push('forms');
+        console.warn('[HDOS Store] Rekonsiliasi formulir gagal; cache sebelumnya dipertahankan.', error);
+      }
     }
 
     if (isSameSession()) {
@@ -806,7 +820,7 @@ export class HDOSCentralStore {
   );
 }
 
-  async mergePublishedFormDefinitions(forms: FormDefinition[]): Promise<void> {
+  async mergePublishedFormDefinitions(forms: FormDefinition[], shouldPublish?: () => boolean): Promise<void> {
     if (!Array.isArray(forms)) return;
 
     // A successful cloud response is an authoritative publication snapshot.
@@ -835,6 +849,7 @@ export class HDOSCentralStore {
     const retainedIds = new Set(next.map((form) => form.id));
     const staleIds = previous.filter(form => !retainedIds.has(form.id)).map(form => form.id);
     await hdosDB.reconcileSnapshot('form-definition', staleIds, next);
+    if (shouldPublish && !shouldPublish()) return;
 
     this.formDefinitions = next;
     this.notify();
