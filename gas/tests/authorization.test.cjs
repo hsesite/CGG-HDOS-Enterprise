@@ -11,6 +11,14 @@ const p2hUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'com
 const syncEngineSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
 const syncTypesSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'types.ts'), 'utf8');
 const syncDbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
+
+test('IndexedDB getById surfaces transaction setup failures instead of reporting a missing record', () => {
+  const start = syncDbSource.indexOf('async getById<');
+  assert.ok(start >= 0);
+  const getByIdBlock = syncDbSource.slice(start);
+  assert.match(getByIdBlock, /getById exception for \$\{storeName\}\/\$\{id\}[\s\S]*?reject\(new Error\(/);
+  assert.doesNotMatch(getByIdBlock, /resolve\(null\)/);
+});
 function extractFunction(name, nextName) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);
