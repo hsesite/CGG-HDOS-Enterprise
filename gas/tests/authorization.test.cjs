@@ -2386,7 +2386,7 @@ test('form-definition store writes do not publish into a newer account session',
   const addStart = storeSource.indexOf('async addFormDefinition(');
   const addEnd = storeSource.indexOf('async updateFormDefinition(', addStart);
   const updateStart = addEnd;
-  const updateEnd = storeSource.indexOf('async deleteFormDefinition(', updateStart);
+  const updateEnd = storeSource.indexOf('getFormDefinitionByDocumentId(', updateStart);
   assert.ok(addStart >= 0 && addEnd > addStart && updateEnd > updateStart);
   const add = storeSource.slice(addStart, addEnd);
   const update = storeSource.slice(updateStart, updateEnd);
