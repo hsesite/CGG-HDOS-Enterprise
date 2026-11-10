@@ -2030,6 +2030,12 @@ test('version conflicts preserve local queue payload and capture a tenant-scoped
   assert.match(resolutionBlock, /resolvedBy: owner\.userId/);
   assert.match(resolutionBlock, /resolutionOfQueueItemId: original\.id/);
   assert.match(resolutionBlock, /await hdosDB\.putBundle\(/);
+  assert.match(resolutionBlock, /persistedQueue\.filter\(/);
+  assert.match(resolutionBlock, /startsWith\('Perubahan ditahan karena sinkronisasi perubahan sebelumnya'/);
+  assert.match(resolutionBlock, /status: 'PENDING' as const/);
+  assert.match(resolutionBlock, /dependentItems\.map\(item => \(\{ storeName: 'queue' as const, item \}\)\)/);
+  assert.match(syncEngineSource, /sameRecord && Boolean\(a\.resolutionOfQueueItemId\) !== Boolean\(b\.resolutionOfQueueItemId\)/);
+
   assert.match(syncEngineSource, /if \(item\.status === 'RESOLVED'\) continue;/);
   assert.match(syncUiSource, /Simpan Revisi & Antrekan Ulang/);
   assert.match(syncUiSource, /JSON\.parse\(rawDraft\)/);
