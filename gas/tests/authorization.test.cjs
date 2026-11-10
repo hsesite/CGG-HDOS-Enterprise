@@ -2581,3 +2581,17 @@ test('mobile field evidence inputs prefer the rear camera for inspections and ha
     assert.match(source, /5 \* 1024 \* 1024/);
   }
 });
+
+
+test('operational photo uploads carry an idempotency key and GAS reuses committed evidence on retry', () => {
+  const api = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'api.ts'), 'utf8');
+  const inspection = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'InspectionModule.tsx'), 'utf8');
+  const hazard = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'HazardModule.tsx'), 'utf8');
+  const gas = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
+  assert.match(api, /fileBase64: string; uploadKey: string/);
+  for (const source of [inspection, hazard]) assert.match(source, /uploadKey: `hdos-\$\{crypto\.randomUUID\(\)\}`/);
+  assert.match(gas, /HDOS_UPLOAD_KEY:/);
+  assert.match(gas, /existingFile\.getDescription\(\)/);
+  assert.match(gas, /existingFile\.getId\(\)/);
+  assert.match(gas, /file\.setDescription\(marker\)/);
+});
