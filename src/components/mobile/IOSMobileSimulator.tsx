@@ -27,11 +27,17 @@ import { PICAModule } from '../modules/PICAModule';
 import { MapModule } from '../modules/MapModule';
 import { RepositoryModule } from '../modules/RepositoryModule';
 import { AIModule } from '../modules/AIModule';
+import { IncidentModule } from '../modules/IncidentModule';
+import { ContractorModule } from '../modules/ContractorModule';
+import { SyncModule } from '../modules/SyncModule';
+import { SettingsModule } from '../modules/SettingsModule';
+import { RoleVerificationPanel } from '../modules/RoleVerificationPanel';
 
 export const IOSMobileSimulator: React.FC = () => {
   const store = useHDOSStore();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inspection' | 'map' | 'repository' | 'pica' | 'hazard' | 'ai'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inspection' | 'map' | 'repository' | 'pica' | 'hazard' | 'ai' | 'incident' | 'contractor' | 'sync' | 'settings'>('dashboard');
   const [islandExpanded, setIslandExpanded] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const online = hdosSync.getIsOnline();
   const queueCount = hdosSync.getQueue().length;
 
@@ -109,10 +115,34 @@ export const IOSMobileSimulator: React.FC = () => {
           {activeTab === 'pica' && <PICAModule />}
           {activeTab === 'hazard' && <HazardModule />}
           {activeTab === 'ai' && <AIModule />}
+          {activeTab === 'incident' && <IncidentModule />}
+          {activeTab === 'contractor' && <ContractorModule />}
+          {activeTab === 'sync' && <SyncModule />}
+          {activeTab === 'settings' && <><SettingsModule /><RoleVerificationPanel /></>}
         </div>
 
-        {/* iOS Bottom Navigation Bar (Blueprint §8) */}
-        <div className="absolute bottom-0 left-0 right-0 min-h-16 pb-[env(safe-area-inset-bottom)] bg-[#121216]/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-2 text-neutral-400 z-30 select-none">
+        {/* Mobile quick access for secondary operational modules */}
+        {moreOpen && (
+          <div className="absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-40 w-56 rounded-2xl border border-white/10 bg-[#17171b]/95 p-2 shadow-2xl backdrop-blur-xl">
+            {([
+              ['incident', 'Investigasi Insiden', ShieldAlert],
+              ['repository', 'Repository Dokumen', FolderGit2],
+              ['contractor', 'Manajemen Kontraktor', HardHat],
+              ['ai', 'Asisten HSE', Flame],
+              ['sync', 'Sinkronisasi Data', RefreshCw],
+              ['settings', 'Pengaturan', Settings],
+            ] as const).map(([tab, label, Icon]) => (
+              <button key={tab} type="button" onClick={() => { setActiveTab(tab); setMoreOpen(false); }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-neutral-200 hover:bg-white/10 active:bg-white/15">
+                <Icon className="h-4 w-4 text-[#00E676]" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Mobile bottom navigation */}
+        <div className="absolute bottom-0 left-0 right-0 min-h-16 pb-[env(safe-area-inset-bottom)] bg-[#121216]/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-1 text-neutral-400 z-30 select-none">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
@@ -161,6 +191,16 @@ export const IOSMobileSimulator: React.FC = () => {
           >
             <CheckSquare className="w-4 h-4" />
             <span className="text-[10px]">PICA</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((open) => !open)}
+            aria-expanded={moreOpen}
+            aria-label="Modul lainnya"
+            className={`flex flex-col items-center gap-0.5 cursor-pointer ${moreOpen ? 'text-[#00E676]' : 'hover:text-white'}`}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+            <span className="text-[10px]">Lainnya</span>
           </button>
         </div>
 
