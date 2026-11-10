@@ -987,7 +987,7 @@ test('GAS operational creates preserve client IDs and are idempotent under a scr
   assert.ok(createStart >= 0 && createEnd > createStart);
   const create = source.slice(createStart, createEnd);
   assert.match(create, /safePayload\.id/);
-  assert.match(create, /getExistingRecordForCreate_\(sheet, id, user\)/);
+  assert.match(create, /getExistingRecordForCreate_\(sheet, id, user, safePayload\)/);
   assert.match(create, /getScriptLock\(\)/);
   assert.match(create, /lock\.waitLock\(\s*10000\s*\)/);
   assert.match(create, /SpreadsheetApp\.flush\(\)/);
