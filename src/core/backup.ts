@@ -9,6 +9,7 @@ type BackupOwner = {
   userId: string;
   companyCode: string;
   parentCompanyCode: string;
+  isAdminCGG?: boolean;
 };
 
 type BackupPayload = {
@@ -30,6 +31,7 @@ function getOwner(): BackupOwner {
     userId: String(user.id),
     companyCode,
     parentCompanyCode: String(user.parentCompanyCode || '').trim().toUpperCase(),
+    isAdminCGG: (user.roles || []).includes('Admin CGG'),
   };
 }
 
@@ -50,6 +52,7 @@ async function checksum(payload: BackupPayload): Promise<string> {
 }
 
 function recordTenantMatches(record: unknown, owner: BackupOwner): boolean {
+  if (owner.isAdminCGG) return true;
   if (!record || typeof record !== 'object' || Array.isArray(record)) return true;
   const item = record as Record<string, unknown>;
   const company = String(item.companyCode || item.contractorCode || item.ownerCompanyCode || '').trim().toUpperCase();
@@ -187,6 +190,7 @@ export const hdosBackup = {
         typeof archive.owner.userId !== 'string' || !archive.owner.userId.trim() ||
         typeof archive.owner.companyCode !== 'string' || !archive.owner.companyCode.trim() ||
         typeof archive.owner.parentCompanyCode !== 'string' ||
+        (archive.owner.isAdminCGG !== undefined && typeof archive.owner.isAdminCGG !== 'boolean') ||
         typeof archive.createdAt !== 'string' || !Number.isFinite(Date.parse(archive.createdAt)) ||
         typeof archive.checksum !== 'string' || !/^[a-f0-9]{64}$/i.test(archive.checksum)) {
       throw new Error('Metadata backup tidak lengkap, format tidak dikenali, atau versi tidak didukung.');
@@ -198,7 +202,8 @@ export const hdosBackup = {
       }
     }
     if (archive.owner.companyCode !== owner.companyCode ||
-        archive.owner.parentCompanyCode !== owner.parentCompanyCode) {
+        archive.owner.parentCompanyCode !== owner.parentCompanyCode ||
+        (archive.owner.isAdminCGG === true && !owner.isAdminCGG)) {
       throw new Error('Backup berasal dari perusahaan atau cakupan kontraktor yang berbeda. Pemulihan dibatalkan.');
     }
 
