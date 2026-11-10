@@ -1009,7 +1009,14 @@ export class HDOSSyncEngine {
               const localDocument = await hdosDB.getById<OfflineContractorSiaDocument>('photos', payload.localDocumentId);
               if (!localDocument || localDocument.kind !== 'contractor-sia' || localDocument.fleetId !== payload.fleetId) throw new Error('Dokumen SIA lokal tidak ditemukan. Pulihkan backup perangkat atau lampirkan ulang dokumen.');
               await uploadOfflineContractorSia(localDocument);
-              await hdosDB.delete('photos', payload.localDocumentId);
+              // The cloud upload may have committed even if its response was
+              // lost. Retain both the queue item and local Blob until one
+              // IndexedDB transaction removes them together; a crash between
+              // two independent deletes must not leave an unreplayable queue.
+              await hdosDB.reconcileSnapshotBundle([
+                { storeName: 'photos', deleteIds: [payload.localDocumentId], records: [] },
+                { storeName: 'queue', deleteIds: [item.id], records: [] },
+              ]);
             } else if (endpoint === 'contractor-p2h') {
               if (item.action !== 'CREATE') throw new Error('Antrean P2H hanya mendukung operasi CREATE.');
               const payload = item.payload as { fleetId?: string; input?: Record<string, unknown>; localPhotoId?: string };
