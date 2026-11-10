@@ -514,7 +514,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [ ] Uji instalasi, pembukaan ulang offline, update service worker, dan ikon pada perangkat Android/iOS nyata tetap diperlukan.
 
 ### PWA offline — precache seluruh modul lazy-loaded (10 November 2026)
-- [x] Build Vite menghasilkan `.vite/manifest.json` agar daftar aset produksi tersedia untuk service worker.
+- [x] Build Vite menghasilkan `manifest.json` pada root hasil build agar daftar aset produksi dapat diakses melalui GitHub Pages tanpa bergantung pada direktori tersembunyi.
 - [x] Service worker membaca manifest build dan melakukan precache terhadap seluruh entry JS, CSS, serta aset yang dirujuk, termasuk chunk modul operasional yang belum pernah dibuka.
 - [x] Jika manifest build tidak tersedia, worker tetap memiliki fallback untuk aset entry yang tertaut dari HTML.
 - [x] Regression suite: 202 tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `5ad88375b02f3b7003322f0958ed00bd5c42a692`.
@@ -539,3 +539,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Arsip versi lama tanpa metadata `isAdminCGG` tetap dapat dibaca sebagai arsip dengan cakupan tenant biasa.
 - [x] 204 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `14c8071b11f17a4f054cfdb33c1a104668fa505d`.
 - [ ] UAT backup Admin CGG lintas Contractor/Subkon dan restore pada perangkat staging tetap diperlukan.
+
+### PWA — lokasi manifest build kompatibel GitHub Pages (10 November 2026)
+- [x] Manifest aset Vite ditempatkan pada `dist/manifest.json`, bukan direktori tersembunyi, agar dapat diambil oleh service worker setelah deployment GitHub Pages.
+- [x] Service worker mengambil manifest dari path relatif terhadap scope aplikasi; seluruh aset tetap dibatasi pada origin dan scope HDOS.
+- [x] 204 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `5e5bbe3ed97652717d9a1da01bdf9db30e74bd4c`.
+- [ ] Verifikasi manifest dan precache pada URL GitHub Pages aktif serta perangkat fisik masih diperlukan setelah deployment terbaru.
