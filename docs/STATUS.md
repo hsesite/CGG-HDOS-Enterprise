@@ -545,3 +545,9 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Service worker mengambil manifest dari path relatif terhadap scope aplikasi; seluruh aset tetap dibatasi pada origin dan scope HDOS.
 - [x] 204 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `5e5bbe3ed97652717d9a1da01bdf9db30e74bd4c`.
 - [ ] Verifikasi manifest dan precache pada URL GitHub Pages aktif serta perangkat fisik masih diperlukan setelah deployment terbaru.
+
+### CI — verifikasi artefak PWA hasil build sebelum deployment (10 November 2026)
+- [x] Script `scripts/validate-pwa-build.mjs` memeriksa app shell, manifest, service worker, ikon, entry JavaScript, dan seluruh file yang direferensikan manifest Vite.
+- [x] Validasi PWA dijalankan pada workflow CI dan workflow deployment sebelum artefak diunggah ke GitHub Pages.
+- [x] Build terakhir memvalidasi 5 file shell dan 33 aset manifest; 205 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `a570f6447af5bf04175574641b14afeeae2657ee`.
+- [ ] Uji instalasi PWA dan pembukaan ulang offline pada perangkat Android/iOS fisik tetap diperlukan.
