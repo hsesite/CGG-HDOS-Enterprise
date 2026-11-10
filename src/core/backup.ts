@@ -224,6 +224,22 @@ export const hdosBackup = {
           continue;
         }
         const item = candidate as Record<string, unknown> & { id: string };
+        if (storeName === 'photos') {
+          const isSia = item.kind === 'contractor-sia';
+          const allowedMimeTypes = isSia
+            ? ['application/pdf', 'image/jpeg', 'image/png']
+            : ['image/jpeg', 'image/png', 'image/webp'];
+          const maxBytes = isSia ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+          if (!(item.blob instanceof Blob) || typeof item.mimeType !== 'string' ||
+              !allowedMimeTypes.includes(item.mimeType) || item.blob.type !== item.mimeType ||
+              typeof item.size !== 'number' || !Number.isFinite(item.size) ||
+              item.size <= 0 || item.size > maxBytes || item.blob.size !== item.size ||
+              typeof item.fileName !== 'string' || !item.fileName.trim() ||
+              typeof item.createdAt !== 'string' || !Number.isFinite(Date.parse(item.createdAt)) ||
+              (isSia && (typeof item.fleetId !== 'string' || !item.fleetId.trim()))) {
+            throw new Error(`Lampiran pada backup modul photos tidak valid atau tidak sesuai batas ukuran/format: ${item.id}.`);
+          }
+        }
         if (seenIds.has(item.id)) {
           throw new Error(`Backup memiliki ID duplikat pada modul ${storeName}: ${item.id}.`);
         }
