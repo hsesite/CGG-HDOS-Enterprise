@@ -26,6 +26,8 @@ export const SyncModule: React.FC = () => {
   const [refreshingCloud, setRefreshingCloud] = useState(false);
   const [queue, setQueue] = useState(hdosSync.getQueue());
   const [logs, setLogs] = useState(hdosSync.getSyncLogs());
+  const [conflictDrafts, setConflictDrafts] = useState<Record<string, string>>({});
+  const [resolvingConflictId, setResolvingConflictId] = useState<string | null>(null);
 
   useEffect(() => {
     const un1 = hdosEvents.on('sync:offline_status_changed', (payload) => {
@@ -54,6 +56,34 @@ export const SyncModule: React.FC = () => {
   const handleTriggerSync = async () => {
     await hdosSync.retryFailedItems();
     await hdosSync.triggerSync();
+  };
+
+  const handleResolveConflict = async (queueItemId: string) => {
+    const rawDraft = conflictDrafts[queueItemId];
+    if (!rawDraft) return;
+    setResolvingConflictId(queueItemId);
+    try {
+      const parsed = JSON.parse(rawDraft) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Data revisi harus berupa objek JSON.');
+      }
+      await hdosSync.resolveConflict(queueItemId, parsed as Record<string, unknown>);
+      setConflictDrafts(current => {
+        const next = { ...current };
+        delete next[queueItemId];
+        return next;
+      });
+      setQueue(hdosSync.getQueue());
+      setLogs(hdosSync.getSyncLogs());
+    } catch (error) {
+      setLogs(current => [{
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        message: error instanceof Error ? `Penyelesaian konflik gagal: ${error.message}` : 'Penyelesaian konflik gagal.',
+        type: 'warning' as const,
+      }, ...current].slice(0, 100));
+    } finally {
+      setResolvingConflictId(null);
+    }
   };
 
   const handleRefreshCloud = async () => {
@@ -242,11 +272,13 @@ export const SyncModule: React.FC = () => {
                     <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
                       item.status === 'CONFLICT'
                         ? 'bg-red-500/15 text-red-300'
+                        : item.status === 'RESOLVED'
+                        ? 'bg-emerald-500/15 text-emerald-300'
                         : item.status === 'SYNCING'
                         ? 'bg-blue-500/15 text-blue-300'
                         : 'bg-white/10 text-neutral-300'
                     }`}>
-                      {item.status}
+                      {item.status === 'RESOLVED' ? 'RESOLVED · TEREKONSILIASI' : item.status}
                     </span>
                     {item.retryCount > 0 && (
                       <div className="text-[10px] text-amber-300 mt-1">
@@ -276,8 +308,39 @@ export const SyncModule: React.FC = () => {
                             {JSON.stringify(item.conflictServerRecord, null, 2)}
                           </pre>
                           <p className="text-[10px] text-amber-200 mt-2">
-                            Payload lokal tetap tersimpan di antrean. Periksa perbedaan sebelum membuat perubahan lanjutan.
+                            Payload lokal tetap tersimpan sebagai bukti perubahan. Salin perubahan yang ingin dipertahankan ke draf di bawah ini. Draf awal memakai versi server; tidak ada penggabungan otomatis.
                           </p>
+                          {item.action === 'UPDATE' && typeof item.conflictServerRecord.updatedAt === 'string' && (
+                            <div className="mt-3 space-y-2">
+                              <label className="block text-[10px] font-semibold text-neutral-200" htmlFor={`conflict-draft-${item.id}`}>
+                                Data revisi berdasarkan versi server (JSON)
+                              </label>
+                              <textarea
+                                id={`conflict-draft-${item.id}`}
+                                value={conflictDrafts[item.id] ?? JSON.stringify(item.conflictServerRecord, null, 2)}
+                                onChange={event => setConflictDrafts(current => ({ ...current, [item.id]: event.target.value }))}
+                                rows={10}
+                                spellCheck={false}
+                                className="w-full rounded-lg border border-white/15 bg-black/40 p-2 font-mono text-[10px] text-neutral-200 outline-none focus:border-emerald-400"
+                              />
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-[10px] text-neutral-400">
+                                  Versi dasar: {String(item.conflictServerRecord.updatedAt)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleResolveConflict(item.id)}
+                                  disabled={resolvingConflictId === item.id || !online || !hseApi.isAuthenticated}
+                                  className="rounded-lg bg-emerald-500 px-3 py-2 text-[10px] font-bold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  {resolvingConflictId === item.id ? 'Menyimpan revisi...' : 'Simpan Revisi & Antrekan Ulang'}
+                                </button>
+                              </div>
+                              <p className="text-[10px] text-neutral-400">
+                                Sistem mengunci ID, versi dasar, dan identitas tenant dari snapshot server. Revisi akan dikirim sebagai UPDATE baru; validasi dan otorisasi server tetap berlaku.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </details>
                     )}
