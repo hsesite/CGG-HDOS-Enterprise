@@ -40,7 +40,7 @@ export const AIModule: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'ai'; text: string }[]>([
     {
       sender: 'ai',
-      text: 'Halo! Saya HDOS SMKP Copilot. Tanyakan pasal regulasi Kepmen ESDM 1827 K/30/MEM/2018, Kepdirjen 185 K, atau elemen audit keselamatan pertambangan.',
+      text: 'Halo! Saya HDOS SMKP Copilot. Tanyakan topik SMKP untuk memperoleh arahan awal. Verifikasi jawaban pada regulasi dan dokumen terkendali.',
     },
   ]);
 
@@ -51,28 +51,8 @@ export const AIModule: React.FC = () => {
     setScanning(false);
   };
 
-  const handleConvertToHazard = async () => {
-    if (!scanResult) return;
-    await createHazardAction({
-      title: 'AI Temuan: Unit HD Parkir Tanpa Ganjal Ban & Pekerja Blind Spot',
-      category: 'Unsafe Condition',
-      location: 'Pit Jaja KM10',
-      specificLocation: 'Ramp Akses Bench 4 Elevasi +45',
-      riskMatrix: {
-        severity: 4,
-        likelihood: 4,
-        score: 16,
-        level: scanResult.suggestedRiskLevel,
-      },
-      reporter: 'HDOS AI Vision Guard',
-      reporterRole: 'Safety Officer',
-      status: 'PICA_ISSUED',
-      actionTaken: scanResult.suggestedAction,
-      aiDetected: true,
-      aiSuggestions: scanResult.findings,
-    });
-    alert('Temuan AI berhasil dikonversi dan disimpan ke Master Hazard Register serta menerbitkan tiket PICA!');
-    store.openWindow('hazard');
+  const handleConvertToHazard = () => {
+    alert('Hasil ini hanya simulasi demonstrasi, bukan hasil analisis foto aktual. Buat Hazard Report melalui modul Hazard setelah verifikasi langsung oleh petugas berwenang.');
   };
 
   const handleParseDocument = async (filename: string) => {
@@ -103,10 +83,10 @@ export const AIModule: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Cpu className="w-5 h-5 text-[#EC4899]" />
-            HDOS AI Architecture (Blueprint §18: AI Assist — Human Approval)
+            HDOS Assist — Simulasi dan Referensi HSE
           </h2>
           <p className="text-xs text-neutral-400 mt-0.5">
-            Sistem AI beroperasi 100% offline &amp; online untuk deteksi bahaya foto, parsing dokumen form, dan audit advisor SMKP.
+            Fitur AI saat ini berupa simulasi berbasis aturan dan contoh statis. Belum menjalankan inferensi foto, parsing file aktual, atau validasi regulasi otomatis.
           </p>
         </div>
 
@@ -145,7 +125,7 @@ export const AIModule: React.FC = () => {
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2">
                 <ScanEye className="w-4 h-4 text-[#EC4899]" />
-                Simulasi Deteksi Visual Lapangan (YOLOv8 Nano / Vision)
+                DEMO SIMULASI — BUKAN HASIL ANALISIS FOTO
               </span>
               <button
                 onClick={handleRunScan}
@@ -162,14 +142,14 @@ export const AIModule: React.FC = () => {
               {/* Stylized mining scene representation */}
               <div className="absolute inset-0 bg-gradient-to-b from-[#18202b] via-[#241c19] to-[#121110] flex flex-col justify-between p-6">
                 <div className="flex justify-between items-center text-[10px] text-white/50 font-mono">
-                  <span>CAM-PIT-JAJA-04 · LIVE SENSOR FEED</span>
+                  <span>ILUSTRASI AREA TAMBANG · DATA TIDAK AKTUAL</span>
                   <span>ELEVASI RL +45m</span>
                 </div>
 
                 {/* Haul Truck graphic silhouette */}
                 <div className="relative w-full h-48 flex items-center justify-center">
                   <div className="w-72 h-36 bg-amber-600/30 border border-amber-500/40 rounded-xl relative flex items-center justify-center">
-                    <span className="font-mono text-xs font-bold text-amber-300">KOMATSU HD785-7</span>
+                    <span className="font-mono text-xs font-bold text-amber-300">ILUSTRASI UNIT</span>
                     {/* Wheels */}
                     <div className="absolute -bottom-4 left-6 w-12 h-12 rounded-full border-4 border-neutral-700 bg-neutral-900 flex items-center justify-center text-[8px] font-mono text-neutral-500">
                       TIRE 1
@@ -187,7 +167,7 @@ export const AIModule: React.FC = () => {
                 </div>
 
                 <div className="text-[10px] font-mono text-neutral-500">
-                  LAT: -2.9642 · LNG: 121.9421 · GPS FIXED
+                  KOORDINAT ILUSTRASI · BUKAN GPS AKTUAL
                 </div>
               </div>
 
@@ -228,14 +208,14 @@ export const AIModule: React.FC = () => {
               {scanResult ? (
                 <div className="space-y-3 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-neutral-400">Tingkat Risiko Rekomendasi:</span>
+                    <span className="text-neutral-400">Tingkat Risiko (ilustrasi):</span>
                     <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-300 font-bold font-mono">
                       {scanResult.suggestedRiskLevel}
                     </span>
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="font-semibold text-neutral-300">Temuan Ketidaksesuaian:</div>
+                    <div className="font-semibold text-neutral-300">Contoh Temuan (ilustrasi):</div>
                     {scanResult.findings.map((finding, i) => (
                       <div key={i} className="p-2 rounded-lg bg-white/5 text-[11px] text-neutral-300 flex items-start gap-2">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
@@ -245,7 +225,7 @@ export const AIModule: React.FC = () => {
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300 space-y-1">
-                    <div className="font-semibold">Saran Tindakan Langsung:</div>
+                    <div className="font-semibold">Contoh Saran (wajib diverifikasi):</div>
                     <p>{scanResult.suggestedAction}</p>
                   </div>
 
@@ -254,7 +234,7 @@ export const AIModule: React.FC = () => {
                     className="w-full py-2.5 rounded-xl bg-[#00E676] hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer mt-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Setujui &amp; Terbitkan Tiket Hazard</span>
+                    <span>Buat Hazard Report setelah verifikasi lapangan</span>
                   </button>
                 </div>
               ) : (
@@ -273,10 +253,10 @@ export const AIModule: React.FC = () => {
           <div className="pb-3 border-b border-white/10">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <FileUp className="w-4 h-4 text-[#EC4899]" />
-              AI Upload: Dokumen Manual (.docx / .pdf) → Digital Form Runtime
+              Contoh Template Formulir (Simulasi)
             </h3>
             <p className="text-xs text-neutral-400 mt-1">
-              Workflow: Upload → Detect → Parse → Classify SMKP → Preview → Approve menjadi formulir digital tanpa duplicate form.
+              Demo template statis untuk pratinjau. Upload dan parsing dokumen aktual belum tersedia pada fungsi ini; hasil wajib diverifikasi sebelum digunakan.
             </p>
           </div>
 
@@ -312,7 +292,7 @@ export const AIModule: React.FC = () => {
           {parsingDoc && (
             <div className="py-8 text-center text-xs text-neutral-400 space-y-2">
               <div className="w-6 h-6 border-2 border-[#EC4899] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p>AI sedang membedah struktur tabel, checkbox, dan standar referensi dokumen...</p>
+              <p>Menyiapkan contoh template simulasi...</p>
             </div>
           )}
 
@@ -357,7 +337,7 @@ export const AIModule: React.FC = () => {
           <div className="pb-3 border-b border-white/10 flex items-center justify-between">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-[#EC4899]" />
-              SMKP Pertambangan Regulatory Copilot
+              Referensi SMKP (Rule-based)
             </h3>
             <span className="text-[10px] font-mono text-neutral-400">Kepmen ESDM 1827 K / Minerba 185 K</span>
           </div>
