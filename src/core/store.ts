@@ -766,7 +766,6 @@ export class HDOSCentralStore {
     revision: 1,
     ...input,
     ...tenantFields,
-    ownerCompanyCode: tenantFields.companyCode,
     ownerUserId: sessionUser.id,
     owner: sessionUser.displayName || input.owner,
   };
@@ -835,14 +834,9 @@ export class HDOSCentralStore {
       throw new Error('Dokumen tidak ditemukan.');
     }
 
-    const existingTenant = existing as unknown as Record<string, unknown>;
-    const immutableTenantFields = {
-      companyCode: existingTenant.companyCode,
-      contractorCode: existingTenant.contractorCode,
-      parentCompanyCode: existingTenant.parentCompanyCode,
-      subcontractorCode: existingTenant.subcontractorCode,
-      subkonCode: existingTenant.subkonCode,
-      ownerCompanyCode: existingTenant.ownerCompanyCode,
+    const immutableTenantFields: Pick<DocumentItem, 'companyCode' | 'parentCompanyCode' | 'ownerUserId'> = {
+      companyCode: existing.companyCode,
+      parentCompanyCode: existing.parentCompanyCode,
       ownerUserId: existing.ownerUserId,
     };
     const updated: DocumentItem = {
