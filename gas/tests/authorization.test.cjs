@@ -2737,3 +2737,14 @@ test('Contractor SIA idempotency lookup and Drive creation are serialized with t
   assert.match(upload, /if \(!alreadyApplied\) logAudit_\(user, 'CONTRACTOR_SIA_UPLOADED'/);
   assert.match(upload, /if \(createdFile && file\) \{[\s\S]*?file\.setTrashed\(true\)/);
 });
+
+test('Contractor SIA queue and offline Blob are removed in one IndexedDB snapshot transaction after upload', () => {
+  const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
+  const start = sync.indexOf("if (endpoint === 'contractor-sia') {");
+  const end = sync.indexOf("} else if (endpoint === 'contractor-p2h')", start);
+  assert.ok(start >= 0 && end > start);
+  const replay = sync.slice(start, end);
+  assert.match(replay, /await uploadOfflineContractorSia\(localDocument\)/);
+  assert.match(replay, /await hdosDB\.reconcileSnapshotBundle\(\[[\s\S]*?storeName: 'photos', deleteIds: \[payload\.localDocumentId\], records: \[\][\s\S]*?storeName: 'queue', deleteIds: \[item\.id\], records: \[\]/);
+  assert.doesNotMatch(replay, /await hdosDB\.delete\('photos', payload\.localDocumentId\)/);
+});
