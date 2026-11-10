@@ -1736,6 +1736,15 @@ test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(source, /id: requestId, code: 'P2H-'/);
 });
 
+test('Contractor monthly compliance reports enter the offline queue and replay through the report endpoint', () => {
+  assert.match(p2hUiSource, /entity: 'contractor-report'/);
+  assert.match(p2hUiSource, /contractor-report:\$\{requestId\}/);
+  assert.match(p2hUiSource, /tersimpan di perangkat dan akan dikirim otomatis saat koneksi kembali/);
+  assert.match(syncEngineSource, /case 'contractor-report':[\s\S]*?return 'contractor-report'/);
+  assert.match(syncEngineSource, /submitContractorComplianceReport\(payload\.input/);
+  assert.match(syncEngineSource, /Antrean Contractor hanya mendukung operasi CREATE/);
+});
+
 test('Contractor P2H submissions enter the owner-scoped offline queue and replay with photo evidence', () => {
   assert.match(p2hUiSource, /hdosSync\.enqueue\([\s\S]*?entity: 'contractor'/);
   assert.match(p2hUiSource, /fleetId: unit\.id,[\s\S]*?input:[\s\S]*?requestId,[\s\S]*?localPhotoId: p2hLocalPhotoId \|\| undefined/);
