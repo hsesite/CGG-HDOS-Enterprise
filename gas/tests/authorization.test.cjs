@@ -2233,6 +2233,21 @@ test('standalone published forms survive startup and partial repository refreshe
   assert.doesNotMatch(refresh, /availableDocumentIds/);
 });
 
+test('locally generated form definitions inherit immutable tenant ownership from their source document', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const createStart = storeSource.indexOf('async addFormDefinition(');
+  const createEnd = storeSource.indexOf('async updateFormDefinition(', createStart);
+  assert.ok(createStart >= 0 && createEnd > createStart);
+  const create = storeSource.slice(createStart, createEnd);
+  assert.match(create, /const sourceTenant = sourceDocument as unknown as Record<string, unknown>/);
+  assert.match(create, /const formTenantFields = \{/);
+  assert.match(create, /sourceTenant\.companyCode/);
+  assert.match(create, /sourceTenant\.contractorCode/);
+  assert.match(create, /sourceTenant\.parentCompanyCode/);
+  assert.match(create, /sourceTenant\.subcontractorCode/);
+  assert.match(create, /\.\.\.input,\s*\.\.\.formTenantFields/);
+});
+
 test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   assert.match(syncDbSource, /async reconcileSnapshot<T extends \{ id: string \}>/);
