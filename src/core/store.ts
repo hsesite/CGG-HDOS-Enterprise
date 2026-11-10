@@ -15,7 +15,7 @@ function isLocalRecordVisible(
   if (!user) return false;
   const roles = user.roles || [];
   if (roles.includes('Admin CGG')) return true;
-  const own = String(user.companyCode || '').trim().toUpperCase();
+  const own = getUserCompanyCode(user);
   if (!own) return false;
   const company = String(record.companyCode || record.contractorCode || record.ownerCompanyCode || '').trim().toUpperCase();
   const subkon = String(record.subcontractorCode || record.subkonCode || '').trim().toUpperCase();
@@ -44,6 +44,10 @@ function getFormVisibilityRecord(
     ...(source as unknown as Record<string, unknown> || {}),
     ...(form as unknown as Record<string, unknown>),
   };
+}
+
+function getUserCompanyCode(user: ReturnType<typeof AuthState.getUser>): string {
+  return String(user?.companyCode || ((user?.roles || []).includes('Admin CGG') ? 'CGG' : '')).trim().toUpperCase();
 }
 
 function getCurrentTenantFields() {
@@ -149,13 +153,13 @@ export class HDOSCentralStore {
   const generation = ++this.initGeneration;
   const initialUser = AuthState.getUser();
   const initialOwnerKey = initialUser?.id
-    ? `${String(initialUser.id)}::${String(initialUser.companyCode || '').trim().toUpperCase()}`
+    ? `${String(initialUser.id)}::${getUserCompanyCode(initialUser)}`
     : '';
   const initialToken = hseApi.authToken;
   const isCurrentInitialization = (): boolean => {
     const activeUser = AuthState.getUser();
     const activeOwnerKey = activeUser?.id
-      ? `${String(activeUser.id)}::${String(activeUser.companyCode || '').trim().toUpperCase()}`
+      ? `${String(activeUser.id)}::${getUserCompanyCode(activeUser)}`
       : '';
     return generation === this.initGeneration &&
       activeOwnerKey === initialOwnerKey &&
@@ -227,7 +231,7 @@ export class HDOSCentralStore {
     // tenant boundary to cached data before exposing it to any module.
     const currentUser = AuthState.getUser();
     if (currentUser) {
-      const ownCompanyCode = String(currentUser.companyCode || '').trim().toUpperCase();
+      const ownCompanyCode = getUserCompanyCode(currentUser);
       const canSeeAllContractors = currentUser.roles?.includes('Admin CGG') || ownCompanyCode === 'CGG';
       this.contractors = this.contractors.filter(contractor =>
         canSeeAllContractors || String(contractor.code || '').trim().toUpperCase() === ownCompanyCode
@@ -278,13 +282,13 @@ export class HDOSCentralStore {
       // Verified CGG oversight roles need visibility across the registered
       // contractor and subcontractor master, not a hard-coded company list.
       const oversightRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'SPV HSE', 'Foreman Safety', 'PJO'];
-      if (String(currentUser.companyCode || '').trim().toUpperCase() === 'CGG' && currentUser.roleVerified === true && oversightRoles.some(role => currentUser.roles.includes(role))) {
+      if (getUserCompanyCode(currentUser) === 'CGG' && currentUser.roleVerified === true && oversightRoles.some(role => currentUser.roles.includes(role))) {
         return true;
       }
 
       // A contractor/company administrator can see its own company and its
       // registered subcontractors. A subcontractor account sees only itself.
-      const ownCompanyCode = String(currentUser.companyCode || '').trim().toUpperCase();
+      const ownCompanyCode = getUserCompanyCode(currentUser);
       if (!ownCompanyCode) return false;
       const recordCode = String(record.code || '').trim().toUpperCase();
       const parentCode = String(record.parentCompanyCode || '').trim().toUpperCase();
@@ -324,12 +328,12 @@ export class HDOSCentralStore {
     const rows = records.filter((record) => record && typeof record.id === 'string' && record.id.trim());
     const currentUser = AuthState.getUser();
     const ownerKey = currentUser?.id
-      ? `${String(currentUser.id)}::${String(currentUser.companyCode || '').trim().toUpperCase()}`
+      ? `${String(currentUser.id)}::${getUserCompanyCode(currentUser)}`
       : '';
     const activeOwnerKey = (): string => {
       const activeUser = AuthState.getUser();
       return activeUser?.id
-        ? `${String(activeUser.id)}::${String(activeUser.companyCode || '').trim().toUpperCase()}`
+        ? `${String(activeUser.id)}::${getUserCompanyCode(activeUser)}`
         : '';
     };
 
@@ -340,7 +344,7 @@ export class HDOSCentralStore {
     const queueMatchesOwner = Boolean(
       queueOwner &&
       queueOwner.userId === String(currentUser.id) &&
-      queueOwner.companyCode === String(currentUser.companyCode || '').trim().toUpperCase()
+      queueOwner.companyCode === getUserCompanyCode(currentUser)
     );
     const queueEntity = {
       inspections: 'inspection',
@@ -426,11 +430,11 @@ export class HDOSCentralStore {
     if (!user?.id || !token || !hseApi.isAuthenticated) return { refreshed: [], failed: ['session'] };
     const refreshed: string[] = [];
     const failed: string[] = [];
-    const ownerKey = `${user.id}::${String(user.companyCode || '').trim().toUpperCase()}`;
+    const ownerKey = `${user.id}::${getUserCompanyCode(user)}`;
     const isSameSession = () => {
       const active = AuthState.getUser();
       return hseApi.authToken === token && active?.id === user.id &&
-        `${active.id}::${String(active.companyCode || '').trim().toUpperCase()}` === ownerKey;
+        `${active.id}::${getUserCompanyCode(active)}` === ownerKey;
     };
 
     const entities = ['inspections', 'hazards', 'picas', 'incidents'] as const;
