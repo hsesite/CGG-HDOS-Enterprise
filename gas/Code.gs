@@ -3590,7 +3590,24 @@ function normalizeCreateValue_(value) {
   return value;
 }
 
+function createPayloadFingerprint_(payload) {
+  const canonical = JSON.stringify(normalizeCreateValue_(payload || {}));
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    canonical,
+    Utilities.Charset.UTF_8
+  );
+  return Utilities.base64EncodeWebSafe(digest);
+}
+
 function isSameCreatePayload_(existing, payload) {
+  // New records retain the original CREATE fingerprint. This remains stable
+  // even after later UPDATE operations change the live operational fields.
+  if (existing && existing._createFingerprint) {
+    return existing._createFingerprint === createPayloadFingerprint_(payload);
+  }
+
+  // Backward compatibility for records created before fingerprints existed.
   return Object.keys(payload || {}).every(function(key) {
     return JSON.stringify(normalizeCreateValue_(existing[key])) ===
       JSON.stringify(normalizeCreateValue_(payload[key]));
@@ -3720,6 +3737,7 @@ function createRecord_(
     // the duplicate check and append.
     item = Object.assign({}, safePayload, {
       id: id,
+      _createFingerprint: createPayloadFingerprint_(safePayload),
       code: code,
       createdAt: createdAt,
       updatedAt: updatedAt,
