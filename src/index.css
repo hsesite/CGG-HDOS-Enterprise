@@ -75,3 +75,48 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
 }
+
+
+/* Mobile-first field operation defaults */
+@layer base {
+  html, body, #root {
+    width: 100%;
+    min-width: 320px;
+    min-height: 100%;
+    margin: 0;
+  }
+
+  body {
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  input, select, textarea {
+    max-width: 100%;
+  }
+
+  img, canvas, video, svg {
+    max-width: 100%;
+  }
+}
+
+.hdos-mobile-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (max-width: 767px) {
+  .apple-glass, .apple-glass-card, .apple-menubar, .apple-glass-dock {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+}
