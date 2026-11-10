@@ -2373,6 +2373,46 @@ test('Repository preview and form generation abort when the active account chang
   assert.match(generate, /await store\.addFormDefinition\(formInput\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
 });
 
+test('Repository upload and delete flows stop after the active account changes', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
+  const createStart = moduleSource.indexOf('const handleCreateDoc = async');
+  const createEnd = moduleSource.indexOf('const closeOriginalPreview =', createStart);
+  const create = moduleSource.slice(createStart, createEnd);
+  assert.match(create, /const sessionSnapshot = captureRepositorySession\(\)/);
+  assert.match(create, /await hdosDB\.init\(\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(create, /await fileToBase64\(selectedFile\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(create, /await hseApi\.uploadRepositoryDocument\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(create, /await store\.updateDocument\([\s\S]*?assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(create, /if \(!isRepositorySessionCurrent\(sessionSnapshot\)\) return/);
+  assert.match(create, /assertRepositorySessionCurrent\(sessionSnapshot\);\s*await store\.deleteDocument\(newDoc\.id\)/);
+  const deleteStart = moduleSource.indexOf('const handleDeleteDocument = async');
+  const deleteEnd = moduleSource.indexOf('const handleGenerateForm = async', deleteStart);
+  const remove = moduleSource.slice(deleteStart, deleteEnd);
+  assert.match(remove, /const sessionSnapshot = captureRepositorySession\(\)/);
+  assert.match(remove, /await store\.deleteDocument\(doc\.id\);\s*assertRepositorySessionCurrent\(sessionSnapshot\)/);
+  assert.match(remove, /if \(isRepositorySessionCurrent\(sessionSnapshot\)\)/);
+});
+
+test('Repository store document mutations bind ownership and publication to the initiating session', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const addStart = storeSource.indexOf('async addDocument(');
+  const updateStart = storeSource.indexOf('async updateDocument(', addStart);
+  const deleteStart = storeSource.indexOf('async deleteDocument(', updateStart);
+  const formStart = storeSource.indexOf('async addFormDefinition(', deleteStart);
+  assert.ok(addStart >= 0 && updateStart > addStart && deleteStart > updateStart && formStart > deleteStart);
+  const add = storeSource.slice(addStart, updateStart);
+  const update = storeSource.slice(updateStart, deleteStart);
+  const remove = storeSource.slice(deleteStart, formStart);
+  assert.match(add, /const sessionToken = hseApi\.authToken/);
+  assert.match(add, /ownerUserId: sessionUser\.id/);
+  assert.match(add, /\.\.\.tenantFields/);
+  assert.match(add, /if \(!isCurrentSession\(\)\)[\s\S]*?Dokumen tidak dipublikasikan ke akun yang baru/);
+  assert.match(update, /if \(!isCurrentSession\(\)\)[\s\S]*?Perubahan tidak dipublikasikan ke akun yang baru/);
+  assert.match(remove, /await hseApi\.deleteRepositoryDocument\(documentId\);\s*if \(!isCurrentSession\(\)\)/);
+  assert.match(remove, /await hdosSync\.enqueueBatch\([\s\S]*?if \(!isCurrentSession\(\)\)/);
+  assert.match(remove, /if \(!isCurrentSession\(\)\)[\s\S]*?Muat ulang Repository akun aktif/);
+});
+
 test('Repository clears selected document and preview state when the tenant changes', () => {
   const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
   assert.match(moduleSource, /Clear account-bound UI state immediately when the active tenant changes/);
