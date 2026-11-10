@@ -22,7 +22,6 @@ import { hdosAuth } from '../../core/auth';
 import { createInspectionAction } from '../../core/module-actions';
 import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 import { getCurrentUser } from '../../core/auth-utils';
-import { saveOfflineOperationalPhoto } from '../../core/offline-photos';
 
 interface TemplateDef {
   id: 'APAR' | 'HEAVY_EQUIPMENT' | 'WORKSHOP' | 'PIT_SLOPE';
@@ -33,17 +32,6 @@ interface TemplateDef {
 }
 
 const TEMPLATES: TemplateDef[] = [];
-
-const readImageBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onerror = () => reject(new Error('Foto gagal dibaca.'));
-  reader.onload = () => {
-    const value = String(reader.result || '');
-    const comma = value.indexOf(',');
-    resolve(comma >= 0 ? value.slice(comma + 1) : value);
-  };
-  reader.readAsDataURL(file);
-});
 
 export const InspectionModule: React.FC = () => {
   const store = useHDOSStore();
