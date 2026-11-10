@@ -14,7 +14,7 @@ self.addEventListener('install', event => {
     // online visit can reopen the app shell without a network connection.
     const html = await response.text();
     const assetPaths = new Set(
-      [...html.matchAll(/(?:src|href)=["']([^"']+\\.(?:js|css)(?:\\?[^"']*)?)["']/g)]
+      [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g)]
         .map(match => match[1])
     );
 
