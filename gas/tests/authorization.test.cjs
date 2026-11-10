@@ -2886,3 +2886,13 @@ test('operational CREATE retry uses immutable original fingerprint after later r
     id: 'legacy-001', description: 'Legacy finding'
   }, { id: 'legacy-001', description: 'Legacy finding' }), true);
 });
+
+
+test('Contractor Passport guidance reflects implemented offline P2H photo and SIA upload flows', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'ContractorModule.tsx'), 'utf8');
+  assert.match(moduleSource, /Bukti foto inspeksi disimpan di perangkat dan diunggah saat sinkronisasi/);
+  assert.match(moduleSource, /dokumen SIA mengikuti antrean unggah yang sama/);
+  assert.doesNotMatch(moduleSource, /Dokumen bukti inspeksi dan lampiran SIA masih dalam tahap pengembangan/);
+  assert.match(moduleSource, /saveOfflineOperationalPhoto\(file\)/);
+  assert.match(moduleSource, /saveOfflineContractorSia\(file, unit\.id\)/);
+});
