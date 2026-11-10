@@ -551,3 +551,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Validasi PWA dijalankan pada workflow CI dan workflow deployment sebelum artefak diunggah ke GitHub Pages.
 - [x] Build terakhir memvalidasi 5 file shell dan 33 aset manifest; 205 regression tests lulus, 0 gagal; typecheck frontend/backend dan production build berhasil pada commit `a570f6447af5bf04175574641b14afeeae2657ee`.
 - [ ] Uji instalasi PWA dan pembukaan ulang offline pada perangkat Android/iOS fisik tetap diperlukan.
+
+
+### Backend — fingerprint CREATE tetap stabil setelah UPDATE (10 November 2026)
+- [x] Record operasional baru menyimpan fingerprint SHA-256 dari payload CREATE asli sebagai metadata internal.
+- [x] Retry CREATE dengan ID dan payload awal yang sama tetap dikenali sebagai replay sah meskipun record telah berubah melalui UPDATE setelah CREATE pertama berhasil.
+- [x] Retry dengan ID sama tetapi payload awal berbeda tetap ditolak HTTP 409; fingerprint tidak berubah ketika field operasional diperbarui.
+- [x] Record lama tanpa fingerprint tetap memakai pemeriksaan kesamaan field untuk menjaga kompatibilitas arsip/data yang sudah ada.
+- [x] 206 regression tests lulus, 0 gagal; typecheck frontend/backend, production build, dan validasi artefak PWA berhasil pada commit `536d8e6a4cd3c7ed4d19add0add2409c45df0e11`.
+- [ ] Karena perubahan berada di `gas/Code.gs`, deploy ke Apps Script staging tetap terpisah dari GitHub Pages dan wajib diuji dengan skenario respons CREATE hilang, UPDATE sesudahnya, lalu retry CREATE.
