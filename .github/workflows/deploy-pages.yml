@@ -33,6 +33,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Typecheck frontend
         run: bun run typecheck
+      - name: Run regression tests
+        run: bun run test:gas
       - name: Validate production configuration
         env:
           VITE_GAS_URL: ${{ secrets.VITE_GAS_URL }}
