@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   HardHat,
   ShieldCheck,
@@ -56,6 +56,15 @@ export const ContractorModule: React.FC = () => {
     mcuEligibleCount: '', mcuFitCount: '', inductionRequiredCount: '',
     inductionCompletedCount: '', safeHours: '', ltiCount: '0', remarks: ''
   });
+  const p2hDraftKey = sessionUser && p2hUnitId
+    ? `contractor-p2h-draft:${sessionUser.id}:${ownCompanyCode}:${p2hUnitId}`
+    : '';
+  const reportDraftKey = sessionUser && ownCompanyCode && ownCompanyCode !== 'CGG'
+    ? `contractor-report-draft:${sessionUser.id}:${ownCompanyCode}`
+    : '';
+  const loadedP2HDraftKey = useRef('');
+  const loadedReportDraftKey = useRef('');
+  const draftOwner = { ownerUserId: String(sessionUser?.id || ''), ownerCompanyCode: ownCompanyCode };
   const sessionRoles = sessionUser?.roles || [];
   const ownCompanyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   const canSubmitReport = Boolean(sessionUser && ownCompanyCode && ownCompanyCode !== 'CGG' &&
@@ -130,6 +139,61 @@ export const ContractorModule: React.FC = () => {
       .finally(() => { if (active) setFleetLoading(false); });
     return () => { active = false; };
   }, [sessionScopeKey]);
+
+  useEffect(() => {
+    let active = true;
+    loadedP2HDraftKey.current = '';
+    if (!p2hDraftKey || !draftOwner.ownerUserId || !draftOwner.ownerCompanyCode) return () => { active = false; };
+    void hdosDB.getById<{id:string;ownerUserId:string;ownerCompanyCode:string;draft:ContractorP2HInput;localPhotoId?:string}>('contractor', p2hDraftKey)
+      .then(async saved => {
+        if (!active || !isCurrentSessionScope(sessionScopeKey)) return;
+        if (saved && saved.ownerUserId === draftOwner.ownerUserId && saved.ownerCompanyCode === draftOwner.ownerCompanyCode) {
+          setP2hDraft(saved.draft);
+          setP2hLocalPhotoId(saved.localPhotoId || '');
+          if (saved.localPhotoId) {
+            const photo = await hdosDB.getById<OfflineOperationalPhoto>('photos', saved.localPhotoId);
+            if (photo && active && photo.ownerUserId === draftOwner.ownerUserId && photo.ownerCompanyCode === draftOwner.ownerCompanyCode) {
+              setP2hPhotoPreview(URL.createObjectURL(photo.blob));
+            }
+          }
+        }
+        if (active) loadedP2HDraftKey.current = p2hDraftKey;
+      })
+      .catch(error => { if (active) setFleetMessage(error instanceof Error ? error.message : 'Draft P2H lokal gagal dibaca.'); });
+    return () => { active = false; };
+  }, [p2hDraftKey, sessionScopeKey]);
+
+  useEffect(() => {
+    let active = true;
+    loadedReportDraftKey.current = '';
+    if (!reportDraftKey || !draftOwner.ownerUserId || !draftOwner.ownerCompanyCode) return () => { active = false; };
+    void hdosDB.getById<{id:string;ownerUserId:string;ownerCompanyCode:string;draft:typeof reportDraft}>('contractor', reportDraftKey)
+      .then(saved => {
+        if (!active || !isCurrentSessionScope(sessionScopeKey)) return;
+        if (saved && saved.ownerUserId === draftOwner.ownerUserId && saved.ownerCompanyCode === draftOwner.ownerCompanyCode) setReportDraft(saved.draft);
+        if (active) loadedReportDraftKey.current = reportDraftKey;
+      })
+      .catch(error => { if (active) setReportMessage(error instanceof Error ? error.message : 'Draft laporan lokal gagal dibaca.'); });
+    return () => { active = false; };
+  }, [reportDraftKey, sessionScopeKey]);
+
+  useEffect(() => {
+    if (!p2hDraftKey || loadedP2HDraftKey.current !== p2hDraftKey) return;
+    const timer = window.setTimeout(() => {
+      void hdosDB.put('contractor', { id: p2hDraftKey, ...draftOwner, draft: p2hDraft, localPhotoId: p2hLocalPhotoId || undefined, updatedAt: new Date().toISOString() })
+        .catch(error => setFleetMessage(error instanceof Error ? error.message : 'Draft P2H gagal disimpan di perangkat.'));
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [p2hDraft, p2hLocalPhotoId, p2hDraftKey, sessionScopeKey]);
+
+  useEffect(() => {
+    if (!reportDraftKey || loadedReportDraftKey.current !== reportDraftKey) return;
+    const timer = window.setTimeout(() => {
+      void hdosDB.put('contractor', { id: reportDraftKey, ...draftOwner, draft: reportDraft, updatedAt: new Date().toISOString() })
+        .catch(error => setReportMessage(error instanceof Error ? error.message : 'Draft laporan gagal disimpan di perangkat.'));
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [reportDraft, reportDraftKey, sessionScopeKey]);
 
   const isCurrentSessionScope = (scopeKey: string) => {
     const current = getCurrentUser();
