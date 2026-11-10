@@ -2074,8 +2074,8 @@ test('Concurrent operational CREATE allocates row-dependent codes inside the Scr
   assert.ok(lockStart >= 0 && rowAllocation > lockStart);
   assert.ok(codeAllocation > rowAllocation);
   assert.ok(append > codeAllocation);
-  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user)') < rowAllocation);
-  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user)', create.indexOf('lock.waitLock(')) > lockStart);
+  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user, safePayload)') < rowAllocation);
+  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user, safePayload)', create.indexOf('lock.waitLock(')) > lockStart);
 });
 
 
