@@ -23,7 +23,7 @@ export class AuthState {
     const user = this.getUser();
     if (!user) return false;
     const rolePermissions: Record<string, string[]> = {
-      KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create', 'incident.update'],
+      KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'incident.read', 'incident.create', 'incident.update'],
       'SPV HSE': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create'],
       'Foreman Safety': ['inspection.read', 'inspection.create', 'hazard.read', 'hazard.create', 'pica.read'],
       'Safety Officer': ['inspection.read', 'inspection.create', 'hazard.read', 'hazard.create'],
