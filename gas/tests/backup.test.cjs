@@ -30,7 +30,8 @@ test('Contractor root backup retains its own and registered Subkon records', () 
 });
 
 test('Admin CGG backup includes all authorized company tenants', () => {
-  assert.match(backupSource, /isAdminCGG: \(user\.roles \|\| \[\]\)\.includes\('Admin CGG'\)/);
+  assert.match(backupSource, /const isAdminCGG = \(user\.roles \|\| \[\]\)\.includes\('Admin CGG'\)/);
+  assert.match(backupSource, /if \(isAdminCGG && companyCode !== 'CGG'\)/);
   const start = backupSource.indexOf('function recordTenantMatches(');
   const end = backupSource.indexOf('\n}\n', start);
   const helper = backupSource.slice(start, end + 2);
