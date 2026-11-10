@@ -667,6 +667,33 @@ test('idempotent create returns existing records only within the caller tenant',
   assert.equal(context.getExistingRecordForCreate_({},'existing-id',{roles:['Admin CGG'],companyCode:'CGG'}).id,'existing-id');
 });
 
+test('idempotent operational CREATE rejects reuse of the same ID with a different payload', () => {
+  const existing = { id: 'same-id', companyCode: 'VIP', details: { a: 1, b: 2 }, status: 'OPEN' };
+  const context = {
+    findRecordRow_: () => 2,
+    parseRow_: () => existing,
+    isAdminCGG_: user => (user.roles || []).includes('Admin CGG'),
+    isRecordVisibleToUser_: (record, user) => record.companyCode === user.companyCode,
+    httpError_: (status, message) => Object.assign(new Error(message), { status })
+  };
+  vm.createContext(context);
+  const start = source.indexOf('function normalizeCreateValue_(');
+  const end = source.indexOf('function createRecord_(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInContext(source.slice(start, end), context);
+  const user = { roles: ['Employee'], companyCode: 'VIP' };
+  assert.equal(context.getExistingRecordForCreate_({}, 'same-id', user, {
+    id: 'same-id', companyCode: 'VIP', details: { b: 2, a: 1 }
+  }).id, 'same-id');
+  assert.throws(
+    () => context.getExistingRecordForCreate_({}, 'same-id', user, {
+      id: 'same-id', companyCode: 'VIP', details: { a: 1, b: 3 }
+    }),
+    error => error.status === 409
+  );
+  assert.match(source, /getExistingRecordForCreate_\(sheet, id, user, safePayload\)/);
+});
+
 test('user creation enforces email uniqueness inside a script lock', () => {
   let locked = false;
   let released = false;
