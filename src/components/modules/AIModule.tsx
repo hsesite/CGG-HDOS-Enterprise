@@ -132,7 +132,7 @@ export const AIModule: React.FC = () => {
                 className="px-3.5 py-1.5 rounded-xl bg-[#EC4899] hover:bg-pink-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{scanning ? 'Menganalisis Citra...' : 'Pindai Foto Bahaya'}</span>
+                <span>{scanning ? 'Menyiapkan Simulasi...' : 'Tampilkan Simulasi'}</span>
               </button>
             </div>
 
@@ -239,7 +239,7 @@ export const AIModule: React.FC = () => {
               ) : (
                 <div className="text-center py-10 text-neutral-400 text-xs space-y-2">
                   <ScanEye className="w-8 h-8 mx-auto text-neutral-600" />
-                  <p>Klik tombol &quot;Pindai Foto Bahaya&quot; untuk menjalankan analisis deteksi otomatis objek pertambangan.</p>
+                  <p>Klik &quot;Tampilkan Simulasi&quot; untuk melihat contoh visual. Fitur ini belum menganalisis foto yang diambil atau diunggah dari lapangan.</p>
                 </div>
               )}
             </div>
