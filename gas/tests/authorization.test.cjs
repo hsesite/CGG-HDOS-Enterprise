@@ -2014,4 +2014,23 @@ test('version conflicts preserve local queue payload and capture a tenant-scoped
   assert.match(syncEngineSource, /await hdosDB\.put\(\s*'queue',\s*item\s*\)/);
   assert.match(syncUiSource, /Bandingkan versi server/);
   assert.match(syncUiSource, /JSON\.stringify\(item\.conflictServerRecord, null, 2\)/);
+  assert.match(syncTypesSource, /'RESOLVED'/);
+  assert.match(syncTypesSource, /resolvedQueueItemId\?: string/);
+  const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
+  const resolutionEnd = syncEngineSource.indexOf('async retryFailedItems()', resolutionStart);
+  assert.ok(resolutionStart >= 0 && resolutionEnd > resolutionStart);
+  const resolutionBlock = syncEngineSource.slice(resolutionStart, resolutionEnd);
+  assert.match(resolutionBlock, /original\.status !== 'CONFLICT'/);
+  assert.match(resolutionBlock, /original\.ownerUserId !== owner\.userId/);
+  assert.match(resolutionBlock, /serverRecordId !== recordId \|\| !serverUpdatedAt/);
+  assert.match(resolutionBlock, /updatedAt: serverUpdatedAt/);
+  assert.match(resolutionBlock, /protectedPayload\[key\] = serverRecord\[key\]/);
+  assert.match(resolutionBlock, /status: 'RESOLVED'/);
+  assert.match(resolutionBlock, /resolvedBy: owner\.userId/);
+  assert.match(resolutionBlock, /resolutionOfQueueItemId: original\.id/);
+  assert.match(resolutionBlock, /await hdosDB\.putBundle\(/);
+  assert.match(syncEngineSource, /if \(item\.status === 'RESOLVED'\) continue;/);
+  assert.match(syncUiSource, /Simpan Revisi & Antrekan Ulang/);
+  assert.match(syncUiSource, /JSON\.parse\(rawDraft\)/);
+
 });
