@@ -316,6 +316,17 @@ export const SyncModule: React.FC = () => {
                         const payload = item.payload && typeof item.payload === 'object' && !Array.isArray(item.payload)
                           ? item.payload as Record<string, unknown>
                           : {};
+                        const p2hInput = payload.input && typeof payload.input === 'object' && !Array.isArray(payload.input)
+                          ? payload.input as Record<string, unknown>
+                          : {};
+                        if (item.entity === 'contractor-report') {
+                          return typeof p2hInput.period === 'string' ? `Laporan kepatuhan periode ${p2hInput.period}` : 'Laporan kepatuhan Contractor';
+                        }
+                        if (item.entity === 'contractor' && typeof payload.fleetId === 'string') {
+                          const date = typeof p2hInput.inspectionDate === 'string' ? p2hInput.inspectionDate : '';
+                          const unit = typeof payload.unitNumber === 'string' ? payload.unitNumber : payload.fleetId;
+                          return `P2H ${unit}${date ? ` · ${date}` : ''}`;
+                        }
                         const label = payload.title ?? payload.code ?? payload.findingDescription;
                         return typeof label === 'string' && label.trim()
                           ? label
