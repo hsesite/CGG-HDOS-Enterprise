@@ -2352,6 +2352,7 @@ test('sync queue recovery stops after account, token, or initialization generati
   const initEnd = syncSource.indexOf('getIsOnline(): boolean', initStart);
   assert.ok(initStart >= 0 && initEnd > initStart);
   const init = syncSource.slice(initStart, initEnd);
+  assert.match(init, /if \(this\.queueOwnerKey !== requestedOwnerKey\) \{[\s\S]*?this\.queue = \[\];[\s\S]*?hdosEvents\.emit\('sync:queue_updated', \[\]\)/);
   assert.match(init, /const requestedToken = hseApi\.authToken/);
   assert.match(init, /initGeneration !== this\.initGeneration/);
   assert.match(init, /activeOwnerKey === requestedOwnerKey && hseApi\.authToken === requestedToken/);
