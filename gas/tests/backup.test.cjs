@@ -8,6 +8,27 @@ const backupSource = fs.readFileSync(
   'utf8'
 );
 
+
+test('Subkon backup scope is restricted to its own company and does not inherit parent or sibling data', () => {
+  const start = backupSource.indexOf('function recordTenantMatches(');
+  const end = backupSource.indexOf('\n}\n', start);
+  assert.ok(start >= 0 && end > start);
+  const helper = backupSource.slice(start, end + 2);
+  assert.match(helper, /if \(owner\.parentCompanyCode\)/);
+  assert.match(helper, /return company === owner\.companyCode \|\| subkon === owner\.companyCode/);
+  assert.doesNotMatch(helper, /codes\.includes\(owner\.parentCompanyCode\)/);
+  assert.doesNotMatch(helper, /company === owner\.parentCompanyCode/);
+  assert.match(helper, /parent === owner\.companyCode/);
+});
+
+test('Contractor root backup retains its own and registered Subkon records', () => {
+  const start = backupSource.indexOf('function recordTenantMatches(');
+  const end = backupSource.indexOf('\n}\n', start);
+  const helper = backupSource.slice(start, end + 2);
+  assert.match(helper, /company === owner\.companyCode \|\| subkon === owner\.companyCode \|\| parent === owner\.companyCode/);
+  assert.match(helper, /!company && !subkon && !parent/);
+});
+
 test('backup serializes Blob attachments with MIME type and restores them as Blob', () => {
   assert.match(backupSource, /value instanceof Blob/);
   assert.match(backupSource, /__hdosBackupBinary: 'blob'/);
