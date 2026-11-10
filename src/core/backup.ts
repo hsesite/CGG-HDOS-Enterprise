@@ -122,7 +122,15 @@ export const hdosBackup = {
               ? { ...item, status: 'PENDING', syncStartedAt: undefined, error: 'Dipulihkan dari backup; menunggu sinkronisasi ulang.' }
               : value;
           })
-        : all.filter(value => recordTenantMatches(value, owner));
+        : storeName === 'photos'
+          ? all.filter(value => {
+              if (!value || typeof value !== 'object') return false;
+              const photo = value as Record<string, unknown>;
+              return photo.ownerUserId === owner.userId &&
+                photo.ownerCompanyCode === owner.companyCode &&
+                recordTenantMatches(value, owner);
+            })
+          : all.filter(value => recordTenantMatches(value, owner));
       stores[storeName as Exclude<StoreName, 'config'>] = await encodeBinary(scoped) as unknown[];
       records += scoped.length;
     }
@@ -194,7 +202,9 @@ export const hdosBackup = {
           continue;
         }
         const item = candidate as Record<string, unknown> & { id: string };
-        if (!recordTenantMatches(item, owner)) {
+        if (!recordTenantMatches(item, owner) ||
+            (storeName === 'photos' &&
+              (item.ownerUserId !== owner.userId || item.ownerCompanyCode !== owner.companyCode))) {
           skipped++;
           continue;
         }
