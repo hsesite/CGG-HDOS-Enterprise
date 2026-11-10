@@ -144,9 +144,14 @@ export const hdosBackup = {
     };
     const canonicalPayload = JSON.parse(JSON.stringify(payload)) as BackupPayload;
     const archive: BackupArchive = { ...canonicalPayload, checksum: await checksum(canonicalPayload) };
+    const serialized = JSON.stringify(archive);
+    const backupBlob = new Blob([serialized], { type: 'application/json' });
+    if (backupBlob.size <= 0 || backupBlob.size > MAX_BACKUP_BYTES) {
+      throw new Error('Backup melebihi batas 100 MB setelah lampiran dikodekan. Kurangi jumlah/ukuran foto atau ekspor data secara bertahap.');
+    }
     const date = new Date().toISOString().replace(/[:.]/g, '-');
     return {
-      blob: new Blob([JSON.stringify(archive)], { type: 'application/json' }),
+      blob: backupBlob,
       filename: `CGG_HDOS_BACKUP_${owner.companyCode}_${date}.json`,
       records,
     };
