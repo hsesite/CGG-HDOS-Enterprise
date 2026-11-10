@@ -767,6 +767,17 @@ export class HDOSCentralStore {
   }
   const now = new Date().toISOString();
 
+  const sourceTenant = sourceDocument as unknown as Record<string, unknown>;
+  const currentTenant = getCurrentTenantFields();
+  const formTenantFields = {
+    ...currentTenant,
+    ...(sourceTenant.companyCode ? { companyCode: String(sourceTenant.companyCode).trim().toUpperCase() } : {}),
+    ...(sourceTenant.contractorCode ? { contractorCode: String(sourceTenant.contractorCode).trim().toUpperCase() } : {}),
+    ...(sourceTenant.parentCompanyCode ? { parentCompanyCode: String(sourceTenant.parentCompanyCode).trim().toUpperCase() } : {}),
+    ...(sourceTenant.subcontractorCode ? { subcontractorCode: String(sourceTenant.subcontractorCode).trim().toUpperCase() } : {}),
+    ...(sourceTenant.subkonCode ? { subkonCode: String(sourceTenant.subkonCode).trim().toUpperCase() } : {}),
+    ...(sourceTenant.ownerCompanyCode ? { ownerCompanyCode: String(sourceTenant.ownerCompanyCode).trim().toUpperCase() } : {}),
+  };
   const formDefinition: FormDefinition = {
     id:
       typeof crypto !== 'undefined' &&
@@ -774,6 +785,7 @@ export class HDOSCentralStore {
         ? `form_${crypto.randomUUID()}`
         : `form_${Date.now()}`,
     ...input,
+    ...formTenantFields,
     createdAt: now,
     updatedAt: now,
   };
