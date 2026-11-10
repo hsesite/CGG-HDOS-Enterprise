@@ -2352,6 +2352,21 @@ test('repository metadata and original binary are committed atomically during up
 });
 
 
+test('central Repository snapshots are tenant-filtered before entering the shared client store', () => {
+  const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const setterStart = storeSource.indexOf('setCentralRepositoryDocuments(documents: DocumentItem[]): void');
+  const setterEnd = storeSource.indexOf('async mergeCloudOperationalRecords(', setterStart);
+  assert.ok(setterStart >= 0 && setterEnd > setterStart);
+  const setter = storeSource.slice(setterStart, setterEnd);
+  assert.match(setter, /const user = AuthState\.getUser\(\)/);
+  assert.match(setter, /const allowedCompanyCodes = this\.getAllowedCompanyCodes\(\)/);
+  assert.match(setter, /const isGlobalDocument = !companyCode && !parentCompanyCode/);
+  assert.match(setter, /return isGlobalDocument \|\| isLocalRecordVisible\(/);
+  assert.match(setter, /this\.documents = documents\.filter\(document =>/);
+  assert.match(setter, /this\.notify\(\)/);
+  assert.doesNotMatch(setter, /this\.documents = documents;/);
+});
+
 test('tenant store initialization cannot publish stale account snapshots after a session switch', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
   const initStart = storeSource.indexOf('async init(): Promise<void>');
