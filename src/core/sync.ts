@@ -39,7 +39,21 @@ function compareQueueItemsByTime(a: SyncQueueItem, b: SyncQueueItem): number {
     return a.resolutionOfQueueItemId ? -1 : 1;
   }
   const timeOrder = String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
-  return timeOrder || String(a.id).localeCompare(String(b.id));
+  if (timeOrder) return timeOrder;
+
+  // Two operations can be queued in the same millisecond. Keep their
+  // dependency order deterministic instead of letting random queue IDs decide.
+  if (sameRecord) {
+    const actionOrder: Record<SyncQueueItem['action'], number> = {
+      CREATE: 0,
+      UPDATE: 1,
+      DELETE: 2,
+    };
+    const actionDifference = actionOrder[a.action] - actionOrder[b.action];
+    if (actionDifference) return actionDifference;
+  }
+
+  return String(a.id).localeCompare(String(b.id));
 }
 
 function getRecordId(
