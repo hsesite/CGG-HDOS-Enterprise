@@ -33,6 +33,12 @@ function loadScope() {
 }
 const applyRecordScope = loadScope();
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
+test('same-record sync operations use CREATE then UPDATE then DELETE when timestamps tie', () => {
+  assert.ok(syncEngineSource.includes("const actionOrder: Record<SyncQueueItem['action'], number> = {"));
+  assert.ok(syncEngineSource.includes('CREATE: 0,\n      UPDATE: 1,\n      DELETE: 2,'));
+  assert.ok(syncEngineSource.includes('if (timeOrder) return timeOrder;'));
+  assert.ok(syncEngineSource.includes('if (actionDifference) return actionDifference;'));
+});
 test('manual sync conflict resolution preserves every tenant ownership field from server snapshot', () => {
   assert.ok(syncEngineSource.includes("for (const key of ['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode', 'ownerCompanyCode'])"));
   assert.ok(syncEngineSource.includes('protectedPayload[key] = serverRecord[key]'));
