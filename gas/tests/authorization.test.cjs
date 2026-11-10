@@ -2006,6 +2006,18 @@ test('PICA close action requires only Foreman Safety and SPV HSE approvals', () 
 });
 
 
+test('sync refreshes persisted tenant queue after acquiring the cross-tab lock', () => {
+  assert.match(syncEngineSource, /if \(!lock\) \{[\s\S]*?this\.scheduleRetry\(\);[\s\S]*?return false;/);
+  assert.match(syncEngineSource, /const persistedQueue = await hdosDB\.getAll<SyncQueueItem>\('queue'\)/);
+  assert.match(syncEngineSource, /const ownerAfterQueueRead = this\.getCurrentOwner\(\)/);
+  assert.match(syncEngineSource, /this\.queue = persistedQueue\.filter\(item =>/);
+  assert.match(syncEngineSource, /hseApi\.authToken !== syncToken/);
+});
+
+test('unresolved conflict items are not replayed by an unrelated sync trigger', () => {
+  assert.match(syncEngineSource, /if \(item\.status === 'CONFLICT'\) \{[\s\S]*?blockedRecordIds\.add\(itemRecordId\);[\s\S]*?continue;/);
+});
+
 test('sync recovery does not reset another tab active lease and timestamps each attempt', () => {
   assert.match(syncEngineSource, /navigator\.locks\.request\(\s*recoveryLockName/);
   assert.match(syncEngineSource, /\{ mode: 'exclusive', ifAvailable: true \}/);
