@@ -1180,7 +1180,7 @@ test('sync initialization recovers interrupted items only when the tenant lock i
   assert.match(initMethod, /item\.status = 'PENDING'/);
   assert.match(initMethod, /item\.syncStartedAt = undefined/);
   assert.match(initMethod, /await hdosDB\.put\('queue', item\)/);
-  assert.match(syncSource, /item\.syncStartedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(syncSource, /hdosDB\.claimQueueItem<SyncQueueItem>/);
 });
 test('sync retries transient failures but holds permanent API errors for manual correction', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
@@ -1245,6 +1245,22 @@ test('unexpected sync engine errors release current-owner SYNCING items for retr
   assert.ok(catchBlock.lastIndexOf('await hdosDB.put') < catchBlock.indexOf('this.scheduleRetry()'));
 });
 
+test('queue item claiming is atomic and scoped to the exact owner across browser tabs', () => {
+  const start = syncDbSource.indexOf('async claimQueueItem<');
+  const end = syncDbSource.indexOf('async delete(', start);
+  assert.ok(start >= 0 && end > start);
+  const claim = syncDbSource.slice(start, end);
+  assert.match(claim, /db\.transaction\('queue', 'readwrite'\)/);
+  assert.match(claim, /const request = store\.get\(id\)/);
+  assert.match(claim, /current\.status !== 'PENDING'/);
+  assert.match(claim, /current\.ownerUserId !== ownerUserId/);
+  assert.match(claim, /current\.ownerCompanyCode !== ownerCompanyCode/);
+  assert.match(claim, /store\.put\(claimed\)/);
+  assert.match(syncEngineSource, /hdosDB\.claimQueueItem<SyncQueueItem>/);
+  assert.match(syncEngineSource, /if \(!claimedItem\)/);
+  assert.match(syncEngineSource, /const ownerAfterClaim = this\.getCurrentOwner\(\)/);
+});
+
 test('successful sync removes its queue item and local evidence in one atomic transaction', () => {
   const sync = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'sync.ts'), 'utf8');
   const cleanupStart = sync.indexOf('// Commit queue acknowledgement and local binary cleanup together.');
@@ -1274,7 +1290,7 @@ test('offline sync replays queue by creation time and blocks later writes to a f
   assert.match(sync, /function compareQueueItemsByTime\(a: SyncQueueItem, b: SyncQueueItem\)/);
   assert.match(sync, /storedQueue\.filter\(item => item\.ownerUserId === owner\.userId && item\.ownerCompanyCode === owner\.companyCode\)\.sort\(compareQueueItemsByTime\)/);
   assert.match(sync, /const orderedQueueIds = \[\.\.\.this\.queue\][\s\S]*?\.map\(queued => queued\.id\)/);
-  assert.match(sync, /for \(const queuedId of orderedQueueIds\) \{\s*const item = this\.queue\.find\(queued => queued\.id === queuedId\)/);
+  assert.match(sync, /for \(const queuedId of orderedQueueIds\) \{\s*let item = this\.queue\.find\(queued => queued\.id === queuedId\)/);
   assert.match(sync, /const blockedRecordIds = new Set<string>\(\)/);
   assert.match(sync, /if \(itemRecordId && blockedRecordIds\.has\(itemRecordId\)\)/);
   assert.match(sync, /Perubahan ditahan karena sinkronisasi perubahan sebelumnya untuk record ini belum berhasil/);
@@ -2208,7 +2224,7 @@ test('sync recovery does not reset another tab active lease and timestamps each 
   assert.match(syncEngineSource, /\{ mode: 'exclusive', ifAvailable: true \}/);
   assert.match(syncEngineSource, /if \(lock && !abandonStaleInitialization\(\)\) await recoverInterruptedQueue\(\)/);
   assert.match(syncEngineSource, /Date\.now\(\) - 2 \* 60 \* 1000/);
-  assert.match(syncEngineSource, /item\.syncStartedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(syncEngineSource, /hdosDB\.claimQueueItem<SyncQueueItem>/);
   assert.match(syncEngineSource, /item\.ownerUserId !== owner\?\.userId/);
   assert.match(syncTypesSource, /syncStartedAt\?: string/);
 });
