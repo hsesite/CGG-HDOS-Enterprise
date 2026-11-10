@@ -2207,6 +2207,9 @@ test('repository and published-form snapshots reconcile atomically without parti
   assert.match(forms, /await hdosDB\.reconcileSnapshot\('form-definition', staleIds, next\)/);
   assert.doesNotMatch(forms, /await hdosDB\.put\('form-definition'/);
   assert.doesNotMatch(forms, /await hdosDB\.delete\('form-definition'/);
+  assert.match(refresh, /Rekonsiliasi repository gagal; cache sebelumnya dipertahankan/);
+  assert.match(refresh, /Rekonsiliasi formulir gagal; cache sebelumnya dipertahankan/);
+  assert.match(forms, /shouldPublish && !shouldPublish\(\)/);
 });
 
 test('cloud operational snapshot applies tenant-scoped deletes and upserts atomically', () => {
