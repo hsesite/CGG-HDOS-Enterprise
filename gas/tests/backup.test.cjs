@@ -178,6 +178,8 @@ test('restore rejects malformed offline queue records before any IndexedDB write
   assert.match(backupSource, /!Number\.isFinite\(queueTimestamp\)/);
   assert.match(backupSource, /!Number\.isInteger\(item\.retryCount\)/);
   assert.match(backupSource, /!item\.payload \|\| typeof item\.payload !== 'object' \|\| Array\.isArray\(item\.payload\)/);
+  assert.match(backupSource, /typeof \(item\.payload as Record<string, unknown>\)\.id !== 'string'/);
+  assert.match(backupSource, /!\(item\.payload as Record<string, unknown>\)\.id\?\.trim\(\)/);
   const validationIndex = backupSource.indexOf('const allowedEntities = new Set');
   const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
   assert.ok(validationIndex >= 0 && writeIndex > validationIndex, 'queue validation must precede every restore write');
