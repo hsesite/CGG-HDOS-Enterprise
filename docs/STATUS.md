@@ -666,3 +666,16 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Payload antrean dipertahankan untuk replay. Perlindungan idempotensi backend tetap menjadi syarat agar pengulangan setelah respons/ack lokal gagal tidak membuat record ganda.
 - [x] Regression test ditambahkan untuk memastikan status retryable mengikuti cloud commit yang sudah terkonfirmasi.
 - [ ] Uji fault-injection pada browser dan GAS staging: cloud commit sukses lalu IndexedDB gagal saat propagasi versi/acknowledgement; pastikan hanya satu record cloud dan antrean lokal akhirnya bersih.
+
+## Implementasi terbaru (11 November 2026) — backup dan pemulihan perangkat
+
+- [x] Backup lokal mengambil snapshot seluruh store non-config dari satu transaksi baca IndexedDB.
+- [x] Data Blob dan ArrayBuffer, termasuk foto operasional dan dokumen SIA offline, diserialisasi dengan metadata MIME dan dipulihkan sebagai binary.
+- [x] Backup memeriksa SHA-256, versi format, nama store, ID duplikat, batas ukuran, dan validitas metadata lampiran.
+- [x] Backup dan restore dibatasi pada identitas akun serta cakupan perusahaan; restore menolak backup dari akun pengguna berbeda walaupun tenant sama.
+- [x] Restore bersifat add-only: ID lokal yang sudah ada tidak ditimpa; pemeriksaan ID dan penyisipan dilakukan atomik lintas-store pada IndexedDB.
+- [x] Antrean yang tertinggal pada status `SYNCING` dikembalikan ke `PENDING` saat dibuat/dipulihkan dari backup.
+- [ ] Uji fault-injection pemulihan ketika transaksi IndexedDB gagal, storage quota habis, browser ditutup, dan backup berisi lampiran besar.
+- [ ] Uji backup/restore lintas perangkat dengan akun yang sama serta penolakan akun berbeda pada browser/perangkat nyata.
+- [ ] Uji bahwa foto dan dokumen SIA hasil restore dapat diunggah ulang dan direferensikan oleh record operasional setelah sinkronisasi.
+- [ ] Verifikasi perilaku pemulihan saat beberapa tab aktif dan saat sesi akun berganti di perangkat yang sama.
