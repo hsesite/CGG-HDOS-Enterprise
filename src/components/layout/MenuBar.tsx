@@ -57,7 +57,7 @@ export const MenuBar: React.FC = () => {
       {/* Zone 1: Apple / CGG Logo & Active Application Name */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5 font-bold tracking-wide text-white">
-          <img src={cggLogo} alt="Logo CGG" className="w-5 h-5 rounded-md object-contain bg-white p-0.5 shadow-sm" />
+          <img src={cggLogo} alt="Logo CGG" className="w-5 h-5 rounded-md object-cover bg-transparent" />
           <span className="font-semibold text-white">CGG HDOS</span>
           <span className="text-[10px] text-neutral-400 font-mono">v3.0</span>
         </div>
