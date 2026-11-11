@@ -174,7 +174,11 @@ test('contractor and subcontractor comparison chart is available within each ten
   assert.match(dashboard, /company\.companyRole === 'Subkon'/);
   assert.match(dashboard, /String\(company\.parentCompanyCode \|\| ''\)\.trim\(\)\.toUpperCase\(\) === companyCode/);
   assert.match(dashboard, /const tenantDashboardCodes = isContractor/);
-  assert.match(dashboard, /: isSubcontractor \? \[companyCode\] : \[\]/);
+  assert.match(dashboard, /roles\.includes\('Contractor'\)/);
+  assert.match(dashboard, /roles\.includes\('Contractor PIC'\)/);
+  assert.match(dashboard, /roles\.includes\('Company Admin'\)/);
+  assert.match(dashboard, /isSubcontractor && companyCode \? \[companyCode\] : \[\]/);
+  assert.match(dashboard, /Grafik siap — menunggu master perusahaan/);
   assert.match(dashboard, /\{canSeeCompanyComparison && \(/);
   assert.match(dashboard, /Perbandingan aktivitas perusahaan Anda dengan subkontraktor yang terdaftar di bawahnya/);
   assert.match(dashboard, /const dashboardInspections = store\.inspections\.filter\(recordInDashboardScope\)/);
