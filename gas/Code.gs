@@ -1126,42 +1126,74 @@ function handleRoute_(
         ? signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4E && signature[3] === 0x47
         : signature[0] === 0x52 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x46 && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50;
     if (!validSignature) return error_(400, 'Isi foto tidak sesuai dengan tipe berkas.');
-    const folderKey = 'HDOS_PHOTO_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
-    const props = PropertiesService.getScriptProperties();
-    let folderId = props.getProperty(folderKey);
-    let folder;
-    if (folderId) {
-      folder = DriveApp.getFolderById(folderId);
-    } else {
-      folder = DriveApp.createFolder('CGG HDOS Photos - ' + companyCode);
-      props.setProperty(folderKey, folder.getId());
-    }
     const safeName = String(input.fileName || 'operational-photo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
     const uploadKey = String(input.uploadKey || '').trim();
     if (!uploadKey || !/^[a-zA-Z0-9_-]{12,100}$/.test(uploadKey)) return error_(400, 'Kunci unggah foto tidak valid. Silakan pilih ulang foto.');
-    // Reuse a previously committed Drive file when the client retries after a
-    // lost response. This prevents duplicate evidence files on flaky networks.
-    const marker = 'HDOS_UPLOAD_KEY:' + uploadKey;
-    const existingFiles = folder.getFiles();
-    while (existingFiles.hasNext()) {
-      const existingFile = existingFiles.next();
-      if (String(existingFile.getDescription() || '') === marker &&
-          String(existingFile.getMimeType() || '').toLowerCase() === mimeType) {
+    const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/png' ? 'png' : 'webp';
+    const fileName = safeName.replace(/\\.(jpg|jpeg|png|webp)$/i, '') + '-' + uploadKey + '.' + extension;
+    const uploadOwner = String(user.id || user.email || '').trim();
+    if (!uploadOwner) return error_(403, 'Identitas pemilik unggahan tidak tersedia.');
+
+    // Serialize lookup + creation. Without a script lock, simultaneous retries
+    // can both miss the marker and create duplicate Drive evidence files.
+    const uploadLock = LockService.getScriptLock();
+    uploadLock.waitLock(10000);
+    try {
+      const folderKey = 'HDOS_PHOTO_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
+      const props = PropertiesService.getScriptProperties();
+      let folderId = props.getProperty(folderKey);
+      let folder;
+      if (folderId) {
+        folder = DriveApp.getFolderById(folderId);
+      } else {
+        folder = DriveApp.createFolder('CGG HDOS Photos - ' + companyCode);
+        props.setProperty(folderKey, folder.getId());
+      }
+
+      const digestBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
+      const contentDigest = Utilities.base64EncodeWebSafe(digestBytes);
+      const marker = 'HDOS_UPLOAD_KEY:' + uploadKey + '|OWNER:' + uploadOwner + '|SHA256:' + contentDigest;
+      const legacyMarker = 'HDOS_UPLOAD_KEY:' + uploadKey;
+      // Deterministic name also recovers the narrow crash window where Drive
+      // created the file but setting its description/returning the response failed.
+      const matchingFiles = folder.getFilesByName(fileName);
+      while (matchingFiles.hasNext()) {
+        const existingFile = matchingFiles.next();
+        if (String(existingFile.getMimeType() || '').toLowerCase() !== mimeType) {
+          return error_(409, 'Kunci unggah foto sudah digunakan untuk berkas dengan tipe berbeda.');
+        }
+        const existingBytes = existingFile.getBlob().getBytes();
+        const existingDigest = Utilities.base64EncodeWebSafe(
+          Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, existingBytes)
+        );
+        if (existingDigest !== contentDigest) {
+          return error_(409, 'Kunci unggah foto sudah digunakan untuk isi berkas berbeda.');
+        }
+        const existingDescription = String(existingFile.getDescription() || '');
+        if (existingDescription && existingDescription !== marker && existingDescription !== legacyMarker) {
+          return error_(409, 'Metadata kunci unggah foto tidak cocok dengan pemilik akun aktif.');
+        }
+        // Upgrade legacy markers and repair a file created just before a
+        // previous request was interrupted while writing its description.
+        if (existingDescription !== marker) existingFile.setDescription(marker);
         return success_({ photoFileId: existingFile.getId(), photoUrl: existingFile.getUrl(), fileName: existingFile.getName(), mimeType: mimeType });
       }
+
+      const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
+      // If this write fails after Drive creation, a retry finds the deterministic
+      // filename, verifies the content digest, and repairs the marker above.
+      file.setDescription(marker);
+      try {
+        logAudit_(user, 'OPERATIONAL_PHOTO_UPLOADED', 'photos', file.getId(), { companyCode: companyCode, mimeType: mimeType, size: bytes.length });
+      } catch (auditError) {
+        // The Drive upload is already committed. Do not return a failed response
+        // that could cause the client to repeat the upload and create duplicates.
+        console.error('[HDOS PHOTO] Foto tersimpan tetapi audit log gagal dicatat.', auditError);
+      }
+      return success_({ photoFileId: file.getId(), photoUrl: file.getUrl(), fileName: fileName, mimeType: mimeType });
+    } finally {
+      uploadLock.releaseLock();
     }
-    const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/png' ? 'png' : 'webp';
-    const fileName = safeName.replace(/\.(jpg|jpeg|png|webp)$/i, '') + '-' + uploadKey + '.' + extension;
-    const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
-    file.setDescription(marker);
-    try {
-      logAudit_(user, 'OPERATIONAL_PHOTO_UPLOADED', 'photos', file.getId(), { companyCode: companyCode, mimeType: mimeType, size: bytes.length });
-    } catch (auditError) {
-      // The Drive upload is already committed. Do not return a failed response
-      // that could cause the client to repeat the upload and create duplicates.
-      console.error('[HDOS PHOTO] Foto tersimpan tetapi audit log gagal dicatat.', auditError);
-    }
-    return success_({ photoFileId: file.getId(), photoUrl: file.getUrl(), fileName: fileName, mimeType: mimeType });
   }
 
   // ----------------------------------------------------------
