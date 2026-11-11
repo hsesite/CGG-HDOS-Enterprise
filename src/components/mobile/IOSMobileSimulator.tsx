@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react';
+import cggLogo from '../../../logo-cgg.png.jpeg';
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -121,16 +122,14 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
           {/* Quick Switch Header */}
           <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs">
             <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-[#00E676] text-black font-black flex items-center justify-center text-[10px]">
-                C
-              </span>
+              <img src={cggLogo} alt="Logo CGG" className="h-5 w-5 rounded bg-white p-0.5 object-contain" />
               <span className="font-bold text-white">HDOS Mobile</span>
             </div>
             <div className="flex items-center gap-2"><span className="text-[10px] text-neutral-500">Mode Lapangan</span><button type="button" onClick={onLogout} aria-label="Keluar dari akun" title="Keluar dari akun" className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-neutral-300 hover:bg-red-500/15 hover:text-red-300 active:bg-red-500/20"><LogOut className="h-4 w-4" /></button></div>
           </div>
 
           {/* Dynamic Module Content inside Mobile */}
-          <Suspense fallback={<div className="flex min-h-40 items-center justify-center text-sm text-neutral-400" role="status" aria-live="polite">Memuat modul operasional...</div>}>
+          <Suspense fallback={<div className="flex min-h-40 flex-col items-center justify-center gap-3 text-sm text-neutral-400" role="status" aria-live="polite"><img src={cggLogo} alt="Logo CGG" className="h-12 w-12 rounded-xl bg-white p-1 object-contain animate-pulse" /><span>Memuat modul operasional...</span></div>}>
           {activeTab === 'dashboard' && canAccessModule(currentUser, 'dashboard') && <DashboardModule />}
           {activeTab === 'inspection' && canAccessModule(currentUser, 'inspection') && <InspectionModule />}
           {activeTab === 'map' && canAccessModule(currentUser, 'map') && <MapModule />}
