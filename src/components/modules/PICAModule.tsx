@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckSquare, Clock, CheckCircle2, AlertCircle, UserCheck, Calendar, Filter, ShieldCheck } from 'lucide-react';
 import { useHDOSStore } from '../../core/store';
 import { PICA } from '../../core/types';
@@ -18,6 +18,7 @@ export const PICAModule: React.FC = () => {
   const [evidencePhotoFile, setEvidencePhotoFile] = useState<File | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
   const sessionRoles = sessionUser?.roles || [];
   const isVerifiedReviewer = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'].includes(role));
@@ -57,6 +58,9 @@ export const PICAModule: React.FC = () => {
 
   const uploadEvidenceIfSelected = async () => {
     if (!evidencePhotoFile) return { evidencePhotoUrl, evidencePhotoFileId };
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(evidencePhotoFile.type) || evidencePhotoFile.size > 5 * 1024 * 1024) {
+      throw new Error('Foto bukti harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
+    }
     const localPhotoId = await saveOfflineOperationalPhoto(evidencePhotoFile);
     const offlineReference = `offline:${localPhotoId}`;
     setEvidencePhotoUrl(offlineReference);
@@ -67,24 +71,28 @@ export const PICAModule: React.FC = () => {
 
   const savePICProgress = async () => {
     if (!selectedPica) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const evidence = await uploadEvidenceIfSelected();
       const updated = await store.updatePICAStatus(selectedPica.id, { status: 'PROGRESS', correctiveAction, ...evidence });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal menyimpan tindakan PIC.'); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   };
   const submitForHSE = async () => {
     if (!selectedPica) return;
     if (!correctiveAction.trim() || (!evidencePhotoUrl.trim() && !evidencePhotoFile)) { window.alert('Tindakan perbaikan dan foto bukti wajib diisi.'); return; }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const evidence = await uploadEvidenceIfSelected();
       const updated = await store.updatePICAStatus(selectedPica.id, { status: 'WAITING_HSE', correctiveAction, ...evidence });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal mengajukan PICA.'); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   };
   const validateClose = async () => {
     if (!selectedPica) return;
@@ -93,21 +101,25 @@ export const PICAModule: React.FC = () => {
       window.alert('Penutupan hanya dapat divalidasi oleh SPV HSE setelah persetujuan Foreman Safety dan SPV HSE lengkap.');
       return;
     }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const updated = await store.updatePICAStatus(selectedPica.id, { status: 'CLOSED' });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Validasi HSE gagal.'); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   };
   const returnToPIC = async () => {
     if (!selectedPica || !rejectionReason.trim()) { window.alert('Isi alasan pengembalian kepada PIC.'); return; }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const updated = await store.updatePICAStatus(selectedPica.id, { status: 'PROGRESS', rejectionReason });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Gagal mengembalikan PICA.'); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   };
 
   const approvePicaStage = async (stage: 'foreman' | 'spvHse') => {
@@ -119,14 +131,16 @@ export const PICAModule: React.FC = () => {
     }
     const currentStages = approvalStagesFor(selectedPica);
     if (stage === 'spvHse' && !currentStages.foreman) { window.alert('Persetujuan Foreman Safety harus diselesaikan terlebih dahulu.'); return; }
-      setBusy(true);
+      if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     try {
       const updated = await store.updatePICAStatus(selectedPica.id, {
         approvalStages: { ...currentStages, [stage]: true }
       });
       if (updated) setSelectedPica(updated);
     } catch (error) { window.alert(error instanceof Error ? error.message : 'Persetujuan PICA gagal disimpan.'); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   };
 
   return <div className="space-y-6 max-w-6xl mx-auto">
