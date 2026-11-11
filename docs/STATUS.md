@@ -762,3 +762,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Efek blur disesuaikan untuk perangkat mobile dan animasi menghormati preferensi reduced-motion sistem.
 - [x] Regression test mencakup desktop shell, iPhone frame responsif, elemen navigasi, dan motion preference.
 - [ ] Verifikasi visual lintas browser, ukuran layar, notch/safe area Android dan iOS, serta interaksi touch/desktop tetap harus dilakukan pada UAT perangkat aktual.
+
+
+### Pemulihan grafik kontraktor dan penguatan glass UI (11 November 2026)
+
+- [x] Menghapus inline background pada wallpaper desktop yang sebelumnya menimpa wallpaper berlapis dan mengurangi kontras visual di balik panel glass.
+- [x] Memperkuat panel glass, kartu dashboard, menu bar, dock, dan jendela dengan transparansi berlapis, saturasi, blur, highlight, border reflektif, serta shadow bertingkat.
+- [x] Efek backdrop-filter pada viewport mobile tidak lagi dimatikan; digunakan blur/saturasi yang lebih ringan untuk menjaga keseimbangan visual dan performa.
+- [x] Grafik rekapitulasi HSE per perusahaan ditampilkan untuk Admin CGG dan akun pengawasan CGG yang sudah terverifikasi. Daftar perusahaan pengawasan mengecualikan status SUSPENDED dan hitungan memakai data dashboard yang sudah difilter sesuai cakupan akun.
+- [x] Regression test memeriksa wallpaper, glass pada mobile/desktop, dan akses grafik kontraktor berdasarkan peran pengawasan.
+- [ ] Perlu UAT visual di browser dan HP aktual; performa blur dapat berbeda antarperangkat. Akun kontraktor/subkon tetap hanya melihat dashboard tenant masing-masing.
