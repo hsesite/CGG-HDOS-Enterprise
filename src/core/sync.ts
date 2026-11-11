@@ -289,7 +289,9 @@ export class HDOSSyncEngine {
             item.ownerUserId !== owner?.userId ||
             item.ownerCompanyCode !== owner?.companyCode) continue;
         const startedAt = Date.parse(String(item.syncStartedAt || ''));
-        if (!Number.isFinite(startedAt) || startedAt > staleBefore) continue;
+        // Missing/invalid lease timestamps can only come from legacy or interrupted records;
+        // current claims always persist a timestamp atomically in claimQueueItem().
+        if (Number.isFinite(startedAt) && startedAt > staleBefore) continue;
         item.status = 'PENDING';
         item.syncStartedAt = undefined;
         item.error = 'Lease sinkronisasi kedaluwarsa. Item dipulihkan dan akan dicoba kembali.';
