@@ -30,14 +30,20 @@ import { AuthState } from '../../core/auth-state';
 export const DashboardModule: React.FC = () => {
   const store = useHDOSStore();
   const sessionUser = AuthState.getUser();
-  const roles = sessionUser?.roles || [];
+  const roles = sessionUser?.roles?.length ? sessionUser.roles : sessionUser?.role ? [sessionUser.role] : [];
   const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   // Match backend Admin CGG identity requirements; a role label alone must not
   // unlock enterprise-wide dashboard aggregation for another tenant.
   const isOwnerAdmin = companyCode === 'CGG' && roles.includes('Admin CGG');
   const isOversight = companyCode === 'CGG' && sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
   const isContractor = store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor');
-  const isSubcontractor = Boolean(sessionUser?.parentCompanyCode);
+  const isSubcontractor = Boolean(sessionUser?.parentCompanyCode) || store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Subkon');
+  const childSubcontractors = isContractor
+    ? store.contractors.filter(company => company.companyRole === 'Subkon' && String(company.parentCompanyCode || '').trim().toUpperCase() === companyCode && company.status !== 'SUSPENDED')
+    : [];
+  const tenantDashboardCodes = isContractor
+    ? [companyCode, ...childSubcontractors.map(company => company.code.trim().toUpperCase())]
+    : isSubcontractor ? [companyCode] : [];
   const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan CGG' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
   const cloudRefreshLabel = store.lastCloudRefreshAt ? new Date(store.lastCloudRefreshAt).toLocaleString('id-ID') : 'Belum ada snapshot cloud pada sesi ini';
   const cloudRefreshWarning = store.cloudRefreshFailedSources.length > 0 ? ` · Sumber gagal: ${store.cloudRefreshFailedSources.join(', ')}` : '';
@@ -63,7 +69,7 @@ export const DashboardModule: React.FC = () => {
     if (isOversight) { const allowed = new Set(store.contractors.flatMap(company => [company.code, company.parentCompanyCode || '']).map(code => String(code).trim().toUpperCase()).filter(Boolean)); return allowed.has(recordCompany) || allowed.has(recordParent) || allowed.has(recordSubkon); }
     if (!companyCode) return false;
     if (isSubcontractor) return recordCompany === companyCode || recordSubkon === companyCode;
-    if (isContractor) return recordCompany === companyCode || recordParent === companyCode || recordSubkon === companyCode;
+    if (isContractor) { const allowed = new Set(tenantDashboardCodes); return allowed.has(recordCompany) || allowed.has(recordParent) || allowed.has(recordSubkon); }
     return recordCompany === companyCode || recordSubkon === companyCode;
   };
   const dashboardInspections = store.inspections.filter(recordInDashboardScope);
@@ -85,22 +91,19 @@ export const DashboardModule: React.FC = () => {
 
   const [timeRange, setTimeRange] = useState<'7D' | '14D' | '30D'>('30D');
 
-  // Company comparison is exposed only to the CGG owner administrator.
-  // The company bucket prefers subcontractorCode so subkon activity is not
-  // incorrectly attributed to its parent contractor.
+  // Show contractor/subcontractor comparison to CGG oversight and each contractor.
+  // A contractor sees itself plus registered child subcontractors; a subkon sees only itself.
+  const canSeeCompanyComparison = isOwnerAdmin || isOversight || isContractor || isSubcontractor;
   const dashboardCompanyCodes = isOwnerAdmin
-    ? ['CGG', ...store.contractors.map((company) => company.code.trim().toUpperCase()).filter(Boolean)]
+    ? ['CGG', ...store.contractors.filter(company => company.status !== 'SUSPENDED').map(company => company.code.trim().toUpperCase()).filter(Boolean)]
     : isOversight
-      ? store.contractors
-          .filter((company) => company.status !== 'SUSPENDED')
-          .map((company) => company.code.trim().toUpperCase())
-          .filter(Boolean)
-      : [];
-  const companyDashboardRows = (isOwnerAdmin || isOversight)
+      ? store.contractors.filter(company => company.status !== 'SUSPENDED').map(company => company.code.trim().toUpperCase()).filter(Boolean)
+      : tenantDashboardCodes;
+  const companyDashboardRows = canSeeCompanyComparison
     ? [...new Set(dashboardCompanyCodes)].map((code) => {
         const ownedBy = (record: unknown) => {
           const item = record as Record<string, unknown>;
-          return String(item.subcontractorCode || item.subkonCode || item.companyCode || item.contractorCode || '').trim().toUpperCase();
+          return String(item.subcontractorCode || item.subkonCode || item.companyCode || item.contractorCode || item.ownerCompanyCode || '').trim().toUpperCase();
         };
         const inspections = dashboardInspections.filter((record) => ownedBy(record) === code).length;
         const hazards = dashboardHazards.filter((record) => ownedBy(record) === code).length;
@@ -225,14 +228,14 @@ export const DashboardModule: React.FC = () => {
         </div>
       </div>
 
-      {(isOwnerAdmin || isOversight) && (
+      {canSeeCompanyComparison && (
         <section className="apple-glass-card p-5 rounded-2xl space-y-4 border border-white/10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-white">Rekapitulasi Data HSE per Perusahaan</h3>
-              <p className="text-[11px] text-neutral-400">{isOwnerAdmin ? 'Konsolidasi perusahaan pada master pusat.' : 'Perbandingan hanya untuk kontraktor/subkontraktor dalam cakupan pengawasan akun.'}</p>
+              <p className="text-[11px] text-neutral-400">{isOwnerAdmin ? 'Konsolidasi perusahaan pada master pusat.' : isOversight ? 'Perbandingan kontraktor dan subkontraktor aktif dalam cakupan pengawasan CGG.' : isContractor ? 'Perbandingan aktivitas perusahaan Anda dengan subkontraktor yang terdaftar di bawahnya.' : 'Ringkasan aktivitas perusahaan subkontraktor Anda.'}</p>
             </div>
-            <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">{isOwnerAdmin ? 'Admin CGG' : 'Cakupan Pengawasan'}</span>
+            <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">{isOwnerAdmin ? 'Admin CGG' : isOversight ? 'Cakupan Pengawasan' : isContractor ? 'Contractor + Subkon' : 'Subkon'}</span>
           </div>
           <div className="w-full h-[340px] sm:h-[380px]">
             <ResponsiveContainer width="100%" height="100%">
