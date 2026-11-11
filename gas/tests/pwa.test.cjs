@@ -132,3 +132,24 @@ test('CGG logo is used by app shell, desktop/mobile branding, and module loading
   assert.match(windowWrapper, /Memuat modul operasional/);
   assert.match(mobile, /Memuat modul operasional/);
 });
+
+
+test('desktop and iPhone shells provide responsive device framing and motion-aware polish', () => {
+  const app = fs.readFileSync(path.join(root, 'src', 'App.tsx'), 'utf8');
+  const desktopWindow = fs.readFileSync(path.join(root, 'src', 'components', 'layout', 'WindowWrapper.tsx'), 'utf8');
+  const mobile = fs.readFileSync(path.join(root, 'src', 'components', 'mobile', 'IOSMobileSimulator.tsx'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'src', 'index.css'), 'utf8');
+  const dock = fs.readFileSync(path.join(root, 'src', 'components', 'layout', 'Dock.tsx'), 'utf8');
+  assert.match(app, /<MenuBar\s*\/>/);
+  assert.match(app, /hdos-desktop-wallpaper/);
+  assert.match(desktopWindow, /hdos-window/);
+  assert.match(desktopWindow, /hdos-traffic-light/);
+  assert.match(mobile, /hdos-iphone-stage/);
+  assert.match(mobile, /hdos-iphone-shell/);
+  assert.match(mobile, /hdos-dynamic-island/);
+  assert.match(mobile, /hdos-home-indicator/);
+  assert.match(styles, /@media \(min-width: 768px\)/);
+  assert.match(styles, /@media \(max-width: 767px\)/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(dock, /hdos-macos-dock/);
+});
