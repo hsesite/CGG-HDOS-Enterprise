@@ -582,7 +582,7 @@ test('PICA can be submitted by its assigned PIC and closed after Foreman and SPV
   assert.equal(context.enforcePicaClosureRules_(waiting,spvClose,{roles:['SPV HSE'],displayName:'SPV HSE',roleVerified:true}),null);
   assert.equal(spvClose.hseValidatedBy,'SPV HSE');
   assert.equal(spvClose.hseValidatedRole,'SPV HSE');
-  assert.match(close.completionDate,/^\d{4}-\d{2}-\d{2}$/);
+  assert.match(spvClose.completionDate,/^\d{4}-\d{2}-\d{2}$/);
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['KTT'],roleVerified:true}).status,403);
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['Employee','Foreman Safety'],roleVerified:false}).status,403);
 
