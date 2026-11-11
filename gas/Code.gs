@@ -1130,7 +1130,8 @@ function handleRoute_(
     const uploadKey = String(input.uploadKey || '').trim();
     if (!uploadKey || !/^[a-zA-Z0-9_-]{12,100}$/.test(uploadKey)) return error_(400, 'Kunci unggah foto tidak valid. Silakan pilih ulang foto.');
     const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/png' ? 'png' : 'webp';
-    const fileName = safeName.replace(/\\.(jpg|jpeg|png|webp)$/i, '') + '-' + uploadKey + '.' + extension;
+    // The idempotency key, not the client filename, defines the cloud object name.
+    const fileName = 'HDOS-' + uploadKey + '.' + extension;
     const uploadOwner = String(user.id || user.email || '').trim();
     if (!uploadOwner) return error_(403, 'Identitas pemilik unggahan tidak tersedia.');
 
@@ -1156,9 +1157,13 @@ function handleRoute_(
       const legacyMarker = 'HDOS_UPLOAD_KEY:' + uploadKey;
       // Deterministic name also recovers the narrow crash window where Drive
       // created the file but setting its description/returning the response failed.
-      const matchingFiles = folder.getFilesByName(fileName);
+      const matchingFiles = folder.getFiles();
       while (matchingFiles.hasNext()) {
         const existingFile = matchingFiles.next();
+        const existingDescription = String(existingFile.getDescription() || '');
+        const isMatchingKey = existingDescription === marker || existingDescription === legacyMarker;
+        const isInterruptedCreate = existingFile.getName() === fileName && !existingDescription;
+        if (!isMatchingKey && !isInterruptedCreate) continue;
         if (String(existingFile.getMimeType() || '').toLowerCase() !== mimeType) {
           return error_(409, 'Kunci unggah foto sudah digunakan untuk berkas dengan tipe berbeda.');
         }
@@ -1169,7 +1174,6 @@ function handleRoute_(
         if (existingDigest !== contentDigest) {
           return error_(409, 'Kunci unggah foto sudah digunakan untuk isi berkas berbeda.');
         }
-        const existingDescription = String(existingFile.getDescription() || '');
         if (existingDescription && existingDescription !== marker && existingDescription !== legacyMarker) {
           return error_(409, 'Metadata kunci unggah foto tidak cocok dengan pemilik akun aktif.');
         }
