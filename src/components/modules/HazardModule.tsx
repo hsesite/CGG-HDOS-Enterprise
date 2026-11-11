@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   AlertTriangle,
   Plus,
@@ -35,6 +35,7 @@ export const HazardModule: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const submittingRef = useRef(false);
 
   // 5x5 Risk Score Calculation
   const riskScore = severity * likelihood;
@@ -46,6 +47,7 @@ export const HazardModule: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!title.trim() || !specificLocation.trim()) return;
     if (!hazardPhoto) {
       window.alert('Foto bukti temuan bahaya wajib dilampirkan sebelum laporan disimpan.');
@@ -56,6 +58,7 @@ export const HazardModule: React.FC = () => {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // Save the photo in IndexedDB first; cloud upload is handled by queue replay.
@@ -84,6 +87,7 @@ export const HazardModule: React.FC = () => {
       console.error('[HazardModule] Gagal mengunggah foto atau menyimpan laporan:', error);
       window.alert(error instanceof Error ? error.message : 'Laporan gagal disimpan. Periksa koneksi dan coba lagi.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
