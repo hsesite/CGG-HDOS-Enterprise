@@ -623,3 +623,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test memeriksa urutan lock, pencarian, validasi hash, penolakan konflik key, dan pelepasan lock.
 - [x] CI validation dan deployment GitHub Pages untuk commit `4159a679b1b93fbba4c5de9c8efb8d69940636d1` berakhir dengan success.
 - [ ] Perubahan backend GAS masih memerlukan deployment ke project Apps Script aktif serta uji unggah/retry bersamaan pada folder Drive per perusahaan; keberhasilan GitHub Pages tidak membuktikan deployment GAS.
+
+
+## Penguatan pengiriman P2H Contractor (11 November 2026)
+
+- [x] Submit P2H memakai synchronous ref lock untuk menahan double-submit sebelum React menyelesaikan render.
+- [x] Request ID idempotensi disimpan ke draft lokal sebelum antrean dibuat, sehingga percobaan ulang setelah gangguan penyimpanan menggunakan ID yang sama.
+- [x] Draft dan bukti foto tetap terikat pada pemilik akun/perusahaan; backend tetap memverifikasi request ID terhadap isi permintaan dan mengembalikan konflik jika payload berubah.
+- [ ] Uji offline → online dan retry setelah respons server hilang pada perangkat nyata serta deployment GAS aktif.
