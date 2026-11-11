@@ -278,6 +278,22 @@ export const hdosBackup = {
           continue;
         }
         if (storeName === 'queue') {
+          const allowedEntities = new Set([
+            'inspection', 'hazard', 'incident', 'pica', 'repository',
+            'contractor', 'contractor-report', 'contractor-sia',
+          ]);
+          const allowedActions = new Set(['CREATE', 'UPDATE', 'DELETE']);
+          const allowedStatuses = new Set(['PENDING', 'SYNCING', 'SYNCED', 'CONFLICT', 'RESOLVED']);
+          const queueTimestamp = Date.parse(String(item.timestamp || ''));
+          if (!allowedEntities.has(String(item.entity)) ||
+              !allowedActions.has(String(item.action)) ||
+              !allowedStatuses.has(String(item.status)) ||
+              !Number.isFinite(queueTimestamp) ||
+              typeof item.retryCount !== 'number' || !Number.isInteger(item.retryCount) ||
+              item.retryCount < 0 ||
+              !item.payload || typeof item.payload !== 'object' || Array.isArray(item.payload)) {
+            throw new Error(`Struktur antrean backup tidak valid untuk item ${item.id}. Pemulihan dibatalkan agar antrean rusak tidak masuk ke proses sinkronisasi.`);
+          }
           if (item.ownerUserId !== owner.userId || item.ownerCompanyCode !== owner.companyCode) {
             skipped++;
             continue;
