@@ -113,7 +113,7 @@ export const WindowWrapper: React.FC<WindowWrapperProps> = ({ id, title, childre
 
       {/* Window Body Canvas */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-black/40 text-neutral-100">
-        <Suspense fallback={<div className="flex min-h-40 flex-col items-center justify-center gap-3 text-sm text-neutral-400" role="status" aria-live="polite"><img src={cggLogo} alt="Logo CGG" className="h-12 w-12 rounded-xl bg-white p-1 object-contain animate-pulse" /><span>Memuat modul operasional...</span></div>}>
+        <Suspense fallback={<div className="flex min-h-40 flex-col items-center justify-center gap-3 text-sm text-neutral-400" role="status" aria-live="polite"><img src={cggLogo} alt="Logo CGG" className="h-12 w-12 rounded-xl bg-transparent object-cover animate-pulse" /><span>Memuat modul operasional...</span></div>}>
           {children}
         </Suspense>
       </div>
