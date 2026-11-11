@@ -11,10 +11,10 @@
   "theme_color": "#0b1220",
   "icons": [
     {
-      "src": "./icons/hdos-icon.svg",
+      "src": "./logo-cgg.png.jpeg",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ]
 }
