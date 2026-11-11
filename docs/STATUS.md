@@ -631,3 +631,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Request ID idempotensi disimpan ke draft lokal sebelum antrean dibuat, sehingga percobaan ulang setelah gangguan penyimpanan menggunakan ID yang sama.
 - [x] Draft dan bukti foto tetap terikat pada pemilik akun/perusahaan; backend tetap memverifikasi request ID terhadap isi permintaan dan mengembalikan konflik jika payload berubah.
 - [ ] Uji offline → online dan retry setelah respons server hilang pada perangkat nyata serta deployment GAS aktif.
+
+
+## Penguatan dokumen SIA Contractor (11 November 2026)
+
+- [x] Folder SIA memvalidasi nama folder dan marker tenant dari Script Properties sebelum menerima dokumen.
+- [x] Kunci unggah SIA diikat pada fleet, perusahaan, dan SHA-256 isi dokumen.
+- [x] Retry dengan file identik memakai kembali file Drive yang sudah ada; penggunaan kunci yang sama untuk isi atau tipe berbeda ditolak.
+- [x] Marker lama dari unggahan sebelumnya dapat diverifikasi berdasarkan hash dan dinaikkan ke format marker baru.
+- [ ] Uji preview, penggantian dokumen, rollback, dan pemulihan SIA pada deployment GAS aktif.
