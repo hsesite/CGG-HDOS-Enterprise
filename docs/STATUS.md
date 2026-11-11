@@ -751,3 +751,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Loading awal aplikasi serta fallback pemuatan modul desktop dan mobile menampilkan logo CGG, bukan ikon/placeholder generik.
 - [x] Regression test memeriksa referensi favicon, manifest, cache service worker, branding desktop/mobile, dan loading fallback.
 - [ ] Setelah deployment, pengguna mungkin perlu menutup/membuka ulang PWA atau membersihkan cache favicon browser jika ikon lama masih ditampilkan; verifikasi visual pada Android/iOS tetap bagian UAT.
+
+
+### Penyempurnaan pengalaman desktop macOS dan iPhone (11 November 2026)
+
+- [x] Workspace desktop menggunakan wallpaper operasional berlapis dengan ambient gradient, grid halus, dan elemen depth; menu bar macOS menampilkan status operasional, sinkronisasi, role, waktu, dan perpindahan mode perangkat.
+- [x] Window modul memakai animasi masuk yang halus, glass surface, shadow bertingkat, title bar lebih rapi, dan traffic-light controls dengan hover feedback.
+- [x] Mode iPhone pada layar desktop memakai frame perangkat, bezel, Dynamic Island, status bar, tab bar kaca, dan home indicator.
+- [x] Pada viewport HP sesungguhnya, mode iPhone tetap edge-to-edge dengan safe-area handling agar tidak menyisakan bingkai simulasi.
+- [x] Efek blur disesuaikan untuk perangkat mobile dan animasi menghormati preferensi reduced-motion sistem.
+- [x] Regression test mencakup desktop shell, iPhone frame responsif, elemen navigasi, dan motion preference.
+- [ ] Verifikasi visual lintas browser, ukuran layar, notch/safe area Android dan iOS, serta interaksi touch/desktop tetap harus dilakukan pada UAT perangkat aktual.
