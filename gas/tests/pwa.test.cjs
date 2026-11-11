@@ -112,16 +112,23 @@ test('sync module exposes offline storage usage, quota, and persistence status d
 });
 
 
-test('CGG logo is used by app shell, desktop/mobile branding, and module loading states', () => {
+test('CGG logo is used by app shell, desktop/mobile branding, and module loading states without white padding', () => {
   const app = fs.readFileSync(path.join(root, 'src', 'App.tsx'), 'utf8');
+  const login = fs.readFileSync(path.join(root, 'src', 'components', 'auth', 'LoginScreen.tsx'), 'utf8');
   const menu = fs.readFileSync(path.join(root, 'src', 'components', 'layout', 'MenuBar.tsx'), 'utf8');
   const windowWrapper = fs.readFileSync(path.join(root, 'src', 'components', 'layout', 'WindowWrapper.tsx'), 'utf8');
   const mobile = fs.readFileSync(path.join(root, 'src', 'components', 'mobile', 'IOSMobileSimulator.tsx'), 'utf8');
   assert.match(app, /import cggLogo from '\.\.\/logo-cgg\.png\.jpeg'/);
-  assert.match(app, /alt="Logo CGG"/);\n  assert.match(app, /object-cover/);
-  assert.match(menu, /alt="Logo CGG"/);\n  assert.doesNotMatch(menu, /bg-white p-0\\.5/);
-  assert.match(windowWrapper, /alt="Logo CGG"/);\n  assert.doesNotMatch(windowWrapper, /bg-white p-1/);
-  assert.match(mobile, /alt="Logo CGG"/);\n  assert.doesNotMatch(mobile, /bg-white p-0\\.5/);
+  for (const source of [app, login, menu, windowWrapper, mobile]) {
+    assert.match(source, /alt="Logo CGG"/);
+  }
+  assert.match(app, /object-cover/);
+  assert.match(login, /object-cover/);
+  assert.doesNotMatch(app, /bg-white p-2 shadow/);
+  assert.doesNotMatch(login, /bg-white p-2 shadow/);
+  assert.doesNotMatch(menu, /bg-white p-0\.5/);
+  assert.doesNotMatch(windowWrapper, /bg-white p-1/);
+  assert.doesNotMatch(mobile, /bg-white p-0\.5/);
   assert.match(windowWrapper, /Memuat modul operasional/);
   assert.match(mobile, /Memuat modul operasional/);
 });
