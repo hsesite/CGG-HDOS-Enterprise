@@ -238,7 +238,7 @@ export class HDOSSyncEngine {
       if (abandonStaleInitialization()) return;
       // Legacy entries without ownership metadata cannot safely be assigned
       // to any account. Quarantine them globally, never replay them.
-      if ((!item.ownerUserId || !item.ownerCompanyCode) && item.retryCount < MAX_RETRIES) {
+      if ((!item.ownerUserId || !item.ownerCompanyCode) && item.status !== 'CONFLICT') {
         item.status = 'CONFLICT';
         item.retryCount = MAX_RETRIES;
         item.error = 'Item offline lama tidak memiliki identitas pemilik. Item ditahan; verifikasi dan input ulang diperlukan.';
