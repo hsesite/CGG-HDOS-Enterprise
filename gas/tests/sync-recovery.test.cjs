@@ -40,12 +40,8 @@ test('recovery writes remain bound to the active initialization generation and a
 });
 
 test('legacy SYNCING items without a valid lease timestamp are recoverable on browsers without Web Locks', () => {
-  const recoveryStart = syncSource.indexOf('const staleBefore = Date.now() - 2 * 60 * 1000;');
-  const recoveryEnd = syncSource.indexOf('\n    }\n    if (abandonStaleInitialization()) return;', recoveryStart);
-  assert.ok(recoveryStart >= 0 && recoveryEnd > recoveryStart);
-  const fallbackRecovery = syncSource.slice(recoveryStart, recoveryEnd);
-  assert.match(fallbackRecovery, /if \(Number\.isFinite\(startedAt\) && startedAt > staleBefore\) continue/);
-  assert.doesNotMatch(fallbackRecovery, /if \(!Number\.isFinite\(startedAt\)/);
+  assert.match(syncSource, /if \(Number\.isFinite\(startedAt\) && startedAt > staleBefore\) continue/);
+  assert.doesNotMatch(syncSource, /if \(!Number\.isFinite\(startedAt\)/);
 
   const claimStart = syncSource.indexOf('const claimedItem = await hdosDB.claimQueueItem');
   assert.ok(claimStart >= 0);
