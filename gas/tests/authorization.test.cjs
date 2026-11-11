@@ -1796,6 +1796,21 @@ test('successful HTTP responses with unreadable bodies are classified as retryab
   assert.match(apiSource, /idempotent CREATE/);
 });
 
+test('P2H READY requires an active unit with an attached SIA valid on the inspection date', () => {
+  const start = source.indexOf('function getContractorSiaEligibility_(');
+  const end = source.indexOf('function createContractorP2HRecord_(', start);
+  assert.ok(start >= 0 && end > start);
+  const helper = vm.runInNewContext('(' + source.slice(start, source.indexOf('function isSameContractorP2HRequest_(', start)).trim() + ')');
+  const unit = { status: 'ACTIVE', siaFileId: 'sia-file-123456', siaExpiry: '2026-11-30' };
+  assert.equal(helper(unit, '2026-11-11').eligible, true);
+  assert.equal(helper(unit, '2026-11-30').eligible, true, 'SIA remains valid through its printed expiry date');
+  assert.equal(helper(unit, '2026-12-01').eligible, false);
+  assert.equal(helper({ ...unit, siaFileId: '' }, '2026-11-11').eligible, false);
+  assert.equal(helper({ ...unit, siaExpiry: '' }, '2026-11-11').eligible, false);
+  assert.equal(helper({ ...unit, status: 'INACTIVE' }, '2026-11-11').eligible, false);
+  assert.match(source, /if \(status === 'READY'\) \{[\\s\\S]*?getContractorSiaEligibility_\(unit, inspectionDate\)/);
+});
+
 test('P2H idempotency helper accepts exact replay and rejects changed inspection data', () => {
   const start = source.indexOf('function isSameContractorP2HRequest_(');
   const end = source.indexOf('function createContractorP2HRecord_(', start);
