@@ -40,6 +40,8 @@ test('recovery writes remain bound to the active initialization generation and a
 });
 
 test('legacy SYNCING items without a valid lease timestamp are recoverable on browsers without Web Locks', () => {
+  assert.match(syncSource, /const SYNC_LEASE_TIMEOUT_MS = 10 \* 60 \* 1000/);
+  assert.match(syncSource, /Date\.now\(\) - SYNC_LEASE_TIMEOUT_MS/);
   assert.match(syncSource, /if \(Number\.isFinite\(startedAt\) && startedAt > staleBefore\) continue/);
   assert.doesNotMatch(syncSource, /if \(!Number\.isFinite\(startedAt\)/);
 
