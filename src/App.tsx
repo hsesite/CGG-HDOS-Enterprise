@@ -292,13 +292,7 @@ export default function App() {
   return (
     <div className="hdos-desktop-shell relative h-[100dvh] w-screen bg-[#090909] text-neutral-100 overflow-hidden select-none font-sans">
       {/* Background Operative Ambient Gradient */}
-      <div
-        className="hdos-desktop-wallpaper fixed inset-0 pointer-events-none z-0"
-        style={{
-          background:
-            'radial-gradient(circle at 50% 15%, rgba(0, 230, 118, 0.04) 0%, transparent 60%), radial-gradient(circle at 80% 85%, rgba(66, 165, 245, 0.03) 0%, transparent 50%)',
-        }}
-      />
+      <div className="hdos-desktop-wallpaper fixed inset-0 pointer-events-none z-0" />
 
       <MenuBar />
 
