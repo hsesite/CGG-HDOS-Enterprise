@@ -778,7 +778,7 @@ test('operational photo upload serializes idempotency and verifies owner plus co
   assert.match(upload, /const uploadLock = LockService\.getScriptLock\(\)/);
   assert.match(upload, /uploadLock\.waitLock\(10000\)/);
   assert.ok(upload.indexOf('uploadLock.waitLock') < upload.indexOf('folder.getFilesByName(fileName)'));
-  assert.ok(upload.indexOf('folder.getFilesByName(fileName)') < upload.indexOf('folder.createFile('));
+  assert.ok(upload.indexOf('folder.getFiles()') < upload.indexOf('folder.createFile('));
   assert.match(upload, /Utilities\.DigestAlgorithm\.SHA_256/);
   assert.match(upload, /OWNER:' \+ uploadOwner \+ '\\|SHA256:'/);
   assert.match(upload, /existingDigest !== contentDigest/);
