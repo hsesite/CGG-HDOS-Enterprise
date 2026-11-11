@@ -613,3 +613,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Regression test mencakup kedua lifecycle submit; validasi CI tetap menjadi bukti otomatis, sedangkan uji perangkat nyata dan sinkronisasi GAS tetap menunggu UAT.
 
 - [x] Penyelarasan otorisasi PICA: backend kini hanya mengizinkan SPV HSE terverifikasi melakukan penutupan akhir setelah approval Foreman Safety dan SPV HSE lengkap. Foreman Safety tetap dapat memberi approval tahap pertama dan mengembalikan PICA sebelum approval dimulai.
+
+## Penguatan idempotensi unggah foto operasional (11 November 2026)
+
+- [x] Proses pencarian dan pembuatan file bukti foto pada Google Drive diserialisasi dengan Script Lock agar retry bersamaan tidak membuat file duplikat.
+- [x] Nama objek cloud diturunkan dari upload key yang stabil, bukan nama file dari perangkat.
+- [x] Metadata idempotensi mengikat upload key pada identitas akun pemilik dan SHA-256 isi foto; penggunaan ulang key dengan pemilik atau isi berbeda ditolak.
+- [x] Retry dapat menemukan dan memulihkan file yang sudah dibuat sebelum proses penulisan metadata atau respons sebelumnya terputus.
+- [x] Regression test memeriksa urutan lock, pencarian, validasi hash, penolakan konflik key, dan pelepasan lock.
+- [x] CI validation dan deployment GitHub Pages untuk commit `4159a679b1b93fbba4c5de9c8efb8d69940636d1` berakhir dengan success.
+- [ ] Perubahan backend GAS masih memerlukan deployment ke project Apps Script aktif serta uji unggah/retry bersamaan pada folder Drive per perusahaan; keberhasilan GitHub Pages tidak membuktikan deployment GAS.
