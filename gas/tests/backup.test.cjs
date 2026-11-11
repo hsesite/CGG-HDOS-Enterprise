@@ -158,3 +158,14 @@ test('backup export and restore exclude records explicitly owned by another loca
   assert.match(backupSource, /recordUserMatches\(value, owner\) && recordTenantMatches\(value, owner\)/);
   assert.match(backupSource, /!recordUserMatches\(item, owner\) \|\| !recordTenantMatches\(item, owner\)/);
 });
+
+
+test('restore refuses Blob attachments when IndexedDB is unavailable instead of losing binary bytes in localStorage', () => {
+  assert.match(backupSource, /const hasBinaryAttachments =/);
+  assert.match(backupSource, /record\.blob instanceof Blob/);
+  assert.match(backupSource, /typeof window === 'undefined' \|\| !window\.indexedDB/);
+  assert.match(backupSource, /Perangkat tidak menyediakan IndexedDB/);
+  const guardIndex = backupSource.indexOf('const hasBinaryAttachments =');
+  const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
+  assert.ok(guardIndex >= 0 && writeIndex > guardIndex, 'Blob storage capability must be checked before restore writes');
+});
