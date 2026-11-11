@@ -42,7 +42,6 @@ import {
   Compass,
   Cpu,
   RefreshCw,
-  LogOut,
   Settings,
 } from 'lucide-react';
 
@@ -291,36 +290,17 @@ export default function App() {
   }
 
   return (
-    <div className="relative h-screen w-screen bg-[#090909] text-neutral-100 overflow-hidden select-none font-sans">
+    <div className="hdos-desktop-shell relative h-[100dvh] w-screen bg-[#090909] text-neutral-100 overflow-hidden select-none font-sans">
       {/* Background Operative Ambient Gradient */}
       <div
-        className="fixed inset-0 pointer-events-none z-0"
+        className="hdos-desktop-wallpaper fixed inset-0 pointer-events-none z-0"
         style={{
           background:
             'radial-gradient(circle at 50% 15%, rgba(0, 230, 118, 0.04) 0%, transparent 60%), radial-gradient(circle at 80% 85%, rgba(66, 165, 245, 0.03) 0%, transparent 50%)',
         }}
       />
 
-      {/* Top macOS Menu Bar with User & Logout */}
-      <div className="relative z-40 h-10 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <img src={cggLogo} alt="Logo CGG" className="w-7 h-7 rounded-md object-cover bg-transparent" />
-          <span className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-400">CGG HDOS v3.0</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-xs text-neutral-400">
-            {currentUser?.displayName} <span className="text-neutral-600">({currentUser?.email})</span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="p-1.5 rounded-lg hover:bg-white/5 transition text-neutral-400 hover:text-red-400"
-            title="Logout"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      </div>
+      <MenuBar />
 
       {/* Floating Workspaces & Windows (Blueprint §7) */}
       <main className="relative h-[calc(100vh-2.5rem)] w-full overflow-hidden">
