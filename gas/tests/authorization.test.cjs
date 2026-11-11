@@ -2806,7 +2806,14 @@ test('Contractor SIA documents are stored offline and replayed with an idempoten
   assert.match(sync, /uploadOfflineContractorSia\(localDocument\)/);
   assert.match(sync, /localDocument\.kind !== 'contractor-sia'/);
   assert.match(api, /uploadKey\?: string/);
-  assert.match(gas, /HDOS_SIA_UPLOAD_KEY:/);
+  assert.match(upload, /uploadMarkerPrefix = uploadKey \? 'HDOS_SIA_UPLOAD_KEY:'/);
+  assert.match(upload, /Utilities\.DigestAlgorithm\.SHA_256/);
+  assert.match(upload, /existingDigest !== contentDigest/);
+  assert.match(upload, /description !== uploadMarker && description !== uploadMarkerPrefix/);
+  assert.match(upload, /expectedFolderName = 'CGG HDOS SIA - ' \+ companyCode/);
+  assert.match(upload, /folder\.getName\(\)[\s\S]*?expectedFolderName/);
+  assert.match(upload, /folderMarker = 'HDOS_SIA_TENANT:' \+ companyCode/);
+  assert.match(upload, /currentFolderMarker && currentFolderMarker !== folderMarker/);
   assert.match(gas, /candidate\.getDescription\(\)/);
 });
 
