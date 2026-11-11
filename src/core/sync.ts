@@ -1024,6 +1024,7 @@ export class HDOSSyncEngine {
           { item: { ...item } }
         );
 
+        let cloudMutationCommitted = false;
         try {
           if (
             item.action === 'CREATE'
@@ -1035,6 +1036,7 @@ export class HDOSSyncEngine {
               const localDocument = await hdosDB.getById<OfflineContractorSiaDocument>('photos', payload.localDocumentId);
               if (!localDocument || localDocument.kind !== 'contractor-sia' || localDocument.fleetId !== payload.fleetId) throw new Error('Dokumen SIA lokal tidak ditemukan. Pulihkan backup perangkat atau lampirkan ulang dokumen.');
               await uploadOfflineContractorSia(localDocument);
+              cloudMutationCommitted = true;
               // The cloud upload may have committed even if its response was
               // lost. Retain both the queue item and local Blob until one
               // IndexedDB transaction removes them together; a crash between
@@ -1061,12 +1063,14 @@ export class HDOSSyncEngine {
                 await hdosDB.putBundle([{ storeName: 'queue', item }]);
               }
               await hseApi.createContractorP2HRecord(payload.fleetId, input as Parameters<typeof hseApi.createContractorP2HRecord>[1]);
+              cloudMutationCommitted = true;
             } else if (endpoint === 'contractor-report') {
               const payload = item.payload as { input?: unknown };
               if (!payload || !payload.input || typeof payload.input !== 'object' || Array.isArray(payload.input)) {
                 throw new Error('Payload laporan Contractor tidak lengkap. Periksa draft sebelum mengirim ulang.');
               }
               await hseApi.submitContractorComplianceReport(payload.input as Parameters<typeof hseApi.submitContractorComplianceReport>[0]);
+              cloudMutationCommitted = true;
             } else {
             let createPayload = item.payload;
             let localPhotoId: string | undefined;
@@ -1106,6 +1110,7 @@ export class HDOSSyncEngine {
               }
             }
             const serverRecord = await hseApi.create<Record<string, unknown>>(endpoint, createPayload, syncToken);
+            cloudMutationCommitted = true;
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
             if (localStoreName && serverUpdatedAt) {
@@ -1206,6 +1211,7 @@ export class HDOSSyncEngine {
             }
             if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report' || endpoint === 'contractor-sia') throw new Error('Antrean Contractor hanya mendukung operasi CREATE.');
             const serverRecord = await hseApi.update<Record<string, unknown>>(endpoint, recordId, updatePayload, syncToken);
+            cloudMutationCommitted = true;
             const localStoreName = getLocalStoreName(item.entity);
             const serverUpdatedAt = String(serverRecord?.updatedAt || '');
             if (localStoreName && serverUpdatedAt) {
@@ -1251,8 +1257,10 @@ export class HDOSSyncEngine {
             if (endpoint === 'contractor-p2h' || endpoint === 'contractor-report' || endpoint === 'contractor-sia') throw new Error('Antrean Contractor tidak mendukung penghapusan otomatis.');
             if (endpoint === 'repository') {
               await hseApi.deleteRepositoryDocument(recordId, syncToken);
+              cloudMutationCommitted = true;
             } else {
               await hseApi.deleteOperationalRecord(endpoint, recordId, syncToken);
+              cloudMutationCommitted = true;
             }
           }
 
@@ -1290,7 +1298,10 @@ export class HDOSSyncEngine {
         } catch (error) {
           item.retryCount += 1;
           const status = error instanceof ApiError ? error.status : 0;
-          const retryable = isRetryableSyncError(error);
+          // Once GAS has acknowledged a mutation, a later local IndexedDB
+          // failure must be retried, not converted into a permanent conflict.
+          // Backend idempotency makes replay safe and prevents duplicate writes.
+          const retryable = cloudMutationCommitted || isRetryableSyncError(error);
           item.status = retryable && item.retryCount < MAX_RETRIES
             ? 'PENDING'
             : 'CONFLICT';
