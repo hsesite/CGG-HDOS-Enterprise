@@ -31,6 +31,50 @@ export const SyncModule: React.FC = () => {
   const [resolvingConflictId, setResolvingConflictId] = useState<string | null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState('');
+  const [cloudReadiness, setCloudReadiness] = useState<{
+    status: 'checking' | 'ready' | 'not_ready' | 'unavailable';
+    message: string;
+    checks?: {
+      spreadsheetAccessible: boolean;
+      schemaReady: boolean;
+      googleOAuthConfigured: boolean;
+      cggRegistrationPolicyConfigured: boolean;
+      missingSheetCount: number;
+      invalidSchemaSheetCount: number;
+    };
+  }>({ status: 'checking', message: 'Memeriksa kesiapan backend GAS...' });
+
+  const refreshCloudReadiness = async () => {
+    if (!online) {
+      setCloudReadiness({ status: 'unavailable', message: 'Perangkat sedang offline; status backend belum dapat diperiksa.' });
+      return;
+    }
+    if (!hseApi.baseUrl) {
+      setCloudReadiness({ status: 'unavailable', message: 'URL Web App GAS belum dikonfigurasi pada build frontend.' });
+      return;
+    }
+    setCloudReadiness({ status: 'checking', message: 'Memeriksa Spreadsheet, schema, OAuth, dan kebijakan registrasi...' });
+    try {
+      const result = await hseApi.checkCloudReadiness();
+      setCloudReadiness({
+        status: result.status,
+        message: result.status === 'ready'
+          ? 'Backend GAS siap menerima permintaan aplikasi.'
+          : 'Backend dapat dijangkau, tetapi konfigurasi belum lengkap.',
+        checks: result.checks,
+      });
+    } catch (error) {
+      setCloudReadiness({
+        status: 'unavailable',
+        message: error instanceof Error ? error.message : 'Pemeriksaan backend GAS gagal.',
+      });
+    }
+  };
+
+  useEffect(() => {
+    void refreshCloudReadiness();
+  }, [online, hseApi.baseUrl]);
+
   const actionableQueue = queue.filter(item => item.status !== 'RESOLVED');
   const resolvedQueueCount = queue.length - actionableQueue.length;
 
@@ -266,6 +310,52 @@ export const SyncModule: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Live GAS readiness is separate from the device's network status. */}
+      <section className="apple-glass-card p-5 rounded-2xl space-y-3" aria-live="polite">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">Kesiapan Backend Google Apps Script</h3>
+            <p className="text-[11px] text-neutral-400 mt-1">Pemeriksaan read-only terhadap Spreadsheet, struktur sheet, OAuth, dan kebijakan registrasi CGG.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+              cloudReadiness.status === 'ready'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                : cloudReadiness.status === 'checking'
+                ? 'bg-blue-500/15 border-blue-500/30 text-blue-300'
+                : cloudReadiness.status === 'not_ready'
+                ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                : 'bg-red-500/15 border-red-500/30 text-red-300'
+            }`}>
+              {cloudReadiness.status === 'ready' ? 'BACKEND READY' : cloudReadiness.status === 'checking' ? 'CHECKING' : cloudReadiness.status === 'not_ready' ? 'NOT READY' : 'UNAVAILABLE'}
+            </span>
+            <button onClick={() => void refreshCloudReadiness()} disabled={cloudReadiness.status === 'checking' || !online} className="px-3 py-1 rounded-lg border border-white/15 text-[10px] text-neutral-200 hover:bg-white/10 disabled:opacity-40">
+              Periksa ulang
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-neutral-200">{cloudReadiness.message}</p>
+        {cloudReadiness.checks && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              ['Spreadsheet', cloudReadiness.checks.spreadsheetAccessible],
+              ['Struktur sheet', cloudReadiness.checks.schemaReady],
+              ['Google OAuth', cloudReadiness.checks.googleOAuthConfigured],
+              ['Kebijakan email CGG', cloudReadiness.checks.cggRegistrationPolicyConfigured],
+            ].map(([label, passed]) => (
+              <div key={String(label)} className="rounded-lg border border-white/10 bg-white/5 p-2">
+                <div className="text-[10px] text-neutral-400">{label}</div>
+                <div className={`mt-1 text-[10px] font-bold ${passed ? 'text-emerald-300' : 'text-amber-300'}`}>{passed ? 'TERPENUHI' : 'BELUM'}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {cloudReadiness.checks && (cloudReadiness.checks.missingSheetCount > 0 || cloudReadiness.checks.invalidSchemaSheetCount > 0) && (
+          <p className="text-[11px] text-amber-300">Sheet belum tersedia: {cloudReadiness.checks.missingSheetCount} · Struktur header tidak valid: {cloudReadiness.checks.invalidSchemaSheetCount}</p>
+        )}
+        <p className="text-[10px] text-neutral-500">Status ini hanya memeriksa kesiapan konfigurasi. Status READY tidak menggantikan uji login, CRUD, Drive, isolasi tenant, backup, dan sinkronisasi pada UAT.</p>
+      </section>
 
       {/* Grid: Pending Queue + Sync Audit Logs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
