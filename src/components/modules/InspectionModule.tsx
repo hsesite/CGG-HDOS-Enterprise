@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ClipboardCheck,
   Plus,
@@ -54,6 +54,7 @@ export const InspectionModule: React.FC = () => {
   const [inspectionPhoto, setInspectionPhoto] = useState<File | null>(null);
   const [photoAttached, setPhotoAttached] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedRepositoryFormId, setSelectedRepositoryFormId] = useState<string>('');
   const [repositoryAnswers, setRepositoryAnswers] = useState<Record<string, { result: 'PASS' | 'FAIL' | 'NA'; notes: string }>>({});
@@ -91,6 +92,7 @@ export const InspectionModule: React.FC = () => {
 
   const handleRepositoryFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!selectedRepositoryForm) return;
     if (!inspectionPhoto) {
       window.alert('Foto bukti pemeriksaan wajib dilampirkan sebelum laporan disimpan.');
@@ -124,6 +126,7 @@ export const InspectionModule: React.FC = () => {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setSuccessMessage('');
     try {
@@ -183,6 +186,7 @@ export const InspectionModule: React.FC = () => {
       console.error('[InspectionModule] Gagal menyimpan pemeriksaan formulir Repository:', error);
       setSuccessMessage('Pemeriksaan gagal disimpan. Silakan coba lagi.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
