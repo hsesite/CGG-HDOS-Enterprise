@@ -597,3 +597,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - Pengamanan diterapkan pada UI dan lapisan store agar pemanggilan langsung tidak melewati pembatasan.
 - Regression suite: 217 tes lulus, 0 gagal pada commit `20592561b95255bf54333a4ca55b19cc67cdb5a9`; typecheck, production build, dan validasi aset PWA berhasil.
 - UAT lintas role dan tenant serta verifikasi sinkronisasi terhadap Apps Script aktif tetap wajib dilakukan sebelum distribusi produksi.
+
+### Incident report — perlindungan double-submit dan reset form (11 November 2026)
+- [x] Form laporan insiden memakai guard berbasis ref untuk mencegah dua event submit dalam satu proses berjalan menghasilkan dua record.
+- [x] Field laporan baru dibersihkan hanya setelah record berhasil masuk ke antrean offline; ketika penyimpanan gagal, isi form tetap tersedia agar pelapor dapat mencoba kembali.
+- [x] Status busy dan guard selalu dilepas pada blok `finally`, termasuk ketika penyimpanan gagal.
+- [x] Regression test ditambahkan untuk mengunci perilaku double-submit dan reset setelah sukses.
+- [ ] UAT pada perangkat Android/iOS perlu memeriksa submit berulang, kondisi offline, dan pemulihan setelah aplikasi dibuka ulang.
