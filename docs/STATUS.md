@@ -705,7 +705,7 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 ### Pemulihan lease antrean legacy tanpa Web Locks (11 November 2026)
 
 - [x] Browser tanpa Web Locks kini memulihkan item `SYNCING` yang memiliki timestamp lease tidak valid/kosong. Claim modern selalu menulis timestamp melalui transaksi IndexedDB; item tanpa timestamp hanya berasal dari data legacy atau proses lama yang terputus.
-- [x] Lease dengan timestamp valid yang masih berumur kurang dari dua menit tetap dilindungi agar tab aktif tidak direbut.
+- [x] Lease dengan timestamp valid dilindungi selama 10 menit pada browser tanpa Web Locks, memberi ruang untuk respons GAS lambat atau tab mobile yang sempat masuk background.
 - [x] Regression test memverifikasi jalur pemulihan lease kosong serta memastikan claim baru selalu menulis timestamp.
 - [ ] UAT pada browser Android/iOS dan browser desktop tanpa dukungan Web Locks tetap diperlukan untuk memastikan pemulihan aktual dan tidak terjadi replay ganda.
 
