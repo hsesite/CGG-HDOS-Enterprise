@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ShieldAlert,
   Clock,
@@ -40,6 +40,7 @@ export const IncidentModule: React.FC = () => {
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [fiveWhyDraft, setFiveWhyDraft] = useState(store.incidents[0]?.fiveWhyAnalysis.join('\n') || '');
   const [rootCauseDraft, setRootCauseDraft] = useState(store.incidents[0]?.rootCause || '');
   const [correctiveActionsDraft, setCorrectiveActionsDraft] = useState(store.incidents[0]?.correctiveActions.join('\n') || '');
@@ -105,6 +106,8 @@ export const IncidentModule: React.FC = () => {
       window.alert('Lengkapi judul, lokasi, tanggal, dan waktu kejadian.');
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const fiveWhyAnalysis = [
@@ -134,16 +137,30 @@ export const IncidentModule: React.FC = () => {
       smkpReportSubmitted: false,
     });
 
-    setSubmitting(false);
     setSelectedIncident(newInc);
     setFiveWhyDraft(fiveWhyAnalysis.join('\n'));
     setRootCauseDraft(rootCause.trim());
     setCorrectiveActionsDraft(correctiveAction.trim());
     setReviewNotesDraft('');
+    setTitle('');
+    setType('Near Miss');
+    setLocation('');
+    setDate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; });
+    setTime('');
+    setVictimsCount(0);
+    setDamageCostEst('');
+    setFiveWhy1('');
+    setFiveWhy2('');
+    setFiveWhy3('');
+    setFiveWhy4('');
+    setFiveWhy5('');
+    setRootCause('');
+    setCorrectiveAction('');
     setActiveTab('list');
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'Laporan insiden gagal disimpan. Periksa koneksi dan coba kembali.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
