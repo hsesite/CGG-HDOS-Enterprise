@@ -640,3 +640,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Retry dengan file identik memakai kembali file Drive yang sudah ada; penggunaan kunci yang sama untuk isi atau tipe berbeda ditolak.
 - [x] Marker lama dari unggahan sebelumnya dapat diverifikasi berdasarkan hash dan dinaikkan ke format marker baru.
 - [ ] Uji preview, penggantian dokumen, rollback, dan pemulihan SIA pada deployment GAS aktif.
+
+
+### Contractor Fleet — validasi kelayakan SIA pada P2H (11 November 2026)
+
+- [x] Backend memvalidasi unit aktif, lampiran dokumen SIA, tanggal kalender SIA, dan masa berlaku SIA terhadap tanggal pemeriksaan P2H sebelum menerima hasil **READY / Laik operasi**.
+- [x] Masa berlaku dihitung inklusif pada tanggal kedaluwarsa yang tercetak; perbandingan menggunakan format tanggal ISO sehingga tidak bergeser akibat zona waktu browser.
+- [x] Hasil **NOT_READY / Tidak laik operasi** tetap dapat dicatat meskipun SIA tidak lengkap/kedaluwarsa agar temuan keselamatan dan tindakan pengendalian tetap terdokumentasi.
+- [x] Form P2H menonaktifkan pilihan Laik operasi dan menampilkan alasan persyaratan ketika SIA belum memenuhi syarat; backend tetap menjadi validasi final.
+- [ ] Validasi dokumen fisik terhadap nomor SIA/jenis alat dan uji P2H pada Spreadsheet + Drive Apps Script staging masih diperlukan.
