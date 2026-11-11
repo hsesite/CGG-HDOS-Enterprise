@@ -65,17 +65,17 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
   }, [currentUser?.id, currentUser?.roleVerified, roleKey, activeTab]);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#060608] flex items-stretch justify-stretch overflow-hidden">
+    <div className="hdos-iphone-stage fixed inset-0 z-[60] flex items-center justify-center overflow-hidden">
       {/* Device Frame */}
-      <div className="relative w-full h-[100dvh] min-h-0 max-w-none rounded-none bg-[#090909] border-0 shadow-none flex flex-col overflow-hidden">
+      <div className="hdos-iphone-shell relative flex h-[100dvh] w-full min-h-0 max-w-none flex-col overflow-hidden bg-[#090909]">
         {/* iOS Status Bar */}
-        <div className="min-h-11 pt-[max(env(safe-area-inset-top),0.5rem)] px-4 sm:px-6 flex items-center justify-between text-white text-xs font-semibold select-none z-30">
+        <div className="hdos-iphone-status relative min-h-14 shrink-0 pt-[max(env(safe-area-inset-top),0.65rem)] px-6 flex items-center justify-between text-white text-xs font-semibold select-none z-30">
           <span className="font-semibold text-[11px] tracking-wide">CGG HDOS</span>
 
           {/* Dynamic Island (Blueprint §8) */}
           <div
             onClick={() => setIslandExpanded(!islandExpanded)}
-            className={`transition-all duration-300 rounded-full bg-black border border-white/10 flex items-center justify-between px-3 cursor-pointer shadow-lg ${
+            className={`hdos-dynamic-island transition-all duration-300 rounded-full bg-black border border-white/15 flex items-center justify-between px-3 cursor-pointer shadow-lg ${
               islandExpanded ? 'w-64 h-18 -mt-1 py-2' : 'w-28 h-7 -mt-1'
             }`}
           >
@@ -118,9 +118,9 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
         </div>
 
         {/* Scrollable Mobile Viewport */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 pb-24 space-y-4 overscroll-contain">
+        <div className="hdos-iphone-viewport flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-5 pt-3 pb-28 space-y-4 overscroll-contain">
           {/* Quick Switch Header */}
-          <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs">
             <div className="flex items-center gap-2">
               <img src={cggLogo} alt="Logo CGG" className="h-5 w-5 rounded bg-transparent object-cover" />
               <span className="font-bold text-white">HDOS Mobile</span>
@@ -165,7 +165,7 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
         )}
 
         {/* Mobile bottom navigation */}
-        <div className="absolute bottom-0 left-0 right-0 min-h-16 pb-[env(safe-area-inset-bottom)] bg-[#121216]/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-1 text-neutral-400 z-30 select-none">
+        <div className="hdos-iphone-tabbar absolute bottom-0 left-0 right-0 min-h-[4.7rem] pb-[max(env(safe-area-inset-bottom),0.45rem)] bg-[#111319]/85 backdrop-blur-2xl border-t border-white/10 flex items-center justify-around px-1 text-neutral-400 z-30 select-none">
           {canAccessModule(currentUser, 'dashboard') && <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center gap-0.5 cursor-pointer ${
