@@ -2934,3 +2934,22 @@ test('CREATE fingerprint survives Spreadsheet payload round-trip and cannot be r
   assert.match(updateSource, /_createFingerprint:\s*old\._createFingerprint/);
   assert.match(updateSource, /Object\.assign\(\{\}, old, safePayload, \{/);
 });
+
+
+test('Hazard submission prevents duplicate clicks while the offline photo and record are being saved', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'HazardModule.tsx'), 'utf8');
+  assert.match(moduleSource, /useRef, useState/);
+  assert.match(moduleSource, /const submittingRef = useRef\(false\)/);
+  assert.match(moduleSource, /if \(submittingRef\.current\) return/);
+  assert.match(moduleSource, /submittingRef\.current = true;[\s\S]*?saveOfflineOperationalPhoto\(hazardPhoto\)/);
+  assert.match(moduleSource, /finally \{\s*submittingRef\.current = false;\s*setSubmitting\(false\);\s*\}/);
+});
+
+test('Repository inspection submission prevents duplicate clicks until record creation settles', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'InspectionModule.tsx'), 'utf8');
+  assert.match(moduleSource, /useRef, useState/);
+  assert.match(moduleSource, /const submittingRef = useRef\(false\)/);
+  assert.match(moduleSource, /if \(submittingRef\.current\) return/);
+  assert.match(moduleSource, /submittingRef\.current = true;[\s\S]*?saveOfflineOperationalPhoto\(inspectionPhoto\)/);
+  assert.match(moduleSource, /finally \{\s*submittingRef\.current = false;\s*setSubmitting\(false\);\s*\}/);
+});
