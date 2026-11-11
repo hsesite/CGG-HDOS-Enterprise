@@ -679,3 +679,14 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [ ] Uji backup/restore lintas perangkat dengan akun yang sama serta penolakan akun berbeda pada browser/perangkat nyata.
 - [ ] Uji bahwa foto dan dokumen SIA hasil restore dapat diunggah ulang dan direferensikan oleh record operasional setelah sinkronisasi.
 - [ ] Verifikasi perilaku pemulihan saat beberapa tab aktif dan saat sesi akun berganti di perangkat yang sama.
+
+## Penguatan backup dan pemulihan perangkat (11 November 2026)
+
+- [x] Ekspor backup tetap mengambil snapshot multi-store dari satu transaksi readonly IndexedDB.
+- [x] Restore memvalidasi checksum, versi arsip, identitas akun/perusahaan, struktur store, ID duplikat, dan metadata Blob sebelum penulisan.
+- [x] Restore bersifat add-only dan memasukkan record yang belum ada melalui transaksi lintas-store; record lokal dengan ID yang sudah ada tidak ditimpa.
+- [x] Restore memeriksa dependensi lampiran pada antrean (localPhotoId dan localDocumentId) sebelum penulisan. Jika Blob yang dibutuhkan tidak ikut dalam arsip, seluruh pemulihan dibatalkan agar antrean tidak dipulihkan dalam keadaan macet.
+- [x] Ekspor dan restore menyaring record yang memiliki ownerUserId eksplisit agar record cache/draft milik akun lain tidak ikut terbawa.
+- [x] Foto operasional dan dokumen SIA tetap dibatasi pada user dan tenant pemiliknya; konfigurasi sesi/kredensial tidak ikut dalam backup.
+- [ ] Uji restore nyata pada dua browser/perangkat dengan akun berbeda, termasuk ID collision, lampiran hilang, antrean P2H/SIA, dan batas storage.
+- [ ] Uji fault-injection saat transaksi restore lintas-store gagal di tengah proses dan verifikasi tidak ada record parsial.
