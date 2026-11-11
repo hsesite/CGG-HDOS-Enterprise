@@ -320,6 +320,14 @@ export const hdosBackup = {
       (changes.find(change => change.storeName === 'photos')?.records || [])
         .map(record => [record.id, record as Record<string, unknown>]),
     );
+    // Add-only restore keeps an existing local ID instead of replacing it.
+    // Resolve queue dependencies against the record that will actually remain
+    // after restore (existing record wins over an archive collision).
+    const existingPhotos = await hdosDB.getAll<Record<string, unknown>>('photos');
+    const effectivePhotos = new Map(restoredPhotos);
+    for (const photo of existingPhotos) {
+      if (typeof photo.id === 'string') effectivePhotos.set(photo.id, photo);
+    }
     const restoredQueue = changes.find(change => change.storeName === 'queue')?.records || [];
     for (const queueRecord of restoredQueue) {
       const queueItem = queueRecord as Record<string, unknown> & { id: string };
@@ -328,20 +336,22 @@ export const hdosBackup = {
       const queuePayload = payload as Record<string, unknown>;
 
       if (typeof queuePayload.localPhotoId === 'string' && queuePayload.localPhotoId) {
-        const photo = restoredPhotos.get(queuePayload.localPhotoId);
-        if (!photo || photo.kind === 'contractor-sia') {
+        const photo = effectivePhotos.get(queuePayload.localPhotoId);
+        if (!photo || photo.kind === 'contractor-sia' ||
+            photo.ownerUserId !== owner.userId || photo.ownerCompanyCode !== owner.companyCode) {
           throw new Error(
-            `Antrean ${queueItem.id} merujuk foto operasional ${queuePayload.localPhotoId} yang tidak tersedia atau salah jenis. Pemulihan dibatalkan.`,
+            `Antrean ${queueItem.id} merujuk foto operasional ${queuePayload.localPhotoId} yang tidak tersedia, salah jenis, atau bukan milik akun aktif. Pemulihan dibatalkan.`,
           );
         }
       }
 
       if (typeof queuePayload.localDocumentId === 'string' && queuePayload.localDocumentId) {
-        const document = restoredPhotos.get(queuePayload.localDocumentId);
+        const document = effectivePhotos.get(queuePayload.localDocumentId);
         if (!document || document.kind !== 'contractor-sia' ||
+            document.ownerUserId !== owner.userId || document.ownerCompanyCode !== owner.companyCode ||
             (typeof queuePayload.fleetId === 'string' && document.fleetId !== queuePayload.fleetId)) {
           throw new Error(
-            `Antrean ${queueItem.id} merujuk dokumen SIA ${queuePayload.localDocumentId} yang tidak tersedia atau tidak cocok dengan unit. Pemulihan dibatalkan.`,
+            `Antrean ${queueItem.id} merujuk dokumen SIA ${queuePayload.localDocumentId} yang tidak tersedia, bukan milik akun aktif, atau tidak cocok dengan unit. Pemulihan dibatalkan.`,
           );
         }
       }
