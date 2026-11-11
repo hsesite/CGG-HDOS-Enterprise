@@ -693,3 +693,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Validasi referensi lampiran restore membedakan foto operasional dan dokumen SIA; dokumen SIA harus cocok dengan `fleetId` pada antrean.
 - [x] Restore menolak arsip dengan Blob lampiran bila IndexedDB tidak tersedia, agar fallback localStorage tidak menyimpan metadata tanpa byte file.
 - [x] CI dan deployment GitHub Pages pada commit `2c9c3604a0457749a078790faf9bd18dbb37c135` berhasil; pengujian perangkat nyata lintas browser masih menjadi bagian UAT.
+
+### Konsistensi antrean lintas akun dan pemulihan sesi (11 November 2026)
+
+- [x] Item antrean legacy yang tidak memiliki `ownerUserId` atau `ownerCompanyCode` selalu dikarantina sebagai `CONFLICT`, tanpa bergantung pada nilai atau kelengkapan `retryCount`.
+- [x] Item legacy tanpa identitas pemilik tidak pernah otomatis diadopsi oleh akun yang sedang login; item tetap tersimpan untuk pemeriksaan manual dan tidak dikirim ke cloud.
+- [x] Pemulihan item `SYNCING` tetap dibatasi oleh identitas akun, tenant, token sesi, generasi inisialisasi, serta lock lintas-tab bila tersedia.
+- [x] Regression test ditambahkan untuk kasus antrean legacy tanpa owner, termasuk retry count yang sudah mencapai batas.
+- [ ] UAT lintas perangkat tetap memerlukan backup/restore manual dengan akun yang sama; IndexedDB lokal tidak otomatis berpindah antarperangkat.
