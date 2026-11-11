@@ -30,7 +30,7 @@ import { AuthState } from '../../core/auth-state';
 export const DashboardModule: React.FC = () => {
   const store = useHDOSStore();
   const sessionUser = AuthState.getUser();
-  const roles = sessionUser?.roles?.length ? sessionUser.roles : sessionUser?.role ? [sessionUser.role] : [];
+  const roles = sessionUser?.roles || [];
   const companyCode = String(sessionUser?.companyCode || '').trim().toUpperCase();
   // Match backend Admin CGG identity requirements; a role label alone must not
   // unlock enterprise-wide dashboard aggregation for another tenant.
