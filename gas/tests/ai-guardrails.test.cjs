@@ -49,7 +49,7 @@ test('incident report submission always releases busy state and surfaces save er
   const handler = incident.slice(start, end);
   assert.match(handler, /try \{/);
   assert.match(handler, /catch \(error\)/);
-  assert.match(handler, /finally \{\s*setSubmitting\(false\);\s*\}/);
+  assert.match(handler, /finally \{\s*submittingRef\.current = false;\s*setSubmitting\(false\);\s*\}/);
   assert.match(handler, /if \(!title\.trim\(\) \|\| !location \|\| !date \|\| !time\)/);
 });
 
