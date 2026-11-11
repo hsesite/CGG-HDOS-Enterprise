@@ -205,7 +205,10 @@ export const hdosBackup = {
         throw new Error(`Backup memuat modul penyimpanan yang tidak dikenal: ${key}.`);
       }
     }
-    if (archive.owner.userId !== owner.userId) {\n      throw new Error('Backup dibuat oleh akun pengguna yang berbeda. Login dengan akun asal untuk memulihkan backup ini.');\n    }\n    if (archive.owner.companyCode !== owner.companyCode ||
+    if (archive.owner.userId !== owner.userId) {
+      throw new Error('Backup dibuat oleh akun pengguna yang berbeda. Login dengan akun asal untuk memulihkan backup ini.');
+    }
+    if (archive.owner.companyCode !== owner.companyCode ||
         archive.owner.parentCompanyCode !== owner.parentCompanyCode ||
         (archive.owner.isAdminCGG === true && !owner.isAdminCGG)) {
       throw new Error('Backup berasal dari perusahaan atau cakupan kontraktor yang berbeda. Pemulihan dibatalkan.');
