@@ -1207,7 +1207,7 @@ test('sync initialization recovers interrupted items only when the tenant lock i
   assert.match(initMethod, /navigator\.locks\.request\(/);
   assert.match(initMethod, /\{ mode: 'exclusive', ifAvailable: true \}/);
   assert.match(initMethod, /if \(lock && !abandonStaleInitialization\(\)\) await recoverInterruptedQueue\(\)/);
-  assert.match(initMethod, /Date\.now\(\) - 2 \* 60 \* 1000/);
+  assert.match(initMethod, /Date\.now\(\) - SYNC_LEASE_TIMEOUT_MS/);
   assert.match(initMethod, /item\.status = 'PENDING'/);
   assert.match(initMethod, /item\.syncStartedAt = undefined/);
   assert.match(initMethod, /await hdosDB\.put\('queue', item\)/);
