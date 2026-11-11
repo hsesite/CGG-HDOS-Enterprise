@@ -741,3 +741,13 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Referensi foto operasional dan dokumen SIA pada antrean harus tetap cocok dengan jenis lampiran, akun pemilik, perusahaan, serta fleet ID untuk SIA. Restore dibatalkan sebelum penulisan jika dependensi efektif tidak valid.
 - [x] Regression test memastikan pemeriksaan dependensi memakai record lokal yang menang pada benturan ID dan berlangsung sebelum transaksi restore.
 - [ ] Uji pemulihan lintas perangkat dan skenario benturan ID dengan data nonproduksi tetap diperlukan.
+
+
+### Konsistensi branding CGG pada app shell dan loading (11 November 2026)
+
+- [x] Favicon browser dan Apple touch icon menggunakan aset logo CGG yang sudah tersedia di repository.
+- [x] Ikon PWA pada manifest diarahkan ke logo CGG; service worker melakukan precache logo dan cache shell dinaikkan versinya agar ikon lama tidak tertahan di cache sebelumnya.
+- [x] Identitas berbentuk huruf pada menu desktop dan header mobile diganti dengan logo CGG.
+- [x] Loading awal aplikasi serta fallback pemuatan modul desktop dan mobile menampilkan logo CGG, bukan ikon/placeholder generik.
+- [x] Regression test memeriksa referensi favicon, manifest, cache service worker, branding desktop/mobile, dan loading fallback.
+- [ ] Setelah deployment, pengguna mungkin perlu menutup/membuka ulang PWA atau membersihkan cache favicon browser jika ikon lama masih ditampilkan; verifikasi visual pada Android/iOS tetap bagian UAT.
