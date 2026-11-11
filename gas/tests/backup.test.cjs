@@ -169,3 +169,16 @@ test('restore refuses Blob attachments when IndexedDB is unavailable instead of 
   const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
   assert.ok(guardIndex >= 0 && writeIndex > guardIndex, 'Blob storage capability must be checked before restore writes');
 });
+
+
+test('restore rejects malformed offline queue records before any IndexedDB write', () => {
+  assert.match(backupSource, /const allowedEntities = new Set\(\[/);
+  assert.match(backupSource, /const allowedActions = new Set\(\['CREATE', 'UPDATE', 'DELETE'\]\)/);
+  assert.match(backupSource, /const allowedStatuses = new Set\(\['PENDING', 'SYNCING', 'SYNCED', 'CONFLICT', 'RESOLVED'\]\)/);
+  assert.match(backupSource, /!Number\.isFinite\(queueTimestamp\)/);
+  assert.match(backupSource, /!Number\.isInteger\(item\.retryCount\)/);
+  assert.match(backupSource, /!item\.payload \|\| typeof item\.payload !== 'object' \|\| Array\.isArray\(item\.payload\)/);
+  const validationIndex = backupSource.indexOf('const allowedEntities = new Set');
+  const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
+  assert.ok(validationIndex >= 0 && writeIndex > validationIndex, 'queue validation must precede every restore write');
+});
