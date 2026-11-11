@@ -2346,18 +2346,47 @@ function uploadContractorSia_(fleetId, payload, user) {
     const props = PropertiesService.getScriptProperties();
     const folderKey = 'HDOS_SIA_FOLDER_' + companyCode.replace(/[^A-Z0-9_-]/g, '_');
     let folderId = props.getProperty(folderKey);
-    const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder('CGG HDOS SIA - ' + companyCode);
+    const expectedFolderName = 'CGG HDOS SIA - ' + companyCode;
+    const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.createFolder(expectedFolderName);
     if (!folderId) props.setProperty(folderKey, folder.getId());
+    const folderMarker = 'HDOS_SIA_TENANT:' + companyCode;
+    if (String(folder.getName() || '') !== expectedFolderName) {
+      return error_(403, 'Folder dokumen SIA tidak sesuai dengan perusahaan akun aktif.');
+    }
+    const currentFolderMarker = String(folder.getDescription() || '');
+    if (currentFolderMarker && currentFolderMarker !== folderMarker) {
+      return error_(403, 'Folder dokumen SIA telah ditandai untuk perusahaan lain.');
+    }
+    if (!currentFolderMarker) folder.setDescription(folderMarker);
 
-    const uploadMarker = uploadKey ? 'HDOS_SIA_UPLOAD_KEY:' + uploadKey + ':FLEET:' + fleetId : '';
-    if (uploadMarker) {
+    const contentDigest = Utilities.base64EncodeWebSafe(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)
+    );
+    const uploadMarkerPrefix = uploadKey ? 'HDOS_SIA_UPLOAD_KEY:' + uploadKey + ':FLEET:' + fleetId : '';
+    const uploadMarker = uploadMarkerPrefix
+      ? uploadMarkerPrefix + ':OWNER:' + companyCode + ':SHA256:' + contentDigest
+      : '';
+    if (uploadMarkerPrefix) {
       const existingFiles = folder.getFiles();
       while (existingFiles.hasNext()) {
         const candidate = existingFiles.next();
-        if (String(candidate.getDescription() || '').indexOf(uploadMarker) >= 0 && candidate.getMimeType() === mimeType) {
-          file = candidate;
-          break;
+        const description = String(candidate.getDescription() || '');
+        if (description !== uploadMarkerPrefix && description.indexOf(uploadMarkerPrefix + ':') !== 0) continue;
+        if (candidate.getMimeType() !== mimeType) {
+          return error_(409, 'Kunci unggah SIA sudah digunakan untuk tipe dokumen berbeda.');
         }
+        const existingDigest = Utilities.base64EncodeWebSafe(
+          Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, candidate.getBlob().getBytes())
+        );
+        if (existingDigest !== contentDigest) {
+          return error_(409, 'Kunci unggah SIA sudah digunakan untuk isi dokumen berbeda.');
+        }
+        if (description !== uploadMarker && description !== uploadMarkerPrefix) {
+          return error_(409, 'Kunci unggah SIA terikat pada pemilik atau isi dokumen berbeda.');
+        }
+        file = candidate;
+        if (description !== uploadMarker) file.setDescription(uploadMarker);
+        break;
       }
     }
     if (!file) {
