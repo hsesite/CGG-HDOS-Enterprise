@@ -349,6 +349,78 @@ class HDOSDatabase {
     });
   }
 
+  async insertSnapshotBundle(
+    changes: Array<{ storeName: StoreName; records: Array<{ id: string }> }>,
+  ): Promise<{ inserted: number; skipped: number }> {
+    const grouped = new Map<StoreName, Map<string, { id: string }>>();
+    for (const change of changes) {
+      const current = grouped.get(change.storeName) || new Map<string, { id: string }>();
+      for (const record of change.records) current.set(record.id, record);
+      grouped.set(change.storeName, current);
+    }
+    if (grouped.size === 0) return { inserted: 0, skipped: 0 };
+
+    const db = await this.init();
+    if (!db) {
+      let inserted = 0;
+      let skipped = 0;
+      const snapshots = new Map<string, string | null>();
+      for (const storeName of grouped.keys()) {
+        const key = this.getFallbackKey(storeName);
+        snapshots.set(key, localStorage.getItem(key));
+      }
+      try {
+        for (const [storeName, records] of grouped) {
+          const existing = this.readFallback<{ id: string }>(storeName);
+          const ids = new Set(existing.map(item => item.id));
+          const additions = [...records.values()].filter(record => !ids.has(record.id));
+          skipped += records.size - additions.length;
+          inserted += additions.length;
+          this.writeFallback(storeName, [...existing, ...additions]);
+        }
+      } catch (error) {
+        for (const [key, value] of snapshots) {
+          try {
+            if (value === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, value);
+          } catch (rollbackError) {
+            console.error('[HDOS DB] Add-only restore rollback failed', rollbackError);
+          }
+        }
+        throw error;
+      }
+      return { inserted, skipped };
+    }
+
+    return new Promise((resolve, reject) => {
+      let inserted = 0;
+      let skipped = 0;
+      try {
+        const storeNames = [...grouped.keys()];
+        const tx = db.transaction(storeNames, 'readwrite');
+        for (const [storeName, records] of grouped) {
+          const store = tx.objectStore(storeName);
+          for (const record of records.values()) {
+            const request = store.get(record.id);
+            request.onsuccess = () => {
+              if (request.result === undefined) {
+                store.put(record);
+                inserted++;
+              } else {
+                skipped++;
+              }
+            };
+          }
+        }
+        tx.oncomplete = () => resolve({ inserted, skipped });
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB add-only restore transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB add-only restore transaction aborted'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async putBundle<T extends { storeName: StoreName; item: { id: string } }>(entries: T[]): Promise<void> {
     if (entries.length === 0) return;
     const db = await this.init();
