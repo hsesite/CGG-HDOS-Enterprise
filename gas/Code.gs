@@ -2504,6 +2504,36 @@ function isSameContractorP2HRequest_(existing, requested) {
     String(oldRecord.photoMimeType || '').trim().toLowerCase() === String(next.photoMimeType || '').trim().toLowerCase();
 }
 
+function getContractorSiaEligibility_(unit, inspectionDate) {
+  const current = unit || {};
+  const date = String(inspectionDate || '').trim();
+  const expiry = String(current.siaExpiry || '').trim();
+  if (String(current.status || '').trim().toUpperCase() !== 'ACTIVE') {
+    return { eligible: false, reason: 'Unit tidak aktif pada register fleet.' };
+  }
+  if (!String(current.siaFileId || '').trim()) {
+    return { eligible: false, reason: 'Dokumen SIA unit belum dilampirkan.' };
+  }
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(expiry)) {
+    return { eligible: false, reason: 'Masa berlaku SIA belum dicatat dengan benar.' };
+  }
+  const expiryDate = new Date(expiry + 'T00:00:00Z');
+  if (Number.isNaN(expiryDate.getTime()) || expiryDate.toISOString().slice(0, 10) !== expiry) {
+    return { eligible: false, reason: 'Tanggal masa berlaku SIA tidak valid.' };
+  }
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+    return { eligible: false, reason: 'Tanggal pemeriksaan P2H tidak valid.' };
+  }
+  const inspection = new Date(date + 'T00:00:00Z');
+  if (Number.isNaN(inspection.getTime()) || inspection.toISOString().slice(0, 10) !== date) {
+    return { eligible: false, reason: 'Tanggal pemeriksaan P2H tidak valid.' };
+  }
+  if (expiry < date) {
+    return { eligible: false, reason: 'SIA telah kedaluwarsa pada tanggal pemeriksaan P2H.' };
+  }
+  return { eligible: true, reason: '' };
+}
+
 function createContractorP2HRecord_(fleetId, payload, user) {
   if (!canSubmitContractorComplianceReport_(user)) return error_(403, 'Hanya Admin Perusahaan atau PIC kontraktor/subkon yang dapat mencatat P2H.');
   const input = isObject_(payload) ? payload : {};
@@ -2531,6 +2561,10 @@ function createContractorP2HRecord_(fleetId, payload, user) {
     const parsedInspectionDate = new Date(inspectionDate + 'T00:00:00Z');
     if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(inspectionDate) || Number.isNaN(parsedInspectionDate.getTime()) || parsedInspectionDate.toISOString().slice(0,10) !== inspectionDate) return error_(400, 'Tanggal pemeriksaan P2H wajib valid dengan format YYYY-MM-DD.');
     if (['READY', 'NOT_READY'].indexOf(status) === -1) return error_(400, 'Status hasil P2H wajib dipilih.');
+    if (status === 'READY') {
+      const siaEligibility = getContractorSiaEligibility_(unit, inspectionDate);
+      if (!siaEligibility.eligible) return error_(409, 'Unit belum memenuhi persyaratan laik operasi: ' + siaEligibility.reason + ' Catat hasil P2H Tidak laik operasi atau lengkapi data SIA terlebih dahulu.');
+    }
     if (!operatorName || operatorName.length > 120) return error_(400, 'Nama operator wajib diisi maksimal 120 karakter.');
     if (findings.length > 2000 || correctiveAction.length > 2000) return error_(400, 'Temuan dan tindakan koreksi maksimal 2.000 karakter.');
     const photoFileId = String(input.photoFileId || '').trim();
