@@ -690,3 +690,6 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Foto operasional dan dokumen SIA tetap dibatasi pada user dan tenant pemiliknya; konfigurasi sesi/kredensial tidak ikut dalam backup.
 - [ ] Uji restore nyata pada dua browser/perangkat dengan akun berbeda, termasuk ID collision, lampiran hilang, antrean P2H/SIA, dan batas storage.
 - [ ] Uji fault-injection saat transaksi restore lintas-store gagal di tengah proses dan verifikasi tidak ada record parsial.
+- [x] Validasi referensi lampiran restore membedakan foto operasional dan dokumen SIA; dokumen SIA harus cocok dengan `fleetId` pada antrean.
+- [x] Restore menolak arsip dengan Blob lampiran bila IndexedDB tidak tersedia, agar fallback localStorage tidak menyimpan metadata tanpa byte file.
+- [x] CI dan deployment GitHub Pages pada commit `2c9c3604a0457749a078790faf9bd18dbb37c135` berhasil; pengujian perangkat nyata lintas browser masih menjadi bagian UAT.
