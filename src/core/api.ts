@@ -176,6 +176,18 @@ export type ContractorComplianceReportInput = Pick<ContractorComplianceReport,
   'safeHours' | 'ltiCount' | 'remarks'
 >;
 
+export interface CloudReadiness {
+  status: 'ready' | 'not_ready';
+  checks: {
+    spreadsheetAccessible: boolean;
+    schemaReady: boolean;
+    googleOAuthConfigured: boolean;
+    cggRegistrationPolicyConfigured: boolean;
+    missingSheetCount: number;
+    invalidSchemaSheetCount: number;
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -337,6 +349,11 @@ export const hseApi = {
     return Boolean(
       getToken()
     );
+  },
+
+  async checkCloudReadiness(): Promise<CloudReadiness> {
+    // GAS health checks are read-only and intentionally do not require a session token.
+    return request<CloudReadiness>('GET', '/api/health/ready', undefined, null);
   },
 
   async login(
