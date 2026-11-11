@@ -917,7 +917,7 @@ export const ContractorModule: React.FC = () => {
                   const expiryDays = expiry !== null && !Number.isNaN(expiry.getTime()) ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000) : null;
                   const expired = expiryDays !== null && expiryDays < 0;
                   const expiringSoon = expiryDays !== null && expiryDays >= 0 && expiryDays <= 30;
-                  const siaReadyForP2H = unit.status === 'ACTIVE' && Boolean(unit.siaFileId) && /^\\d{4}-\\d{2}-\\d{2}$/.test(unit.siaExpiry || '') && unit.siaExpiry >= p2hDraft.inspectionDate;
+                  const siaReadyForP2H = unit.status === 'ACTIVE' && Boolean(unit.siaFileId) && /^\d{4}-\d{2}-\d{2}$/.test(unit.siaExpiry || '') && unit.siaExpiry >= p2hDraft.inspectionDate;
                   const editable = canSubmitReport && unit.companyCode.toUpperCase() === ownCompanyCode;
                   return (
                     <React.Fragment key={unit.id}>
