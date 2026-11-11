@@ -1617,7 +1617,7 @@ function handleRoute_(
       }
       const requestedStatusForCompanyAdmin = String(requestedPayload.status || existingRecord.status || '').toUpperCase();
       if (requestedStatusForCompanyAdmin === 'CLOSED') {
-        return error_(403, 'Admin Perusahaan tidak dapat menutup PICA. Validasi hanya dapat dilakukan Foreman Safety atau SPV HSE yang telah diverifikasi.');
+        return error_(403, 'Admin Perusahaan tidak dapat menutup PICA. Penutupan akhir hanya dapat dilakukan SPV HSE yang telah diverifikasi.');
       }
       if (['OPEN', 'PROGRESS', 'CLOSED'].indexOf(requestedStatusForCompanyAdmin) === -1) {
         return error_(403, 'Status PICA tidak valid.');
@@ -2695,6 +2695,7 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
   const assignedEmail = String(existingRecord.assignedToEmail || '').trim().toLowerCase();
   const isAssignedPIC = Boolean(assignedEmail && assignedEmail === email);
   const isHSEValidator = roles.some(function(candidateRole) { return ['Foreman Safety', 'SPV HSE'].indexOf(candidateRole) >= 0; }) && user.roleVerified === true;
+  const isFinalPicaCloser = roles.indexOf('SPV HSE') >= 0 && user.roleVerified === true;
 
   if (oldStatus === 'CLOSED' && nextStatus !== 'CLOSED') return error_(403, 'PICA yang sudah ditutup tidak dapat dibuka kembali.');
   if (Object.prototype.hasOwnProperty.call(requestedPayload, 'completionDate') &&
@@ -2726,7 +2727,7 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
   }
 
   if (nextStatus === 'CLOSED' && oldStatus !== 'CLOSED') {
-    if (!isHSEValidator) return error_(403, 'Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE yang telah diverifikasi.');
+    if (!isFinalPicaCloser) return error_(403, 'Penutupan akhir PICA hanya dapat dilakukan SPV HSE yang telah diverifikasi.');
     if (oldStatus !== 'WAITING_HSE') return error_(409, 'PICA belum diajukan PIC untuk validasi HSE.');
     const approvalStages = existingRecord.approvalStages || {};
     if (approvalStages.foreman !== true || approvalStages.spvHse !== true) {
