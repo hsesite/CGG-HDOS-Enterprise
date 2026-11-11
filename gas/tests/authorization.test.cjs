@@ -1604,7 +1604,7 @@ test('dashboard and repository access follow the registered company master', () 
   const repositorySource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'RepositoryModule.tsx'), 'utf8');
   assert.match(dashboardSource, /store\.contractors\.some\(company => company\.code\.toUpperCase\(\) === companyCode/);
   assert.match(dashboardSource, /new Set\(store\.contractors\.flatMap/);
-  assert.ok(dashboardSource.includes('recordParent === companyCode'));
+  assert.match(dashboardSource, /if \(isContractor\) \{ const allowed = new Set\(tenantDashboardCodes\); return allowed\.has\(recordCompany\) \|\| allowed\.has\(recordParent\) \|\| allowed\.has\(recordSubkon\); \}/);
   assert.ok(dashboardSource.includes("const isOversight = companyCode === 'CGG'"));
   assert.match(repositorySource, /new Set\(store\.contractors\.flatMap/);
   assert.match(repositorySource, /'KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'/);
