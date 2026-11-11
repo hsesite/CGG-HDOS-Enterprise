@@ -19,13 +19,14 @@ test('mobile web app manifest declares installable standalone HDOS scope', () =>
   assert.equal(parsed.display, 'standalone');
   assert.equal(parsed.start_url, './');
   assert.equal(parsed.scope, './');
-  assert.ok(parsed.icons.some(icon => icon.src === './icons/hdos-icon.svg'));
+  assert.ok(parsed.icons.some(icon => icon.src === './logo-cgg.png.jpeg' && icon.type === 'image/jpeg'));
 });
 
 test('HTML exposes manifest, mobile install metadata, and touch icon', () => {
   assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/);
   assert.match(html, /apple-mobile-web-app-capable/);
   assert.match(html, /rel="apple-touch-icon"/);
+  assert.match(html, /rel="icon" type="image\\/jpeg" href="\\.\\/logo-cgg\\.png\\.jpeg"/);
   assert.match(html, /theme-color/);
 });
 
@@ -107,4 +108,19 @@ test('sync module exposes offline storage usage, quota, and persistence status d
   assert.match(syncModule, /Kapasitas Penyimpanan Offline Perangkat/);
   assert.match(syncModule, /Perlindungan eviksi/);
   assert.match(syncModule, /void refreshStorageStatus\(\)/);
+});
+
+
+test('CGG logo is used by app shell, desktop/mobile branding, and module loading states', () => {
+  const app = fs.readFileSync(path.join(root, 'src', 'App.tsx'), 'utf8');
+  const menu = fs.readFileSync(path.join(root, 'src', 'components', 'layout', 'MenuBar.tsx'), 'utf8');
+  const windowWrapper = fs.readFileSync(path.join(root, 'src', 'components', 'layout', 'WindowWrapper.tsx'), 'utf8');
+  const mobile = fs.readFileSync(path.join(root, 'src', 'components', 'mobile', 'IOSMobileSimulator.tsx'), 'utf8');
+  assert.match(app, /import cggLogo from '\.\.\/logo-cgg\.png\.jpeg'/);
+  assert.match(app, /alt="Logo CGG"/);
+  assert.match(menu, /alt="Logo CGG"/);
+  assert.match(windowWrapper, /alt="Logo CGG"/);
+  assert.match(mobile, /alt="Logo CGG"/);
+  assert.match(windowWrapper, /Memuat modul operasional/);
+  assert.match(mobile, /Memuat modul operasional/);
 });
