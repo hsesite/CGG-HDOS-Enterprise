@@ -649,3 +649,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Hasil **NOT_READY / Tidak laik operasi** tetap dapat dicatat meskipun SIA tidak lengkap/kedaluwarsa agar temuan keselamatan dan tindakan pengendalian tetap terdokumentasi.
 - [x] Form P2H menonaktifkan pilihan Laik operasi dan menampilkan alasan persyaratan ketika SIA belum memenuhi syarat; backend tetap menjadi validasi final.
 - [ ] Validasi dokumen fisik terhadap nomor SIA/jenis alat dan uji P2H pada Spreadsheet + Drive Apps Script staging masih diperlukan.
+
+### Integrasi status kesiapan backend GAS pada workspace sinkronisasi (11 November 2026)
+
+- [x] Frontend memeriksa endpoint read-only `/api/health/ready` melalui transport GAS yang sama dengan API operasional.
+- [x] Workspace sinkronisasi memisahkan status jaringan perangkat dari kesiapan backend Spreadsheet; perangkat Online tidak lagi menjadi indikasi bahwa backend sudah siap.
+- [x] Status menampilkan hasil akses Spreadsheet, kelengkapan schema, konfigurasi Google OAuth, dan kebijakan registrasi email CGG; kegagalan pemeriksaan ditampilkan sebagai unavailable/not ready.
+- [x] Catatan UI menegaskan bahwa status READY bukan pengganti UAT login, CRUD, Drive, isolasi tenant, backup, dan sinkronisasi.
+- [x] Regression test ditambahkan untuk kontrak endpoint dan tampilan status kesiapan.
+- [ ] Verifikasi pada deployment GAS aktif dan build frontend produksi tetap diperlukan; hasil health check belum membuktikan seluruh alur operasional.
