@@ -62,7 +62,7 @@ test('production artifact validator checks the PWA shell and every manifest asse
 });
 
 test('PWA cache upgrades remove stale HDOS shell versions', () => {
-  assert.match(worker, /CACHE_NAME = CACHE_PREFIX \+ 'v3'/);
+  assert.match(worker, /CACHE_NAME = CACHE_PREFIX \+ 'v4'/);
   assert.match(worker, /key\.startsWith\(CACHE_PREFIX\) && key !== CACHE_NAME/);
   assert.match(worker, /caches\.delete\(key\)/);
 });
