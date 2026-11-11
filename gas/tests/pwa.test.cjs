@@ -167,12 +167,16 @@ test('glass UI remains enabled on mobile and desktop wallpaper supports visible 
   assert.doesNotMatch(app, /hdos-desktop-wallpaper[\s\S]{0,180}style=\{\{/);
 });
 
-test('contractor comparison chart is restored for verified CGG oversight roles within authorized scope', () => {
+test('contractor and subcontractor comparison chart is available within each tenant scope', () => {
   const dashboard = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'DashboardModule.tsx'), 'utf8');
   assert.match(dashboard, /const isOversight = companyCode === 'CGG' && sessionUser\?\.roleVerified === true/);
-  assert.match(dashboard, /\(isOwnerAdmin \|\| isOversight\) && \(/);
-  assert.match(dashboard, /filter\(\(company\) => company\.status !== 'SUSPENDED'\)/);
-  assert.match(dashboard, /Perbandingan hanya untuk kontraktor\/subkontraktor dalam cakupan pengawasan akun/);
+  assert.match(dashboard, /const canSeeCompanyComparison = isOwnerAdmin \|\| isOversight \|\| isContractor \|\| isSubcontractor/);
+  assert.match(dashboard, /company\.companyRole === 'Subkon'/);
+  assert.match(dashboard, /company\.parentCompanyCode \|\| ''\)\)\.trim\(\)\.toUpperCase\(\) === companyCode/);
+  assert.match(dashboard, /const tenantDashboardCodes = isContractor/);
+  assert.match(dashboard, /: isSubcontractor \? \[companyCode\] : \[\]/);
+  assert.match(dashboard, /\{canSeeCompanyComparison && \(/);
+  assert.match(dashboard, /Perbandingan aktivitas perusahaan Anda dengan subkontraktor yang terdaftar di bawahnya/);
   assert.match(dashboard, /const dashboardInspections = store\.inspections\.filter\(recordInDashboardScope\)/);
   assert.match(dashboard, /const inspections = dashboardInspections\.filter/);
 });
