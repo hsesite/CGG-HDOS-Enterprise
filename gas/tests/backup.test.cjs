@@ -139,14 +139,14 @@ test('restore validates offline photo and Contractor SIA Blob metadata before wr
 });
 
 
-test('restore validates queue-to-photo dependencies before any local write', () => {
-  assert.match(backupSource, /const restoredPhotoIds = new Set/);
-  assert.match(backupSource, /const restoredQueue = changes\.find\(change => change\.storeName === 'queue'\)/);
+test('restore validates both operational-photo and SIA attachment type and fleet references before any local write', () => {
+  assert.match(backupSource, /const restoredPhotos = new Map/);
   assert.match(backupSource, /queuePayload\.localPhotoId/);
+  assert.match(backupSource, /photo\.kind === 'contractor-sia'/);
   assert.match(backupSource, /queuePayload\.localDocumentId/);
-  assert.match(backupSource, /!restoredPhotoIds\.has\(attachmentId\)/);
-  assert.match(backupSource, /Pemulihan dibatalkan agar antrean tidak menjadi macet/);
-  const validationIndex = backupSource.indexOf('const restoredPhotoIds = new Set');
+  assert.match(backupSource, /document\.kind !== 'contractor-sia'/);
+  assert.match(backupSource, /document\.fleetId !== queuePayload\.fleetId/);
+  const validationIndex = backupSource.indexOf('const restoredPhotos = new Map');
   const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
   assert.ok(validationIndex >= 0 && writeIndex > validationIndex, 'attachment validation must precede the atomic restore write');
 });
