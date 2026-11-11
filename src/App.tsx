@@ -274,7 +274,7 @@ export default function App() {
 
     return (
       <div className="fixed inset-0 bg-[#090909] text-white flex flex-col items-center justify-center space-y-4" role="status" aria-live="polite">
-        <div className="w-16 h-16 rounded-2xl bg-white p-2 shadow-[0_0_30px_rgba(255,255,255,0.18)] flex items-center justify-center overflow-hidden"><img src={cggLogo} alt="Logo CGG" className="w-full h-full object-contain" /></div>
+        <div className="w-16 h-16 rounded-2xl bg-transparent flex items-center justify-center overflow-hidden"><img src={cggLogo} alt="Logo CGG" className="w-full h-full object-cover" /></div>
         <div className="text-center space-y-1">
           <div className="font-bold text-sm tracking-wider">CGG HDOS ENTERPRISE v3.0</div>
           <div className="text-xs text-neutral-400 font-mono">Menyiapkan penyimpanan lokal &amp; sesi aplikasi...</div>
@@ -304,7 +304,7 @@ export default function App() {
       {/* Top macOS Menu Bar with User & Logout */}
       <div className="relative z-40 h-10 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <img src={cggLogo} alt="Logo CGG" className="w-7 h-7 rounded-md object-contain bg-white/95 p-0.5" />
+          <img src={cggLogo} alt="Logo CGG" className="w-7 h-7 rounded-md object-cover bg-transparent" />
           <span className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-400">CGG HDOS v3.0</span>
         </div>
 
