@@ -27,37 +27,44 @@
 
 /* Apple macOS Glassmorphism utilities */
 .apple-glass {
-  background: rgba(26, 26, 30, 0.65);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.055) 42%, rgba(12,16,24,.58));
+  -webkit-backdrop-filter: blur(34px) saturate(175%);
+  backdrop-filter: blur(34px) saturate(175%);
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(255,255,255,.035), 0 18px 50px rgba(0,0,0,.28);
 }
 
 .apple-glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  background: linear-gradient(145deg, rgba(255,255,255,.115), rgba(255,255,255,.045) 48%, rgba(15,20,30,.36));
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
+  border: 1px solid rgba(255,255,255,.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.13), inset 0 -1px 0 rgba(255,255,255,.025), 0 14px 36px rgba(0,0,0,.2);
+  transition: background .22s ease, border-color .22s ease, box-shadow .22s ease, transform .22s ease;
 }
 
 .apple-glass-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.065) 48%, rgba(15,20,30,.42));
+  border-color: rgba(255,255,255,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 18px 42px rgba(0,0,0,.26), 0 0 28px rgba(0,230,118,.045);
+  transform: translateY(-1px);
 }
 
 .apple-glass-dock {
-  background: rgba(28, 28, 35, 0.55);
-  backdrop-filter: blur(35px);
-  -webkit-backdrop-filter: blur(35px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.07) 40%, rgba(15,18,26,.58));
+  -webkit-backdrop-filter: blur(38px) saturate(190%);
+  backdrop-filter: blur(38px) saturate(190%);
+  border: 1px solid rgba(255,255,255,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 20px 50px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.05);
 }
 
 .apple-menubar {
-  background: rgba(14, 14, 18, 0.75);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.13), rgba(18,22,31,.58));
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border-bottom: 1px solid rgba(255,255,255,.2);
+  box-shadow: 0 8px 28px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.12);
 }
 
 
@@ -94,7 +101,10 @@
   animation: hdos-window-enter .34s cubic-bezier(.2,.75,.25,1) both;
   transform-origin: 50% 70%;
   box-shadow: 0 32px 90px rgba(0,0,0,.58), 0 8px 28px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.1);
-  background: linear-gradient(145deg, rgba(34,38,48,.82), rgba(13,16,23,.88));
+  background: linear-gradient(145deg, rgba(42,50,64,.64), rgba(12,17,27,.68));
+  -webkit-backdrop-filter: blur(38px) saturate(180%);
+  backdrop-filter: blur(38px) saturate(180%);
+  border-color: rgba(255,255,255,.2);
 }
 .hdos-window-content {
   scrollbar-gutter: stable;
@@ -203,8 +213,8 @@
 
 @media (max-width: 767px) {
   .apple-glass, .apple-glass-card, .apple-menubar, .apple-glass-dock {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    -webkit-backdrop-filter: blur(18px) saturate(155%);
+    backdrop-filter: blur(18px) saturate(155%);
   }
 
   ::-webkit-scrollbar {
