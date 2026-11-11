@@ -775,7 +775,7 @@ test('PICA register limits non-HSE users to assigned records and enforces PIC/HS
   assert.ok(source.includes("String(record.assignedToEmail || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()"));
   assert.ok(source.includes("const isHSEValidator = roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; }) && user.roleVerified === true"));
   assert.ok(source.includes("Hanya PIC yang ditugaskan dapat mengajukan penutupan PICA."));
-  assert.ok(source.includes("Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE"));
+  assert.ok(source.includes("Penutupan akhir PICA hanya dapat dilakukan SPV HSE yang telah diverifikasi."));
   assert.ok(source.includes("PICA belum diajukan PIC untuk validasi HSE."));
   assert.ok(source.includes("'WAITING_HSE'"));
   assert.ok(source.includes("PICA ini tidak ditugaskan kepada akun Anda."));
@@ -2963,4 +2963,29 @@ test('PICA actions are protected from repeated clicks and validate evidence file
   assert.equal((moduleSource.match(/busyRef\.current = false; setBusy\(false\);/g) || []).length, 5);
   assert.match(moduleSource, /image\/jpeg', 'image\/png', 'image\/webp/);
   assert.match(moduleSource, /evidencePhotoFile\.size > 5 \* 1024 \* 1024/);
+});
+
+
+test('PICA final closure is restricted to verified SPV HSE after both ordered approvals', () => {
+  const helperStart = source.indexOf('function enforcePicaClosureRules_(');
+  const helperEnd = source.indexOf('function createSessionResponse_(', helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const context = {
+    error_: (status, message) => ({ status, message }),
+    isAdminCGG_: () => false,
+    isCompanyAdmin_: () => false,
+    DriveApp: { getFileById: () => ({}) },
+    Utilities: { formatDate: () => '2026-11-11' },
+    Session: { getScriptTimeZone: () => 'Asia/Jakarta' }
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(helperStart, helperEnd), context);
+  const existing = { status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true }, assignedToEmail: 'pic@example.com' };
+  const foreman = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['Foreman Safety'], roleVerified: true, email: 'foreman@example.com' });
+  assert.equal(foreman.status, 403);
+  assert.match(foreman.message, /SPV HSE/);
+  const spv = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: true, email: 'spv@example.com', displayName: 'SPV HSE' });
+  assert.equal(spv, null);
+  const unverifiedSpv = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: false, email: 'spv@example.com' });
+  assert.equal(unverifiedSpv.status, 403);
 });
