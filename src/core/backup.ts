@@ -303,7 +303,8 @@ export const hdosBackup = {
     );
     const restoredQueue = changes.find(change => change.storeName === 'queue')?.records || [];
     for (const queueRecord of restoredQueue) {
-      const payload = queueRecord.payload;
+      const queueItem = queueRecord as Record<string, unknown> & { id: string };
+      const payload = queueItem.payload;
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue;
       const queuePayload = payload as Record<string, unknown>;
       const attachmentId = typeof queuePayload.localPhotoId === 'string'
