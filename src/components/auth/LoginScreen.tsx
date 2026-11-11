@@ -178,8 +178,8 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): ReactEl
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#090909] px-4 py-8 text-neutral-100">
       <div className="my-auto w-full max-w-md rounded-3xl border border-white/10 bg-[#121212]/90 p-7 shadow-[0_0_30px_rgba(0,230,118,0.12)] backdrop-blur-md sm:p-8">
         <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white p-2 shadow-[0_0_30px_rgba(0,230,118,0.18)]">
-            <img src={cggLogo} alt="Logo CGG" className="h-full w-full object-contain" />
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-transparent overflow-hidden">
+            <img src={cggLogo} alt="Logo CGG" className="h-full w-full object-cover" />
           </div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[#00E676]">CGG HDOS</p>
           <h1 className="mt-3 text-2xl font-bold">Masuk ke HDOS</h1>
