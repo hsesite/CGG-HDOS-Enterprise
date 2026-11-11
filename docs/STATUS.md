@@ -733,3 +733,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Pemeriksaan dilakukan saat modul dibuka dan dapat diperbarui manual; setelah backup/restore, angka diperbarui kembali.
 - [x] Informasi menegaskan bahwa kuota adalah estimasi browser dan tidak menggantikan backup rutin.
 - [ ] Variasi angka dan dukungan StorageManager tetap harus diverifikasi pada perangkat Android/iOS aktual saat UAT.
+
+
+### Konsistensi dependensi lampiran saat restore (11 November 2026)
+
+- [x] Validasi antrean restore kini memeriksa lampiran efektif yang akan dipakai setelah kebijakan add-only diterapkan: record foto/dokumen lokal yang sudah ada menang atas ID yang sama di arsip.
+- [x] Referensi foto operasional dan dokumen SIA pada antrean harus tetap cocok dengan jenis lampiran, akun pemilik, perusahaan, serta fleet ID untuk SIA. Restore dibatalkan sebelum penulisan jika dependensi efektif tidak valid.
+- [x] Regression test memastikan pemeriksaan dependensi memakai record lokal yang menang pada benturan ID dan berlangsung sebelum transaksi restore.
+- [ ] Uji pemulihan lintas perangkat dan skenario benturan ID dengan data nonproduksi tetap diperlukan.
