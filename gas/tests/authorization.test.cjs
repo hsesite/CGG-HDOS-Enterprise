@@ -2953,3 +2953,14 @@ test('Repository inspection submission prevents duplicate clicks until record cr
   assert.match(moduleSource, /submittingRef\.current = true;[\s\S]*?saveOfflineOperationalPhoto\(inspectionPhoto\)/);
   assert.match(moduleSource, /finally \{\s*submittingRef\.current = false;\s*setSubmitting\(false\);\s*\}/);
 });
+
+
+test('PICA actions are protected from repeated clicks and validate evidence file constraints', () => {
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
+  assert.match(moduleSource, /useRef, useState/);
+  assert.match(moduleSource, /const busyRef = useRef\(false\)/);
+  assert.equal((moduleSource.match(/if \(busyRef\.current\) return;/g) || []).length, 5);
+  assert.equal((moduleSource.match(/busyRef\.current = false; setBusy\(false\);/g) || []).length, 5);
+  assert.match(moduleSource, /image\/jpeg', 'image\/png', 'image\/webp/);
+  assert.match(moduleSource, /evidencePhotoFile\.size > 5 \* 1024 \* 1024/);
+});
