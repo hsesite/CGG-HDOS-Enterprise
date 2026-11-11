@@ -708,3 +708,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Lease dengan timestamp valid yang masih berumur kurang dari dua menit tetap dilindungi agar tab aktif tidak direbut.
 - [x] Regression test memverifikasi jalur pemulihan lease kosong serta memastikan claim baru selalu menulis timestamp.
 - [ ] UAT pada browser Android/iOS dan browser desktop tanpa dukungan Web Locks tetap diperlukan untuk memastikan pemulihan aktual dan tidak terjadi replay ganda.
+
+
+### Validasi struktur antrean pada restore backup (11 November 2026)
+
+- [x] Restore memeriksa entity, action, status, timestamp, retryCount, dan bentuk payload setiap item antrean sebelum transaksi penulisan dimulai.
+- [x] Item antrean yang tidak sesuai kontrak ditolak dengan pembatalan seluruh restore; record lokal yang sudah ada tetap tidak disentuh.
+- [x] Regression test memastikan validasi antrean berjalan sebelum atomic insert lintas-store.
+- [ ] UAT tetap diperlukan untuk arsip backup lintas perangkat dan skenario antrean P2H/SIA dengan lampiran.
