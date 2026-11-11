@@ -770,6 +770,22 @@ test('PICA oversight reads and updates are limited to Foreman Safety and SPV HSE
   assert.doesNotMatch(getAllRoute, /\['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'\]/);
   assert.doesNotMatch(getOneRoute, /Project Manager/);
 });
+test('operational photo upload serializes idempotency and verifies owner plus content digest', () => {
+  const start = source.indexOf("if (path === '/api/photos' && method === 'POST')");
+  const end = source.indexOf('// CENTRAL REPOSITORY', start);
+  assert.ok(start >= 0 && end > start);
+  const upload = source.slice(start, end);
+  assert.match(upload, /const uploadLock = LockService\.getScriptLock\(\)/);
+  assert.match(upload, /uploadLock\.waitLock\(10000\)/);
+  assert.ok(upload.indexOf('uploadLock.waitLock') < upload.indexOf('folder.getFilesByName(fileName)'));
+  assert.ok(upload.indexOf('folder.getFilesByName(fileName)') < upload.indexOf('folder.createFile('));
+  assert.match(upload, /Utilities\.DigestAlgorithm\.SHA_256/);
+  assert.match(upload, /OWNER:' \+ uploadOwner \+ '\\|SHA256:'/);
+  assert.match(upload, /existingDigest !== contentDigest/);
+  assert.match(upload, /existingFile\.setDescription\(marker\)/);
+  assert.match(upload, /finally \{\s*uploadLock\.releaseLock\(\);\s*\}/);
+});
+
 test('operational photo upload requires an active registered tenant', () => {
   assert.ok(source.includes("const registeredCompany = findCompanyRegistry_(companyCode);\n      if (!registeredCompany || registeredCompany.status !== 'ACTIVE') return error_(403, 'Perusahaan akun belum terdaftar aktif pada master perusahaan.');"));
 });
