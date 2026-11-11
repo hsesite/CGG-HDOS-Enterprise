@@ -59,10 +59,10 @@ export const Dock: React.FC = () => {
   return (
     <nav
       aria-label="Application Dock"
-      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 select-none"
+      className="hdos-macos-dock fixed bottom-3 left-1/2 -translate-x-1/2 z-40 select-none"
     >
       <div
-        className="apple-glass-dock px-3 py-2 rounded-[26px] flex items-end gap-2 border border-white/20 shadow-2xl transition-all duration-200"
+        className="apple-glass-dock px-3 py-2.5 rounded-[26px] flex items-end gap-2 border border-white/20 shadow-2xl transition-all duration-300"
         onMouseLeave={() => setHoveredIndex(null)}
       >
         {dockItems.map((item, index) => {
