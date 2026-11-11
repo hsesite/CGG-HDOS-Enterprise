@@ -1,6 +1,6 @@
 const CACHE_PREFIX = 'cgg-hdos-shell-';
 // Bump this value when changing the shell/cache strategy; activate removes older HDOS caches.
-const CACHE_NAME = CACHE_PREFIX + 'v2';
+const CACHE_NAME = CACHE_PREFIX + 'v3';
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -56,7 +56,7 @@ self.addEventListener('install', event => {
     }));
 
     const manifestUrl = new URL('manifest.webmanifest', scopeUrl).href;
-    const iconUrl = new URL('icons/hdos-icon.svg', scopeUrl).href;
+    const iconUrl = new URL('logo-cgg.png.jpeg', scopeUrl).href;
     await Promise.all([manifestUrl, iconUrl].map(async url => {
       try {
         const assetResponse = await fetch(url, { cache: 'reload' });
