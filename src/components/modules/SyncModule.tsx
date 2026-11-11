@@ -31,6 +31,13 @@ export const SyncModule: React.FC = () => {
   const [resolvingConflictId, setResolvingConflictId] = useState<string | null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState('');
+  const [storageStatus, setStorageStatus] = useState<{
+    supported: boolean;
+    persisted: boolean | null;
+    usage: number | null;
+    quota: number | null;
+    checked: boolean;
+  }>({ supported: false, persisted: null, usage: null, quota: null, checked: false });
   const [cloudReadiness, setCloudReadiness] = useState<{
     status: 'checking' | 'ready' | 'not_ready' | 'unavailable';
     message: string;
@@ -43,6 +50,35 @@ export const SyncModule: React.FC = () => {
       invalidSchemaSheetCount: number;
     };
   }>({ status: 'checking', message: 'Memeriksa kesiapan backend GAS...' });
+
+  const refreshStorageStatus = async () => {
+    const storage = typeof navigator !== 'undefined' ? navigator.storage : undefined;
+    if (!storage || typeof storage.estimate !== 'function') {
+      setStorageStatus({ supported: false, persisted: null, usage: null, quota: null, checked: true });
+      return;
+    }
+    try {
+      const [estimate, persisted] = await Promise.all([
+        storage.estimate(),
+        typeof storage.persisted === 'function' ? storage.persisted().catch(() => null) : Promise.resolve(null),
+      ]);
+      setStorageStatus({
+        supported: true,
+        persisted,
+        usage: typeof estimate.usage === 'number' ? estimate.usage : null,
+        quota: typeof estimate.quota === 'number' ? estimate.quota : null,
+        checked: true,
+      });
+    } catch {
+      setStorageStatus({ supported: true, persisted: null, usage: null, quota: null, checked: true });
+    }
+  };
+
+  const formatStorageBytes = (bytes: number | null): string => {
+    if (bytes === null || !Number.isFinite(bytes) || bytes < 0) return 'Tidak tersedia';
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const refreshCloudReadiness = async () => {
     if (!online) {
@@ -74,6 +110,10 @@ export const SyncModule: React.FC = () => {
   useEffect(() => {
     void refreshCloudReadiness();
   }, [online, hseApi.baseUrl]);
+
+  useEffect(() => {
+    void refreshStorageStatus();
+  }, []);
 
   const actionableQueue = queue.filter(item => item.status !== 'RESOLVED');
   const resolvedQueueCount = queue.length - actionableQueue.length;
@@ -185,6 +225,7 @@ export const SyncModule: React.FC = () => {
       link.remove();
       URL.revokeObjectURL(url);
       setBackupMessage(`Backup berhasil dibuat: ${result.records} record disertakan. Simpan file di lokasi aman.`);
+      void refreshStorageStatus();
     } catch (error) {
       setBackupMessage(error instanceof Error ? error.message : 'Pembuatan backup gagal.');
     } finally {
@@ -203,6 +244,7 @@ export const SyncModule: React.FC = () => {
     try {
       const result = await hdosBackup.restore(file);
       setBackupMessage(`Pemulihan selesai: ${result.restored} record dipulihkan, ${result.skipped} record dilewati. Data lama yang tidak ada di backup tetap dipertahankan.`);
+      void refreshStorageStatus();
       setQueue(hdosSync.getQueue());
       setLogs(hdosSync.getSyncLogs());
     } catch (error) {
@@ -355,6 +397,25 @@ export const SyncModule: React.FC = () => {
           <p className="text-[11px] text-amber-300">Sheet belum tersedia: {cloudReadiness.checks.missingSheetCount} · Struktur header tidak valid: {cloudReadiness.checks.invalidSchemaSheetCount}</p>
         )}
         <p className="text-[10px] text-neutral-500">Status ini hanya memeriksa kesiapan konfigurasi. Status READY tidak menggantikan uji login, CRUD, Drive, isolasi tenant, backup, dan sinkronisasi pada UAT.</p>
+      </section>
+
+      <section className="apple-glass-card p-5 rounded-2xl space-y-3" aria-live="polite">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">Kapasitas Penyimpanan Offline Perangkat</h3>
+            <p className="text-[11px] text-neutral-400 mt-1">Estimasi penggunaan browser untuk database HDOS dan cache lokal.</p>
+          </div>
+          <button type="button" onClick={() => void refreshStorageStatus()} className="px-3 py-1 rounded-lg border border-white/15 text-[10px] text-neutral-200 hover:bg-white/10">Perbarui</button>
+        </div>
+        {storageStatus.checked ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-lg border border-white/10 bg-white/5 p-3"><div className="text-[10px] text-neutral-400">Terpakai</div><div className="mt-1 text-sm font-bold text-white">{formatStorageBytes(storageStatus.usage)}</div></div>
+            <div className="rounded-lg border border-white/10 bg-white/5 p-3"><div className="text-[10px] text-neutral-400">Kuota browser</div><div className="mt-1 text-sm font-bold text-white">{formatStorageBytes(storageStatus.quota)}</div></div>
+            <div className="rounded-lg border border-white/10 bg-white/5 p-3"><div className="text-[10px] text-neutral-400">Penggunaan</div><div className="mt-1 text-sm font-bold text-white">{storageStatus.usage !== null && storageStatus.quota ? `${Math.min(100, Math.round(storageStatus.usage / storageStatus.quota * 100))}%` : 'Tidak tersedia'}</div></div>
+            <div className="rounded-lg border border-white/10 bg-white/5 p-3"><div className="text-[10px] text-neutral-400">Perlindungan eviksi</div><div className={`mt-1 text-sm font-bold ${storageStatus.persisted === true ? 'text-emerald-300' : storageStatus.persisted === false ? 'text-amber-300' : 'text-neutral-300'}`}>{storageStatus.persisted === true ? 'Diberikan' : storageStatus.persisted === false ? 'Tidak diberikan' : 'Tidak diketahui'}</div></div>
+          </div>
+        ) : <p className="text-xs text-neutral-400">Memeriksa kapasitas penyimpanan...</p>}
+        <p className="text-[10px] text-neutral-500">Angka merupakan estimasi browser, bukan kapasitas pasti. Perlindungan penyimpanan bergantung pada perangkat/browser dan tidak menggantikan backup rutin.</p>
       </section>
 
       {/* Grid: Pending Queue + Sync Audit Logs */}
