@@ -54,39 +54,39 @@ export const WindowWrapper: React.FC<WindowWrapperProps> = ({ id, title, childre
       style={{
         zIndex: win.zIndex,
       }}
-      className={`fixed transition-all duration-200 select-auto flex flex-col ${
+      className={`hdos-window fixed select-auto flex flex-col ${
         win.isMaximized
-          ? 'top-10 left-0 right-0 bottom-20 rounded-none'
-          : 'top-12 left-4 right-4 sm:left-12 sm:right-12 lg:left-24 lg:right-24 bottom-22 rounded-[24px]'
+          ? 'top-10 left-3 right-3 bottom-24 sm:left-5 sm:right-5 rounded-2xl sm:rounded-[26px]'
+          : 'top-14 left-3 right-3 sm:left-10 sm:right-10 lg:left-20 lg:right-20 bottom-24 rounded-2xl sm:rounded-[26px]'
       } apple-glass border border-white/15 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden`}
     >
       {/* macOS Traffic Lights Header */}
       <div
         onDoubleClick={handleMaximize}
-        className={`h-11 px-4 flex items-center justify-between border-b border-white/10 select-none cursor-default transition-colors ${
+        className={`h-12 shrink-0 px-4 flex items-center justify-between border-b border-white/10 select-none cursor-default transition-colors ${
           isFocused ? 'bg-white/[0.07]' : 'bg-white/[0.03]'
         }`}
       >
         {/* Traffic lights */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleClose}
             title="Tutup (Close)"
-            className="w-3.5 h-3.5 rounded-full bg-[#FF5F56] hover:brightness-110 border border-black/20 flex items-center justify-center group cursor-pointer"
+            className="hdos-traffic-light h-3.5 w-3.5 rounded-full bg-[#FF5F56] border border-black/20 flex items-center justify-center group cursor-pointer"
           >
             <X className="w-2.5 h-2.5 text-black/70 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
           <button
             onClick={handleMinimize}
             title="Minimalkan (Minimize)"
-            className="w-3.5 h-3.5 rounded-full bg-[#FFBD2E] hover:brightness-110 border border-black/20 flex items-center justify-center group cursor-pointer"
+            className="hdos-traffic-light h-3.5 w-3.5 rounded-full bg-[#FFBD2E] border border-black/20 flex items-center justify-center group cursor-pointer"
           >
             <Minus className="w-2.5 h-2.5 text-black/70 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
           <button
             onClick={handleMaximize}
             title="Maksimalkan (Zoom)"
-            className="w-3.5 h-3.5 rounded-full bg-[#27C93F] hover:brightness-110 border border-black/20 flex items-center justify-center group cursor-pointer"
+            className="hdos-traffic-light h-3.5 w-3.5 rounded-full bg-[#27C93F] border border-black/20 flex items-center justify-center group cursor-pointer"
           >
             <Maximize2 className="w-2 h-2 text-black/70 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
@@ -112,7 +112,7 @@ export const WindowWrapper: React.FC<WindowWrapperProps> = ({ id, title, childre
       </div>
 
       {/* Window Body Canvas */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-black/40 text-neutral-100">
+      <div className="hdos-window-content flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-black/35 text-neutral-100">
         <Suspense fallback={<div className="flex min-h-40 flex-col items-center justify-center gap-3 text-sm text-neutral-400" role="status" aria-live="polite"><img src={cggLogo} alt="Logo CGG" className="h-12 w-12 rounded-xl bg-transparent object-cover animate-pulse" /><span>Memuat modul operasional...</span></div>}>
           {children}
         </Suspense>
