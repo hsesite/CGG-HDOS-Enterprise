@@ -291,7 +291,9 @@ export const hdosBackup = {
               !Number.isFinite(queueTimestamp) ||
               typeof item.retryCount !== 'number' || !Number.isInteger(item.retryCount) ||
               item.retryCount < 0 ||
-              !item.payload || typeof item.payload !== 'object' || Array.isArray(item.payload)) {
+              !item.payload || typeof item.payload !== 'object' || Array.isArray(item.payload) ||
+              typeof (item.payload as Record<string, unknown>).id !== 'string' ||
+              !(item.payload as Record<string, unknown>).id?.trim()) {
             throw new Error(`Struktur antrean backup tidak valid untuk item ${item.id}. Pemulihan dibatalkan agar antrean rusak tidak masuk ke proses sinkronisasi.`);
           }
           if (item.ownerUserId !== owner.userId || item.ownerCompanyCode !== owner.companyCode) {
