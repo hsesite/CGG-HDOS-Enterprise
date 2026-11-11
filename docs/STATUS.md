@@ -604,3 +604,10 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Status busy dan guard selalu dilepas pada blok `finally`, termasuk ketika penyimpanan gagal.
 - [x] Regression test ditambahkan untuk mengunci perilaku double-submit dan reset setelah sukses.
 - [ ] UAT pada perangkat Android/iOS perlu memeriksa submit berulang, kondisi offline, dan pemulihan setelah aplikasi dibuka ulang.
+
+
+### Penguatan submit operasional (11 November 2026)
+
+- [x] Form pelaporan Hazard memakai synchronous ref lock untuk mencegah double-submit selama foto dan record disimpan ke IndexedDB/queue; lock selalu dilepas pada blok `finally`.
+- [x] Form inspeksi berbasis Repository memakai synchronous ref lock yang sama agar klik berulang tidak membuat lebih dari satu record selama proses penyimpanan.
+- [x] Regression test mencakup kedua lifecycle submit; validasi CI tetap menjadi bukti otomatis, sedangkan uji perangkat nyata dan sinkronisasi GAS tetap menunggu UAT.
