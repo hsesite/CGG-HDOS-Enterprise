@@ -274,7 +274,7 @@ export default function App() {
 
     return (
       <div className="fixed inset-0 bg-[#090909] text-white flex flex-col items-center justify-center space-y-4" role="status" aria-live="polite">
-        <div className="w-12 h-12 rounded-2xl bg-[#00E676] text-black font-black flex items-center justify-center text-xl shadow-[0_0_30px_#00E676]">C</div>
+        <div className="w-16 h-16 rounded-2xl bg-white p-2 shadow-[0_0_30px_rgba(255,255,255,0.18)] flex items-center justify-center overflow-hidden"><img src={cggLogo} alt="Logo CGG" className="w-full h-full object-contain" /></div>
         <div className="text-center space-y-1">
           <div className="font-bold text-sm tracking-wider">CGG HDOS ENTERPRISE v3.0</div>
           <div className="text-xs text-neutral-400 font-mono">Menyiapkan penyimpanan lokal &amp; sesi aplikasi...</div>
