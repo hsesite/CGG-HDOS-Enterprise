@@ -1816,6 +1816,11 @@ test('P2H idempotency helper accepts exact replay and rejects changed inspection
 
 test('P2H submission uses a stable request key and backend idempotency', () => {
   assert.match(p2hUiSource, /const requestId = p2hRequestId \|\|/);
+  assert.match(p2hUiSource, /if \(p2hSubmitLock\.current\) return/);
+  assert.match(p2hUiSource, /p2hSubmitLock\.current = true/);
+  assert.match(p2hUiSource, /setP2hRequestId\(requestId\)/);
+  assert.match(p2hUiSource, /requestId, photoReference: p2hPhotoReference/);
+  assert.match(p2hUiSource, /p2hSubmitLock\.current = false/);
   assert.match(p2hUiSource, /await hdosSync\.enqueue\(\{/);
   assert.match(p2hUiSource, /setP2hRequestId\(''\)/);
   assert.match(source, /const requestId = String\(input\.requestId \|\| ''\)\.trim\(\)/);
