@@ -289,6 +289,29 @@ export const hdosBackup = {
       }
     }
 
+    // Validate attachment dependencies before the first write. A restored
+    // queue item that references a missing local Blob can never complete its
+    // upload and would otherwise remain stuck as a misleading pending task.
+    const restoredPhotoIds = new Set(
+      (changes.find(change => change.storeName === 'photos')?.records || []).map(record => record.id),
+    );
+    const restoredQueue = changes.find(change => change.storeName === 'queue')?.records || [];
+    for (const queueRecord of restoredQueue) {
+      const payload = queueRecord.payload;
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue;
+      const queuePayload = payload as Record<string, unknown>;
+      const attachmentId = typeof queuePayload.localPhotoId === 'string'
+        ? queuePayload.localPhotoId
+        : typeof queuePayload.localDocumentId === 'string'
+          ? queuePayload.localDocumentId
+          : '';
+      if (attachmentId && !restoredPhotoIds.has(attachmentId)) {
+        throw new Error(
+          `Antrean ${queueRecord.id} merujuk lampiran lokal ${attachmentId} yang tidak ditemukan di backup. Pemulihan dibatalkan agar antrean tidak menjadi macet.`,
+        );
+      }
+    }
+
     // Add-only restore: an ID collision is skipped, never overwritten. The
     // IndexedDB read/write transaction checks IDs and inserts all missing records
     // atomically across stores; existing local work remains untouched.
