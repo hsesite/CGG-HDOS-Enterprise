@@ -8,6 +8,10 @@ import { uploadOfflineContractorSia, type OfflineContractorSiaDocument } from '.
 
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY_MS = 2000;
+// A single cloud request can be delayed by mobile backgrounding or a slow GAS response.
+// Keep a generous lease on browsers without Web Locks so another tab does not
+// reclaim an item while its original request may still be in flight.
+const SYNC_LEASE_TIMEOUT_MS = 10 * 60 * 1000;
 
 type SyncEntityEndpoint =
   | 'inspections'
@@ -282,7 +286,7 @@ export class HDOSSyncEngine {
     } else {
       // Without cross-tab locks, recover only leases that have clearly expired.
       // Never reset a fresh SYNCING item just because another tab initialized.
-      const staleBefore = Date.now() - 2 * 60 * 1000;
+      const staleBefore = Date.now() - SYNC_LEASE_TIMEOUT_MS;
       for (const item of this.queue) {
         if (abandonStaleInitialization()) return;
         if (item.status !== 'SYNCING' ||
