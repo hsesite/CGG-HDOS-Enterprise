@@ -137,3 +137,16 @@ test('restore validates offline photo and Contractor SIA Blob metadata before wr
   assert.match(backupSource, /item\.fleetId !== 'string'/);
   assert.match(backupSource, /Lampiran pada backup modul photos tidak valid/);
 });
+
+
+test('restore validates queue-to-photo dependencies before any local write', () => {
+  assert.match(backupSource, /const restoredPhotoIds = new Set/);
+  assert.match(backupSource, /const restoredQueue = changes\.find\(change => change\.storeName === 'queue'\)/);
+  assert.match(backupSource, /queuePayload\.localPhotoId/);
+  assert.match(backupSource, /queuePayload\.localDocumentId/);
+  assert.match(backupSource, /!restoredPhotoIds\.has\(attachmentId\)/);
+  assert.match(backupSource, /Pemulihan dibatalkan agar antrean tidak menjadi macet/);
+  const validationIndex = backupSource.indexOf('const restoredPhotoIds = new Set');
+  const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
+  assert.ok(validationIndex >= 0 && writeIndex > validationIndex, 'attachment validation must precede the atomic restore write');
+});
