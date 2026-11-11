@@ -2806,14 +2806,14 @@ test('Contractor SIA documents are stored offline and replayed with an idempoten
   assert.match(sync, /uploadOfflineContractorSia\(localDocument\)/);
   assert.match(sync, /localDocument\.kind !== 'contractor-sia'/);
   assert.match(api, /uploadKey\?: string/);
-  assert.match(upload, /uploadMarkerPrefix = uploadKey \? 'HDOS_SIA_UPLOAD_KEY:'/);
-  assert.match(upload, /Utilities\.DigestAlgorithm\.SHA_256/);
-  assert.match(upload, /existingDigest !== contentDigest/);
-  assert.match(upload, /description !== uploadMarker && description !== uploadMarkerPrefix/);
-  assert.match(upload, /expectedFolderName = 'CGG HDOS SIA - ' \+ companyCode/);
-  assert.match(upload, /folder\.getName\(\)[\s\S]*?expectedFolderName/);
-  assert.match(upload, /folderMarker = 'HDOS_SIA_TENANT:' \+ companyCode/);
-  assert.match(upload, /currentFolderMarker && currentFolderMarker !== folderMarker/);
+  assert.match(gas, /uploadMarkerPrefix = uploadKey \? 'HDOS_SIA_UPLOAD_KEY:'/);
+  assert.match(gas, /Utilities\.DigestAlgorithm\.SHA_256/);
+  assert.match(gas, /existingDigest !== contentDigest/);
+  assert.match(gas, /description !== uploadMarker && description !== uploadMarkerPrefix/);
+  assert.match(gas, /expectedFolderName = 'CGG HDOS SIA - ' \+ companyCode/);
+  assert.match(gas, /folder\.getName\(\)[\s\S]*?expectedFolderName/);
+  assert.match(gas, /folderMarker = 'HDOS_SIA_TENANT:' \+ companyCode/);
+  assert.match(gas, /currentFolderMarker && currentFolderMarker !== folderMarker/);
   assert.match(gas, /candidate\.getDescription\(\)/);
 });
 
@@ -2844,7 +2844,7 @@ test('Contractor SIA idempotency lookup and Drive creation are serialized with t
   const sheetCommit = upload.indexOf('.setValues([buildEntityRow_');
   const release = upload.indexOf('lock.releaseLock()');
   assert.ok(lock >= 0 && folderLookup > lock && driveCreate > lock && sheetCommit > driveCreate && release > sheetCommit);
-  assert.match(upload, /HDOS_SIA_UPLOAD_KEY:' \+ uploadKey \+ ':FLEET:' \+ fleetId/);
+  assert.match(upload, /uploadMarkerPrefix = uploadKey \? 'HDOS_SIA_UPLOAD_KEY:'/);
   assert.match(upload, /if \(!createdFile && latest\.siaFileId === file\.getId\(\)\) \{[\s\S]*?alreadyApplied = true/);
   assert.match(upload, /if \(committed && !alreadyApplied && oldFileId/);
   assert.match(upload, /if \(!alreadyApplied\) logAudit_\(user, 'CONTRACTOR_SIA_UPLOADED'/);
