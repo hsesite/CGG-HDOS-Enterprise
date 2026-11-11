@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import cggLogo from '../../../logo-cgg.png.jpeg';
 import {
   Wifi,
   WifiOff,
