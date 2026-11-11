@@ -329,7 +329,7 @@ test('Company Admin cannot change PICA approval stages or close PICA outside HSE
   assert.ok(source.includes("if (entity === 'picas' && isCompanyAdmin_(user) && !isAdminCGG_(user))"));
   assert.ok(source.includes("return error_(403, 'Admin Perusahaan tidak dapat mengubah tahapan persetujuan PICA.')"));
   assert.ok(source.includes("if (requestedStatusForCompanyAdmin === 'CLOSED')"));
-  assert.ok(source.includes('Admin Perusahaan tidak dapat menutup PICA. Validasi hanya dapat dilakukan Foreman Safety atau SPV HSE'));
+  assert.ok(source.includes('Admin Perusahaan tidak dapat menutup PICA. Penutupan akhir hanya dapat dilakukan SPV HSE yang telah diverifikasi.'));
 });
 test('Operational tenant ownership remains immutable during PATCH for non-CGG admins', () => {
   assert.ok(source.includes("['companyCode', 'contractorCode', 'parentCompanyCode', 'subcontractorCode', 'subkonCode'].forEach(function(key)"));
@@ -577,9 +577,11 @@ test('PICA can be submitted by its assigned PIC and closed after Foreman and SPV
 
   const waiting = {status:'WAITING_HSE',assignedToEmail:'pic@example.com',companyCode:'CGG',completionDate:'',approvalStages:{foreman:true,spvHse:true}};
   const close = {status:'CLOSED'};
-  assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Employee','Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}),null);
-  assert.equal(close.hseValidatedBy,'HSE Foreman');
-  assert.equal(close.hseValidatedRole,'Foreman Safety');
+  assert.equal(context.enforcePicaClosureRules_(waiting,close,{roles:['Employee','Foreman Safety'],displayName:'HSE Foreman',roleVerified:true}).status,403);
+  const spvClose = {status:'CLOSED'};
+  assert.equal(context.enforcePicaClosureRules_(waiting,spvClose,{roles:['SPV HSE'],displayName:'SPV HSE',roleVerified:true}),null);
+  assert.equal(spvClose.hseValidatedBy,'SPV HSE');
+  assert.equal(spvClose.hseValidatedRole,'SPV HSE');
   assert.match(close.completionDate,/^\d{4}-\d{2}-\d{2}$/);
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['KTT'],roleVerified:true}).status,403);
   assert.equal(context.enforcePicaClosureRules_(waiting,{status:'CLOSED'},{roles:['Employee','Foreman Safety'],roleVerified:false}).status,403);
@@ -2173,10 +2175,11 @@ test('PICA closure rules reject unauthorized, incomplete, and invalid status tra
   assert.equal(enforce(pica, { status: 'WAITING_HSE' }, { ...pic, email: 'other@example.test' }).status, 403);
   assert.equal(enforce(pica, { status: 'WAITING_HSE' }, pic).status, 400);
   assert.equal(enforce({ ...pica, correctiveAction: 'Perbaikan dilakukan' }, { status: 'WAITING_HSE' }, pic).status, 400);
-  assert.equal(enforce(pica, { status: 'CLOSED' }, foreman).status, 409);
+  assert.equal(enforce(pica, { status: 'CLOSED' }, foreman).status, 403);
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'CLOSED' }, { ...foreman, roleVerified: false }).status, 403);
-  assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'CLOSED' }, foreman).status, 409);
-  assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true, ktt: true } }, { status: 'CLOSED' }, foreman), null);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'CLOSED' }, foreman).status, 403);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true, ktt: true } }, { status: 'CLOSED' }, foreman).status, 403);
+  assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true } }, { status: 'CLOSED' }, { email: 'spv@example.test', displayName: 'SPV HSE', roles: ['SPV HSE'], roleVerified: true }), null);
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE', approvalStages: { foreman: true } }, { status: 'PROGRESS', rejectionReason: 'Perlu perbaikan' }, foreman).status, 409);
   assert.equal(enforce({ ...pica, status: 'WAITING_HSE' }, { status: 'PROGRESS' }, foreman).status, 400);
   assert.equal(enforce(pica, { status: 'NOT_A_STATUS' }, pic).status, 400);
