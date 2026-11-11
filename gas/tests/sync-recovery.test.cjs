@@ -38,3 +38,16 @@ test('recovery writes remain bound to the active initialization generation and a
   assert.match(recovery, /item\.ownerUserId !== owner\?\.userId/);
   assert.match(recovery, /item\.ownerCompanyCode !== owner\?\.companyCode/);
 });
+
+test('legacy SYNCING items without a valid lease timestamp are recoverable on browsers without Web Locks', () => {
+  const recoveryStart = syncSource.indexOf('const staleBefore = Date.now() - 2 * 60 * 1000;');
+  const recoveryEnd = syncSource.indexOf('if (abandonStaleInitialization()) return;', recoveryStart);
+  assert.ok(recoveryStart >= 0 && recoveryEnd > recoveryStart);
+  const fallbackRecovery = syncSource.slice(recoveryStart, syncSource.indexOf('if (abandonStaleInitialization()) return;', recoveryStart + 1));
+  assert.match(fallbackRecovery, /if \(Number\.isFinite\(startedAt\) && startedAt > staleBefore\) continue/);
+  assert.doesNotMatch(fallbackRecovery, /if \(!Number\.isFinite\(startedAt\)/);
+
+  const claimStart = syncSource.indexOf('const claimedItem = await hdosDB.claimQueueItem');
+  assert.ok(claimStart >= 0);
+  assert.match(syncSource.slice(claimStart, claimStart + 500), /new Date\(\)\.toISOString\(\)/);
+});
