@@ -60,7 +60,99 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Custom scrollbars */
+
+/* HDOS desktop: refined macOS-inspired workspace */
+.hdos-desktop-wallpaper {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgba(0, 230, 118, 0.14), transparent 42%),
+    radial-gradient(ellipse at 12% 22%, rgba(35, 105, 180, 0.24), transparent 40%),
+    radial-gradient(ellipse at 88% 18%, rgba(104, 75, 180, 0.18), transparent 38%),
+    linear-gradient(145deg, #101a2a 0%, #10131d 46%, #080b12 100%);
+}
+.hdos-desktop-wallpaper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .18;
+  background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+.hdos-desktop-wallpaper::after {
+  content: "";
+  position: absolute;
+  width: min(58vw, 760px);
+  aspect-ratio: 1;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.055);
+  box-shadow: 0 0 0 42px rgba(255,255,255,.018), 0 0 0 84px rgba(255,255,255,.012), inset 0 0 100px rgba(0,230,118,.035);
+}
+.hdos-window {
+  animation: hdos-window-enter .34s cubic-bezier(.2,.75,.25,1) both;
+  transform-origin: 50% 70%;
+  box-shadow: 0 32px 90px rgba(0,0,0,.58), 0 8px 28px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.1);
+  background: linear-gradient(145deg, rgba(34,38,48,.82), rgba(13,16,23,.88));
+}
+.hdos-window-content {
+  scrollbar-gutter: stable;
+}
+.hdos-traffic-light { transition: filter .16s ease, transform .16s ease, box-shadow .16s ease; }
+.hdos-traffic-light:hover { filter: brightness(1.18); transform: scale(1.08); box-shadow: 0 0 12px currentColor; }
+@keyframes hdos-window-enter {
+  from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* iPhone device preview on desktop; real phones remain edge-to-edge */
+.hdos-iphone-stage {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(55,75,105,.28), transparent 48%),
+    linear-gradient(145deg, #080b12, #101522 52%, #07090e);
+}
+.hdos-iphone-shell {
+  isolation: isolate;
+}
+.hdos-iphone-status { background: linear-gradient(180deg, rgba(0,0,0,.28), transparent); }
+.hdos-dynamic-island { z-index: 2; }
+.hdos-iphone-viewport { scrollbar-width: none; }
+.hdos-iphone-viewport::-webkit-scrollbar { display: none; }
+.hdos-iphone-tabbar { box-shadow: 0 -12px 32px rgba(0,0,0,.2); }
+.hdos-home-indicator-wrap { min-height: 1.35rem; }
+@media (min-width: 768px) {
+  .hdos-iphone-shell {
+    width: min(430px, calc(100vw - 48px));
+    height: min(900px, calc(100dvh - 48px));
+    border: 8px solid #272a31;
+    border-radius: 54px;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.13), 0 35px 100px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.12);
+    background: #08090c;
+  }
+  .hdos-iphone-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 46px;
+    pointer-events: none;
+    z-index: 50;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+  .hdos-iphone-status { min-height: 3.7rem; }
+  .hdos-iphone-viewport { padding-left: 1rem; padding-right: 1rem; }
+  .hdos-home-indicator-wrap { padding-bottom: .45rem; }
+}
+@media (max-width: 767px) {
+  .hdos-iphone-stage { background: #090909; }
+  .hdos-iphone-shell { border: 0; border-radius: 0; box-shadow: none; }
+  .hdos-home-indicator-wrap { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hdos-window { animation: none; }
+  .hdos-traffic-light, .apple-glass-card, .apple-glass-dock { transition: none; }
+}
+\n/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
