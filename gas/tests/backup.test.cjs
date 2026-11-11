@@ -78,10 +78,21 @@ test('backup restore rejects another company or parent-company scope', () => {
   assert.match(backupSource, /archive\.owner\.parentCompanyCode !== owner\.parentCompanyCode/);
 });
 
-test('restore is merge-only and applies validated changes atomically', () => {
-  assert.match(backupSource, /Merge-only restore/);
-  assert.match(backupSource, /deleteIds: \[\]/);
-  assert.match(backupSource, /await hdosDB\.reconcileSnapshotBundle\(changes\)/);
+test('restore is add-only, preserves existing local IDs, and applies inserts atomically', () => {
+  assert.match(backupSource, /Add-only restore/);
+  assert.match(backupSource, /await hdosDB\.insertSnapshotBundle\(changes\)/);
+  assert.match(backupSource, /skipped \+= result\.skipped/);
+  const dbSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'db.ts'), 'utf8');
+  assert.match(dbSource, /async insertSnapshotBundle\(/);
+  assert.match(dbSource, /const request = store\.get\(record\.id\)/);
+  assert.match(dbSource, /if \(request\.result === undefined\)/);
+  assert.match(dbSource, /store\.put\(record\)/);
+  assert.match(dbSource, /else \{\s*skipped\+\+;/);
+});
+
+test('restore rejects backups created by a different user account, even in the same tenant', () => {
+  assert.match(backupSource, /archive\.owner\.userId !== owner\.userId/);
+  assert.match(backupSource, /Backup dibuat oleh akun pengguna yang berbeda/);
 });
 
 test('in-flight queue items are reset to pending when restored', () => {
