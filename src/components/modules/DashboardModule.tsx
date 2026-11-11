@@ -88,8 +88,16 @@ export const DashboardModule: React.FC = () => {
   // Company comparison is exposed only to the CGG owner administrator.
   // The company bucket prefers subcontractorCode so subkon activity is not
   // incorrectly attributed to its parent contractor.
-  const companyDashboardRows = isOwnerAdmin
-    ? [...new Set(['CGG', ...store.contractors.map((company) => company.code.trim().toUpperCase()).filter(Boolean)])].map((code) => {
+  const dashboardCompanyCodes = isOwnerAdmin
+    ? ['CGG', ...store.contractors.map((company) => company.code.trim().toUpperCase()).filter(Boolean)]
+    : isOversight
+      ? store.contractors
+          .filter((company) => company.status !== 'SUSPENDED')
+          .map((company) => company.code.trim().toUpperCase())
+          .filter(Boolean)
+      : [];
+  const companyDashboardRows = (isOwnerAdmin || isOversight)
+    ? [...new Set(dashboardCompanyCodes)].map((code) => {
         const ownedBy = (record: unknown) => {
           const item = record as Record<string, unknown>;
           return String(item.subcontractorCode || item.subkonCode || item.companyCode || item.contractorCode || '').trim().toUpperCase();
@@ -217,14 +225,14 @@ export const DashboardModule: React.FC = () => {
         </div>
       </div>
 
-      {isOwnerAdmin && (
+      {(isOwnerAdmin || isOversight) && (
         <section className="apple-glass-card p-5 rounded-2xl space-y-4 border border-white/10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-white">Rekapitulasi Data HSE per Perusahaan</h3>
-              <p className="text-[11px] text-neutral-400">Cakupan perusahaan mengikuti master perusahaan pusat yang terdaftar.</p>
+              <p className="text-[11px] text-neutral-400">{isOwnerAdmin ? 'Konsolidasi perusahaan pada master pusat.' : 'Perbandingan hanya untuk kontraktor/subkontraktor dalam cakupan pengawasan akun.'}</p>
             </div>
-            <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">Khusus Admin CGG</span>
+            <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">{isOwnerAdmin ? 'Admin CGG' : 'Cakupan Pengawasan'}</span>
           </div>
           <div className="w-full h-[340px] sm:h-[380px]">
             <ResponsiveContainer width="100%" height="100%">
