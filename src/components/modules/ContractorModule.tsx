@@ -40,6 +40,7 @@ export const ContractorModule: React.FC = () => {
   const [p2hPhotoView, setP2hPhotoView] = useState<Record<string, string>>({});
   const [siaPreview, setSiaPreview] = useState<Record<string, {url: string; mimeType: string; fileName: string}>>({});
   const [p2hRequestId, setP2hRequestId] = useState('');
+  const p2hSubmitLock = useRef(false);
   const [p2hDraft, setP2hDraft] = useState<ContractorP2HInput>({ inspectionDate: new Date().toISOString().slice(0,10), status: 'READY', hourMeter: '', operatorName: '', findings: '', correctiveAction: '' });
   const [fleetDraft, setFleetDraft] = useState({
     unitNumber: '', unitType: '', brand: '', model: '',
@@ -306,11 +307,24 @@ export const ContractorModule: React.FC = () => {
 
   const submitP2HRecord = async (event: React.FormEvent<HTMLFormElement>, unit: ContractorFleetUnit) => {
     event.preventDefault();
+    if (p2hSubmitLock.current) return;
+    p2hSubmitLock.current = true;
     const requestScope = sessionScopeKey;
     setFleetBusy(true);
     setFleetMessage('');
     try {
       const requestId = p2hRequestId || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `p2h_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`);
+      if (!p2hRequestId) {
+        setP2hRequestId(requestId);
+        // Persist the idempotency key before queueing. A retry after a local
+        // storage interruption must reuse the same P2H request identity.
+        if (p2hDraftKey) await hdosDB.put('contractor', {
+          id: p2hDraftKey, ...draftOwner, draft: p2hDraft,
+          localPhotoId: p2hLocalPhotoId || undefined,
+          requestId, photoReference: p2hPhotoReference,
+          updatedAt: new Date().toISOString(),
+        });
+      }
       const queueId = `contractor-p2h:${requestId}`;
       const payload = {
         id: queueId,
@@ -346,6 +360,7 @@ export const ContractorModule: React.FC = () => {
     } catch (error) {
       if (isCurrentSessionScope(requestScope)) setFleetMessage(error instanceof Error ? error.message : 'Pencatatan P2H gagal disimpan ke antrean.');
     } finally {
+      p2hSubmitLock.current = false;
       if (isCurrentSessionScope(requestScope)) setFleetBusy(false);
     }
   };
