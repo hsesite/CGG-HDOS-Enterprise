@@ -1,6 +1,6 @@
 const CACHE_PREFIX = 'cgg-hdos-shell-';
 // Bump this value when changing the shell/cache strategy; activate removes older HDOS caches.
-const CACHE_NAME = CACHE_PREFIX + 'v3';
+const CACHE_NAME = CACHE_PREFIX + 'v4';
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
