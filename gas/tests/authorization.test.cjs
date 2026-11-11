@@ -1800,7 +1800,7 @@ test('P2H READY requires an active unit with an attached SIA valid on the inspec
   const start = source.indexOf('function getContractorSiaEligibility_(');
   const end = source.indexOf('function createContractorP2HRecord_(', start);
   assert.ok(start >= 0 && end > start);
-  const helper = vm.runInNewContext('(' + source.slice(start, source.indexOf('function isSameContractorP2HRequest_(', start)).trim() + ')');
+  const helper = vm.runInNewContext('(' + source.slice(start, end).trim() + ')');
   const unit = { status: 'ACTIVE', siaFileId: 'sia-file-123456', siaExpiry: '2026-11-30' };
   assert.equal(helper(unit, '2026-11-11').eligible, true);
   assert.equal(helper(unit, '2026-11-30').eligible, true, 'SIA remains valid through its printed expiry date');
