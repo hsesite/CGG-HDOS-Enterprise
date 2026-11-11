@@ -1144,12 +1144,25 @@ function handleRoute_(
       const props = PropertiesService.getScriptProperties();
       let folderId = props.getProperty(folderKey);
       let folder;
+      const expectedFolderName = 'CGG HDOS Photos - ' + companyCode;
+      const folderMarker = 'HDOS_PHOTO_TENANT:' + companyCode;
       if (folderId) {
         folder = DriveApp.getFolderById(folderId);
       } else {
-        folder = DriveApp.createFolder('CGG HDOS Photos - ' + companyCode);
+        folder = DriveApp.createFolder(expectedFolderName);
+        folder.setDescription(folderMarker);
         props.setProperty(folderKey, folder.getId());
       }
+      // Script Properties are the tenant-folder pointer. Verify the pointed
+      // folder identity and fail closed rather than writing into another tenant.
+      if (String(folder.getName() || '') !== expectedFolderName) {
+        return error_(403, 'Folder bukti foto tidak sesuai dengan perusahaan akun aktif.');
+      }
+      const currentFolderMarker = String(folder.getDescription() || '');
+      if (currentFolderMarker && currentFolderMarker !== folderMarker) {
+        return error_(403, 'Folder bukti foto telah ditandai untuk perusahaan lain.');
+      }
+      if (!currentFolderMarker) folder.setDescription(folderMarker);
 
       const digestBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
       const contentDigest = Utilities.base64EncodeWebSafe(digestBytes);
