@@ -97,3 +97,14 @@ test('mobile IndexedDB requests persistent browser storage without blocking star
   assert.match(database, /Persistent storage request failed; continuing with browser defaults/);
   assert.ok(database.indexOf('resolve(openedDb)') > database.indexOf('persistStorage.call(navigator.storage)'));
 });
+
+
+test('sync module exposes offline storage usage, quota, and persistence status diagnostics', () => {
+  const syncModule = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'SyncModule.tsx'), 'utf8');
+  assert.match(syncModule, /navigator\.storage/);
+  assert.match(syncModule, /storage\.estimate\(\)/);
+  assert.match(syncModule, /storage\.persisted\(\)/);
+  assert.match(syncModule, /Kapasitas Penyimpanan Offline Perangkat/);
+  assert.match(syncModule, /Perlindungan eviksi/);
+  assert.match(syncModule, /void refreshStorageStatus\(\)/);
+});
