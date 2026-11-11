@@ -26,7 +26,7 @@ test('HTML exposes manifest, mobile install metadata, and touch icon', () => {
   assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/);
   assert.match(html, /apple-mobile-web-app-capable/);
   assert.match(html, /rel="apple-touch-icon"/);
-  assert.ok(html.includes('rel="icon" type="image/jpeg" href="./logo-cgg.png.jpeg"'));
+  assert.ok(html.includes("rel=\"icon\" type=\"image/jpeg\" href=\"./logo-cgg.png.jpeg\""));
   assert.match(html, /theme-color/);
 });
 
@@ -44,6 +44,7 @@ test('service worker precaches app shell and built entry assets for offline reop
   assert.match(worker, /assetPaths\.add\(assetEntry\.file\)/);
   assert.match(worker, /cache\.put\(assetUrl\.href, assetResponse\)/);
   assert.match(worker, /self\.clients\.claim\(\)/);
+  assert.ok(worker.includes("new URL('logo-cgg.png.jpeg', scopeUrl)"));
 });
 
 test('Vite exposes the complete build graph for lazy-module offline precaching', () => {
@@ -61,7 +62,7 @@ test('production artifact validator checks the PWA shell and every manifest asse
 });
 
 test('PWA cache upgrades remove stale HDOS shell versions', () => {
-  assert.match(worker, /CACHE_NAME = CACHE_PREFIX \\+ 'v3'/);
+  assert.match(worker, /CACHE_NAME = CACHE_PREFIX \+ 'v3'/);
   assert.match(worker, /key\.startsWith\(CACHE_PREFIX\) && key !== CACHE_NAME/);
   assert.match(worker, /caches\.delete\(key\)/);
 });
