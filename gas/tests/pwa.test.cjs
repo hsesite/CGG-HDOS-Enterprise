@@ -153,3 +153,26 @@ test('desktop and iPhone shells provide responsive device framing and motion-awa
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(dock, /hdos-macos-dock/);
 });
+
+
+test('glass UI remains enabled on mobile and desktop wallpaper supports visible glass refraction', () => {
+  const styles = fs.readFileSync(path.join(root, 'src', 'index.css'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'src', 'App.tsx'), 'utf8');
+  assert.match(styles, /backdrop-filter: blur\(34px\) saturate\(175%\)/);
+  assert.match(styles, /backdrop-filter: blur\(24px\) saturate\(165%\)/);
+  assert.match(styles, /backdrop-filter: blur\(18px\) saturate\(155%\)/);
+  assert.doesNotMatch(styles, /backdrop-filter: none/);
+  assert.match(styles, /rgba\(255,255,255,\.22\)/);
+  assert.match(app, /className="hdos-desktop-wallpaper fixed inset-0 pointer-events-none z-0" \/>/);
+  assert.doesNotMatch(app, /hdos-desktop-wallpaper[\s\S]{0,180}style=\{\{/);
+});
+
+test('contractor comparison chart is restored for verified CGG oversight roles within authorized scope', () => {
+  const dashboard = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'DashboardModule.tsx'), 'utf8');
+  assert.match(dashboard, /const isOversight = companyCode === 'CGG' && sessionUser\?\.roleVerified === true/);
+  assert.match(dashboard, /\(isOwnerAdmin \|\| isOversight\) && \(/);
+  assert.match(dashboard, /filter\(\(company\) => company\.status !== 'SUSPENDED'\)/);
+  assert.match(dashboard, /Perbandingan hanya untuk kontraktor\/subkontraktor dalam cakupan pengawasan akun/);
+  assert.match(dashboard, /const dashboardInspections = store\.inspections\.filter\(recordInDashboardScope\)/);
+  assert.match(dashboard, /const inspections = dashboardInspections\.filter/);
+});
