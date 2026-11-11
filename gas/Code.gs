@@ -2514,14 +2514,14 @@ function getContractorSiaEligibility_(unit, inspectionDate) {
   if (!String(current.siaFileId || '').trim()) {
     return { eligible: false, reason: 'Dokumen SIA unit belum dilampirkan.' };
   }
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(expiry)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiry)) {
     return { eligible: false, reason: 'Masa berlaku SIA belum dicatat dengan benar.' };
   }
   const expiryDate = new Date(expiry + 'T00:00:00Z');
   if (Number.isNaN(expiryDate.getTime()) || expiryDate.toISOString().slice(0, 10) !== expiry) {
     return { eligible: false, reason: 'Tanggal masa berlaku SIA tidak valid.' };
   }
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return { eligible: false, reason: 'Tanggal pemeriksaan P2H tidak valid.' };
   }
   const inspection = new Date(date + 'T00:00:00Z');
@@ -2697,7 +2697,7 @@ function upsertCompanyRegistryCore_(payload, actor, auditOut) {
   const picName = Object.prototype.hasOwnProperty.call(input, 'picName') ? String(input.picName || '').trim() : String(existingRow[8] || '');
   const picContact = Object.prototype.hasOwnProperty.call(input, 'picContact') ? String(input.picContact || '').trim() : String(existingRow[9] || '');
   const safetyPassportExpiry = Object.prototype.hasOwnProperty.call(input, 'safetyPassportExpiry') ? String(input.safetyPassportExpiry || '').trim() : String(existingRow[10] || '');
-  if (safetyPassportExpiry && !/^\\d{4}-\\d{2}-\\d{2}$/.test(safetyPassportExpiry)) return error_(400, 'Tanggal masa berlaku Safety Passport harus YYYY-MM-DD.');
+  if (safetyPassportExpiry && !/^\d{4}-\d{2}-\d{2}$/.test(safetyPassportExpiry)) return error_(400, 'Tanggal masa berlaku Safety Passport harus YYYY-MM-DD.');
   const values = [code, name, role, role === 'Subkon' ? parentCode : '', domains, autoProvision ? 'TRUE' : 'FALSE', status, passportStatus, picName, picContact, safetyPassportExpiry];
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
   else sheet.appendRow(values);
