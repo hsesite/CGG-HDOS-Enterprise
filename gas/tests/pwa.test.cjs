@@ -10,6 +10,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'src', 'main.tsx'), 'utf8');
 const vite = fs.readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
 const buildValidator = fs.readFileSync(path.join(root, 'scripts', 'validate-pwa-build.mjs'), 'utf8');
+const database = fs.readFileSync(path.join(root, 'src', 'core', 'db.ts'), 'utf8');
 
 test('mobile web app manifest declares installable standalone HDOS scope', () => {
   const parsed = JSON.parse(manifest);
@@ -85,4 +86,14 @@ test('uncached app assets return an explicit offline response instead of an empt
   assert.match(worker, /Aset HDOS ini belum tersimpan di cache/);
   assert.match(worker, /status: 503/);
   assert.match(worker, /Content-Type': 'text\/plain; charset=utf-8/);
+});
+
+
+test('mobile IndexedDB requests persistent browser storage without blocking startup', () => {
+  assert.match(database, /const persistStorage = navigator\.storage\?\.persist/);
+  assert.match(database, /persistStorage\.call\(navigator\.storage\)/);
+  assert.match(database, /Persistent browser storage granted/);
+  assert.match(database, /Persistent browser storage was not granted; keep regular backups/);
+  assert.match(database, /Persistent storage request failed; continuing with browser defaults/);
+  assert.ok(database.indexOf('resolve(openedDb)') > database.indexOf('persistStorage.call(navigator.storage)'));
 });
