@@ -725,3 +725,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Status pemberian atau penolakan dicatat di console untuk membantu pemeriksaan perangkat.
 - [x] Regression test memeriksa permintaan persistent storage dan memastikan alur startup tetap berlanjut.
 - [ ] Hasil grant bergantung pada kebijakan browser/perangkat; backup berkala tetap wajib dan UAT Android/iOS tetap diperlukan.
+
+
+### Diagnostik kapasitas penyimpanan offline perangkat (11 November 2026)
+- [x] Modul Sinkronisasi menampilkan estimasi penggunaan dan kuota browser melalui StorageManager.estimate() jika didukung.
+- [x] Status persistent storage dibaca secara read-only melalui StorageManager.persisted(); status tidak diketahui ditampilkan bila browser tidak mendukung atau pemeriksaan gagal.
+- [x] Pemeriksaan dilakukan saat modul dibuka dan dapat diperbarui manual; setelah backup/restore, angka diperbarui kembali.
+- [x] Informasi menegaskan bahwa kuota adalah estimasi browser dan tidak menggantikan backup rutin.
+- [ ] Variasi angka dan dukungan StorageManager tetap harus diverifikasi pada perangkat Android/iOS aktual saat UAT.
