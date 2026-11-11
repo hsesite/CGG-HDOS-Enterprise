@@ -716,3 +716,12 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Item antrean yang tidak sesuai kontrak ditolak dengan pembatalan seluruh restore; record lokal yang sudah ada tetap tidak disentuh.
 - [x] Regression test memastikan validasi antrean berjalan sebelum atomic insert lintas-store.
 - [ ] UAT tetap diperlukan untuk arsip backup lintas perangkat dan skenario antrean P2H/SIA dengan lampiran.
+
+
+### Proteksi penyimpanan offline pada browser mobile (11 November 2026)
+
+- [x] Setelah IndexedDB berhasil dibuka, HDOS meminta browser memberikan status persistent storage melalui StorageManager API jika tersedia.
+- [x] Permintaan berjalan best-effort dan tidak menahan startup; penolakan/ketidaktersediaan API tidak menghentikan aplikasi.
+- [x] Status pemberian atau penolakan dicatat di console untuk membantu pemeriksaan perangkat.
+- [x] Regression test memeriksa permintaan persistent storage dan memastikan alur startup tetap berlanjut.
+- [ ] Hasil grant bergantung pada kebijakan browser/perangkat; backup berkala tetap wajib dan UAT Android/iOS tetap diperlukan.
