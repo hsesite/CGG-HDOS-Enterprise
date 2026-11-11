@@ -787,6 +787,18 @@ test('operational photo upload serializes idempotency and verifies owner plus co
   assert.match(upload, /finally \{\s*uploadLock\.releaseLock\(\);\s*\}/);
 });
 
+test('operational photo upload verifies the configured Drive folder tenant marker', () => {
+  const start = source.indexOf("if (path === '/api/photos' && method === 'POST')");
+  const end = source.indexOf('// CENTRAL REPOSITORY', start);
+  assert.ok(start >= 0 && end > start);
+  const upload = source.slice(start, end);
+  assert.match(upload, /expectedFolderName = 'CGG HDOS Photos - ' \+ companyCode/);
+  assert.match(upload, /folder\.getName\(\)[\s\S]*?expectedFolderName/);
+  assert.match(upload, /folderMarker = 'HDOS_PHOTO_TENANT:' \+ companyCode/);
+  assert.match(upload, /currentFolderMarker && currentFolderMarker !== folderMarker/);
+  assert.match(upload, /if \(!currentFolderMarker\) folder\.setDescription\(folderMarker\)/);
+});
+
 test('operational photo upload requires an active registered tenant', () => {
   assert.ok(source.includes("const registeredCompany = findCompanyRegistry_(companyCode);\n      if (!registeredCompany || registeredCompany.status !== 'ACTIVE') return error_(403, 'Perusahaan akun belum terdaftar aktif pada master perusahaan.');"));
 });
