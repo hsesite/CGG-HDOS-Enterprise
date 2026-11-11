@@ -329,6 +329,14 @@ export const hdosBackup = {
       }
     }
 
+    // Blob evidence must be stored by IndexedDB. The localStorage fallback
+    // cannot serialize Blob bytes and must never report a false successful restore.
+    const hasBinaryAttachments = (changes.find(change => change.storeName === 'photos')?.records || [])
+      .some(record => record.blob instanceof Blob);
+    if (hasBinaryAttachments && (typeof window === 'undefined' || !window.indexedDB)) {
+      throw new Error('Perangkat tidak menyediakan IndexedDB. Backup berisi foto/dokumen sehingga pemulihan aman tidak dapat dilakukan pada perangkat ini.');
+    }
+
     // Add-only restore: an ID collision is skipped, never overwritten. The
     // IndexedDB read/write transaction checks IDs and inserts all missing records
     // atomically across stores; existing local work remains untouched.
