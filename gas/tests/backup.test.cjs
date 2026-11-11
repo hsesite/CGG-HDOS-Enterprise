@@ -184,3 +184,17 @@ test('restore rejects malformed offline queue records before any IndexedDB write
   const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
   assert.ok(validationIndex >= 0 && writeIndex > validationIndex, 'queue validation must precede every restore write');
 });
+
+
+test('restore validates queue attachment references against the effective add-only photo record', async () => {
+  assert.match(backupSource, /const existingPhotos = await hdosDB\.getAll<Record<string, unknown>>\('photos'\)/);
+  assert.match(backupSource, /const effectivePhotos = new Map\(restoredPhotos\)/);
+  assert.match(backupSource, /effectivePhotos\.set\(photo\.id, photo\)/);
+  assert.match(backupSource, /const photo = effectivePhotos\.get\(queuePayload\.localPhotoId\)/);
+  assert.match(backupSource, /const document = effectivePhotos\.get\(queuePayload\.localDocumentId\)/);
+  assert.match(backupSource, /photo\.ownerUserId !== owner\.userId/);
+  assert.match(backupSource, /document\.ownerCompanyCode !== owner\.companyCode/);
+  const dependencyIndex = backupSource.indexOf('const existingPhotos = await hdosDB.getAll');
+  const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
+  assert.ok(dependencyIndex >= 0 && writeIndex > dependencyIndex, 'effective attachment dependencies must be checked before any restore write');
+});
