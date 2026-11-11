@@ -205,7 +205,7 @@ export const hdosBackup = {
         throw new Error(`Backup memuat modul penyimpanan yang tidak dikenal: ${key}.`);
       }
     }
-    if (archive.owner.companyCode !== owner.companyCode ||
+    if (archive.owner.userId !== owner.userId) {\n      throw new Error('Backup dibuat oleh akun pengguna yang berbeda. Login dengan akun asal untuk memulihkan backup ini.');\n    }\n    if (archive.owner.companyCode !== owner.companyCode ||
         archive.owner.parentCompanyCode !== owner.parentCompanyCode ||
         (archive.owner.isAdminCGG === true && !owner.isAdminCGG)) {
       throw new Error('Backup berasal dari perusahaan atau cakupan kontraktor yang berbeda. Pemulihan dibatalkan.');
@@ -221,7 +221,7 @@ export const hdosBackup = {
     const expected = await checksum(payload);
     if (expected !== archive.checksum) throw new Error('Pemeriksaan integritas gagal. File backup mungkin berubah atau rusak.');
 
-    const changes: Array<{ storeName: StoreName; deleteIds: string[]; records: Array<{ id: string }> }> = [];
+    const changes: Array<{ storeName: StoreName; records: Array<{ id: string }> }> = [];
     let restored = 0;
     let skipped = 0;
 
@@ -281,14 +281,17 @@ export const hdosBackup = {
         valid.push(item);
       }
       if (valid.length) {
-        changes.push({ storeName, deleteIds: [], records: valid });
+        changes.push({ storeName, records: valid });
         restored += valid.length;
       }
     }
 
-    // Merge-only restore: existing local records are never deleted by a backup restore.
-    // IndexedDB applies the multi-store update atomically.
-    await hdosDB.reconcileSnapshotBundle(changes);
+    // Add-only restore: an ID collision is skipped, never overwritten. The
+    // IndexedDB read/write transaction checks IDs and inserts all missing records
+    // atomically across stores; existing local work remains untouched.
+    const result = await hdosDB.insertSnapshotBundle(changes);
+    restored = result.inserted;
+    skipped += result.skipped;
     return { restored, skipped, createdAt: String(archive.createdAt || '') };
   },
 };
