@@ -611,3 +611,5 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Form pelaporan Hazard memakai synchronous ref lock untuk mencegah double-submit selama foto dan record disimpan ke IndexedDB/queue; lock selalu dilepas pada blok `finally`.
 - [x] Form inspeksi berbasis Repository memakai synchronous ref lock yang sama agar klik berulang tidak membuat lebih dari satu record selama proses penyimpanan.
 - [x] Regression test mencakup kedua lifecycle submit; validasi CI tetap menjadi bukti otomatis, sedangkan uji perangkat nyata dan sinkronisasi GAS tetap menunggu UAT.
+
+- [x] Penyelarasan otorisasi PICA: backend kini hanya mengizinkan SPV HSE terverifikasi melakukan penutupan akhir setelah approval Foreman Safety dan SPV HSE lengkap. Foreman Safety tetap dapat memberi approval tahap pertama dan mengembalikan PICA sebelum approval dimulai.
