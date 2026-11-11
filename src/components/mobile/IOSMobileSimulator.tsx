@@ -227,8 +227,7 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
           </button>}
         </div>
 
-        {/* Home Indicator Bar */}
-        
+        <div className="hdos-home-indicator-wrap pointer-events-none absolute bottom-0 left-0 right-0 z-40 flex justify-center pb-[max(env(safe-area-inset-bottom),0.35rem)]"><span className="hdos-home-indicator h-1 w-28 rounded-full bg-white/80 shadow-[0_1px_8px_rgba(0,0,0,0.45)]" /></div>
       </div>
     </div>
   );
