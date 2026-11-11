@@ -1157,34 +1157,43 @@ function handleRoute_(
       const legacyMarker = 'HDOS_UPLOAD_KEY:' + uploadKey;
       // Deterministic name also recovers the narrow crash window where Drive
       // created the file but setting its description/returning the response failed.
-      const matchingFiles = folder.getFiles();
-      while (matchingFiles.hasNext()) {
-        const existingFile = matchingFiles.next();
-        const existingDescription = String(existingFile.getDescription() || '');
-        const keyPrefix = 'HDOS_UPLOAD_KEY:' + uploadKey;
-        const isMatchingKey = existingDescription === legacyMarker || existingDescription.indexOf(keyPrefix + '|') === 0;
-        const isInterruptedCreate = existingFile.getName() === fileName && !existingDescription;
-        if (!isMatchingKey && !isInterruptedCreate) continue;
-        if (isMatchingKey && existingDescription !== marker && existingDescription !== legacyMarker) {
-          return error_(409, 'Kunci unggah foto sudah terikat pada pemilik atau isi berkas berbeda.');
+      const legacyFileName = safeName.replace(/\.(jpg|jpeg|png|webp)$/i, '') + '-' + uploadKey + '.' + extension;
+      // Exact-name lookups avoid scanning every historical photo in a tenant folder.
+      // The second lookup preserves retries created by the previous filename scheme.
+      const candidateIterators = [
+        folder.getFilesByName(fileName),
+        folder.getFilesByName(legacyFileName),
+      ];
+      for (let iteratorIndex = 0; iteratorIndex < candidateIterators.length; iteratorIndex++) {
+        const matchingFiles = candidateIterators[iteratorIndex];
+        while (matchingFiles.hasNext()) {
+          const existingFile = matchingFiles.next();
+          const existingDescription = String(existingFile.getDescription() || '');
+          const keyPrefix = 'HDOS_UPLOAD_KEY:' + uploadKey;
+          const isMatchingKey = existingDescription === legacyMarker || existingDescription.indexOf(keyPrefix + '|') === 0;
+          const isInterruptedCreate = existingFile.getName() === fileName && !existingDescription;
+          if (!isMatchingKey && !isInterruptedCreate) continue;
+          if (isMatchingKey && existingDescription !== marker && existingDescription !== legacyMarker) {
+            return error_(409, 'Kunci unggah foto sudah terikat pada pemilik atau isi berkas berbeda.');
+          }
+          if (String(existingFile.getMimeType() || '').toLowerCase() !== mimeType) {
+            return error_(409, 'Kunci unggah foto sudah digunakan untuk berkas dengan tipe berbeda.');
+          }
+          const existingBytes = existingFile.getBlob().getBytes();
+          const existingDigest = Utilities.base64EncodeWebSafe(
+            Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, existingBytes)
+          );
+          if (existingDigest !== contentDigest) {
+            return error_(409, 'Kunci unggah foto sudah digunakan untuk isi berkas berbeda.');
+          }
+          if (existingDescription && existingDescription !== marker && existingDescription !== legacyMarker) {
+            return error_(409, 'Metadata kunci unggah foto tidak cocok dengan pemilik akun aktif.');
+          }
+          // Upgrade legacy markers and repair a file created just before a
+          // previous request was interrupted while writing its description.
+          if (existingDescription !== marker) existingFile.setDescription(marker);
+          return success_({ photoFileId: existingFile.getId(), photoUrl: existingFile.getUrl(), fileName: existingFile.getName(), mimeType: mimeType });
         }
-        if (String(existingFile.getMimeType() || '').toLowerCase() !== mimeType) {
-          return error_(409, 'Kunci unggah foto sudah digunakan untuk berkas dengan tipe berbeda.');
-        }
-        const existingBytes = existingFile.getBlob().getBytes();
-        const existingDigest = Utilities.base64EncodeWebSafe(
-          Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, existingBytes)
-        );
-        if (existingDigest !== contentDigest) {
-          return error_(409, 'Kunci unggah foto sudah digunakan untuk isi berkas berbeda.');
-        }
-        if (existingDescription && existingDescription !== marker && existingDescription !== legacyMarker) {
-          return error_(409, 'Metadata kunci unggah foto tidak cocok dengan pemilik akun aktif.');
-        }
-        // Upgrade legacy markers and repair a file created just before a
-        // previous request was interrupted while writing its description.
-        if (existingDescription !== marker) existingFile.setDescription(marker);
-        return success_({ photoFileId: existingFile.getId(), photoUrl: existingFile.getUrl(), fileName: existingFile.getName(), mimeType: mimeType });
       }
 
       const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
