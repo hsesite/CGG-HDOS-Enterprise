@@ -108,6 +108,27 @@ class HDOSDatabase {
         };
 
         this.db = openedDb;
+
+        // Ask supported mobile browsers to protect HDOS offline records from
+        // automatic storage eviction. This is best-effort: a denial must never
+        // block database startup or replace the normal backup requirement.
+        try {
+          const persistStorage = navigator.storage?.persist;
+          if (typeof persistStorage === 'function') {
+            void persistStorage.call(navigator.storage).then(granted => {
+              console.info(
+                granted
+                  ? '[HDOS DB] Persistent browser storage granted.'
+                  : '[HDOS DB] Persistent browser storage was not granted; keep regular backups.',
+              );
+            }).catch(error => {
+              console.warn('[HDOS DB] Persistent storage request failed; continuing with browser defaults.', error);
+            });
+          }
+        } catch (error) {
+          console.warn('[HDOS DB] Persistent storage is unavailable; continuing with browser defaults.', error);
+        }
+
         resolve(openedDb);
       };
 
