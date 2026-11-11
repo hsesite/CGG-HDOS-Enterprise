@@ -329,25 +329,6 @@ export const hdosBackup = {
   },
 };
 
-  if (owner.isAdminCGG) return true;
-  if (!record || typeof record !== 'object' || Array.isArray(record)) return true;
-  const item = record as Record<string, unknown>;
-  const company = String(item.companyCode || item.contractorCode || item.ownerCompanyCode || '').trim().toUpperCase();
-  const subkon = String(item.subcontractorCode || item.subkonCode || '').trim().toUpperCase();
-  const parent = String(item.parentCompanyCode || '').trim().toUpperCase();
-
-  // A Subkon backup is strictly limited to its own operating company.
-  // Its parentCompanyCode identifies the Contractor, not an additional tenant
-  // whose records it may export. A Contractor root may include its registered
-  // Subkon records through the parent/subkon fields.
-  if (owner.parentCompanyCode) {
-    return company === owner.companyCode || subkon === owner.companyCode;
-  }
-  return !company && !subkon && !parent
-    ? true
-    : company === owner.companyCode || subkon === owner.companyCode || parent === owner.companyCode;
-}
-
 
 async function encodeBinary(value: unknown): Promise<unknown> {
   if (typeof Blob !== 'undefined' && value instanceof Blob) {
