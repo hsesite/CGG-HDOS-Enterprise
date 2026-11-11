@@ -298,8 +298,9 @@ export const hdosBackup = {
     // Validate attachment dependencies before the first write. A restored
     // queue item that references a missing local Blob can never complete its
     // upload and would otherwise remain stuck as a misleading pending task.
-    const restoredPhotoIds = new Set(
-      (changes.find(change => change.storeName === 'photos')?.records || []).map(record => record.id),
+    const restoredPhotos = new Map(
+      (changes.find(change => change.storeName === 'photos')?.records || [])
+        .map(record => [record.id, record as Record<string, unknown>]),
     );
     const restoredQueue = changes.find(change => change.storeName === 'queue')?.records || [];
     for (const queueRecord of restoredQueue) {
@@ -307,15 +308,24 @@ export const hdosBackup = {
       const payload = queueItem.payload;
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue;
       const queuePayload = payload as Record<string, unknown>;
-      const attachmentId = typeof queuePayload.localPhotoId === 'string'
-        ? queuePayload.localPhotoId
-        : typeof queuePayload.localDocumentId === 'string'
-          ? queuePayload.localDocumentId
-          : '';
-      if (attachmentId && !restoredPhotoIds.has(attachmentId)) {
-        throw new Error(
-          `Antrean ${queueRecord.id} merujuk lampiran lokal ${attachmentId} yang tidak ditemukan di backup. Pemulihan dibatalkan agar antrean tidak menjadi macet.`,
-        );
+
+      if (typeof queuePayload.localPhotoId === 'string' && queuePayload.localPhotoId) {
+        const photo = restoredPhotos.get(queuePayload.localPhotoId);
+        if (!photo || photo.kind === 'contractor-sia') {
+          throw new Error(
+            `Antrean ${queueItem.id} merujuk foto operasional ${queuePayload.localPhotoId} yang tidak tersedia atau salah jenis. Pemulihan dibatalkan.`,
+          );
+        }
+      }
+
+      if (typeof queuePayload.localDocumentId === 'string' && queuePayload.localDocumentId) {
+        const document = restoredPhotos.get(queuePayload.localDocumentId);
+        if (!document || document.kind !== 'contractor-sia' ||
+            (typeof queuePayload.fleetId === 'string' && document.fleetId !== queuePayload.fleetId)) {
+          throw new Error(
+            `Antrean ${queueItem.id} merujuk dokumen SIA ${queuePayload.localDocumentId} yang tidak tersedia atau tidak cocok dengan unit. Pemulihan dibatalkan.`,
+          );
+        }
       }
     }
 
