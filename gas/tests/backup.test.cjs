@@ -150,3 +150,11 @@ test('restore validates queue-to-photo dependencies before any local write', () 
   const writeIndex = backupSource.indexOf('await hdosDB.insertSnapshotBundle(changes)');
   assert.ok(validationIndex >= 0 && writeIndex > validationIndex, 'attachment validation must precede the atomic restore write');
 });
+
+
+test('backup export and restore exclude records explicitly owned by another local account', () => {
+  assert.match(backupSource, /function recordUserMatches\(record: unknown, owner: BackupOwner\)/);
+  assert.match(backupSource, /userId === owner\.userId/);
+  assert.match(backupSource, /recordUserMatches\(value, owner\) && recordTenantMatches\(value, owner\)/);
+  assert.match(backupSource, /!recordUserMatches\(item, owner\) \|\| !recordTenantMatches\(item, owner\)/);
+});
