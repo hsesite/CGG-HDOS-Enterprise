@@ -1161,9 +1161,13 @@ function handleRoute_(
       while (matchingFiles.hasNext()) {
         const existingFile = matchingFiles.next();
         const existingDescription = String(existingFile.getDescription() || '');
-        const isMatchingKey = existingDescription === marker || existingDescription === legacyMarker;
+        const keyPrefix = 'HDOS_UPLOAD_KEY:' + uploadKey;
+        const isMatchingKey = existingDescription === legacyMarker || existingDescription.indexOf(keyPrefix + '|') === 0;
         const isInterruptedCreate = existingFile.getName() === fileName && !existingDescription;
         if (!isMatchingKey && !isInterruptedCreate) continue;
+        if (isMatchingKey && existingDescription !== marker && existingDescription !== legacyMarker) {
+          return error_(409, 'Kunci unggah foto sudah terikat pada pemilik atau isi berkas berbeda.');
+        }
         if (String(existingFile.getMimeType() || '').toLowerCase() !== mimeType) {
           return error_(409, 'Kunci unggah foto sudah digunakan untuk berkas dengan tipe berbeda.');
         }
