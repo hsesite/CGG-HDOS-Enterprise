@@ -658,3 +658,11 @@ Dokumen ini memisahkan **implementasi yang terlihat di kode** dari **perilaku ya
 - [x] Catatan UI menegaskan bahwa status READY bukan pengganti UAT login, CRUD, Drive, isolasi tenant, backup, dan sinkronisasi.
 - [x] Regression test ditambahkan untuk kontrak endpoint dan tampilan status kesiapan.
 - [ ] Verifikasi pada deployment GAS aktif dan build frontend produksi tetap diperlukan; hasil health check belum membuktikan seluruh alur operasional.
+
+### Ketahanan replay setelah cloud commit (11 November 2026)
+
+- [x] Engine menandai operasi ketika GAS sudah mengonfirmasi mutasi cloud berhasil (CREATE, UPDATE, DELETE, P2H, laporan kepatuhan, dan upload SIA).
+- [x] Jika penulisan versi lokal, penghapusan antrean, atau cleanup bukti lokal gagal setelah cloud commit, item dikembalikan ke jalur retry sementara selama batas percobaan belum tercapai; tidak langsung dikunci sebagai konflik permanen.
+- [x] Payload antrean dipertahankan untuk replay. Perlindungan idempotensi backend tetap menjadi syarat agar pengulangan setelah respons/ack lokal gagal tidak membuat record ganda.
+- [x] Regression test ditambahkan untuk memastikan status retryable mengikuti cloud commit yang sudah terkonfirmasi.
+- [ ] Uji fault-injection pada browser dan GAS staging: cloud commit sukses lalu IndexedDB gagal saat propagasi versi/acknowledgement; pastikan hanya satu record cloud dan antrean lokal akhirnya bersih.
