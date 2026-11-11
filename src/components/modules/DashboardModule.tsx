@@ -36,14 +36,28 @@ export const DashboardModule: React.FC = () => {
   // unlock enterprise-wide dashboard aggregation for another tenant.
   const isOwnerAdmin = companyCode === 'CGG' && roles.includes('Admin CGG');
   const isOversight = companyCode === 'CGG' && sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
-  const isContractor = store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor');
-  const isSubcontractor = Boolean(sessionUser?.parentCompanyCode) || store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Subkon');
+  // Use server-assigned account roles to decide whether the comparison panel
+  // is applicable. The company master determines only which child tenants may
+  // appear; a delayed or incomplete master must not hide the entire chart.
+  const isSubcontractor = Boolean(sessionUser?.parentCompanyCode) ||
+    roles.includes('Subkon') ||
+    store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Subkon');
+  const isContractor = !isSubcontractor && (
+    roles.includes('Contractor') ||
+    roles.includes('Contractor PIC') ||
+    roles.includes('Company Admin') ||
+    store.contractors.some(company => company.code.toUpperCase() === companyCode && company.companyRole === 'Contractor')
+  );
   const childSubcontractors = isContractor
-    ? store.contractors.filter(company => company.companyRole === 'Subkon' && String(company.parentCompanyCode || '').trim().toUpperCase() === companyCode && company.status !== 'SUSPENDED')
+    ? store.contractors.filter(company =>
+        company.companyRole === 'Subkon' &&
+        String(company.parentCompanyCode || '').trim().toUpperCase() === companyCode &&
+        company.status !== 'SUSPENDED'
+      )
     : [];
   const tenantDashboardCodes = isContractor
-    ? [companyCode, ...childSubcontractors.map(company => company.code.trim().toUpperCase())]
-    : isSubcontractor ? [companyCode] : [];
+    ? [...new Set([companyCode, ...childSubcontractors.map(company => company.code.trim().toUpperCase())].filter(Boolean))]
+    : isSubcontractor && companyCode ? [companyCode] : [];
   const dashboardTitle = isOwnerAdmin ? 'Dashboard Owner CGG' : isOversight ? 'Dashboard Pengawasan CGG' : isContractor ? `Dashboard ${companyCode}` : isSubcontractor ? `Dashboard Subkon ${companyCode}` : `Dashboard ${companyCode || 'Perusahaan'}`;
   const cloudRefreshLabel = store.lastCloudRefreshAt ? new Date(store.lastCloudRefreshAt).toLocaleString('id-ID') : 'Belum ada snapshot cloud pada sesi ini';
   const cloudRefreshWarning = store.cloudRefreshFailedSources.length > 0 ? ` · Sumber gagal: ${store.cloudRefreshFailedSources.join(', ')}` : '';
@@ -237,7 +251,7 @@ export const DashboardModule: React.FC = () => {
             </div>
             <span className="text-[10px] text-emerald-300 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1">{isOwnerAdmin ? 'Admin CGG' : isOversight ? 'Cakupan Pengawasan' : isContractor ? 'Contractor + Subkon' : 'Subkon'}</span>
           </div>
-          <div className="w-full h-[340px] sm:h-[380px]">
+          {companyDashboardRows.length > 0 ? <div className="w-full h-[340px] sm:h-[380px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={companyDashboardRows}
@@ -275,7 +289,7 @@ export const DashboardModule: React.FC = () => {
                 <Bar dataKey="picas" name="PICA" fill="#FFC107" radius={[0, 4, 4, 0]} maxBarSize={16} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </div> : <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.035] px-4 py-8 text-center space-y-2"><p className="text-sm font-semibold text-white">Grafik siap — menunggu master perusahaan</p><p className="text-xs text-neutral-400">Akun memiliki akses ke panel ini, tetapi daftar perusahaan yang dapat dibandingkan belum tersedia pada perangkat. Perbarui data cloud/master perusahaan untuk memuat daftar kontraktor dan subkontraktor.</p><p className="text-[10px] text-neutral-500">Kode perusahaan akun: {companyCode || 'Belum terpasang'}</p></div>}
           <p className="text-[10px] text-neutral-500">Grafik menampilkan jumlah inspeksi, temuan bahaya, dan PICA berdasarkan data aktual yang tersedia. Perusahaan tanpa data tetap ditampilkan dengan nilai nol.</p>
         </section>
       )}
