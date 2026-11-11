@@ -2277,7 +2277,7 @@ test('sync recovery does not reset another tab active lease and timestamps each 
   assert.match(syncEngineSource, /navigator\.locks\.request\(\s*recoveryLockName/);
   assert.match(syncEngineSource, /\{ mode: 'exclusive', ifAvailable: true \}/);
   assert.match(syncEngineSource, /if \(lock && !abandonStaleInitialization\(\)\) await recoverInterruptedQueue\(\)/);
-  assert.match(syncEngineSource, /Date\.now\(\) - 2 \* 60 \* 1000/);
+  assert.match(syncEngineSource, /Date\.now\(\) - SYNC_LEASE_TIMEOUT_MS/);
   assert.match(syncEngineSource, /hdosDB\.claimQueueItem<SyncQueueItem>/);
   assert.match(syncEngineSource, /item\.ownerUserId !== owner\?\.userId/);
   assert.match(syncTypesSource, /syncStartedAt\?: string/);
