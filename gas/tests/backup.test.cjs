@@ -162,7 +162,7 @@ test('backup export and restore exclude records explicitly owned by another loca
 
 test('restore refuses Blob attachments when IndexedDB is unavailable instead of losing binary bytes in localStorage', () => {
   assert.match(backupSource, /const hasBinaryAttachments =/);
-  assert.match(backupSource, /record\.blob instanceof Blob/);
+  assert.match(backupSource, /\(record as Record<string, unknown>\)\.blob instanceof Blob/);
   assert.match(backupSource, /typeof window === 'undefined' \|\| !window\.indexedDB/);
   assert.match(backupSource, /Perangkat tidak menyediakan IndexedDB/);
   const guardIndex = backupSource.indexOf('const hasBinaryAttachments =');
