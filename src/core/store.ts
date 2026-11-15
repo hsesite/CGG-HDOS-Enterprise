@@ -1137,6 +1137,16 @@ export class HDOSCentralStore {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const tenantFields = getCurrentTenantFields();
     const failedItems = inspection.items.filter((item) => item.result === 'FAIL');
+    if (!inspection.localPhotoId && !(inspection.photoFileId && inspection.photoUrl)) {
+      throw new Error('Foto bukti pemeriksaan wajib dilampirkan sebelum inspeksi disimpan.');
+    }
+    if (failedItems.length > 0 &&
+        (!String(inspection.picaDepartment || '').trim() ||
+         !String(inspection.picaPicName || '').trim() ||
+         !String(inspection.picaPicEmail || '').trim() ||
+         !String(inspection.picaTargetDate || '').trim())) {
+      throw new Error('Temuan Tidak Sesuai wajib memiliki departemen, nama PIC, email akun PIC, dan target penyelesaian.');
+    }
     const createdPicas: PICA[] = [];
 
     for (const failedItem of failedItems) {
@@ -1148,10 +1158,10 @@ export class HDOSCentralStore {
         findingDescription: `Temuan: ${failedItem.question}${failedItem.notes ? ` — ${failedItem.notes}` : ''}`,
         correctiveAction: `Penuhi standar ${failedItem.standardRef || 'sesuai dokumen sumber'} dan verifikasi ulang sebelum pekerjaan dilanjutkan.`,
         preventiveAction: 'Evaluasi akar penyebab dan perbarui pengendalian agar ketidaksesuaian tidak berulang.',
-        picDepartment: String(inspection.picaDepartment || '').trim() || 'Belum Ditentukan',
-        picName: String(inspection.picaPicName || '').trim() || 'PIC Belum Ditentukan',
+        picDepartment: String(inspection.picaDepartment || '').trim(),
+        picName: String(inspection.picaPicName || '').trim(),
         assignedToEmail: String(inspection.picaPicEmail || '').trim().toLowerCase(),
-        targetDate: inspection.picaTargetDate || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+        targetDate: String(inspection.picaTargetDate || '').trim(),
         status: 'OPEN', daysAging: 0,
         approvalStages: { foreman: false, spvHse: false }, createdAt: now,
       };
