@@ -3536,14 +3536,25 @@ function validateDatabaseSpreadsheet_(spreadsheet) {
 
 
 /**
- * Compare the structural footprint of a copied database with its source.
- * Detects incomplete Drive copies beyond checking that tabs exist.
- * Compares sheet dimensions and headers, not individual cell contents.
+ * Canonicalize Spreadsheet cell values without losing type information.
+ * Date values are compared by epoch; strings, numbers, and booleans remain distinct.
+ */
+function normalizeDatabaseCellForComparison_(value) {
+  if (value instanceof Date) return 'date:' + value.getTime();
+  if (value === null || value === undefined) return 'null:';
+  return typeof value + ':' + String(value);
+}
+
+/**
+ * Compare the full copied database snapshot with its source in bounded row chunks.
+ * This verifies cell contents as well as sheet dimensions and headers, while avoiding
+ * one oversized Spreadsheet read for large operational registers.
  */
 function compareDatabaseSpreadsheetSnapshots_(sourceSpreadsheet, copySpreadsheet) {
   if (!sourceSpreadsheet || !copySpreadsheet) throw new Error('Spreadsheet sumber dan salinan wajib tersedia.');
   const requiredSheets = CONFIG.SHEETS.concat(['repository']);
   const mismatches = [];
+  const chunkSize = 500;
   requiredSheets.forEach(function(name) {
     const sourceSheet = sourceSpreadsheet.getSheetByName(name);
     const copySheet = copySpreadsheet.getSheetByName(name);
@@ -3560,12 +3571,26 @@ function compareDatabaseSpreadsheetSnapshots_(sourceSpreadsheet, copySpreadsheet
         ', salinan ' + copyLastRow + 'x' + copyLastColumn);
       return;
     }
-    if (sourceLastColumn > 0) {
-      const sourceHeaders = sourceSheet.getRange(1, 1, 1, sourceLastColumn).getValues()[0];
-      const copyHeaders = copySheet.getRange(1, 1, 1, copyLastColumn).getValues()[0];
-      if (sourceHeaders.length !== copyHeaders.length || sourceHeaders.some(function(value, index) {
-        return String(value == null ? '' : value) !== String(copyHeaders[index] == null ? '' : copyHeaders[index]);
-      })) mismatches.push(name + ': header berbeda');
+    if (sourceLastRow === 0 || sourceLastColumn === 0) return;
+
+    for (let startRow = 1; startRow <= sourceLastRow; startRow += chunkSize) {
+      const rowCount = Math.min(chunkSize, sourceLastRow - startRow + 1);
+      const sourceValues = sourceSheet.getRange(startRow, 1, rowCount, sourceLastColumn).getValues();
+      const copyValues = copySheet.getRange(startRow, 1, rowCount, copyLastColumn).getValues();
+      let chunkMismatch = false;
+      for (let row = 0; row < rowCount && !chunkMismatch; row++) {
+        for (let column = 0; column < sourceLastColumn; column++) {
+          if (normalizeDatabaseCellForComparison_(sourceValues[row][column]) !==
+              normalizeDatabaseCellForComparison_(copyValues[row][column])) {
+            chunkMismatch = true;
+            break;
+          }
+        }
+      }
+      if (chunkMismatch) {
+        mismatches.push(name + ': isi berbeda pada baris ' + startRow + '-' + (startRow + rowCount - 1));
+        break;
+      }
     }
   });
   return { valid: mismatches.length === 0, mismatches: mismatches };
