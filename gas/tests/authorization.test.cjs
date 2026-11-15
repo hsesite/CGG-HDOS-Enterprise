@@ -114,7 +114,7 @@ test('local Hazard register mirrors the linked PICA final-closure state without 
   assert.match(block, /updates\.status === 'CLOSED' && current\.source === 'HAZARD'/);
   assert.match(block, /hazard\.code === current\.sourceRefCode/);
   assert.match(block, /status: 'CLOSED'/);
-  assert.match(block, /storeName: 'hazard', item: closedHazard/);
+  assert.match(block, /storeName: 'hazard' as const, item: closedHazard/);
   assert.match(block, /this\.hazards\[hazardIndex\] = closedHazard/);
   assert.match(block, /action: 'UPDATE', entity: 'pica'/);
   assert.doesNotMatch(block, /action: 'UPDATE', entity: 'hazard'/);
