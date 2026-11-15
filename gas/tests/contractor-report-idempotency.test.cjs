@@ -39,6 +39,7 @@ test('contractor report review and resubmission retries acknowledge already-comm
   };
   const context = {
     getSheet_: () => sheet,
+    isObject_: value => value !== null && typeof value === 'object' && !Array.isArray(value),
     LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
     findRecordRow_: () => 2,
     parseRow_: () => existing,
