@@ -8,7 +8,7 @@ Scope: live Google Apps Script Web App, central Google Spreadsheet, Google Drive
 ## 1. Deployment and central database
 
 - [ ] Run `npm run uat:live` using the supplied `/exec` deployment URL and dedicated UAT account(s); retain the sanitized `UAT_RESULT_JSON` output.
-- [ ] Confirm the live `health/live` version equals the deployed `gas/Code.gs` release identifier (`C-1E-D` at the current source revision).
+- [ ] Confirm the live `health/live` version equals the deployed `gas/Code.gs` release identifier (`C-1E-E` at the current source revision).
 
 - [ ] Confirm the deployed Apps Script version is the same source revision as the release commit in GitHub.
 - [ ] Confirm the Web App deployment URL used by the frontend points to the intended Apps Script project.
