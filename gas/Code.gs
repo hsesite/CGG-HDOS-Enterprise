@@ -3622,7 +3622,26 @@ function getHealthReadiness_() {
   }
 
   const validation = validateDatabaseSpreadsheet_(spreadsheet);
-  const ready = validation.valid && googleOAuthConfigured && cggRegistrationPolicyConfigured;
+  const backupFolderId = String(properties.getProperty('HDOS_BACKUP_FOLDER_ID') || '').trim();
+  let backupFolderAccessible = false;
+  if (backupFolderId) {
+    try {
+      const backupFolder = DriveApp.getFolderById(backupFolderId);
+      backupFolderAccessible = Boolean(backupFolder && backupFolder.getId() === backupFolderId);
+    } catch (backupFolderError) {
+      backupFolderAccessible = false;
+    }
+  }
+  let dailyBackupTriggerInstalled = false;
+  try {
+    dailyBackupTriggerInstalled = ScriptApp.getProjectTriggers().some(function(trigger) {
+      return trigger.getHandlerFunction() === 'createDatabaseBackup';
+    });
+  } catch (triggerError) {
+    dailyBackupTriggerInstalled = false;
+  }
+  const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled;
+  const ready = validation.valid && googleOAuthConfigured && cggRegistrationPolicyConfigured && backupReady;
   return success_({
     status: ready ? 'ready' : 'not_ready',
     checks: {
@@ -3630,6 +3649,9 @@ function getHealthReadiness_() {
       schemaReady: validation.valid,
       googleOAuthConfigured: googleOAuthConfigured,
       cggRegistrationPolicyConfigured: cggRegistrationPolicyConfigured,
+      backupFolderAccessible: backupFolderAccessible,
+      dailyBackupTriggerInstalled: dailyBackupTriggerInstalled,
+      backupReady: backupReady,
       missingSheetCount: validation.missingSheets.length,
       invalidSchemaSheetCount: validation.invalidSheets.length
     }
