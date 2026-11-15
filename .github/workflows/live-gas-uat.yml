@@ -1,0 +1,45 @@
+name: Live GAS UAT
+
+on:
+  workflow_dispatch:
+    inputs:
+      gas_url:
+        description: "Opsional: URL GAS /exec. Kosongkan untuk memakai secret VITE_GAS_URL."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-gas-uat
+  cancel-in-progress: false
+
+jobs:
+  smoke-test:
+    name: Read-only live GAS smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate GAS URL is configured
+        env:
+          INPUT_GAS_URL: ${{ inputs.gas_url }}
+          SECRET_GAS_URL: ${{ secrets.VITE_GAS_URL }}
+        run: |
+          if [ -z "${INPUT_GAS_URL}" ] && [ -z "${SECRET_GAS_URL}" ]; then
+            echo "::error::Masukkan gas_url saat menjalankan workflow atau atur secret VITE_GAS_URL."
+            exit 1
+          fi
+
+      - name: Run non-destructive Live UAT
+        env:
+          HDOS_GAS_URL: ${{ inputs.gas_url || secrets.VITE_GAS_URL }}
+        run: node scripts/live-gas-uat.mjs
