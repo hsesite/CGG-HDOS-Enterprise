@@ -101,16 +101,26 @@ const INITIAL_WINDOWS: AppWindow[] = [
 export class HDOSCentralStore {
   private assertMutationAllowed(action: 'location' | 'contractor' | 'document' | 'inspection' | 'hazard' | 'incident' | 'pica', updates?: Partial<PICA>): void {
     const role = hdosAuth.getCurrentRole();
+    const user = AuthState.getUser();
+    const roles = user?.roles || [role];
     if (action === 'pica') {
       const allowedKeys = ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'rejectionReason', 'approvalStages', 'updatedAt'];
       if (updates && Object.keys(updates).every((key) => allowedKeys.includes(key))) return;
       throw new Error('Perubahan PICA hanya dapat dilakukan oleh PIC yang ditugaskan atau HSE validator.');
     }
-    if (['PJO', 'SPV HSE', 'Foreman Safety'].includes(role) && !['inspection', 'hazard', 'incident'].includes(action)) {
-      throw new Error('Akun ini hanya dapat membuat laporan operasional.');
+
+    const verificationRequiredRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
+    const readOnlyControllerRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'];
+    if (roles.includes('Admin CGG')) return;
+    if (roles.includes('Employee') && !['inspection', 'hazard'].includes(action)) {
+      throw new Error('Akun umum hanya dapat membuat laporan Inspeksi dan Hazard.');
     }
-    if (role === 'Employee' && !['inspection', 'hazard', 'incident'].includes(action)) {
-      throw new Error('Akun umum hanya dapat membuat laporan Inspeksi, Hazard, dan Insiden.');
+    if (roles.some(candidate => verificationRequiredRoles.includes(candidate)) &&
+        user?.roleVerified !== true && !['inspection', 'hazard'].includes(action)) {
+      throw new Error('Jabatan belum diverifikasi. Akses sementara hanya untuk laporan Inspeksi dan Hazard.');
+    }
+    if (user?.roleVerified === true && roles.some(candidate => readOnlyControllerRoles.includes(candidate))) {
+      throw new Error('Akun pengawas bersifat baca-saja; gunakan alur persetujuan khusus jika tersedia.');
     }
   }
 
