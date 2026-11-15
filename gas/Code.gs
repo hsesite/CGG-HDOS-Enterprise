@@ -2057,7 +2057,16 @@ function createContractorComplianceReport_(payload, user) {
       return String(item.companyCode || '').toUpperCase() === companyCode &&
         String(item.period || '') === normalized.period;
     });
-    if (existing) return error_(409, 'Laporan perusahaan untuk periode ini sudah ada. Gunakan proses perbaikan jika statusnya dikembalikan.');
+    if (existing) {
+      const sameSubmission = Object.keys(normalized).every(function(key) {
+        return String(existing[key] == null ? '' : existing[key]) ===
+          String(normalized[key] == null ? '' : normalized[key]);
+      });
+      // A retry after a lost HTTP response must acknowledge the exact report
+      // already committed for this company/period, not strand the queue as 409.
+      if (sameSubmission) return success_(existing);
+      return error_(409, 'Laporan perusahaan untuk periode ini sudah ada dengan isi berbeda. Gunakan proses perbaikan jika statusnya dikembalikan.');
+    }
     const now = new Date().toISOString();
     report = Object.assign({}, normalized, {
       id: Utilities.getUuid(),
