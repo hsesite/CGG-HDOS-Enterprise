@@ -615,8 +615,8 @@ export const SyncModule: React.FC = () => {
         <div className="flex items-center gap-2 border-b border-white/10 pb-3">
           <Database className="w-4 h-4 text-emerald-400" />
           <div>
-            <h3 className="text-sm font-bold text-white">Backup & Pemulihan Data HDOS</h3>
-            <p className="text-xs text-neutral-400 mt-1">Cadangan data lokal operasional, dokumen, foto, formulir, dan antrean sinkronisasi.</p>
+            <h3 className="text-sm font-bold text-white">Backup & Pemulihan Lokal Perangkat</h3>
+            <p className="text-xs text-neutral-400 mt-1">Cadangan IndexedDB pada perangkat ini: data operasional, dokumen, foto, formulir, dan antrean sinkronisasi. Tidak menggantikan backup Spreadsheet pusat di Google Drive.</p>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -633,7 +633,8 @@ export const SyncModule: React.FC = () => {
         {backupMessage && <p role="status" aria-live="polite" className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-neutral-200 break-words">{backupMessage}</p>}
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200 space-y-1">
           <p className="font-semibold">Catatan pemulihan</p>
-          <p>Backup memuat data operasional sensitif. Simpan file di media/lokasi yang terlindungi. Pemulihan hanya menerima cakupan perusahaan yang sama, memeriksa checksum, dan menggabungkan data tanpa menghapus data lokal yang sudah ada.</p>
+          <p>Ini adalah backup lokal perangkat, bukan backup database pusat. Backup database pusat dibuat otomatis oleh Google Apps Script ke Google Drive dan statusnya diperiksa pada kesiapan backend.</p>
+          <p>File lokal memuat data operasional sensitif. Simpan di media/lokasi yang terlindungi. Pemulihan hanya menerima akun dan cakupan perusahaan yang sama, memeriksa checksum, dan menggabungkan data tanpa menghapus data lokal yang sudah ada.</p>
           <p>Antrean aktif dari backup dikembalikan menjadi menunggu sinkronisasi. Kredensial dan konfigurasi sesi tidak disertakan.</p>
         </div>
       </section>
