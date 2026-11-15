@@ -888,7 +888,7 @@ test('PICA register limits non-HSE users to assigned records and enforces PIC/HS
   assert.ok(source.includes("'WAITING_HSE'"));
   assert.ok(source.includes("PICA ini tidak ditugaskan kepada akun Anda."));
   assert.ok(source.includes("user.roleVerified === true && roles.some(function(role) { return ['Foreman Safety', 'SPV HSE'].indexOf(role) >= 0; })"));
-  assert.ok(source.includes("PICA hasil inspeksi wajib memiliki departemen, nama PIC, dan email akun PIC."));
+  assert.ok(source.includes("PICA hasil Hazard/Inspeksi wajib memiliki departemen, nama PIC, dan email akun PIC."));
 });
 test('missing records fail closed in tenant visibility checks', () => {
   const context = {
