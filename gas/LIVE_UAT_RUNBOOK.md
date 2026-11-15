@@ -2,7 +2,7 @@
 
 ## Deployment
 
-Use the latest Web App URL from the deployment owner. Keep it in a local environment variable; do not commit it to GitHub.
+Use the latest Web App URL from the deployment owner. Keep it in a local environment variable; do not commit it to GitHub. Separately verify the GitHub Actions repository secret `VITE_GAS_URL` points to this same deployment and `VITE_GOOGLE_CLIENT_ID` is the intended OAuth client. The deployment workflow validates that both secrets exist, but does not reveal their values.
 
 ## A. Automated, non-destructive smoke test
 
