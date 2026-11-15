@@ -21,7 +21,7 @@ test('local mutation policy mirrors backend Employee, verification, and read-onl
   const end = storeSource.indexOf('\n  public inspections:', start);
   assert.ok(start >= 0 && end > start);
   const policy = storeSource.slice(start, end);
-  assert.match(policy, /if \(role === 'Employee' && !\['inspection', 'hazard'\]\.includes\(action\)\)/);
+  assert.match(policy, /roles\.includes\('Employee'\) && !roles\.includes\('Admin CGG'\) && !roles\.includes\('Company Admin'\)/);
   assert.match(policy, /verificationRequiredRoles/);
   assert.match(policy, /user\?\.roleVerified !== true && !\['inspection', 'hazard'\]\.includes\(action\)/);
   assert.match(policy, /readOnlyControllerRoles/);
@@ -31,6 +31,7 @@ test('local mutation policy mirrors backend Employee, verification, and read-onl
 test('incident reporting UI is limited to roles accepted by the backend', () => {
   assert.match(incidentUiSource, /const incidentReportRoles = \['Company Admin', 'Contractor', 'Subkon', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'Safety Officer', 'Paramedis', 'Contractor PIC'\]/);
   assert.match(incidentUiSource, /const canCreateIncident = isAdminCGG \|\|/);
+  assert.match(incidentUiSource, /const employeeRestricted = assignedRoles\.includes\('Employee'\)/);
   assert.match(incidentUiSource, /!canCreateIncident/);
   assert.match(incidentUiSource, /\{canCreateIncident && <button/);
   assert.match(backendSource, /if \(role === 'Employee' && \['inspections', 'hazards'\]\.indexOf\(entity\) === -1\)/);
