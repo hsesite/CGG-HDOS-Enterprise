@@ -1,3 +1,4 @@
+    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
