@@ -1760,6 +1760,7 @@ test('dashboard and repository access follow the registered company master', () 
 
 test('frontend local tenant visibility follows registered contractor scope, not hard-coded SLS/VIP codes', () => {
   const storeSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'), 'utf8');
+  const dashboardSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'DashboardModule.tsx'), 'utf8');
   assert.match(storeSource, /if \(own === 'CGG' && user\.roleVerified === true && oversightRoles\.some/);
   assert.match(storeSource, /user\?\.roles \|\| \[\]\)\.includes\('Admin CGG'\) \? 'CGG' : ''/);
   assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
