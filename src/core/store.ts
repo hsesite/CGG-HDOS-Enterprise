@@ -1314,6 +1314,7 @@ export class HDOSCentralStore {
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
     const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).includes('SPV HSE');
+    const canReturnToPIC = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((candidateRole) => ['Foreman Safety', 'SPV HSE'].includes(candidateRole));
     const currentStages = current.approvalStages || { foreman: false, spvHse: false };
     if (updates.approvalStages) {
       if (Object.keys(updates).length !== 1 || current.status !== 'WAITING_HSE') throw new Error('Persetujuan hanya dapat diperbarui pada PICA yang menunggu validasi HSE.');
@@ -1355,7 +1356,7 @@ export class HDOSCentralStore {
       updated.hseValidatedAt = new Date().toISOString();
     } else if (updates.status === 'PROGRESS') {
       if (current.status === 'WAITING_HSE') {
-        if (!isHSEValidator) throw new Error('Hanya HSE yang dapat mengembalikan pengajuan PICA kepada PIC.');
+        if (!canReturnToPIC) throw new Error('Pengembalian PICA hanya dapat dilakukan Foreman Safety atau SPV HSE yang telah diverifikasi.');
         if (currentStages.foreman === true || currentStages.spvHse === true) throw new Error('PICA tidak dapat dikembalikan setelah proses persetujuan dimulai.');
         if (!String(updates.rejectionReason || '').trim()) throw new Error('Alasan pengembalian wajib diisi.');
       } else if (!isAssignedPIC || !['OPEN', 'PROGRESS'].includes(current.status)) {
