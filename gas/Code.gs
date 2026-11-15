@@ -1553,17 +1553,9 @@ function handleRoute_(
         return error_(400, 'Berkas foto tidak ditemukan di Google Drive. Unggah ulang foto sebelum menyimpan laporan.');
       }
     }
-    if (entity === 'picas' && String(scopedCreatePayload.source || '').toUpperCase() === 'INSPECTION') {
-      const assignedEmail = String(scopedCreatePayload.assignedToEmail || '').trim().toLowerCase();
-      if (!String(scopedCreatePayload.picDepartment || '').trim() ||
-          !String(scopedCreatePayload.picName || '').trim() || !assignedEmail) {
-        return error_(400, 'PICA hasil inspeksi wajib memiliki departemen, nama PIC, dan email akun PIC.');
-      }
-      const assignedUser = findUserByEmail_(assignedEmail);
-      if (!assignedUser || assignedUser.status !== 'ACTIVE') return error_(400, 'Akun PIC tidak ditemukan atau tidak aktif.');
-      if (String(assignedUser.companyCode || '').trim().toUpperCase() !== String(scopedCreatePayload.companyCode || '').trim().toUpperCase()) {
-        return error_(403, 'PIC harus berasal dari perusahaan yang sama dengan pemilik PICA.');
-      }
+    if (entity === 'picas' && ['INSPECTION', 'HAZARD'].indexOf(String(scopedCreatePayload.source || '').toUpperCase()) >= 0) {
+      const assignmentError = validateOperationalPicaAssignee_(scopedCreatePayload);
+      if (assignmentError) return assignmentError;
     }
     return success_(createRecord_(entity, scopedCreatePayload, user));
   }
@@ -2809,6 +2801,20 @@ function enforcePicaApprovalStageRules_(existingRecord, requestedPayload, user) 
 function isPicaApprovalSequenceValid_(stages, stageKey) {
   if (stageKey === 'spvHse') return stages.foreman === true;
     return stageKey === 'foreman';
+}
+
+function validateOperationalPicaAssignee_(payload) {
+  const assignedEmail = String(payload && payload.assignedToEmail || '').trim().toLowerCase();
+  if (!String(payload && payload.picDepartment || '').trim() ||
+      !String(payload && payload.picName || '').trim() || !assignedEmail) {
+    return error_(400, 'PICA hasil Hazard/Inspeksi wajib memiliki departemen, nama PIC, dan email akun PIC.');
+  }
+  const assignedUser = findUserByEmail_(assignedEmail);
+  if (!assignedUser || assignedUser.status !== 'ACTIVE') return error_(400, 'Akun PIC tidak ditemukan atau tidak aktif.');
+  if (String(assignedUser.companyCode || '').trim().toUpperCase() !== String(payload.companyCode || '').trim().toUpperCase()) {
+    return error_(403, 'PIC harus berasal dari perusahaan yang sama dengan pemilik PICA.');
+  }
+  return null;
 }
 
 function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
