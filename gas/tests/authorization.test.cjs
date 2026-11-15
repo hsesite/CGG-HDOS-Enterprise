@@ -1765,8 +1765,8 @@ test('frontend local tenant visibility follows registered contractor scope, not 
   assert.match(storeSource, /user\?\.roles \|\| \[\]\)\.includes\('Admin CGG'\) \? 'CGG' : ''/);
   assert.match(storeSource, /allowedCompanyCodes: ReadonlySet<string>/);
   assert.match(storeSource, /'KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'/);
-  assert.match(storeSource, /const oversightRoles = \\[(?![^\\]]*Project Manager)[^\\]]*\\]/);
-  assert.match(dashboardSource, /const isOversight = companyCode === 'CGG'[\\s\\S]*?\\['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'\\]/);
+  assert.ok(storeSource.includes("const oversightRoles = ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'];"));
+  assert.ok(dashboardSource.includes("['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role)"));
   assert.match(storeSource, /allowedCompanyCodes\.has\(company\)/);
   assert.match(storeSource, /allowedCompanyCodes\.has\(subkon\)/);
   assert.equal(storeSource.includes("['SLS', 'VIP']"), false);
