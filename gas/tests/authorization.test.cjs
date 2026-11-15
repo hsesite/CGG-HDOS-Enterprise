@@ -71,6 +71,42 @@ test('KTT client permission matrix does not expose PICA create, update, or overs
   assert.match(source, /function canMonitorPicas_\(user\)[\s\S]*\['Foreman Safety', 'SPV HSE'\]/);
 });
 
+test('closing a Hazard-origin PICA closes only its linked Hazard in the same tenant', () => {
+  assert.match(source, /linkedHazardUpdate = syncHazardClosedFromPica_\(item\)/);
+  const helper = extractFunction('syncHazardClosedFromPica_', 'parseRowValues_');
+  const rows = [
+    { id: 'h1', code: 'HAZ-2026-AAA', companyCode: 'CGG', status: 'PICA_ISSUED' },
+    { id: 'h2', code: 'HAZ-2026-AAA', companyCode: 'SLS', status: 'PICA_ISSUED' }
+  ];
+  const writes = [];
+  const sheet = {
+    getLastRow: () => rows.length + 1,
+    getRange: (rowNumber) => ({
+      setValues: values => { rows[rowNumber - 2] = values[0]; writes.push({ rowNumber, value: values[0] }); }
+    })
+  };
+  const context = {
+    ENTITY_SCHEMAS: { hazards: ['id', 'code', 'companyCode', 'status', 'updatedAt'] },
+    getSheet_: name => { assert.equal(name, 'hazards'); return sheet; },
+    parseRow_: (_sheet, rowNumber) => rows[rowNumber - 2],
+    buildEntityRow_: (_entity, item) => item,
+    SpreadsheetApp: { flush: () => {} },
+    Date
+  };
+  vm.createContext(context);
+  vm.runInContext(helper, context);
+  const closed = context.syncHazardClosedFromPica_({
+    source: 'HAZARD', sourceRefCode: 'HAZ-2026-AAA', companyCode: 'CGG', code: 'PICA-1'
+  });
+  assert.equal(closed.id, 'h1');
+  assert.equal(rows[0].status, 'CLOSED');
+  assert.equal(rows[1].status, 'PICA_ISSUED');
+  assert.equal(writes.length, 1);
+  assert.equal(context.syncHazardClosedFromPica_({
+    source: 'INSPECTION', sourceRefCode: 'INS-1', companyCode: 'CGG'
+  }), null);
+});
+
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
 test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
   const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
