@@ -1,6 +1,6 @@
 // ============================================================
 // CGG HDOS — Google Apps Script Backend
-// C-1E-B Normalized HSE Register Connector
+// C-1E-D Normalized HSE Register Connector
 //
 // Architecture:
 //   GitHub Pages
@@ -15,7 +15,7 @@
 // - No PostgreSQL
 // - IndexedDB remains the local/offline source
 //
-// C-1E-B:
+// C-1E-D:
 // - Normalized Hazard Register
 // - Normalized PICA Register
 // - Legacy 6-column migration
@@ -222,7 +222,7 @@ function setup() {
   SpreadsheetApp.flush();
 
   Logger.log(
-    'HDOS C-1E-C setup selesai. Database siap digunakan.'
+    'HDOS C-1E-D setup selesai. Database siap digunakan.'
   );
 }
 
@@ -585,7 +585,7 @@ function doGet(
           service:
             'CGG HDOS Google Apps Script',
           version:
-            'C-1E-B'
+            'C-1E-D'
         })
       );
     }
@@ -849,7 +849,7 @@ function handleRoute_(
       service:
         'CGG HDOS Google Apps Script',
       version:
-        'C-1E-C'
+        'C-1E-D'
     });
   }
 
