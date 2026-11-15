@@ -59,3 +59,9 @@ test('cloud readiness failure is visible and does not mark the backend ready', (
   assert.match(syncUiSource, /status: result\.status/);
   assert.match(syncUiSource, /error instanceof Error \? error\.message/);
 });
+
+test('backend setup and both health routes expose one consistent release identifier', () => {
+  assert.doesNotMatch(gasSource, /C-1E-[BC]/);
+  assert.equal((gasSource.match(/version:\s*'C-1E-D'/g) || []).length, 2);
+  assert.match(gasSource, /HDOS C-1E-D setup selesai/);
+});
