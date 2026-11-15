@@ -3048,3 +3048,13 @@ test('PICA final closure is restricted to verified SPV HSE after both ordered ap
   const unverifiedSpv = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: false, email: 'spv@example.com' });
   assert.equal(unverifiedSpv.status, 403);
 });
+
+
+test('PICA UI reviewer visibility and return permissions match backend HSE roles', () => {
+  assert.match(picaUiSource, /const isVerifiedReviewer = sessionUser\?\.roleVerified === true && sessionRoles\.some\(\(role\) => \['Foreman Safety', 'SPV HSE'\]\.includes\(role\)\)/);
+  assert.doesNotMatch(picaUiSource, /const isVerifiedReviewer =[^;]*'KTT'|'Project Manager'/);
+  assert.match(picaUiSource, /isVerifiedReviewer && selectedPica\.status === 'WAITING_HSE'[\s\S]*?Kembalikan ke PIC/);
+  assert.match(picaUiSource, /isHSEValidator && selectedPica\.status === 'WAITING_HSE'[\s\S]*?Validasi & Close PICA/);
+  assert.match(picaStoreSource, /const canReturnToPIC = sessionUser\?\.roleVerified === true && \(sessionUser\.roles \|\| \[\]\)\.some\(\(candidateRole\) => \['Foreman Safety', 'SPV HSE'\]\.includes\(candidateRole\)\)/);
+  assert.match(picaStoreSource, /if \(!canReturnToPIC\) throw new Error\('Pengembalian PICA hanya dapat dilakukan Foreman Safety atau SPV HSE yang telah diverifikasi\.'/);
+});
