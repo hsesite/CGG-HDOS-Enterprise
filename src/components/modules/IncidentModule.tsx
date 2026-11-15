@@ -20,7 +20,15 @@ export const IncidentModule: React.FC = () => {
   const canEditInvestigation = isAdminCGG || (isVerified && assignedRoles.some(role => ['Foreman Safety', 'SPV HSE'].includes(role)));
   const canReviewIncident = isAdminCGG || (isVerified && assignedRoles.some(role => ['KTT', 'SPT', 'SPV'].includes(role)));
   const canCloseIncident = isAdminCGG || (isVerified && assignedRoles.includes('KTT'));
-  const [activeTab, setActiveTab] = useState<'list' | 'report'>('report');
+  const primaryRole = String(assignedRoles[0] || 'Employee');
+  const incidentReportRoles = ['Company Admin', 'Contractor', 'Subkon', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'Safety Officer', 'Paramedis', 'Contractor PIC'];
+  const incidentVerificationRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety'];
+  const canCreateIncident = isAdminCGG || (
+    incidentReportRoles.includes(primaryRole) &&
+    !(['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(primaryRole)) &&
+    (!incidentVerificationRoles.includes(primaryRole) || isVerified)
+  );
+  const [activeTab, setActiveTab] = useState<'list' | 'report'>(canCreateIncident ? 'report' : 'list');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(store.incidents[0] || null);
   const selectedIncidentReadyForReview = Boolean(selectedIncident && (selectedIncident.fiveWhyAnalysis || []).filter(item => String(item || '').trim()).length >= 5 && String(selectedIncident.rootCause || '').trim() && (selectedIncident.correctiveActions || []).some(item => String(item || '').trim()));
 
@@ -102,6 +110,10 @@ export const IncidentModule: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateIncident) {
+      window.alert('Role akun ini tidak memiliki izin untuk membuat laporan insiden.');
+      return;
+    }
     if (!title.trim() || !location || !date || !time) {
       window.alert('Lengkapi judul, lokasi, tanggal, dan waktu kejadian.');
       return;
@@ -188,7 +200,7 @@ export const IncidentModule: React.FC = () => {
           >
             Register Insiden ({store.incidents.length})
           </button>
-          {<button
+          {canCreateIncident && <button
             onClick={() => setActiveTab('report')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               activeTab === 'report' ? 'bg-red-500 text-white font-semibold shadow-sm' : 'text-neutral-300 hover:text-white'
@@ -199,7 +211,7 @@ export const IncidentModule: React.FC = () => {
         </div>
       </div>
 
-      {activeTab === 'list' ? (
+      {activeTab === 'list' || !canCreateIncident ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Incident List */}
           <div className="apple-glass-card p-5 rounded-2xl space-y-3">
