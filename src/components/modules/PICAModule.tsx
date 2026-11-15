@@ -21,7 +21,7 @@ export const PICAModule: React.FC = () => {
   const busyRef = useRef(false);
   const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
   const sessionRoles = sessionUser?.roles || [];
-  const isVerifiedReviewer = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE', 'KTT', 'Project Manager'].includes(role));
+  const isVerifiedReviewer = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE'].includes(role));
   // Only SPV HSE performs final closure; Foreman Safety is an approval stage, not the closer.
   const isHSEValidator = sessionUser?.roleVerified === true && sessionRoles.includes('SPV HSE');
   const approvalStagesFor = (pica: PICA) => pica.approvalStages || { foreman: false, spvHse: false };
@@ -198,8 +198,8 @@ export const PICAModule: React.FC = () => {
             {approvalStagesFor(selectedPica).foreman && approvalStagesFor(selectedPica).spvHse
               ? <button disabled={busy} onClick={validateClose} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">Validasi & Close PICA</button>
               : <p className="text-[10px] text-amber-300">Penutupan tersedia setelah persetujuan Foreman Safety dan SPV HSE selesai.</p>}
-            {!Object.values(approvalStagesFor(selectedPica)).some(Boolean) && <><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} placeholder="Alasan jika bukti belum sesuai" className="w-full p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white" /><button disabled={busy} onClick={returnToPIC} className="w-full p-2 rounded-lg bg-red-500/20 text-red-200 text-xs font-semibold disabled:opacity-50">Kembalikan ke PIC</button></>}
           </div>}
+          {isVerifiedReviewer && selectedPica.status === 'WAITING_HSE' && !Object.values(approvalStagesFor(selectedPica)).some(Boolean) && <div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs font-semibold text-white">Tinjau pengajuan PICA</p><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} placeholder="Alasan jika bukti belum sesuai" className="w-full p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white" /><button disabled={busy} onClick={returnToPIC} className="w-full p-2 rounded-lg bg-red-500/20 text-red-200 text-xs font-semibold disabled:opacity-50">Kembalikan ke PIC</button></div>}
         </> : <div className="text-center text-xs text-neutral-500 py-12"><UserCheck className="w-8 h-8 mx-auto mb-2" />Pilih PICA untuk melihat penugasan dan tindak lanjut.</div>}
       </div>
     </div>
