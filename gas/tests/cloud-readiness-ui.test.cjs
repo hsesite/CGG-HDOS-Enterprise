@@ -7,6 +7,17 @@ const apiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core'
 const syncUiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'SyncModule.tsx'), 'utf8');
 const gasSource = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
 
+const mapSource = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'components', 'modules', 'MapModule.tsx'), 'utf8');
+
+test('GIS risk markers and active finding counts derive from the current Hazard register', () => {
+  assert.match(mapSource, /store\.hazards\.filter\(hazard =>[\s\S]*?hazard\.status !== 'CLOSED'/);
+  assert.match(mapSource, /hazard\.riskMatrix\.level === 'CRITICAL'/);
+  assert.match(mapSource, /hazard\.riskMatrix\.level === 'HIGH'/);
+  assert.match(mapSource, /locationRiskById\.get\(location\.id\)/);
+  assert.match(mapSource, /Temuan aktif:/);
+  assert.doesNotMatch(mapSource, /location\.safetyStatus === 'ALERT'/);
+});
+
 test('frontend exposes the read-only GAS readiness endpoint without requiring a session token', () => {
   assert.match(apiSource, /async checkCloudReadiness\(\): Promise<CloudReadiness>/);
   assert.match(apiSource, /request<CloudReadiness>\('GET', '\/api\/health\/ready', undefined, null\)/);
