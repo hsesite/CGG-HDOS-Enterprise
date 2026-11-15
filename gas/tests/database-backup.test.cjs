@@ -72,10 +72,31 @@ test('database backup comparison reads large sheets in bounded chunks', () => {
 
 test('database readiness detects a recent successful backup and rejects stale or failed backup logs', () => {
   const vm = require('node:vm');
-  const start = backend.indexOf('function hasRecentSuccessfulDatabaseBackup_(');
+  const start = backend.indexOf('function isAccessibleDatabaseBackupFile_(');
   const end = backend.indexOf('\nfunction getHealthReadiness_()', start);
   assert.ok(start >= 0 && end > start);
-  const context = { Date, Math, Number, String };
+  let fileAvailable = true;
+  let fileParentId = 'backup-folder';
+  let fileMimeType = 'google-sheet';
+  const context = {
+    Date, Math, Number, String,
+    MimeType: { GOOGLE_SHEETS: 'google-sheet' },
+    DriveApp: {
+      getFileById: () => {
+        if (!fileAvailable) throw new Error('file missing');
+        return {
+          getMimeType: () => fileMimeType,
+          getParents: () => {
+            let read = false;
+            return {
+              hasNext: () => !read,
+              next: () => { read = true; return { getId: () => fileParentId }; }
+            };
+          }
+        };
+      }
+    }
+  };
   vm.createContext(context);
   vm.runInContext(backend.slice(start, end), context);
 
@@ -89,13 +110,22 @@ test('database readiness detects a recent successful backup and rejects stale or
     })
   };
   const spreadsheet = { getSheetByName: name => name === 'backup_logs' ? sheet : null };
-  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), true);
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), true);
+  fileAvailable = false;
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), false);
+  fileAvailable = true;
+  fileParentId = 'other-folder';
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), false);
+  fileParentId = 'backup-folder';
+  fileMimeType = 'text/plain';
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), false);
+  fileMimeType = 'google-sheet';
   record = ['b1', '2020-01-01T00:00:00.000Z', 'drive-file-1', 'backup', 'SUCCESS', 'SCRIPT', 'verified'];
-  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), false);
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), false);
   record = ['b1', new Date().toISOString(), 'drive-file-1', 'backup', 'FAILED', 'SCRIPT', 'failed'];
-  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), false);
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), false);
   record = ['b1', new Date().toISOString(), '', 'backup', 'SUCCESS', 'SCRIPT', 'missing file id'];
-  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), false);
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, 'backup-folder'), false);
 });
 
 test('recovery validation failure reports missing sheets and invalid schemas without undefined variables', () => {
