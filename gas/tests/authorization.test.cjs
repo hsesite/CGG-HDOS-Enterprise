@@ -1,4 +1,3 @@
-    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -188,7 +187,6 @@ test('Hazard-origin PICA must be assigned to an active PIC in the same tenant', 
     'inactive@cgg.co.id': { status: 'INACTIVE', companyCode: 'CGG' }
   };
   const context = {
-    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     error_: (status, message) => ({ status, message }),
     findUserByEmail_: email => users[email] || null,
     String
@@ -719,7 +717,6 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
 
 test('PICA can be submitted by its assigned PIC and closed after Foreman and SPV HSE approvals', () => {
   const context = {
-    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     error_: (status, message) => ({status, message}),
     Utilities: { formatDate: () => '2026-11-01' },
     Session: { getScriptTimeZone: () => 'Asia/Jakarta' },
@@ -2434,6 +2431,7 @@ test('PICA approval updates enforce verified role, one stage at a time, and stri
 
 test('PICA closure rules reject unauthorized, incomplete, and invalid status transitions', () => {
   const context = {
+    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     error_: (status, message) => ({ status, message }),
     Utilities: { formatDate: () => '2026-11-09' },
     Session: { getScriptTimeZone: () => 'Asia/Jakarta' }
