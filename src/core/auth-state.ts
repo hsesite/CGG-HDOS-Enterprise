@@ -22,6 +22,22 @@ export class AuthState {
   static hasPermission(permission: string): boolean {
     const user = this.getUser();
     if (!user) return false;
+
+    // Elevated permissions must remain unavailable until the server has
+    // verified the user's assigned position. Navigation/module guards are
+    // not a substitute for the GAS authorization checks, but the client
+    // must not advertise permissions that the backend will reject.
+    const verificationRequiredRoles = [
+      'KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent',
+      'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO',
+    ];
+    if (
+      user.roleVerified !== true &&
+      user.roles.some((role) => verificationRequiredRoles.includes(role))
+    ) {
+      return false;
+    }
+
     const rolePermissions: Record<string, string[]> = {
       KTT: ['admin.permissions.read', 'inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'incident.read', 'incident.create', 'incident.update'],
       'SPV HSE': ['inspection.read', 'inspection.create', 'inspection.update', 'hazard.read', 'hazard.create', 'hazard.update', 'pica.read', 'pica.create', 'pica.update', 'incident.read', 'incident.create'],
