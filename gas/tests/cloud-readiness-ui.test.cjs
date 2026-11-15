@@ -34,7 +34,7 @@ test('sync workspace distinguishes device connectivity from actual GAS backend r
   assert.match(syncUiSource, /Struktur sheet/);
   assert.match(syncUiSource, /Google OAuth/);
   assert.match(syncUiSource, /Kebijakan email CGG/);
-  assert.match(syncUiSource, /Status ini hanya memeriksa kesiapan konfigurasi/);
+  assert.match(syncUiSource, /Status ini memeriksa konfigurasi backend, akses folder backup Drive, dan trigger backup harian/);
 });
 
 test('backend readiness requires an accessible backup folder and installed daily backup trigger', () => {
