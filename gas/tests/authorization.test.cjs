@@ -2337,7 +2337,7 @@ test('Operational CREATE allocates a monotonic unique register code inside the S
 
 test('Register code generator advances from the highest existing sequence, not row count', () => {
   const start = source.indexOf('function getEntityCodePrefix_(');
-  const end = source.indexOf('// ============================================================\\n// AUDIT TRAIL', start);
+  const end = source.indexOf('function logAudit_(', start);
   assert.ok(start >= 0 && end > start);
   const context = {
     Date: class extends Date { constructor() { super('2026-11-15T00:00:00Z'); } },
