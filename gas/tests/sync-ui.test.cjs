@@ -28,3 +28,11 @@ test('manual sync failures are surfaced in the activity log without losing queue
   assert.match(handler, /setQueue\(hdosSync\.getQueue\(\)\)/);
   assert.match(handler, /setSyncing\(hdosSync\.getIsSyncing\(\)\)/);
 });
+
+test('local device backup is clearly distinguished from central Spreadsheet backup', () => {
+  assert.match(syncUiSource, /Backup & Pemulihan Lokal Perangkat/);
+  assert.match(syncUiSource, /Cadangan IndexedDB pada perangkat ini/);
+  assert.match(syncUiSource, /Tidak menggantikan backup Spreadsheet pusat di Google Drive/);
+  assert.match(syncUiSource, /Ini adalah backup lokal perangkat, bukan backup database pusat/);
+  assert.match(syncUiSource, /Backup database pusat dibuat otomatis oleh Google Apps Script ke Google Drive/);
+});
