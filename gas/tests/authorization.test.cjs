@@ -717,6 +717,7 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
 
 test('PICA can be submitted by its assigned PIC and closed after Foreman and SPV HSE approvals', () => {
   const context = {
+    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     error_: (status, message) => ({status, message}),
     Utilities: { formatDate: () => '2026-11-01' },
     Session: { getScriptTimeZone: () => 'Asia/Jakarta' },
