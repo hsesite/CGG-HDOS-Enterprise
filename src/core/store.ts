@@ -1340,6 +1340,7 @@ export class HDOSCentralStore {
     const role = hdosAuth.getCurrentRole();
     const email = String(sessionUser?.email || '').trim().toLowerCase();
     const isAssignedPIC = Boolean(current.assignedToEmail && current.assignedToEmail.toLowerCase() === email);
+    const isAdminCGG = (sessionUser?.roles || []).includes('Admin CGG');
     const isHSEValidator = sessionUser?.roleVerified === true && (sessionUser.roles || []).includes('SPV HSE');
     const canReturnToPIC = sessionUser?.roleVerified === true && (sessionUser.roles || []).some((candidateRole) => ['Foreman Safety', 'SPV HSE'].includes(candidateRole));
     const currentStages = current.approvalStages || { foreman: false, spvHse: false };
@@ -1373,13 +1374,14 @@ export class HDOSCentralStore {
       updated.closeRequestedAt = updated.submittedAt;
       updated.rejectionReason = '';
     } else if (updates.status === 'CLOSED') {
-      if (!isHSEValidator) throw new Error('Penutupan PICA hanya dapat divalidasi oleh SPV HSE.');
+      if (!isAdminCGG && !isHSEValidator) throw new Error('Penutupan PICA hanya dapat dilakukan SPV HSE terverifikasi atau Admin CGG.');
       if (current.status !== 'WAITING_HSE') throw new Error('PICA belum diajukan PIC untuk validasi HSE.');
-      if (currentStages.foreman !== true || currentStages.spvHse !== true) throw new Error('Penutupan PICA memerlukan persetujuan Foreman Safety dan SPV HSE.');
+      if (!isAdminCGG && (currentStages.foreman !== true || currentStages.spvHse !== true)) throw new Error('Penutupan PICA memerlukan persetujuan Foreman Safety dan SPV HSE.');
       updated.status = 'CLOSED';
       updated.completionDate = new Date().toISOString().split('T')[0];
       updated.hseValidatedBy = sessionUser?.displayName || email;
-      updated.hseValidatedRole = role;
+      updated.hseValidatedRole = isAdminCGG ? 'Admin CGG' : role;
+      updated.adminOverride = isAdminCGG;
       updated.hseValidatedAt = new Date().toISOString();
     } else if (updates.status === 'PROGRESS') {
       if (current.status === 'WAITING_HSE') {
