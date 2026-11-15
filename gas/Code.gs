@@ -4634,7 +4634,7 @@ function buildEntityCode_(entity, sheet) {
       const existing = String(row[0] || '').trim();
       if (existing.indexOf(expectedStart) !== 0) return;
       const suffix = existing.slice(expectedStart.length);
-      if (!/^\\d+$/.test(suffix)) return;
+      if (!/^\d+$/.test(suffix)) return;
       maxSequence = Math.max(maxSequence, Number(suffix));
     });
   }
