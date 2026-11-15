@@ -2213,7 +2213,8 @@ test('GAS readiness validates required sheet headers without exposing configurat
   };
   vm.createContext(context);
   const validatorStart = source.indexOf('function validateDatabaseSpreadsheet_(spreadsheet) {');
-  const validatorEnd = source.indexOf('function getHealthReadiness_()', validatorStart + 1);
+  const backupHelperStart = source.indexOf('function hasRecentSuccessfulDatabaseBackup_(');
+  const validatorEnd = backupHelperStart;
   const helperStart = source.indexOf('function getHealthReadiness_() {');
   const helperEnd = source.indexOf('function getSpreadsheet_()', helperStart + 1);
   assert.ok(validatorStart >= 0 && validatorEnd > validatorStart);
