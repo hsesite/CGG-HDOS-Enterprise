@@ -2120,7 +2120,8 @@ test('GAS readiness validates required sheet headers without exposing configurat
     HDOS_SPREADSHEET_ID: 'test-sheet-id',
     GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
     CGG_EMAIL_DOMAINS: 'cgg.example',
-    CGG_ALLOWED_EMAILS: ''
+    CGG_ALLOWED_EMAILS: '',
+    HDOS_BACKUP_FOLDER_ID: 'test-backup-folder'
   };
   const requiredSheets = ['users','companies','locations','forms','inspections','hazards','picas','incidents','audit_logs','backup_logs','contractor_reports','contractor_fleet','contractor_p2h_history','repository'];
   const headersBySheet = {
@@ -2145,6 +2146,8 @@ test('GAS readiness validates required sheet headers without exposing configurat
     ENTITY_SCHEMAS: Object.fromEntries(schemaNames.map(name => [name, headersBySheet[name]])),
     PropertiesService: { getScriptProperties: () => ({ getProperty: key => properties[key] ?? null }) },
     SpreadsheetApp: { openById: () => ({ getSheetByName: name => sheets[name] || null }) },
+    DriveApp: { getFolderById: id => ({ getId: () => id }) },
+    ScriptApp: { getProjectTriggers: () => [{ getHandlerFunction: () => 'createDatabaseBackup' }] },
     success_: data => ({ success: true, data }),
     error_: (status, message) => ({ success: false, status, message })
   };
@@ -2164,11 +2167,25 @@ test('GAS readiness validates required sheet headers without exposing configurat
     schemaReady: true,
     googleOAuthConfigured: true,
     cggRegistrationPolicyConfigured: true,
+    backupFolderAccessible: true,
+    dailyBackupTriggerInstalled: true,
+    backupReady: true,
     missingSheetCount: 0,
     invalidSchemaSheetCount: 0
   });
   assert.equal(JSON.stringify(ready).includes('test-sheet-id'), false);
   assert.equal(JSON.stringify(ready).includes('test-client.apps'), false);
+
+  const missingBackupTriggerContext = {
+    ...context,
+    ScriptApp: { getProjectTriggers: () => [] }
+  };
+  vm.createContext(missingBackupTriggerContext);
+  vm.runInContext(source.slice(validatorStart, validatorEnd) + source.slice(helperStart, helperEnd), missingBackupTriggerContext);
+  const missingBackupTrigger = missingBackupTriggerContext.getHealthReadiness_();
+  assert.equal(missingBackupTrigger.data.status, 'not_ready');
+  assert.equal(missingBackupTrigger.data.checks.dailyBackupTriggerInstalled, false);
+  assert.equal(missingBackupTrigger.data.checks.backupReady, false);
 
   headersBySheet.hazards = headersBySheet.hazards.filter(header => header !== 'riskScore');
   const invalidSchema = context.getHealthReadiness_();
