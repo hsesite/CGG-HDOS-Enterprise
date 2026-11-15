@@ -3280,7 +3280,9 @@ function applyRecordScope_(entity, record, user, creating) {
   const roles = user.roles || [];
   if (isAdminCGG_(user)) return record;
   if (isReadOnlyController_(user) && user.roleVerified === true) throw httpError_(403, 'Akun pengawas KTT/SPT/SPV/PJO/SPV HSE/Foreman Safety bersifat baca-saja; gunakan alur persetujuan khusus jika tersedia.');
-  const role = String(roles[0] || 'Employee');
+  // Resolve a privileged company role before considering a secondary Employee role.
+  // This mirrors the route-level Employee restriction for multi-role accounts.
+  const role = isCompanyAdmin_(user) ? 'Company Admin' : String(roles[0] || 'Employee');
   const ownCompany = String(user.companyCode || '').trim().toUpperCase();
   const parentCompany = String(user.parentCompanyCode || '').trim().toUpperCase();
   if (!ownCompany) throw httpError_(403, 'Akun belum dikaitkan ke perusahaan. Hubungi administrator perusahaan.');
@@ -3295,7 +3297,7 @@ function applyRecordScope_(entity, record, user, creating) {
     }
   }
   if (requiresRoleVerification_(user) && user.roleVerified !== true && ['inspections', 'hazards'].indexOf(entity) === -1) throw httpError_(403, 'Jabatan belum diverifikasi. Akses sementara hanya untuk laporan Inspeksi dan Hazard.');
-  if (role === 'Employee' && ['inspections', 'hazards'].indexOf(entity) === -1) throw httpError_(403, 'Akun umum hanya dapat membuat laporan Inspeksi dan Hazard.');
+  if (!isCompanyAdmin_(user) && roles.indexOf('Employee') >= 0 && ['inspections', 'hazards'].indexOf(entity) === -1) throw httpError_(403, 'Akun umum hanya dapat membuat laporan Inspeksi dan Hazard.');
   if (['Company Admin', 'Contractor', 'Subkon', 'Employee', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'KTT', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety', 'Safety Officer', 'Paramedis', 'Contractor PIC'].indexOf(role) === -1) throw httpError_(403, 'Akses penulisan data ditolak.');
   const next = Object.assign({}, record);
   if (creating) {
