@@ -24,7 +24,7 @@ export HDOS_UAT_ACCOUNTS_JSON='[{"label":"CGG UAT Admin","email":"uat-admin@exam
 npm run uat:live
 ```
 
-The runner checks live health/version, full readiness, public company registry, anonymous denial, login/current identity, and read-only list access for inspections, hazards, PICA, and incidents. It prints sanitized JSON evidence and never prints passwords or session tokens. Supply multiple dedicated UAT accounts for CGG, Contractor, and Subkon roles.
+The runner checks live health/version, readiness, public company registry, anonymous denial, login/current identity, and read-only list access for inspections, hazards, PICA, and incidents. An explicit `not_ready` response is reported as a warning so this smoke test can still verify reachable read-only endpoints; unavailable or invalid responses remain failures. Full UAT and production acceptance still require readiness to return `ready` with every check passing. It prints sanitized JSON evidence and never prints passwords or session tokens. Supply multiple dedicated UAT accounts for CGG, Contractor, and Subkon roles.
 
 ## B. Full seven-part UAT
 
