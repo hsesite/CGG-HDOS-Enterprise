@@ -3319,3 +3319,19 @@ test('frontend API routes have corresponding GAS handlers', () => {
     assert.ok(source.includes(entity), 'GAS operational route exists: ' + entity);
   }
 });
+
+
+test('verified Foreman Safety and SPV HSE approval-stage PATCH is not treated as a PIC resubmission', () => {
+  const approvalSource = source.slice(
+    source.indexOf("const allowedKeys = nextStatus === 'CLOSED'"),
+    source.indexOf("const scopedPayload =", source.indexOf("const allowedKeys = nextStatus === 'CLOSED'"))
+  );
+  assert.match(approvalSource, /nextStatus === 'WAITING_HSE'[\s\S]*?'approvalStages'[\s\S]*?'updatedAt'/);
+  assert.match(approvalSource, /const isApprovalStageUpdate = changedKeys\.indexOf\('approvalStages'\) >= 0/);
+  assert.match(approvalSource, /if \(isApprovalStageUpdate\)[\s\S]*?if \(!isHSEValidator\)/);
+  assert.ok(
+    approvalSource.indexOf('if (isApprovalStageUpdate)') <
+    approvalSource.indexOf("if (nextStatus === 'WAITING_HSE' || (nextStatus === 'PROGRESS' && oldStatus !== 'WAITING_HSE'))"),
+    'Approval-stage PATCH must be handled before the assigned-PIC branch.'
+  );
+});
