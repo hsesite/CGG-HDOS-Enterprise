@@ -276,6 +276,13 @@ test('Admin CGG retains administrative bypass', () => {
   const record={id:'admin-created'};
   assert.equal(applyRecordScope('incidents',record,{roles:['Admin CGG']},true),record);
 });
+test('Company Admin retains company-scoped write policy when Employee is a secondary role', () => {
+  const user={roles:['Employee','Company Admin'],companyCode:'SLS',parentCompanyCode:'',roleVerified:true};
+  const scoped=applyRecordScope('incidents',{id:'company-admin-incident'},user,true);
+  assert.equal(scoped.companyCode,'SLS');
+  assert.equal(scoped.contractorCode,'SLS');
+  assert.throws(()=>applyRecordScope('incidents',{id:'employee-only'}, {roles:['Employee'],companyCode:'SLS',parentCompanyCode:''}, true), e=>e.status===403);
+});
 test('all supervisory roles are accepted and new elevated accounts start unverified', () => {
   assert.ok(source.includes("const companyAdminRoles = ['PJO', 'SPV HSE', 'Foreman Safety', 'Superintendent', 'Supervisor', 'Foreman'"));
   assert.ok(source.includes("const cggRoles = ['Company Admin', 'KTT', 'SPT', 'SPV', 'Project Manager'"));
