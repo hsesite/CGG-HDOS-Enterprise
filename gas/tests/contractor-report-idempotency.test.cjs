@@ -13,6 +13,80 @@ function extractFunction(name, nextName) {
   return source.slice(start, end);
 }
 
+test('contractor report review and resubmission retries acknowledge already-committed state', () => {
+  const helperStart = source.indexOf('function isSameContractorComplianceReportPayload_(');
+  const updateStart = source.indexOf('function updateContractorComplianceReport_(');
+  const updateEnd = source.indexOf('\nfunction ', updateStart + 20);
+  assert.ok(helperStart >= 0 && updateStart > helperStart && updateEnd > updateStart);
+  const helpers = source.slice(helperStart, updateEnd);
+  const normalized = {
+    period: '2026-11', remarks: 'Laporan bulanan',
+    manpowerCount: 20, equipmentCount: 5, mcuEligibleCount: 20, mcuFitCount: 19,
+    inductionRequiredCount: 20, inductionCompletedCount: 20, safeHours: 12000, ltiCount: 0
+  };
+  let existing = {
+    ...normalized, id: 'report-1', code: 'CPR-SLS-2026-11', companyCode: 'SLS',
+    status: 'VERIFIED', submittedBy: 'pic@sls.co.id',
+    reviewedBy: 'hse@cgg.co.id', reviewNotes: 'Sudah sesuai'
+  };
+  let canReview = true;
+  let writes = 0;
+  let audits = 0;
+  const sheet = {
+    getRange: () => ({
+      setValues: values => { existing = values[0]; writes += 1; }
+    })
+  };
+  const context = {
+    getSheet_: () => sheet,
+    LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
+    findRecordRow_: () => 2,
+    parseRow_: () => existing,
+    isRecordVisibleToUser_: () => true,
+    canReviewContractorComplianceReport_: () => canReview,
+    canSubmitContractorComplianceReport_: () => true,
+    normalizeContractorComplianceReport_: input => ({ ...input }),
+    error_: (status, message) => ({ success: false, status, message }),
+    success_: data => ({ success: true, data }),
+    buildEntityRow_: (_entity, item) => item,
+    ENTITY_SCHEMAS: { contractor_reports: ['id','status'] },
+    SpreadsheetApp: { flush: () => {} },
+    logAudit_: () => { audits += 1; },
+    String,
+    Object,
+    Date
+  };
+  vm.createContext(context);
+  vm.runInContext(helpers, context);
+
+  const reviewReplay = context.updateContractorComplianceReport_(
+    'report-1', { action: 'VERIFY', reviewNotes: 'Sudah sesuai' },
+    { email: 'hse@cgg.co.id', companyCode: 'CGG' }
+  );
+  assert.equal(reviewReplay.success, true);
+  assert.equal(reviewReplay.data.status, 'VERIFIED');
+  assert.equal(writes, 0);
+  assert.equal(audits, 0);
+
+  canReview = false;
+  const submitReplay = context.updateContractorComplianceReport_(
+    'report-1', normalized,
+    { email: 'pic@sls.co.id', companyCode: 'SLS' }
+  );
+  assert.equal(submitReplay.success, true);
+  assert.equal(submitReplay.data.status, 'VERIFIED');
+  assert.equal(writes, 0);
+  assert.equal(audits, 0);
+
+  const changed = context.updateContractorComplianceReport_(
+    'report-1', { ...normalized, remarks: 'Isi berbeda' },
+    { email: 'pic@sls.co.id', companyCode: 'SLS' }
+  );
+  assert.equal(changed.success, false);
+  assert.equal(changed.status, 409);
+  assert.equal(writes, 0);
+});
+
 test('monthly contractor report retries acknowledge an exact already-committed submission', () => {
   const helper = extractFunction('normalizeContractorComplianceReport_', 'canSubmitContractorComplianceReport_');
   const create = extractFunction('createContractorComplianceReport_', 'updateContractorComplianceReport_');
