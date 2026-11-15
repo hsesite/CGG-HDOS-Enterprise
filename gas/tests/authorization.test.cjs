@@ -3298,3 +3298,22 @@ test('unverified supervisory roles cannot receive client-side elevated permissio
   assert.match(authStateSource, /verificationRequiredRoles[\s\S]*?user\.roleVerified !== true[\s\S]*?return false/);
   assert.match(authStateSource, /'SPV HSE', 'Foreman Safety'/);
 });
+
+
+test('frontend API paths are represented by the GAS route contract', () => {
+  const literalPaths = [...apiSource.matchAll(/['"](\\/api\\/[a-zA-Z0-9_/$-]+)['"]/g)]
+    .map(match => match[1]);
+  const uniquePaths = [...new Set(literalPaths)];
+  assert.ok(uniquePaths.length >= 20, 'Expected to inspect the frontend API route inventory.');
+
+  const dynamicOperationalRoute = /\\/api\\/(inspections|hazards|picas|incidents)/;
+  const dynamicRepositoryRoutes = /\\/api\\/repository\\/\(\[\^\/\]\+\)/;
+  const missing = uniquePaths.filter(route => {
+    if (source.includes("'" + route + "'") || source.includes('"' + route + '"')) return false;
+    if (/^\\/api\\/(inspections|hazards|picas|incidents)$/.test(route)) return dynamicOperationalRoute.test(source);
+    if (/^\\/api\\/repository\\//.test(route)) return dynamicRepositoryRoutes.test(source);
+    return false;
+  });
+  assert.deepEqual(missing, [], 'Frontend API paths missing from GAS route source: ' + missing.join(', '));
+  assert.match(source, /path\\.match\\(\\s*\\/\\^\\\\\\/api\\\\\\/\\(inspections\\|hazards\\|picas\\|incidents\\)/);
+});
