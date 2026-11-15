@@ -2193,18 +2193,11 @@ test('GAS readiness validates required sheet headers without exposing configurat
     headersBySheet[name] = Array.from(match[1].matchAll(/'([^']+)'/g), item => item[1]);
   });
   const sheets = {};
-  const backupLogRow = ['backup-1', new Date().toISOString(), 'drive-backup-1', 'CGG_HDOS_DB_BACKUP_test', 'SUCCESS', 'SCRIPT', 'verified'];
+  let recentBackupAvailable = true;
   requiredSheets.forEach(name => {
     sheets[name] = {
-      getLastRow: () => name === 'backup_logs' ? 2 : 1,
       getLastColumn: () => headersBySheet[name].length,
-      getRange: (row, column, rowCount, columnCount) => ({
-        getValues: () => row === 1
-          ? [headersBySheet[name].slice(column - 1, column - 1 + columnCount)]
-          : name === 'backup_logs'
-            ? [backupLogRow.slice(column - 1, column - 1 + columnCount)]
-            : []
-      })
+      getRange: () => ({ getValues: () => [headersBySheet[name]] })
     };
   });
   const context = {
@@ -2214,18 +2207,18 @@ test('GAS readiness validates required sheet headers without exposing configurat
     SpreadsheetApp: { openById: () => ({ getSheetByName: name => sheets[name] || null }) },
     DriveApp: { getFolderById: id => ({ getId: () => id }) },
     ScriptApp: { getProjectTriggers: () => [{ getHandlerFunction: () => 'createDatabaseBackup' }] },
+    hasRecentSuccessfulDatabaseBackup_: () => recentBackupAvailable,
     success_: data => ({ success: true, data }),
     error_: (status, message) => ({ success: false, status, message })
   };
   vm.createContext(context);
   const validatorStart = source.indexOf('function validateDatabaseSpreadsheet_(spreadsheet) {');
   const validatorEnd = source.indexOf('function getHealthReadiness_()', validatorStart + 1);
-  const backupHelperStart = source.indexOf('function hasRecentSuccessfulDatabaseBackup_(');
   const helperStart = source.indexOf('function getHealthReadiness_() {');
   const helperEnd = source.indexOf('function getSpreadsheet_()', helperStart + 1);
   assert.ok(validatorStart >= 0 && validatorEnd > validatorStart);
-  assert.ok(backupHelperStart >= 0 && helperStart >= 0 && helperEnd > helperStart);
-  const readinessHelpers = source.slice(backupHelperStart, helperEnd);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const readinessHelpers = source.slice(helperStart, helperEnd);
   vm.runInContext(source.slice(validatorStart, validatorEnd) + readinessHelpers, context);
   const ready = context.getHealthReadiness_();
   assert.equal(ready.success, true);
@@ -2256,11 +2249,11 @@ test('GAS readiness validates required sheet headers without exposing configurat
   assert.equal(missingBackupTrigger.data.checks.dailyBackupTriggerInstalled, false);
   assert.equal(missingBackupTrigger.data.checks.backupReady, false);
 
-  backupLogRow[1] = '2020-01-01T00:00:00.000Z';
+  recentBackupAvailable = false;
   const staleBackup = context.getHealthReadiness_();
   assert.equal(staleBackup.data.status, 'not_ready');
   assert.equal(staleBackup.data.checks.recentSuccessfulBackup, false);
-  backupLogRow[1] = new Date().toISOString();
+  recentBackupAvailable = true;
 
   headersBySheet.hazards = headersBySheet.hazards.filter(header => header !== 'riskScore');
   const invalidSchema = context.getHealthReadiness_();
