@@ -48,6 +48,7 @@ export const SyncModule: React.FC = () => {
       cggRegistrationPolicyConfigured: boolean;
       backupFolderAccessible: boolean;
       dailyBackupTriggerInstalled: boolean;
+      recentSuccessfulBackup: boolean;
       backupReady: boolean;
       missingSheetCount: number;
       invalidSchemaSheetCount: number;
@@ -390,6 +391,7 @@ export const SyncModule: React.FC = () => {
               ['Kebijakan email CGG', cloudReadiness.checks.cggRegistrationPolicyConfigured],
               ['Folder backup Drive', cloudReadiness.checks.backupFolderAccessible],
               ['Trigger backup harian', cloudReadiness.checks.dailyBackupTriggerInstalled],
+              ['Backup sukses ≤30 jam', cloudReadiness.checks.recentSuccessfulBackup],
             ].map(([label, passed]) => (
               <div key={String(label)} className="rounded-lg border border-white/10 bg-white/5 p-2">
                 <div className="text-[10px] text-neutral-400">{label}</div>
