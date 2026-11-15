@@ -187,6 +187,7 @@ test('Hazard-origin PICA must be assigned to an active PIC in the same tenant', 
     'inactive@cgg.co.id': { status: 'INACTIVE', companyCode: 'CGG' }
   };
   const context = {
+    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     error_: (status, message) => ({ status, message }),
     findUserByEmail_: email => users[email] || null,
     String
@@ -717,6 +718,7 @@ test('an inactive tenant invalidates an otherwise active user session', () => {
 
 test('PICA can be submitted by its assigned PIC and closed after Foreman and SPV HSE approvals', () => {
   const context = {
+    isAdminCGG_: user => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     error_: (status, message) => ({status, message}),
     Utilities: { formatDate: () => '2026-11-01' },
     Session: { getScriptTimeZone: () => 'Asia/Jakarta' },
