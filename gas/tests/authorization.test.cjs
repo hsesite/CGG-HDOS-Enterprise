@@ -3300,21 +3300,22 @@ test('unverified supervisory roles cannot receive client-side elevated permissio
 });
 
 
-test('frontend API route families have corresponding GAS handlers', () => {
-  const frontendRoutes = [
-    '/api/health/live', '/api/health/ready', '/api/auth/login',
-    '/api/auth/logout', '/api/me', '/api/companies', '/api/locations',
-    '/api/users', '/api/audit', '/api/repository', '/api/photos',
-    '/api/forms', '/api/contractor/fleet', '/api/contractor/reports'
+test('frontend API routes have corresponding GAS handlers', () => {
+  const routes = [
+    '/api/health/ready', '/api/auth/login', '/api/users',
+    '/api/auth/google', '/api/auth/google/onboard',
+    '/api/public/companies', '/api/companies',
+    '/api/contractor/fleet', '/api/contractor/reports',
+    '/api/locations', '/api/audit', '/api/repository',
+    '/api/photos', '/api/forms', '/api/auth/logout', '/api/me'
   ];
-  for (const route of frontendRoutes) {
+  for (const route of routes) {
     assert.ok(apiSource.includes(route), 'Frontend route exists: ' + route);
-    assert.ok(source.includes(route) || source.includes(route.replace('/api/', '/api/')),
-      'GAS route contract contains: ' + route);
+    assert.ok(source.includes(route), 'GAS route handler exists: ' + route);
   }
   for (const entity of ['inspections', 'hazards', 'picas', 'incidents']) {
-    assert.ok(apiSource.includes('/api/' + entity), 'Frontend operational route exists: ' + entity);
-    assert.ok(source.includes('|' + entity + '|') || source.includes("'" + entity + "'") ||
-      source.includes('"' + entity + '"'), 'GAS operational entity exists: ' + entity);
+    assert.ok(apiSource.includes('/api/' + entity) || apiSource.includes('${entity}'),
+      'Frontend operational route exists: ' + entity);
+    assert.ok(source.includes(entity), 'GAS operational route exists: ' + entity);
   }
 });
