@@ -4623,6 +4623,12 @@ function buildEntityCode_(entity, sheet) {
   const lastRow = sheet.getLastRow();
   const lastColumn = sheet.getLastColumn();
   let maxSequence = 0;
+  const sequenceProperty = 'HDOS_CODE_SEQUENCE_' + String(entity || '').toUpperCase() + '_' + year;
+  const properties = PropertiesService.getScriptProperties();
+  const persistedSequence = Number(properties.getProperty(sequenceProperty) || 0);
+  if (Number.isFinite(persistedSequence) && persistedSequence > 0) {
+    maxSequence = Math.floor(persistedSequence);
+  }
 
   if (lastRow >= 2 && lastColumn >= 1) {
     const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
@@ -4645,6 +4651,9 @@ function buildEntityCode_(entity, sheet) {
     candidate = expectedStart + String(maxSequence).padStart(3, '0');
   } while (isEntityCodeInUse_(sheet, candidate));
 
+  // Persist the high-water mark so a deleted trailing row cannot cause an
+  // issued register number to be recycled by a later submission.
+  properties.setProperty(sequenceProperty, String(maxSequence));
   return candidate;
 }
 
