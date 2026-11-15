@@ -231,7 +231,20 @@ export const InspectionModule: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (TEMPLATES.length === 0) return;
-    setSubmitting(true);
+    if (submittingRef.current) return;
+    if (!location || !inspectorName.trim()) {
+      window.alert('Pilih lokasi inspeksi dan lengkapi nama inspektur.');
+      return;
+    }
+    if (!inspectionPhoto) {
+      window.alert('Foto bukti pemeriksaan wajib dilampirkan sebelum laporan disimpan.');
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(inspectionPhoto.type) ||
+        inspectionPhoto.size <= 0 || inspectionPhoto.size > 5 * 1024 * 1024) {
+      window.alert('Foto harus JPG, PNG, atau WEBP dengan ukuran maksimal 5 MB.');
+      return;
+    }
 
     const items: InspectionItem[] = currentTemplate.items.map((item, idx) => ({
       id: `item_${idx}_${Date.now()}`,
@@ -240,57 +253,84 @@ export const InspectionModule: React.FC = () => {
       result: answers[idx]?.result || 'PASS',
       notes: answers[idx]?.notes || '',
     }));
-
-    const passCount = items.filter((i) => i.result === 'PASS').length;
-    const scorePercent = Math.round((passCount / items.length) * 100);
-
-    let gpsCoordinates: Inspection['gpsCoordinates'];
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
-          })
-        );
-        gpsCoordinates = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          utm: '',
-        };
-      } catch {
-        // GPS is optional. Never substitute hard-coded sample coordinates.
-        gpsCoordinates = undefined;
-      }
+    const failedItems = items.filter(item => item.result === 'FAIL');
+    if (failedItems.some(item => !item.notes.trim())) {
+      window.alert('Lengkapi catatan temuan untuk setiap item Tidak Sesuai.');
+      return;
+    }
+    if (failedItems.length > 0 &&
+        (!picaDepartment.trim() || !picaPicName.trim() || !picaPicEmail.trim() || !picaTargetDate)) {
+      window.alert('Temuan Tidak Sesuai wajib memiliki departemen tujuan, nama PIC, email akun PIC, dan target penyelesaian.');
+      return;
     }
 
-    const newInspection = await createInspectionAction({
-      title: currentTemplate.title,
-      templateType: currentTemplate.id,
-      location,
-      inspectorName,
-      inspectorRole: currentUser.role,
-      date: new Date().toISOString().split('T')[0],
-      status: hasFail ? 'PICA_TRIGGERED' : 'COMPLETED',
-      smkpElement: currentTemplate.smkpElement,
-      scorePercent,
-      items,
-      notes: generalNotes,
-      ...(gpsCoordinates ? { gpsCoordinates } : {}),
-    });
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const passCount = items.filter(item => item.result === 'PASS').length;
+      const applicableCount = items.filter(item => item.result !== 'NA').length;
+      const scorePercent = applicableCount > 0 ? Math.round((passCount / applicableCount) * 100) : 100;
 
-    setSubmitting(false);
-    setSuccessMessage(
-      `Inspeksi ${newInspection.code} berhasil disimpan! ${
-        hasFail ? 'Tindakan koreksi (PICA) otomatis diterbitkan untuk temuan "Tidak".' : 'Seluruh item memenuhi standar.'
-      }`
-    );
+      let gpsCoordinates: Inspection['gpsCoordinates'];
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            })
+          );
+          gpsCoordinates = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            utm: '',
+          };
+        } catch {
+          // GPS is optional. Never substitute hard-coded sample coordinates.
+          gpsCoordinates = undefined;
+        }
+      }
 
-    setTimeout(() => {
-      setSuccessMessage('');
+      const localPhotoId = await saveOfflineOperationalPhoto(inspectionPhoto);
+      const newInspection = await createInspectionAction({
+        title: currentTemplate.title,
+        templateType: currentTemplate.id,
+        location,
+        inspectorName: inspectorName.trim(),
+        inspectorRole: currentUser.role,
+        date: new Date().toISOString().split('T')[0],
+        status: failedItems.length > 0 ? 'PICA_TRIGGERED' : 'COMPLETED',
+        smkpElement: currentTemplate.smkpElement,
+        scorePercent,
+        items,
+        localPhotoId,
+        notes: generalNotes,
+        ...(failedItems.length > 0 ? {
+          picaDepartment: picaDepartment.trim(),
+          picaPicName: picaPicName.trim(),
+          picaPicEmail: picaPicEmail.trim().toLowerCase(),
+          picaTargetDate,
+        } : {}),
+        ...(gpsCoordinates ? { gpsCoordinates } : {}),
+      });
+
+      setSuccessMessage(
+        `Inspeksi ${newInspection.code} tersimpan di perangkat. Foto bukti menunggu sinkronisasi. ${failedItems.length > 0 ? 'PICA otomatis ditugaskan kepada ' + picaPicName + '.' : 'Seluruh item memenuhi standar.'}`
+      );
+      setInspectionPhoto(null);
+      setPhotoAttached(false);
+      setPicaDepartment('');
+      setPicaPicName('');
+      setPicaPicEmail('');
+      setPicaTargetDate(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
       setActiveTab('history');
-    }, 2000);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Inspeksi gagal disimpan. Silakan coba kembali.');
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -531,6 +571,27 @@ export const InspectionModule: React.FC = () => {
               </div>
             )}
   
+            {hasFail && (
+              <div className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4 space-y-3">
+                <h3 className="text-xs font-bold text-amber-200">Penugasan PICA Otomatis *</h3>
+                <p className="text-[11px] text-neutral-400">Setiap temuan Tidak Sesuai akan dibuat sebagai PICA dan ditugaskan ke PIC aktif di perusahaan yang sama.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="text-neutral-300">Departemen tujuan *
+                    <input required value={picaDepartment} onChange={event => setPicaDepartment(event.target.value)} placeholder="Operations / Plant / HSE" className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white"/>
+                  </label>
+                  <label className="text-neutral-300">Nama PIC *
+                    <input required value={picaPicName} onChange={event => setPicaPicName(event.target.value)} placeholder="Nama penanggung jawab" className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white"/>
+                  </label>
+                  <label className="text-neutral-300">Email akun PIC aktif *
+                    <input required type="email" value={picaPicEmail} onChange={event => setPicaPicEmail(event.target.value)} placeholder="pic@perusahaan.co.id" className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white"/>
+                  </label>
+                  <label className="text-neutral-300">Target penyelesaian *
+                    <input required type="date" value={picaTargetDate} onChange={event => setPicaTargetDate(event.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white"/>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Inspection Items Checklist */}
             <div className="apple-glass-card p-5 rounded-2xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -643,10 +704,15 @@ export const InspectionModule: React.FC = () => {
                 </div>
               </div>
   
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-[11px] font-mono">
-                  Belum ada lampiran
-                </span>
+              <div className="w-full sm:max-w-sm">
+                <label className="block text-[11px] text-neutral-300">Foto bukti pemeriksaan * (JPG/PNG/WEBP, maks. 5 MB)
+                  <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setInspectionPhoto(file);
+                    setPhotoAttached(Boolean(file));
+                  }} className="mt-2 block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[#42A5F5]/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#8CCBFF]" />
+                </label>
+                <span className="mt-1 block text-[10px] text-neutral-500">{inspectionPhoto ? `Terpilih: ${inspectionPhoto.name}` : 'Foto wajib disimpan bersama hasil pemeriksaan.'}</span>
               </div>
             </div>
   
