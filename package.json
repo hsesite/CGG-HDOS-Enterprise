@@ -15,7 +15,8 @@
     "lint": "tsc --noEmit && tsc -p tsconfig.server.json",
     "typecheck:server": "tsc -p tsconfig.server.json",
     "typecheck": "tsc --noEmit",
-    "test:gas": "node --test gas/tests/*.test.cjs"
+    "test:gas": "node --test gas/tests/*.test.cjs",
+    "uat:live": "node scripts/live-gas-uat.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
