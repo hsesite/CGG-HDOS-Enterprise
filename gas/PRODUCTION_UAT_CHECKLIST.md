@@ -26,6 +26,8 @@ Use separate, real test accounts for CGG Admin, CGG KTT/SPT/SPV/Foreman Safety/S
 - [ ] Contractor account sees its own records and only its registered active Subkon records.
 - [ ] Subkon account sees only its own tenant records, not parent Contractor or sibling Subkon records.
 - [ ] Employee can submit only permitted operational reports and cannot access PICA monitoring, administrative writes, or another tenant's records.
+- [ ] Multi-role Employee + Company Admin account is evaluated as Company Admin within its own company; Employee-only account remains restricted.
+- [ ] Multi-role Employee + Admin CGG account retains CGG administration; no secondary role downgrades the primary privileged authority.
 - [ ] Inactive/suspended company accounts and orphaned Subkon accounts cannot read or create operational records.
 - [ ] Direct API GET-one, GET-all, PATCH, DELETE, and file-preview attempts across tenant boundaries return denied/not found as appropriate.
 - [ ] Changing a user's company, role, or verification status revokes/refreshes existing sessions and does not reveal stale cached records.
