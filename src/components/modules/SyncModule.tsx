@@ -401,7 +401,7 @@ export const SyncModule: React.FC = () => {
         {cloudReadiness.checks && (cloudReadiness.checks.missingSheetCount > 0 || cloudReadiness.checks.invalidSchemaSheetCount > 0) && (
           <p className="text-[11px] text-amber-300">Sheet belum tersedia: {cloudReadiness.checks.missingSheetCount} · Struktur header tidak valid: {cloudReadiness.checks.invalidSchemaSheetCount}</p>
         )}
-        <p className="text-[10px] text-neutral-500">Status ini hanya memeriksa kesiapan konfigurasi. Status READY tidak menggantikan uji login, CRUD, Drive, isolasi tenant, backup, dan sinkronisasi pada UAT.</p>
+        <p className="text-[10px] text-neutral-500">Status ini memeriksa konfigurasi backend, akses folder backup Drive, dan trigger backup harian. Status READY tetap tidak menggantikan uji login, CRUD, unggah foto, isolasi tenant, backup pertama, pemulihan, dan sinkronisasi pada UAT.</p>
       </section>
 
       <section className="apple-glass-card p-5 rounded-2xl space-y-3" aria-live="polite">
