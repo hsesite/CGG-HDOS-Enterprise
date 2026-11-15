@@ -107,6 +107,8 @@ export interface Hazard {
   aiSuggestions?: string[];
   picaId?: string;
   createdAt: string;
+  /** Server-maintained version timestamp used by the offline snapshot cache. */
+  updatedAt?: string;
   actionTaken?: string;
 }
 
