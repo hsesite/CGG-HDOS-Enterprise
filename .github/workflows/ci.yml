@@ -28,6 +28,9 @@ jobs:
       - name: Typecheck frontend and backend
         run: bun run lint
 
+      - name: Validate live UAT runner syntax
+        run: node --check scripts/live-gas-uat.mjs
+
       - name: Run GAS authorization tests
         run: bun run test:gas
 
