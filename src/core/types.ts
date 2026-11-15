@@ -106,6 +106,9 @@ export interface Hazard {
   aiDetected?: boolean;
   aiSuggestions?: string[];
   picaId?: string;
+  picaDepartment?: string;
+  picaPicName?: string;
+  picaPicEmail?: string;
   createdAt: string;
   /** Server-maintained version timestamp used by the offline snapshot cache. */
   updatedAt?: string;
