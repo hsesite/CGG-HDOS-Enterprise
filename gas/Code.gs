@@ -1709,8 +1709,10 @@ function handleRoute_(
         if (!isHSEValidator) return error_(403, 'Persetujuan tahapan PICA hanya dapat dilakukan HSE terverifikasi.');
       } else if (nextStatus === 'WAITING_HSE' || (nextStatus === 'PROGRESS' && oldStatus !== 'WAITING_HSE')) {
         if (!isAssignedPIC) return error_(403, 'Hanya PIC yang ditugaskan dapat memperbarui tindak lanjut PICA.');
-      } else if (nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')) {
-        if (!isHSEValidator) return error_(403, 'Aksi ini hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
+      } else if (nextStatus === 'CLOSED') {
+        if (!isAdminCGG_(user) && !isHSEValidator) return error_(403, 'Penutupan PICA hanya dapat dilakukan SPV HSE terverifikasi atau Admin CGG.');
+      } else if (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE') {
+        if (!isHSEValidator) return error_(403, 'Pengembalian PICA hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
       }
       }
     }
@@ -2868,7 +2870,8 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
   const assignedEmail = String(existingRecord.assignedToEmail || '').trim().toLowerCase();
   const isAssignedPIC = Boolean(assignedEmail && assignedEmail === email);
   const isHSEValidator = roles.some(function(candidateRole) { return ['Foreman Safety', 'SPV HSE'].indexOf(candidateRole) >= 0; }) && user.roleVerified === true;
-  const isFinalPicaCloser = roles.indexOf('SPV HSE') >= 0 && user.roleVerified === true;
+  const isAdmin = isAdminCGG_(user);
+  const isFinalPicaCloser = isAdmin || (roles.indexOf('SPV HSE') >= 0 && user.roleVerified === true);
 
   if (oldStatus === 'CLOSED' && nextStatus !== 'CLOSED') return error_(403, 'PICA yang sudah ditutup tidak dapat dibuka kembali.');
   if (Object.prototype.hasOwnProperty.call(requestedPayload, 'completionDate') &&
@@ -2903,11 +2906,12 @@ function enforcePicaClosureRules_(existingRecord, requestedPayload, user) {
     if (!isFinalPicaCloser) return error_(403, 'Penutupan akhir PICA hanya dapat dilakukan SPV HSE yang telah diverifikasi.');
     if (oldStatus !== 'WAITING_HSE') return error_(409, 'PICA belum diajukan PIC untuk validasi HSE.');
     const approvalStages = existingRecord.approvalStages || {};
-    if (approvalStages.foreman !== true || approvalStages.spvHse !== true) {
+    if (!isAdmin && (approvalStages.foreman !== true || approvalStages.spvHse !== true)) {
       return error_(409, 'Penutupan PICA memerlukan persetujuan Foreman Safety dan SPV HSE secara berurutan.');
     }
     requestedPayload.hseValidatedBy = String(user.displayName || user.email || '');
-    requestedPayload.hseValidatedRole = role;
+    requestedPayload.hseValidatedRole = isAdmin ? 'Admin CGG' : role;
+    requestedPayload.adminOverride = isAdmin;
     requestedPayload.hseValidatedAt = new Date().toISOString();
     requestedPayload.completionDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Jakarta', 'yyyy-MM-dd');
   }
