@@ -52,7 +52,6 @@ export const InspectionModule: React.FC = () => {
   const [inspectorName, setInspectorName] = useState(currentUser.name);
   const [generalNotes, setGeneralNotes] = useState('');
   const [inspectionPhoto, setInspectionPhoto] = useState<File | null>(null);
-  const [photoAttached, setPhotoAttached] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -319,7 +318,6 @@ export const InspectionModule: React.FC = () => {
         `Inspeksi ${newInspection.code} tersimpan di perangkat. Foto bukti menunggu sinkronisasi. ${failedItems.length > 0 ? 'PICA otomatis ditugaskan kepada ' + picaPicName + '.' : 'Seluruh item memenuhi standar.'}`
       );
       setInspectionPhoto(null);
-      setPhotoAttached(false);
       setPicaDepartment('');
       setPicaPicName('');
       setPicaPicEmail('');
@@ -709,7 +707,6 @@ export const InspectionModule: React.FC = () => {
                   <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required onChange={(event) => {
                     const file = event.target.files?.[0] || null;
                     setInspectionPhoto(file);
-                    setPhotoAttached(Boolean(file));
                   }} className="mt-2 block w-full text-xs text-neutral-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[#42A5F5]/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#8CCBFF]" />
                 </label>
                 <span className="mt-1 block text-[10px] text-neutral-500">{inspectionPhoto ? `Terpilih: ${inspectionPhoto.name}` : 'Foto wajib disimpan bersama hasil pemeriksaan.'}</span>
