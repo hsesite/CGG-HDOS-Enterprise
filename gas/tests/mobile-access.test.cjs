@@ -78,3 +78,19 @@ test('PDF and office parsing libraries are loaded only when their file format is
   assert.match(parserSource, /import\('mammoth\/mammoth\.browser'\)/);
   assert.match(parserSource, /import\('xlsx'\)/);
 });
+
+
+test('mobile connection and queue indicators react to live sync events and clean up listeners', () => {
+  assert.match(mobileSource, /import \{ hdosEvents \} from '\.\.\/\.\.\/core\/events'/);
+  assert.match(mobileSource, /useState\(hdosSync\.getIsOnline\(\)\)/);
+  assert.match(mobileSource, /useState\(hdosSync\.getQueue\(\)\.length\)/);
+  assert.match(mobileSource, /hdosEvents\.on\('sync:queue_updated', updateQueue\)/);
+  assert.match(mobileSource, /hdosEvents\.on\('sync:offline_status_changed', updateConnection\)/);
+  assert.match(mobileSource, /return \(\) => \{ offQueue\(\); offConnection\(\); \}/);
+  assert.match(mobileSource, /online \? <Wifi[\s\S]*: <WifiOff/);
+});
+
+test('mobile dynamic island is keyboard-accessible and announces its expanded state', () => {
+  assert.match(mobileSource, /<button[\s\S]*aria-expanded=\{islandExpanded\}[\s\S]*aria-label=\{islandExpanded \? 'Tutup status koneksi dan sinkronisasi'/);
+  assert.match(mobileSource, /focus-visible:outline-2/);
+});
