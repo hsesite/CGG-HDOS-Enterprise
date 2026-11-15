@@ -3988,13 +3988,14 @@ function createRecord_(
     const duplicate = getExistingRecordForCreate_(sheet, id, user, safePayload);
     if (duplicate) return duplicate;
 
-    // Allocate row-dependent codes only after acquiring the lock so
-    // concurrent creates cannot receive the same sequence number.
-    const rowNum = sheet.getLastRow();
-    const code =
-      typeof safePayload.code === 'string' && safePayload.code.trim()
-        ? safePayload.code.trim()
-        : buildEntityCode_(entity, rowNum);
+    // Allocate a monotonic per-entity/year sequence while holding the
+    // Script Lock. The sequence is derived from existing codes, not row
+    // positions, so deleting a trailing row cannot recycle an issued code.
+    const suppliedCode = typeof safePayload.code === 'string' ? safePayload.code.trim() : '';
+    const code = suppliedCode || buildEntityCode_(entity, sheet);
+    if (isEntityCodeInUse_(sheet, code)) {
+      throw httpError_(409, 'Nomor register ' + code + ' sudah digunakan. Muat ulang data dan coba kembali.');
+    }
 
     // Canonical item is assembled inside the same critical section as
     // the duplicate check and append.
@@ -4582,46 +4583,69 @@ function findRecordRow_(
 // ENTITY CODE
 // ============================================================
 
-function buildEntityCode_(
-  entity,
-  rowNum
-) {
+function getEntityCodePrefix_(entity) {
   const prefixMap = {
-    inspections:
-      'INS',
-
-    hazards:
-      'HAZ',
-
-    picas:
-      'PICA',
-
-    incidents:
-      'INC'
+    inspections: 'INS',
+    hazards: 'HAZ',
+    picas: 'PICA',
+    incidents: 'INC'
   };
+  return prefixMap[entity] || String(entity || '').slice(0, 3).toUpperCase();
+}
 
-  const prefix =
-    prefixMap[entity] ||
-    entity
-      .slice(
-        0,
-        3
-      )
-      .toUpperCase();
+/**
+ * Checks a human-readable code against the entity's code column.
+ * Header lookup keeps this safe if columns are reordered or legacy columns exist.
+ */
+function isEntityCodeInUse_(sheet, code) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return false;
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+    .map(function(value) { return String(value || '').trim(); });
+  const codeIndex = headers.indexOf('code');
+  if (codeIndex < 0) throw new Error('Kolom code tidak ditemukan pada sheet ' + sheet.getName() + '.');
+  const values = sheet.getRange(2, codeIndex + 1, lastRow - 1, 1).getValues();
+  const normalized = String(code || '').trim().toUpperCase();
+  return values.some(function(row) {
+    return String(row[0] || '').trim().toUpperCase() === normalized;
+  });
+}
 
-  return (
-    prefix +
-    '-' +
-    new Date()
-      .getFullYear() +
-    '-' +
-    String(
-      rowNum
-    ).padStart(
-      3,
-      '0'
-    )
-  );
+/**
+ * Generates the next numeric sequence for the current year.
+ * Existing non-numeric legacy codes remain untouched and are not rewritten.
+ */
+function buildEntityCode_(entity, sheet) {
+  const prefix = getEntityCodePrefix_(entity);
+  const year = new Date().getFullYear();
+  const expectedStart = prefix + '-' + year + '-';
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  let maxSequence = 0;
+
+  if (lastRow >= 2 && lastColumn >= 1) {
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+      .map(function(value) { return String(value || '').trim(); });
+    const codeIndex = headers.indexOf('code');
+    if (codeIndex < 0) throw new Error('Kolom code tidak ditemukan pada sheet ' + sheet.getName() + '.');
+    const codes = sheet.getRange(2, codeIndex + 1, lastRow - 1, 1).getValues();
+    codes.forEach(function(row) {
+      const existing = String(row[0] || '').trim();
+      if (existing.indexOf(expectedStart) !== 0) return;
+      const suffix = existing.slice(expectedStart.length);
+      if (!/^\\d+$/.test(suffix)) return;
+      maxSequence = Math.max(maxSequence, Number(suffix));
+    });
+  }
+
+  let candidate;
+  do {
+    maxSequence += 1;
+    candidate = expectedStart + String(maxSequence).padStart(3, '0');
+  } while (isEntityCodeInUse_(sheet, candidate));
+
+  return candidate;
 }
 
 
@@ -4642,8 +4666,11 @@ function logAudit_(
   try {
     const now = new Date().toISOString();
     const id = Utilities.getUuid();
-    const rowNum = sheet.getLastRow();
-    const code = 'AUD-' + new Date().getFullYear() + '-' + String(rowNum).padStart(3, '0');
+    // Timestamp + UUID fragment prevents audit-code reuse if rows are
+    // removed and remains unique under concurrent writes protected by this lock.
+    const code = 'AUD-' + new Date().getFullYear() + '-' +
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Makassar', 'yyyyMMdd-HHmmss') +
+      '-' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
     const auditPayload = {
       action: action,
       entity: entity,
