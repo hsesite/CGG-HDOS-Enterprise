@@ -3259,13 +3259,13 @@ test('PICA actions are protected from repeated clicks and validate evidence file
 });
 
 
-test('PICA final closure is restricted to verified SPV HSE after both ordered approvals', () => {
+test('PICA final closure allows Admin CGG override and otherwise requires verified SPV HSE plus ordered approvals', () => {
   const helperStart = source.indexOf('function enforcePicaClosureRules_(');
   const helperEnd = source.indexOf('function createSessionResponse_(', helperStart);
   assert.ok(helperStart >= 0 && helperEnd > helperStart);
   const context = {
     error_: (status, message) => ({ status, message }),
-    isAdminCGG_: () => false,
+    isAdminCGG_: (user) => Boolean(user && user.roles && user.roles.includes('Admin CGG')),
     isCompanyAdmin_: () => false,
     DriveApp: { getFileById: () => ({}) },
     Utilities: { formatDate: () => '2026-11-11' },
@@ -3273,16 +3273,22 @@ test('PICA final closure is restricted to verified SPV HSE after both ordered ap
   };
   vm.createContext(context);
   vm.runInContext(source.slice(helperStart, helperEnd), context);
-  const existing = { status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true }, assignedToEmail: 'pic@example.com' };
-  const foreman = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['Foreman Safety'], roleVerified: true, email: 'foreman@example.com' });
-  assert.equal(foreman.status, 403);
-  assert.match(foreman.message, /SPV HSE/);
-  const spv = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: true, email: 'spv@example.com', displayName: 'SPV HSE' });
+  const existing = { status: 'WAITING_HSE', approvalStages: { foreman: false, spvHse: false }, assignedToEmail: 'pic@example.com' };
+  const adminPayload = { status: 'CLOSED' };
+  const admin = context.enforcePicaClosureRules_(existing, adminPayload, { roles: ['Admin CGG'], roleVerified: false, email: 'admin@example.com', displayName: 'Admin HDOS' });
+  assert.equal(admin, null);
+  assert.equal(adminPayload.hseValidatedRole, 'Admin CGG');
+  assert.equal(adminPayload.adminOverride, true);
+  const spvWithoutStages = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: true, email: 'spv@example.com' });
+  assert.equal(spvWithoutStages.status, 409);
+  const approved = { status: 'WAITING_HSE', approvalStages: { foreman: true, spvHse: true }, assignedToEmail: 'pic@example.com' };
+  const spv = context.enforcePicaClosureRules_(approved, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: true, email: 'spv@example.com', displayName: 'SPV HSE' });
   assert.equal(spv, null);
-  const unverifiedSpv = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: false, email: 'spv@example.com' });
+  const unverifiedSpv = context.enforcePicaClosureRules_(approved, { status: 'CLOSED' }, { roles: ['SPV HSE'], roleVerified: false, email: 'spv@example.com' });
   assert.equal(unverifiedSpv.status, 403);
+  const companyAdmin = context.enforcePicaClosureRules_(existing, { status: 'CLOSED' }, { roles: ['Company Admin'], roleVerified: true, email: 'company-admin@example.com' });
+  assert.equal(companyAdmin.status, 403);
 });
-
 
 test('PICA UI reviewer visibility and return permissions match backend HSE roles', () => {
   assert.match(picaUiSource, /const isVerifiedReviewer = sessionUser\?\.roleVerified === true && sessionRoles\.some\(\(role\) => \['Foreman Safety', 'SPV HSE'\]\.includes\(role\)\)/);
@@ -3334,4 +3340,14 @@ test('verified Foreman Safety and SPV HSE approval-stage PATCH is not treated as
     approvalSource.indexOf("if (nextStatus === 'WAITING_HSE' || (nextStatus === 'PROGRESS' && oldStatus !== 'WAITING_HSE'))"),
     'Approval-stage PATCH must be handled before the assigned-PIC branch.'
   );
+});
+
+
+test('Admin CGG can close submitted PICA in frontend UI and local store without HSE approval stages', () => {
+  assert.match(picaUiSource, /const isAdminCGG = sessionRoles\.includes\('Admin CGG'\)/);
+  assert.match(picaUiSource, /const canClosePica = isAdminCGG \|\| isHSEValidator/);
+  assert.match(picaUiSource, /isAdminCGG \|\| \(approvalStagesFor\(selectedPica\)\.foreman && approvalStagesFor\(selectedPica\)\.spvHse\)/);
+  assert.match(picaStoreSource, /if \(!isAdminCGG && !isHSEValidator\)/);
+  assert.match(picaStoreSource, /if \(!isAdminCGG && \(currentStages\.foreman !== true \|\| currentStages\.spvHse !== true\)\)/);
+  assert.match(source, /isAdminCGG_\(user\) \? 'Admin CGG' : role/);
 });
