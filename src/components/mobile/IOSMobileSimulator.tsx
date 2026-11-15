@@ -26,6 +26,7 @@ import { useHDOSStore } from '../../core/store';
 import { getCurrentUser } from '../../core/auth-utils';
 import { canAccessModule, type HDOSModule } from '../../core/access-policy';
 import { hdosSync } from '../../core/sync';
+import { hdosEvents } from '../../core/events';
 import { hseApi } from '../../core/api';
 import {
   DashboardModule,
@@ -51,10 +52,25 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inspection' | 'map' | 'repository' | 'pica' | 'hazard' | 'ai' | 'incident' | 'contractor' | 'sync' | 'settings'>('dashboard');
   const [islandExpanded, setIslandExpanded] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const online = hdosSync.getIsOnline();
-  const queueCount = hdosSync.getQueue().length;
+  const [online, setOnline] = useState(hdosSync.getIsOnline());
+  const [queueCount, setQueueCount] = useState(hdosSync.getQueue().length);
   const currentUser = getCurrentUser();
   const roleKey = (currentUser?.roles || []).join('|');
+
+  // Keep the mobile status surface live when sync runs in the background.
+  useEffect(() => {
+    const updateQueue = (items?: unknown) => {
+      setQueueCount(Array.isArray(items) ? items.length : hdosSync.getQueue().length);
+    };
+    const updateConnection = (state?: { online?: boolean }) => {
+      setOnline(typeof state?.online === 'boolean' ? state.online : hdosSync.getIsOnline());
+    };
+    updateQueue();
+    updateConnection();
+    const offQueue = hdosEvents.on('sync:queue_updated', updateQueue);
+    const offConnection = hdosEvents.on('sync:offline_status_changed', updateConnection);
+    return () => { offQueue(); offConnection(); };
+  }, []);
 
   // Match desktop authorization and reset stale mobile tabs after role changes.
   useEffect(() => {
@@ -73,16 +89,19 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
           <span className="font-semibold text-[11px] tracking-wide">CGG HDOS</span>
 
           {/* Dynamic Island (Blueprint §8) */}
-          <div
+          <button
+            type="button"
+            aria-expanded={islandExpanded}
+            aria-label={islandExpanded ? 'Tutup status koneksi dan sinkronisasi' : 'Lihat status koneksi dan sinkronisasi'}
             onClick={() => setIslandExpanded(!islandExpanded)}
-            className={`hdos-dynamic-island transition-all duration-300 rounded-full bg-black border border-white/15 flex items-center justify-between px-3 cursor-pointer shadow-lg ${
+            className={`hdos-dynamic-island transition-all duration-300 rounded-full bg-black border border-white/15 flex items-center justify-between px-3 cursor-pointer shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
               islandExpanded ? 'w-64 h-18 -mt-1 py-2' : 'w-28 h-7 -mt-1'
             }`}
           >
             {islandExpanded ? (
               <div className="w-full flex items-center justify-between text-[11px] text-white">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#00E676] animate-pulse" />
+                  <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-[#00E676] animate-pulse' : 'bg-amber-400'}`} />
                   <div>
                     <div className="font-bold">GPS belum terhubung</div>
                     <div className="text-[9px] text-neutral-400 font-mono">Lokasi demo tidak digunakan sebagai telemetry</div>
@@ -96,7 +115,7 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
             ) : (
               <>
                 <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#00E676]" />
+                  <span className={`w-2 h-2 rounded-full ${online ? 'bg-[#00E676]' : 'bg-amber-400'}`} />
                   <span className="text-[10px] font-mono text-neutral-300">HDOS</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono">
@@ -108,11 +127,11 @@ export const IOSMobileSimulator: React.FC<IOSMobileSimulatorProps> = ({ onLogout
                 </div>
               </>
             )}
-          </div>
+          </button>
 
           <div className="flex items-center gap-1.5 text-neutral-300">
             <Signal className="w-3.5 h-3.5" />
-            <Wifi className="w-3.5 h-3.5" />
+            {online ? <Wifi className="w-3.5 h-3.5 text-emerald-400" /> : <WifiOff className="w-3.5 h-3.5 text-amber-400" />}
             <Battery className="w-4 h-4" />
           </div>
         </div>
