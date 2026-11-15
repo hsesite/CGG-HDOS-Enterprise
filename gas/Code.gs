@@ -1694,13 +1694,20 @@ function handleRoute_(
       const allowedKeys = nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')
         ? ['status', 'rejectionReason', 'hseValidatedBy', 'hseValidatedRole', 'hseValidatedAt', 'completionDate', 'updatedAt']
         : nextStatus === 'WAITING_HSE'
-          ? ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'rejectionReason', 'updatedAt']
+          ? ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'submittedAt', 'closeRequestedAt', 'rejectionReason', 'approvalStages', 'updatedAt']
           : ['status', 'correctiveAction', 'evidencePhotoUrl', 'evidencePhotoFileId', 'updatedAt'];
       const changedKeys = Object.keys(requestedPayload).filter(function(key) {
         return JSON.stringify(requestedPayload[key]) !== JSON.stringify(existingRecord[key]);
       });
       if (changedKeys.some(function(key) { return allowedKeys.indexOf(key) === -1; })) return error_(403, 'Perubahan PICA tidak diizinkan untuk tahap akun ini.');
-      if (nextStatus === 'WAITING_HSE' || (nextStatus === 'PROGRESS' && oldStatus !== 'WAITING_HSE')) {
+      // Approval-stage writes are a separate HSE action while the PICA remains
+      // WAITING_HSE. The stage validator above enforces the verified role and
+      // Foreman Safety -> SPV HSE order; do not mistake this for a PIC resubmission.
+      const isApprovalStageUpdate = changedKeys.indexOf('approvalStages') >= 0 &&
+        changedKeys.every(function(key) { return key === 'approvalStages' || key === 'updatedAt'; });
+      if (isApprovalStageUpdate) {
+        if (!isHSEValidator) return error_(403, 'Persetujuan tahapan PICA hanya dapat dilakukan HSE terverifikasi.');
+      } else if (nextStatus === 'WAITING_HSE' || (nextStatus === 'PROGRESS' && oldStatus !== 'WAITING_HSE')) {
         if (!isAssignedPIC) return error_(403, 'Hanya PIC yang ditugaskan dapat memperbarui tindak lanjut PICA.');
       } else if (nextStatus === 'CLOSED' || (nextStatus === 'PROGRESS' && oldStatus === 'WAITING_HSE')) {
         if (!isHSEValidator) return error_(403, 'Aksi ini hanya dapat dilakukan Foreman Safety atau SPV HSE terverifikasi.');
