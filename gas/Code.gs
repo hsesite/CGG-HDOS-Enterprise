@@ -3974,6 +3974,7 @@ function updateRecord_(
   const lock = LockService.getScriptLock();
   let item;
   let replayedUpdate = false;
+  let linkedHazardUpdate = null;
 
   lock.waitLock(10000);
   try {
@@ -4021,6 +4022,12 @@ function updateRecord_(
       sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
         buildEntityRow_(entity, item, headers)
       ]);
+      // A Hazard-origin PICA is the authoritative corrective-action workflow.
+      // Close its linked Hazard in the same script lock only after final PICA closure.
+      if (entity === 'picas' && String(item.status || '').toUpperCase() === 'CLOSED' &&
+          String(old.status || '').toUpperCase() !== 'CLOSED') {
+        linkedHazardUpdate = syncHazardClosedFromPica_(item);
+      }
       SpreadsheetApp.flush();
     }
   } finally {
@@ -4031,8 +4038,46 @@ function updateRecord_(
   if (!replayedUpdate) {
     // Audit is written after releasing the record lock; logAudit_ obtains its own lock.
     logAudit_(user, 'UPDATE', entity, id, auditDetails);
+    if (linkedHazardUpdate) {
+      logAudit_(user, 'AUTO_CLOSE_FROM_PICA', 'hazards', linkedHazardUpdate.id, {
+        hazardCode: linkedHazardUpdate.code,
+        sourcePicaCode: item.code,
+        reason: 'PICA telah ditutup setelah persetujuan Foreman Safety dan SPV HSE.'
+      });
+    }
   }
   return item;
+}
+
+/**
+ * Closes the Hazard register record linked to a successfully closed Hazard-origin PICA.
+ * Matching is tenant-scoped and performed while updateRecord_ holds the script lock.
+ */
+function syncHazardClosedFromPica_(pica) {
+  if (String(pica && pica.source || '').trim().toUpperCase() !== 'HAZARD') return null;
+  const sourceRefCode = String(pica.sourceRefCode || '').trim();
+  const companyCode = String(pica.companyCode || '').trim().toUpperCase();
+  if (!sourceRefCode || !companyCode) return null;
+
+  const sheet = getSheet_('hazards');
+  const headers = ENTITY_SCHEMAS.hazards;
+  const lastRow = sheet.getLastRow();
+  for (let rowNumber = 2; rowNumber <= lastRow; rowNumber++) {
+    const hazard = parseRow_(sheet, rowNumber);
+    if (String(hazard.code || '').trim() !== sourceRefCode ||
+        String(hazard.companyCode || '').trim().toUpperCase() !== companyCode) continue;
+    if (String(hazard.status || '').trim().toUpperCase() === 'CLOSED') return null;
+
+    const updated = Object.assign({}, hazard, {
+      status: 'CLOSED',
+      updatedAt: new Date().toISOString()
+    });
+    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
+      buildEntityRow_('hazards', updated, headers)
+    ]);
+    return updated;
+  }
+  return null;
 }
 
 // ============================================================
