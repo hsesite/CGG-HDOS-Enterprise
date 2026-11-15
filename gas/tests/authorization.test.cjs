@@ -120,6 +120,34 @@ test('local Hazard register mirrors the linked PICA final-closure state without 
   assert.doesNotMatch(block, /action: 'UPDATE', entity: 'hazard'/);
 });
 
+test('Hazard-origin PICA must be assigned to an active PIC in the same tenant', () => {
+  const helper = extractFunction('validateOperationalPicaAssignee_', 'enforcePicaClosureRules_');
+  const users = {
+    'pic@cgg.co.id': { status: 'ACTIVE', companyCode: 'CGG' },
+    'pic@sls.co.id': { status: 'ACTIVE', companyCode: 'SLS' },
+    'inactive@cgg.co.id': { status: 'INACTIVE', companyCode: 'CGG' }
+  };
+  const context = {
+    error_: (status, message) => ({ status, message }),
+    findUserByEmail_: email => users[email] || null,
+    String
+  };
+  vm.createContext(context);
+  vm.runInContext(helper, context);
+  assert.equal(context.validateOperationalPicaAssignee_({
+    picDepartment: 'Operations', picName: 'PIC CGG', assignedToEmail: 'PIC@CGG.CO.ID', companyCode: 'CGG'
+  }), null);
+  assert.equal(context.validateOperationalPicaAssignee_({
+    picDepartment: 'Operations', picName: 'PIC SLS', assignedToEmail: 'pic@sls.co.id', companyCode: 'CGG'
+  }).status, 403);
+  assert.equal(context.validateOperationalPicaAssignee_({
+    picDepartment: 'Operations', picName: 'PIC nonaktif', assignedToEmail: 'inactive@cgg.co.id', companyCode: 'CGG'
+  }).status, 400);
+  assert.equal(context.validateOperationalPicaAssignee_({
+    picDepartment: 'Operations', picName: 'Tanpa email', companyCode: 'CGG'
+  }).status, 400);
+});
+
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
 test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
   const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
