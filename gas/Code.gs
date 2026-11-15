@@ -3613,7 +3613,22 @@ function compareDatabaseSpreadsheetSnapshots_(sourceSpreadsheet, copySpreadsheet
   return { valid: mismatches.length === 0, mismatches: mismatches };
 }
 
-function hasRecentSuccessfulDatabaseBackup_(spreadsheet, maxAgeHours) {
+function isAccessibleDatabaseBackupFile_(fileId, backupFolderId) {
+  try {
+    if (!fileId || !backupFolderId) return false;
+    const file = DriveApp.getFileById(String(fileId));
+    if (!file || file.getMimeType() !== MimeType.GOOGLE_SHEETS) return false;
+    const parents = file.getParents();
+    while (parents.hasNext()) {
+      if (parents.next().getId() === backupFolderId) return true;
+    }
+  } catch (error) {
+    return false;
+  }
+  return false;
+}
+
+function hasRecentSuccessfulDatabaseBackup_(spreadsheet, maxAgeHours, backupFolderId) {
   const sheet = spreadsheet && spreadsheet.getSheetByName('backup_logs');
   if (!sheet) return false;
   const lastRow = sheet.getLastRow();
@@ -3633,9 +3648,10 @@ function hasRecentSuccessfulDatabaseBackup_(spreadsheet, maxAgeHours) {
   const cutoff = now - Math.max(1, Number(maxAgeHours) || 30) * 60 * 60 * 1000;
   return rows.some(function(row) {
     const timestamp = Date.parse(String(row[createdAtIndex] || ''));
+    const fileId = String(row[fileIdIndex] || '').trim();
     return String(row[statusIndex] || '').trim().toUpperCase() === 'SUCCESS' &&
-      Boolean(String(row[fileIdIndex] || '').trim()) &&
-      Number.isFinite(timestamp) && timestamp >= cutoff && timestamp <= now + 5 * 60 * 1000;
+      Number.isFinite(timestamp) && timestamp >= cutoff && timestamp <= now + 5 * 60 * 1000 &&
+      isAccessibleDatabaseBackupFile_(fileId, backupFolderId);
   });
 }
 
@@ -3675,7 +3691,7 @@ function getHealthReadiness_() {
   } catch (triggerError) {
     dailyBackupTriggerInstalled = false;
   }
-  const recentSuccessfulBackup = hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30);
+  const recentSuccessfulBackup = hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30, backupFolderId);
   const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled && recentSuccessfulBackup;
   const ready = validation.valid && googleOAuthConfigured && cggRegistrationPolicyConfigured && backupReady;
   return success_({
