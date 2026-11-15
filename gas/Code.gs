@@ -3572,8 +3572,16 @@ function compareDatabaseSpreadsheetSnapshots_(sourceSpreadsheet, copySpreadsheet
       return;
     }
     if (sourceLastRow === 0 || sourceLastColumn === 0) return;
+    const sourceHeaders = sourceSheet.getRange(1, 1, 1, sourceLastColumn).getValues()[0];
+    const copyHeaders = copySheet.getRange(1, 1, 1, copyLastColumn).getValues()[0];
+    if (sourceHeaders.length !== copyHeaders.length || sourceHeaders.some(function(value, index) {
+      return normalizeDatabaseCellForComparison_(value) !== normalizeDatabaseCellForComparison_(copyHeaders[index]);
+    })) {
+      mismatches.push(name + ': header berbeda');
+      return;
+    }
 
-    for (let startRow = 1; startRow <= sourceLastRow; startRow += chunkSize) {
+    for (let startRow = 2; startRow <= sourceLastRow; startRow += chunkSize) {
       const rowCount = Math.min(chunkSize, sourceLastRow - startRow + 1);
       const sourceValues = sourceSheet.getRange(startRow, 1, rowCount, sourceLastColumn).getValues();
       const copyValues = copySheet.getRange(startRow, 1, rowCount, copyLastColumn).getValues();
