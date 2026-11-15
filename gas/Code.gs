@@ -2091,6 +2091,13 @@ function createContractorComplianceReport_(payload, user) {
   return success_(report);
 }
 
+function isSameContractorComplianceReportPayload_(existing, normalized) {
+  return Object.keys(normalized || {}).every(function(key) {
+    return String(existing && existing[key] == null ? '' : existing[key]) ===
+      String(normalized[key] == null ? '' : normalized[key]);
+  });
+}
+
 function updateContractorComplianceReport_(id, payload, user) {
   const sheet = getSheet_('contractor_reports');
   const lock = LockService.getScriptLock();
@@ -2110,9 +2117,16 @@ function updateContractorComplianceReport_(id, payload, user) {
       if (reviewNotes.length > 1000) return error_(400, 'Catatan review maksimal 1.000 karakter.');
       if (['VERIFY', 'RETURN'].indexOf(action) === -1) return error_(400, 'Aksi review harus VERIFY atau RETURN.');
       if (action === 'RETURN' && !reviewNotes) return error_(400, 'Alasan pengembalian wajib diisi.');
+      const expectedStatus = action === 'VERIFY' ? 'VERIFIED' : 'RETURNED';
+      if (String(existing.status || '') === expectedStatus &&
+          String(existing.reviewedBy || '').toLowerCase() === String(user.email || '').toLowerCase() &&
+          String(existing.reviewNotes || '') === reviewNotes) {
+        // A lost review response is acknowledged without repeating the state change or audit event.
+        return success_(existing);
+      }
       if (String(existing.status || '') !== 'SUBMITTED') return error_(409, 'Hanya laporan berstatus SUBMITTED yang dapat direview.');
       updated = Object.assign({}, existing, {
-        status: action === 'VERIFY' ? 'VERIFIED' : 'RETURNED',
+        status: expectedStatus,
         reviewNotes: reviewNotes,
         reviewedBy: String(user.email || ''),
         reviewedAt: new Date().toISOString(),
@@ -2121,13 +2135,21 @@ function updateContractorComplianceReport_(id, payload, user) {
       auditAction = action === 'VERIFY' ? 'VERIFY' : 'RETURN';
     } else if (
       canSubmitContractorComplianceReport_(user) &&
-      String(existing.companyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase() &&
-      String(existing.status || '') === 'RETURNED'
+      String(existing.companyCode || '').trim().toUpperCase() === String(user.companyCode || '').trim().toUpperCase()
     ) {
       let normalized;
       try { normalized = normalizeContractorComplianceReport_(input); }
       catch (error) { return error_(error.status || 400, error.message || 'Data laporan tidak valid.'); }
       if (normalized.period !== String(existing.period || '')) return error_(400, 'Periode laporan tidak dapat diubah saat perbaikan.');
+      if (['SUBMITTED', 'VERIFIED'].indexOf(String(existing.status || '')) >= 0 &&
+          String(existing.submittedBy || '').toLowerCase() === String(user.email || '').toLowerCase() &&
+          isSameContractorComplianceReportPayload_(existing, normalized)) {
+        // Resubmission may have been committed even if the original response was lost.
+        return success_(existing);
+      }
+      if (String(existing.status || '') !== 'RETURNED') {
+        return error_(409, 'Hanya laporan berstatus RETURNED yang dapat diperbaiki. Periksa apakah pengiriman sebelumnya sudah tersimpan.');
+      }
       updated = Object.assign({}, existing, normalized, {
         status: 'SUBMITTED',
         submittedBy: String(user.email || ''),
