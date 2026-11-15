@@ -2221,6 +2221,7 @@ test('GAS readiness validates required sheet headers without exposing configurat
   assert.ok(helperStart >= 0 && helperEnd > helperStart);
   const readinessHelpers = source.slice(helperStart, helperEnd);
   vm.runInContext(source.slice(validatorStart, validatorEnd) + readinessHelpers, context);
+  context.hasRecentSuccessfulDatabaseBackup_ = () => recentBackupAvailable;
   const ready = context.getHealthReadiness_();
   assert.equal(ready.success, true);
   assert.equal(ready.data.status, 'ready');
@@ -2245,6 +2246,7 @@ test('GAS readiness validates required sheet headers without exposing configurat
   };
   vm.createContext(missingBackupTriggerContext);
   vm.runInContext(source.slice(validatorStart, validatorEnd) + readinessHelpers, missingBackupTriggerContext);
+  missingBackupTriggerContext.hasRecentSuccessfulDatabaseBackup_ = () => recentBackupAvailable;
   const missingBackupTrigger = missingBackupTriggerContext.getHealthReadiness_();
   assert.equal(missingBackupTrigger.data.status, 'not_ready');
   assert.equal(missingBackupTrigger.data.checks.dailyBackupTriggerInstalled, false);
