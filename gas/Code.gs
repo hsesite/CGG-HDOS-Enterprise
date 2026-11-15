@@ -4036,6 +4036,7 @@ function updateRecord_(
   let item;
   let replayedUpdate = false;
   let linkedHazardUpdate = null;
+  let linkedHazardRollback = null;
 
   lock.waitLock(10000);
   try {
@@ -4080,16 +4081,40 @@ function updateRecord_(
         item.approvalStages = Object.assign({}, old.approvalStages || {}, safePayload.approvalStages);
       }
 
-      sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
-        buildEntityRow_(entity, item, headers)
-      ]);
-      // A Hazard-origin PICA is the authoritative corrective-action workflow.
-      // Close its linked Hazard in the same script lock only after final PICA closure.
-      if (entity === 'picas' && String(item.status || '').toUpperCase() === 'CLOSED' &&
-          String(old.status || '').toUpperCase() !== 'CLOSED') {
-        linkedHazardUpdate = syncHazardClosedFromPica_(item);
+      const oldPicaRowValues = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+      try {
+        sheet.getRange(rowNumber, 1, 1, headers.length).setValues([
+          buildEntityRow_(entity, item, headers)
+        ]);
+        // A Hazard-origin PICA and its source Hazard form one logical closure.
+        // Keep a rollback snapshot so a failed flush cannot leave only one side closed.
+        if (entity === 'picas' && String(item.status || '').toUpperCase() === 'CLOSED' &&
+            String(old.status || '').toUpperCase() !== 'CLOSED') {
+          linkedHazardRollback = {};
+          linkedHazardUpdate = syncHazardClosedFromPica_(item, linkedHazardRollback);
+        }
+        SpreadsheetApp.flush();
+      } catch (writeError) {
+        let rollbackError = null;
+        try {
+          if (linkedHazardRollback && linkedHazardRollback.sheet && linkedHazardRollback.rowNumber &&
+              linkedHazardRollback.previousRowValues) {
+            linkedHazardRollback.sheet.getRange(
+              linkedHazardRollback.rowNumber, 1, 1, linkedHazardRollback.previousRowValues.length
+            ).setValues([linkedHazardRollback.previousRowValues]);
+          }
+          sheet.getRange(rowNumber, 1, 1, headers.length).setValues([oldPicaRowValues]);
+          SpreadsheetApp.flush();
+        } catch (errorDuringRollback) {
+          rollbackError = errorDuringRollback;
+        }
+        if (rollbackError) {
+          throw new Error('Penutupan PICA/Hazard gagal dan rollback tidak tuntas: ' +
+            String(rollbackError && rollbackError.message || rollbackError) +
+            '. Kesalahan awal: ' + String(writeError && writeError.message || writeError));
+        }
+        throw writeError;
       }
-      SpreadsheetApp.flush();
     }
   } finally {
     lock.releaseLock();
@@ -4114,11 +4139,11 @@ function updateRecord_(
  * Closes the Hazard register record linked to a successfully closed Hazard-origin PICA.
  * Matching is tenant-scoped and performed while updateRecord_ holds the script lock.
  */
-function syncHazardClosedFromPica_(pica) {
+function syncHazardClosedFromPica_(pica, rollbackContext) {
   if (String(pica && pica.source || '').trim().toUpperCase() !== 'HAZARD') return null;
   const sourceRefCode = String(pica.sourceRefCode || '').trim();
   const companyCode = String(pica.companyCode || '').trim().toUpperCase();
-  if (!sourceRefCode || !companyCode) return null;
+  if (!sourceRefCode || !companyCode) throw new Error('Referensi Hazard dan perusahaan pada PICA wajib tersedia untuk penutupan.');
 
   const sheet = getSheet_('hazards');
   const headers = ENTITY_SCHEMAS.hazards;
@@ -4129,6 +4154,12 @@ function syncHazardClosedFromPica_(pica) {
         String(hazard.companyCode || '').trim().toUpperCase() !== companyCode) continue;
     if (String(hazard.status || '').trim().toUpperCase() === 'CLOSED') return null;
 
+    const previousRowValues = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+    if (rollbackContext) {
+      rollbackContext.sheet = sheet;
+      rollbackContext.rowNumber = rowNumber;
+      rollbackContext.previousRowValues = previousRowValues;
+    }
     const updated = Object.assign({}, hazard, {
       status: 'CLOSED',
       updatedAt: new Date().toISOString()
@@ -4138,7 +4169,7 @@ function syncHazardClosedFromPica_(pica) {
     ]);
     return updated;
   }
-  return null;
+  throw new Error('Hazard sumber ' + sourceRefCode + ' tidak ditemukan pada perusahaan ' + companyCode + '; PICA tidak dapat ditutup.');
 }
 
 // ============================================================
