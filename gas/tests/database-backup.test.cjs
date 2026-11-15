@@ -70,6 +70,34 @@ test('database backup comparison reads large sheets in bounded chunks', () => {
   assert.match(backend, /normalizeDatabaseCellForComparison_\(sourceValues\[row\]\[column\]\)/);
 });
 
+test('database readiness detects a recent successful backup and rejects stale or failed backup logs', () => {
+  const vm = require('node:vm');
+  const start = backend.indexOf('function hasRecentSuccessfulDatabaseBackup_(');
+  const end = backend.indexOf('\nfunction getHealthReadiness_()', start);
+  assert.ok(start >= 0 && end > start);
+  const context = { Date, Math, Number, String };
+  vm.createContext(context);
+  vm.runInContext(backend.slice(start, end), context);
+
+  const headers = ['id', 'createdAt', 'fileId', 'fileName', 'status', 'triggeredBy', 'message'];
+  let record = ['b1', new Date().toISOString(), 'drive-file-1', 'backup', 'SUCCESS', 'SCRIPT', 'verified'];
+  const sheet = {
+    getLastRow: () => 2,
+    getLastColumn: () => headers.length,
+    getRange: (row, column, rowCount, columnCount) => ({
+      getValues: () => [ (row === 1 ? headers : record).slice(column - 1, column - 1 + columnCount) ]
+    })
+  };
+  const spreadsheet = { getSheetByName: name => name === 'backup_logs' ? sheet : null };
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), true);
+  record = ['b1', '2020-01-01T00:00:00.000Z', 'drive-file-1', 'backup', 'SUCCESS', 'SCRIPT', 'verified'];
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), false);
+  record = ['b1', new Date().toISOString(), 'drive-file-1', 'backup', 'FAILED', 'SCRIPT', 'failed'];
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), false);
+  record = ['b1', new Date().toISOString(), '', 'backup', 'SUCCESS', 'SCRIPT', 'missing file id'];
+  assert.equal(context.hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30), false);
+});
+
 test('recovery validation failure reports missing sheets and invalid schemas without undefined variables', () => {
   const start = backend.indexOf('function createDatabaseRecoveryCopy(backupFileId)');
   const end = backend.indexOf('function installDailyDatabaseBackupTrigger()', start);
