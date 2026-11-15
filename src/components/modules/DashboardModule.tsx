@@ -35,7 +35,7 @@ export const DashboardModule: React.FC = () => {
   // Match backend Admin CGG identity requirements; a role label alone must not
   // unlock enterprise-wide dashboard aggregation for another tenant.
   const isOwnerAdmin = companyCode === 'CGG' && roles.includes('Admin CGG');
-  const isOversight = companyCode === 'CGG' && sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
+  const isOversight = companyCode === 'CGG' && sessionUser?.roleVerified === true && roles.some((role) => ['KTT', 'SPT', 'SPV', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(role));
   // Use server-assigned account roles to decide whether the comparison panel
   // is applicable. The company master determines only which child tenants may
   // appear; a delayed or incomplete master must not hide the entire chart.
