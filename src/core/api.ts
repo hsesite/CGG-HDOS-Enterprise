@@ -183,6 +183,9 @@ export interface CloudReadiness {
     schemaReady: boolean;
     googleOAuthConfigured: boolean;
     cggRegistrationPolicyConfigured: boolean;
+    backupFolderAccessible: boolean;
+    dailyBackupTriggerInstalled: boolean;
+    backupReady: boolean;
     missingSheetCount: number;
     invalidSchemaSheetCount: number;
   };
