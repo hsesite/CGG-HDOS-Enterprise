@@ -2339,22 +2339,30 @@ test('Register code generator advances from the highest existing sequence, not r
   const start = source.indexOf('function getEntityCodePrefix_(');
   const end = source.indexOf('function logAudit_(', start);
   assert.ok(start >= 0 && end > start);
+  const properties = new Map();
   const context = {
     Date: class extends Date { constructor() { super('2026-11-15T00:00:00Z'); } },
-    String, Math,
+    String, Math, Number,
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: key => properties.get(key) || null,
+      setProperty: (key, value) => { properties.set(key, value); }
+    }) }
   };
   vm.createContext(context);
   vm.runInContext(source.slice(start, end), context);
-  const rows = [['id','code'],['1','HAZ-2026-001'],['2','HAZ-2026-008'],['3','HAZ-2026-ABC']];
-  const sheet = {
+  let rows = [['id','code'],['1','HAZ-2026-001'],['2','HAZ-2026-008'],['3','HAZ-2026-ABC']];
+  const makeSheet = () => ({
     getName: () => 'hazards',
     getLastRow: () => rows.length,
     getLastColumn: () => 2,
     getRange: (r,c,n,w) => ({ getValues: () => rows.slice(r-1,r-1+n).map(row => row.slice(c-1,c-1+w)) })
-  };
-  assert.equal(context.buildEntityCode_('hazards', sheet), 'HAZ-2026-009');
-  assert.equal(context.isEntityCodeInUse_(sheet, 'HAZ-2026-008'), true);
-  assert.equal(context.isEntityCodeInUse_(sheet, 'HAZ-2026-009'), false);
+  });
+  assert.equal(context.buildEntityCode_('hazards', makeSheet()), 'HAZ-2026-009');
+  assert.equal(context.isEntityCodeInUse_(makeSheet(), 'HAZ-2026-008'), true);
+  assert.equal(context.isEntityCodeInUse_(makeSheet(), 'HAZ-2026-009'), false);
+  rows = [['id','code'],['1','HAZ-2026-001']];
+  assert.equal(context.buildEntityCode_('hazards', makeSheet()), 'HAZ-2026-010');
+  assert.equal(properties.get('HDOS_CODE_SEQUENCE_HAZARDS_2026'), '10');
 });
 
 
