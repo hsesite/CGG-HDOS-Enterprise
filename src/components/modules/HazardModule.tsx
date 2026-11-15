@@ -29,6 +29,9 @@ export const HazardModule: React.FC = () => {
   const [location, setLocation] = useState<MiningArea>('');
   const [specificLocation, setSpecificLocation] = useState('');
   const [actionTaken, setActionTaken] = useState('');
+  const [picaDepartment, setPicaDepartment] = useState('');
+  const [picaPicName, setPicaPicName] = useState('');
+  const [picaPicEmail, setPicaPicEmail] = useState('');
   const [hazardPhoto, setHazardPhoto] = useState<File | null>(null);
   const [severity, setSeverity] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [likelihood, setLikelihood] = useState<1 | 2 | 3 | 4 | 5>(3);
@@ -49,6 +52,10 @@ export const HazardModule: React.FC = () => {
     e.preventDefault();
     if (submittingRef.current) return;
     if (!title.trim() || !specificLocation.trim()) return;
+    if (!picaDepartment.trim() || !picaPicName.trim() || !picaPicEmail.trim()) {
+      window.alert('Departemen tujuan, nama PIC, dan email PIC aktif wajib diisi agar PICA dapat ditugaskan.');
+      return;
+    }
     if (!hazardPhoto) {
       window.alert('Foto bukti temuan bahaya wajib dilampirkan sebelum laporan disimpan.');
       return;
@@ -73,6 +80,9 @@ export const HazardModule: React.FC = () => {
         reporterRole: currentUser.role,
         status: riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'PICA_ISSUED' : 'OPEN',
         actionTaken,
+        picaDepartment: picaDepartment.trim(),
+        picaPicName: picaPicName.trim(),
+        picaPicEmail: picaPicEmail.trim().toLowerCase(),
         localPhotoId,
         aiDetected: false,
       });
@@ -81,6 +91,9 @@ export const HazardModule: React.FC = () => {
       setTitle('');
       setSpecificLocation('');
       setActionTaken('');
+      setPicaDepartment('');
+      setPicaPicName('');
+      setPicaPicEmail('');
       setHazardPhoto(null);
       setTimeout(() => { setSuccessMsg(''); setActiveTab('register'); }, 2000);
     } catch (error) {
@@ -107,7 +120,7 @@ export const HazardModule: React.FC = () => {
             Hazard Management & 5x5 Mining Risk Matrix
           </h2>
           <p className="text-xs text-neutral-400 mt-0.5">
-            Workflow: Temuan → Hazard → 5x5 Risk Assessment → Auto PICA untuk risiko High/Critical.
+            Workflow: Temuan → Hazard → 5x5 Risk Assessment → PICA otomatis dengan PIC dan target sesuai tingkat risiko.
           </p>
         </div>
 
@@ -228,6 +241,22 @@ export const HazardModule: React.FC = () => {
                     onChange={(e) => setActionTaken(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#FF5252]"
                   />
+                </div>
+
+                <div className="pt-3 border-t border-white/10 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Penanggung Jawab Tindak Lanjut PICA *</h4>
+                  <p className="text-[10px] text-neutral-500">Pilih PIC aktif dari perusahaan yang sama. PICA otomatis akan masuk ke akun PIC tersebut.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block text-xs font-medium text-neutral-300">Departemen tujuan *
+                      <input required value={picaDepartment} onChange={(e) => setPicaDepartment(e.target.value)} placeholder="Contoh: Operations / Plant" className="mt-1 w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs placeholder-neutral-500" />
+                    </label>
+                    <label className="block text-xs font-medium text-neutral-300">Nama PIC *
+                      <input required value={picaPicName} onChange={(e) => setPicaPicName(e.target.value)} placeholder="Nama penanggung jawab" className="mt-1 w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs placeholder-neutral-500" />
+                    </label>
+                  </div>
+                  <label className="block text-xs font-medium text-neutral-300">Email akun PIC aktif *
+                    <input required type="email" value={picaPicEmail} onChange={(e) => setPicaPicEmail(e.target.value)} placeholder="pic@perusahaan.co.id" className="mt-1 w-full px-3 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs placeholder-neutral-500" />
+                  </label>
                 </div>
               </div>
             </div>
