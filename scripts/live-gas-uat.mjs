@@ -25,7 +25,8 @@ async function main() {
     const required=['spreadsheetAccessible','schemaReady','googleOAuthConfigured','cggRegistrationPolicyConfigured','backupFolderAccessible','dailyBackupTriggerInstalled','recentSuccessfulBackup','backupReady'];
     const missing=required.filter(key=>checks[key]!==true);
     if(ready.envelope?.success && d?.status==='ready' && !missing.length) record('1 Deployment/database','health/ready','PASS',{checks});
-    else record('1 Deployment/database','health/ready','FAIL',{status:d?.status||'unavailable',failedChecks:missing,checks,message:ready.envelope?.message||'Readiness belum READY.'});
+    else if(ready.envelope?.success && d?.status==='not_ready') record('1 Deployment/database','health/ready','WARN',{readinessStatus:d.status,failedChecks:missing,checks,message:ready.envelope?.message||'Backend belum siap; deployment/database memerlukan konfigurasi.'});
+    else record('1 Deployment/database','health/ready','FAIL',{readinessStatus:d?.status||'unavailable',failedChecks:missing,checks,message:ready.envelope?.message||'Readiness belum READY.'});
   } catch(e) { record('1 Deployment/database','health/ready','FAIL',{message:e.message}); }
   try { const r=await api('GET','/api/public/companies'); if(r.envelope?.success && Array.isArray(data(r))) record('1 Deployment/database','public companies','PASS',{count:data(r).length}); else record('1 Deployment/database','public companies','FAIL',{message:r.envelope?.message||'Respons registry tidak valid.'}); }
   catch(e) { record('1 Deployment/database','public companies','FAIL',{message:e.message}); }
