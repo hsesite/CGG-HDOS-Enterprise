@@ -218,6 +218,16 @@ test('Hazard reporting requires and maps the assigned PICA owner before queueing
   assert.match(block, /storeName: 'pica', item: picaCreated/);
 });
 
+test('Repository upload decodes and validates file bytes before Drive persistence', () => {
+  const start = source.indexOf("if (path === '/api/repository' && method === 'POST')");
+  const end = source.indexOf("const repositoryDeleteMatch", start);
+  assert.ok(start >= 0 && end > start);
+  const route = source.slice(start, end);
+  assert.match(route, /Utilities\.base64Decode\(base64\)/);
+  assert.match(route, /bytes\.length > 10 \* 1024 \* 1024/);
+  assert.match(route, /getRepositoryFileMetadata_\(fileName, bytes\)/);
+  assert.match(route, /createRepositoryDocument_\(input, bytes, fileMetadata,/);
+});
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
 test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
   const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
