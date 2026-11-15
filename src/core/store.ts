@@ -119,7 +119,7 @@ export class HDOSCentralStore {
         user?.roleVerified !== true && !['inspection', 'hazard'].includes(action)) {
       throw new Error('Jabatan belum diverifikasi. Akses sementara hanya untuk laporan Inspeksi dan Hazard.');
     }
-    if (user?.roleVerified === true && roles.some(candidate => readOnlyControllerRoles.includes(candidate))) {
+    if (action !== 'incident' && user?.roleVerified === true && roles.some(candidate => readOnlyControllerRoles.includes(candidate))) {
       throw new Error('Akun pengawas bersifat baca-saja; gunakan alur persetujuan khusus jika tersedia.');
     }
   }
