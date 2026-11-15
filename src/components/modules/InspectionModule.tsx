@@ -253,7 +253,7 @@ export const InspectionModule: React.FC = () => {
       notes: answers[idx]?.notes || '',
     }));
     const failedItems = items.filter(item => item.result === 'FAIL');
-    if (failedItems.some(item => !item.notes.trim())) {
+    if (failedItems.some(item => !String(item.notes || '').trim())) {
       window.alert('Lengkapi catatan temuan untuk setiap item Tidak Sesuai.');
       return;
     }
