@@ -1367,11 +1367,30 @@ export class HDOSCentralStore {
       throw new Error('Status PICA tidak valid.');
     }
 
+    // Mirror the server-side Hazard closure locally so the Register does not
+    // remain stale while this device waits for the PICA UPDATE to synchronize.
+    const linkedHazard = updates.status === 'CLOSED' && current.source === 'HAZARD'
+      ? this.hazards.find(hazard =>
+          hazard.code === current.sourceRefCode &&
+          String(hazard.companyCode || '').trim().toUpperCase() === String(current.companyCode || '').trim().toUpperCase()
+        )
+      : undefined;
+    const closedHazard: Hazard | undefined = linkedHazard
+      ? { ...linkedHazard, status: 'CLOSED', updatedAt: new Date().toISOString() }
+      : undefined;
+    const records: Array<{ storeName: 'pica' | 'hazard'; item: PICA | Hazard }> = [
+      { storeName: 'pica', item: updated },
+      ...(closedHazard ? [{ storeName: 'hazard' as const, item: closedHazard }] : [])
+    ];
     await hdosSync.enqueueBatch(
-      [{ storeName: 'pica', item: updated }],
+      records,
       [{ action: 'UPDATE', entity: 'pica', payload: updated, note: `Tindak lanjut PICA ${updated.code}` }]
     );
     this.picas[index] = updated;
+    if (closedHazard) {
+      const hazardIndex = this.hazards.findIndex(hazard => hazard.id === closedHazard.id);
+      if (hazardIndex >= 0) this.hazards[hazardIndex] = closedHazard;
+    }
     this.notify();
     hdosEvents.emit('pica:updated', updated);
     return updated;
