@@ -36,7 +36,7 @@ Deployment GitHub Pages tidak otomatis menerapkan perubahan pada backend GAS. Ik
 6. Batasi akses folder backup hanya kepada pengelola database. Lakukan kebijakan retensi dan uji pemulihan secara berkala; backup yang berhasil dibuat belum membuktikan proses restore sudah teruji.
 7. Untuk menguji pemulihan tanpa menyentuh database aktif, salin ID file backup berstatus `SUCCESS`, lalu jalankan `createDatabaseRecoveryCopy('ID_BACKUP')` dari editor Apps Script. Fungsi ini memeriksa nama, tipe file, lokasi folder, akses Spreadsheet, seluruh sheet dan header wajib. Hasilnya berupa salinan pemulihan terpisah; `HDOS_SPREADSHEET_ID` tidak diubah.
 8. Pastikan log mencatat `RECOVERY_COPY_VERIFIED` dan periksa salinan pemulihan. Jika validasi gagal, salinan sementara akan dipindahkan ke sampah dan detail sheet/skema yang gagal dicatat sebagai error.
-9. Endpoint `/api/health/ready` memeriksa akses Spreadsheet, kelengkapan sheet/header, konfigurasi OAuth, kebijakan registrasi CGG, akses folder backup Drive, dan keberadaan trigger backup harian. Status `ready` tidak akan diberikan bila folder backup atau trigger belum aktif. Tetap lakukan uji login, transaksi nyata, backup pertama, dan salinan pemulihan.
+9. Endpoint `/api/health/ready` memeriksa akses Spreadsheet, kelengkapan sheet/header, konfigurasi OAuth, kebijakan registrasi CGG, akses folder backup Drive, keberadaan trigger backup harian, dan minimal satu backup `SUCCESS` dalam 30 jam terakhir. Trigger yang terpasang tetapi gagal menjalankan backup tidak akan dianggap siap. Tetap lakukan uji login, transaksi nyata, backup pertama, dan salinan pemulihan.
 
 
 ## 4. Siapkan akun dan master perusahaan
