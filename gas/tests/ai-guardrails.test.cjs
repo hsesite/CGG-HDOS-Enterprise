@@ -56,15 +56,16 @@ test('incident report submission always releases busy state and surfaces save er
 test('PICA store rejects final closure by Foreman Safety alone', () => {
   const store = fs.readFileSync(path.join(root, 'src', 'core', 'store.ts'), 'utf8');
   assert.match(store, /const isHSEValidator = sessionUser\?\.roleVerified === true && \(sessionUser\.roles \|\| \[\]\)\.includes\('SPV HSE'\)/);
-  assert.match(store, /Penutupan PICA hanya dapat divalidasi oleh SPV HSE/);
-  assert.doesNotMatch(store, /Penutupan PICA hanya dapat divalidasi Foreman Safety atau SPV HSE/);
+  assert.match(store, /if \(!isAdminCGG && !isHSEValidator\) throw new Error\('Penutupan PICA hanya dapat dilakukan SPV HSE terverifikasi atau Admin CGG\.'/);
+  assert.match(store, /if \(!isAdminCGG && \(currentStages\.foreman !== true \|\| currentStages\.spvHse !== true\)\)/);
 });
 
 test('PICA final closure is restricted to verified SPV HSE after both sequential approvals', () => {
   const pica = fs.readFileSync(path.join(root, 'src', 'components', 'modules', 'PICAModule.tsx'), 'utf8');
   assert.match(pica, /const isHSEValidator = sessionUser\?\.roleVerified === true && sessionRoles\.includes\('SPV HSE'\)/);
-  assert.match(pica, /!stages\.foreman \|\| !stages\.spvHse \|\| !isHSEValidator/);
-  assert.match(pica, /SPV HSE menjadi pejabat final untuk validasi dan penutupan; tidak ada tahap persetujuan KTT/);
+  assert.match(pica, /const canClosePica = isAdminCGG \|\| isHSEValidator/);
+  assert.match(pica, /selectedPica\.status !== 'WAITING_HSE' \|\| !canClosePica \|\| \(!isAdminCGG && \(!stages\.foreman \|\| !stages\.spvHse\)\)/);
+  assert.match(pica, /Admin CGG memiliki otoritas tertinggi untuk melakukan penutupan PICA/);
   assert.doesNotMatch(pica, /const isHSEValidator = .*Foreman Safety.*SPV HSE/);
 });
 
