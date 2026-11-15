@@ -22,8 +22,10 @@ export const PICAModule: React.FC = () => {
   const isPIC = (pica: PICA) => Boolean(sessionUser?.email && pica.assignedToEmail?.toLowerCase() === sessionUser.email.toLowerCase());
   const sessionRoles = sessionUser?.roles || [];
   const isVerifiedReviewer = sessionUser?.roleVerified === true && sessionRoles.some((role) => ['Foreman Safety', 'SPV HSE'].includes(role));
-  // Only SPV HSE performs final closure; Foreman Safety is an approval stage, not the closer.
+  // Admin CGG is the highest authority and may close a submitted PICA without the normal approval stages.
+  const isAdminCGG = sessionRoles.includes('Admin CGG');
   const isHSEValidator = sessionUser?.roleVerified === true && sessionRoles.includes('SPV HSE');
+  const canClosePica = isAdminCGG || isHSEValidator;
   const approvalStagesFor = (pica: PICA) => pica.approvalStages || { foreman: false, spvHse: false };
 
   useEffect(() => {
@@ -97,8 +99,8 @@ export const PICAModule: React.FC = () => {
   const validateClose = async () => {
     if (!selectedPica) return;
     const stages = approvalStagesFor(selectedPica);
-    if (selectedPica.status !== 'WAITING_HSE' || !stages.foreman || !stages.spvHse || !isHSEValidator) {
-      window.alert('Penutupan hanya dapat divalidasi oleh SPV HSE setelah persetujuan Foreman Safety dan SPV HSE lengkap.');
+    if (selectedPica.status !== 'WAITING_HSE' || !canClosePica || (!isAdminCGG && (!stages.foreman || !stages.spvHse))) {
+      window.alert('Penutupan hanya dapat dilakukan Admin CGG, atau SPV HSE setelah persetujuan Foreman Safety dan SPV HSE lengkap.');
       return;
     }
     if (busyRef.current) return;
@@ -146,7 +148,7 @@ export const PICAModule: React.FC = () => {
   return <div className="space-y-6 max-w-6xl mx-auto">
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-white/10">
       <div><h2 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="w-5 h-5 text-[#FFC107]" /> PICA · Tindak Lanjut Temuan</h2>
-        <p className="text-xs text-neutral-400 mt-1">PIC departemen menindaklanjuti temuan. Penutupan memerlukan persetujuan berurutan Foreman Safety dan SPV HSE. SPV HSE menjadi pejabat final untuk validasi dan penutupan; tidak ada tahap persetujuan KTT.</p></div>
+        <p className="text-xs text-neutral-400 mt-1">PIC departemen menindaklanjuti temuan. Penutupan normal memerlukan persetujuan berurutan Foreman Safety dan SPV HSE. Admin CGG memiliki otoritas tertinggi untuk melakukan penutupan PICA tanpa menunggu tahapan tersebut.</p></div>
       <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white">
         <option value="ACTIVE">PICA Aktif</option><option value="CLOSED">Riwayat Closed</option><option value="ALL">Semua PICA</option>
       </select>
@@ -194,9 +196,9 @@ export const PICAModule: React.FC = () => {
           </div>}
           {selectedPica.status === 'CLOSED' && <p className="text-xs text-emerald-300 bg-emerald-500/10 p-2 rounded-lg">Closed oleh {selectedPica.hseValidatedBy || 'HSE'} ({selectedPica.hseValidatedRole || '-'}) pada {selectedPica.completionDate || '-'}</p>}
           {isPIC(selectedPica) && ['OPEN','PROGRESS'].includes(selectedPica.status) && <div className="space-y-2"><button disabled={busy} onClick={savePICProgress} className="w-full p-2 rounded-lg bg-blue-500/20 text-blue-200 text-xs font-semibold disabled:opacity-50">Simpan Progress</button><button disabled={busy} onClick={submitForHSE} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">Ajukan Close ke HSE</button></div>}
-          {isHSEValidator && selectedPica.status === 'WAITING_HSE' && <div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs font-bold text-white flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Validasi akhir SPV HSE</p>
-            {approvalStagesFor(selectedPica).foreman && approvalStagesFor(selectedPica).spvHse
-              ? <button disabled={busy} onClick={validateClose} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">Validasi & Close PICA</button>
+          {canClosePica && selectedPica.status === 'WAITING_HSE' && <div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs font-bold text-white flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> {isAdminCGG ? 'Otoritas Admin CGG' : 'Validasi akhir SPV HSE'}</p>
+            {isAdminCGG || (approvalStagesFor(selectedPica).foreman && approvalStagesFor(selectedPica).spvHse)
+              ? <button disabled={busy} onClick={validateClose} className="w-full p-2 rounded-lg bg-emerald-400 text-black text-xs font-bold disabled:opacity-50">{isAdminCGG ? 'Admin: Close PICA' : 'Validasi & Close PICA'}</button>
               : <p className="text-[10px] text-amber-300">Penutupan tersedia setelah persetujuan Foreman Safety dan SPV HSE selesai.</p>}
           </div>}
           {isVerifiedReviewer && selectedPica.status === 'WAITING_HSE' && !Object.values(approvalStagesFor(selectedPica)).some(Boolean) && <div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs font-semibold text-white">Tinjau pengajuan PICA</p><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} placeholder="Alasan jika bukti belum sesuai" className="w-full p-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white" /><button disabled={busy} onClick={returnToPIC} className="w-full p-2 rounded-lg bg-red-500/20 text-red-200 text-xs font-semibold disabled:opacity-50">Kembalikan ke PIC</button></div>}
