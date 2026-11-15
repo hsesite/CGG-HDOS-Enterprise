@@ -107,6 +107,19 @@ test('closing a Hazard-origin PICA closes only its linked Hazard in the same ten
   }), null);
 });
 
+test('local Hazard register mirrors the linked PICA final-closure state without queuing a second cloud mutation', () => {
+  const start = picaStoreSource.indexOf('async updatePICAStatus(');
+  const end = picaStoreSource.indexOf('\n  async addIncident(', start);
+  const block = picaStoreSource.slice(start, end);
+  assert.match(block, /updates\.status === 'CLOSED' && current\.source === 'HAZARD'/);
+  assert.match(block, /hazard\.code === current\.sourceRefCode/);
+  assert.match(block, /status: 'CLOSED'/);
+  assert.match(block, /storeName: 'hazard', item: closedHazard/);
+  assert.match(block, /this\.hazards\[hazardIndex\] = closedHazard/);
+  assert.match(block, /action: 'UPDATE', entity: 'pica'/);
+  assert.doesNotMatch(block, /action: 'UPDATE', entity: 'hazard'/);
+});
+
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
 test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
   const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
