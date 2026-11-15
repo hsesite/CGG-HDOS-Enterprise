@@ -1480,7 +1480,9 @@ function handleRoute_(
   if (requiresRoleVerification_(user) && user.roleVerified !== true && ['inspections', 'hazards', 'picas'].indexOf(entity) === -1) {
     return error_(403, 'Jabatan belum diverifikasi. Akses sementara hanya untuk Inspeksi dan Hazard.');
   }
-  if ((user.roles || []).indexOf('Employee') !== -1 && ['inspections', 'hazards', 'picas'].indexOf(entity) === -1) {
+  const roles = user.roles || [];
+  const isLimitedEmployee = roles.indexOf('Employee') >= 0 && !isAdminCGG_(user) && !isCompanyAdmin_(user);
+  if (isLimitedEmployee && ['inspections', 'hazards', 'picas'].indexOf(entity) === -1) {
     return error_(403, 'Akun Employee hanya memiliki akses ke Inspeksi dan Hazard.');
   }
 
@@ -1489,9 +1491,6 @@ function handleRoute_(
 
   const id =
     match[2] || '';
-
-  const roles = user.roles || [];
-  const isLimitedEmployee = roles.indexOf('Employee') >= 0 && !isAdminCGG_(user) && !isCompanyAdmin_(user);
   // All authenticated company-scoped staff can read operational records in their company.
 
   // GET ALL
