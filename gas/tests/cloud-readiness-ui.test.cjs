@@ -42,6 +42,9 @@ test('backend readiness requires an accessible backup folder and installed daily
   assert.match(gasSource, /backupFolderAccessible = Boolean\(backupFolder && backupFolder\.getId\(\) === backupFolderId\)/);
   assert.match(gasSource, /trigger\.getHandlerFunction\(\) === 'createDatabaseBackup'/);
   assert.match(gasSource, /const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled && recentSuccessfulBackup/);
+  assert.match(gasSource, /function isAccessibleDatabaseBackupFile_\(fileId, backupFolderId\)/);
+  assert.match(gasSource, /file\.getMimeType\(\) !== MimeType\.GOOGLE_SHEETS/);
+  assert.match(gasSource, /parents\.next\(\)\.getId\(\) === backupFolderId/);
   assert.match(gasSource, /&& backupReady/);
   assert.match(apiSource, /backupFolderAccessible: boolean/);
   assert.match(apiSource, /dailyBackupTriggerInstalled: boolean/);
