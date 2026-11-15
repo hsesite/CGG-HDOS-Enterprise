@@ -87,7 +87,8 @@ export const HazardModule: React.FC = () => {
         aiDetected: false,
       });
 
-      setSuccessMsg(`Laporan Bahaya ${newHaz.code} berhasil disimpan di perangkat. Foto bukti menunggu sinkronisasi; PICA ${newHaz.picaId} diterbitkan sesuai tingkat risiko ${riskLevel}.`);
+      const generatedPicaCode = store.picas.find((pica) => pica.id === newHaz.picaId)?.code || newHaz.picaId;
+      setSuccessMsg(`Laporan Bahaya ${newHaz.code} berhasil disimpan di perangkat. Foto bukti menunggu sinkronisasi; PICA ${generatedPicaCode} ditugaskan kepada ${picaPicName} sesuai tingkat risiko ${riskLevel}.`);
       setTitle('');
       setSpecificLocation('');
       setActionTaken('');
