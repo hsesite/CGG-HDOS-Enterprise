@@ -185,6 +185,7 @@ export interface CloudReadiness {
     cggRegistrationPolicyConfigured: boolean;
     backupFolderAccessible: boolean;
     dailyBackupTriggerInstalled: boolean;
+    recentSuccessfulBackup: boolean;
     backupReady: boolean;
     missingSheetCount: number;
     invalidSchemaSheetCount: number;
