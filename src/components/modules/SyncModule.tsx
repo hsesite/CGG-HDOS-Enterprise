@@ -46,6 +46,9 @@ export const SyncModule: React.FC = () => {
       schemaReady: boolean;
       googleOAuthConfigured: boolean;
       cggRegistrationPolicyConfigured: boolean;
+      backupFolderAccessible: boolean;
+      dailyBackupTriggerInstalled: boolean;
+      backupReady: boolean;
       missingSheetCount: number;
       invalidSchemaSheetCount: number;
     };
@@ -385,6 +388,8 @@ export const SyncModule: React.FC = () => {
               ['Struktur sheet', cloudReadiness.checks.schemaReady],
               ['Google OAuth', cloudReadiness.checks.googleOAuthConfigured],
               ['Kebijakan email CGG', cloudReadiness.checks.cggRegistrationPolicyConfigured],
+              ['Folder backup Drive', cloudReadiness.checks.backupFolderAccessible],
+              ['Trigger backup harian', cloudReadiness.checks.dailyBackupTriggerInstalled],
             ].map(([label, passed]) => (
               <div key={String(label)} className="rounded-lg border border-white/10 bg-white/5 p-2">
                 <div className="text-[10px] text-neutral-400">{label}</div>
