@@ -148,6 +148,17 @@ test('Hazard-origin PICA must be assigned to an active PIC in the same tenant', 
   }).status, 400);
 });
 
+test('Hazard reporting requires and maps the assigned PICA owner before queueing', () => {
+  const start = picaStoreSource.indexOf('async addHazard(');
+  const end = picaStoreSource.indexOf('\n  async addIncident(', start);
+  const block = picaStoreSource.slice(start, end);
+  assert.match(block, /!String\(hazard\.picaDepartment \|\| ''\)\.trim\(\)/);
+  assert.match(block, /!String\(hazard\.picaPicName \|\| ''\)\.trim\(\)/);
+  assert.match(block, /!String\(hazard\.picaPicEmail \|\| ''\)\.trim\(\)/);
+  assert.match(block, /assignedToEmail: String\(hazard\.picaPicEmail \|\| ''\)\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(block, /storeName: 'pica', item: picaCreated/);
+});
+
 test('GAS source parses as valid JavaScript', () => assert.doesNotThrow(() => new vm.Script(source)));
 test('conflict resolution resumes dependent UPDATE and DELETE operations for the same record', () => {
   const resolutionStart = syncEngineSource.indexOf('async resolveConflict(');
