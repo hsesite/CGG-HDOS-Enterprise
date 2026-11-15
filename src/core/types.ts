@@ -179,6 +179,8 @@ export interface PICA {
   hseValidatedBy?: string;
   hseValidatedRole?: string;
   hseValidatedAt?: string;
+  /** True when Admin CGG used its highest-level authority to close this PICA. */
+  adminOverride?: boolean;
   rejectionReason?: string;
   updatedAt?: string;
   createdAt: string;
