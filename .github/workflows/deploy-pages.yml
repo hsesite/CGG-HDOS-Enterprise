@@ -35,6 +35,8 @@ jobs:
         run: bun run typecheck
       - name: Typecheck backend services
         run: bun run typecheck:server
+      - name: Validate live UAT runner syntax
+        run: node --check scripts/live-gas-uat.mjs
       - name: Run regression tests
         run: bun run test:gas
       - name: Validate production configuration
