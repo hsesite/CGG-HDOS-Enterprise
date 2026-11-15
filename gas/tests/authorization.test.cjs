@@ -2471,7 +2471,7 @@ test('PICA two-stage approval is required before final HSE closure', () => {
 });
 
 test('PICA close action requires only Foreman Safety and SPV HSE approvals', () => {
-  assert.match(picaUiSource, /approvalStagesFor\(selectedPica\)\.foreman\s*&&\s*approvalStagesFor\(selectedPica\)\.spvHse\s*\?/);
+  assert.match(picaUiSource, /isAdminCGG \\|\\| \\(approvalStagesFor\\(selectedPica\\)\\.foreman && approvalStagesFor\\(selectedPica\\)\\.spvHse\\)/);
   assert.doesNotMatch(picaUiSource, /approvalStagesFor\(selectedPica\)\.ktt/);
   assert.match(picaUiSource, /Penutupan normal memerlukan persetujuan berurutan Foreman Safety dan SPV HSE/);
   assert.match(picaStoreSource, /approvalStages: current\.approvalStages \|\| \{ foreman: false, spvHse: false \}/);
@@ -3294,7 +3294,7 @@ test('PICA UI reviewer visibility and return permissions match backend HSE roles
   assert.match(picaUiSource, /const isVerifiedReviewer = sessionUser\?\.roleVerified === true && sessionRoles\.some\(\(role\) => \['Foreman Safety', 'SPV HSE'\]\.includes\(role\)\)/);
   assert.doesNotMatch(picaUiSource, /const isVerifiedReviewer =[^;]*'KTT'|'Project Manager'/);
   assert.match(picaUiSource, /isVerifiedReviewer && selectedPica\.status === 'WAITING_HSE'[\s\S]*?Kembalikan ke PIC/);
-  assert.match(picaUiSource, /isHSEValidator && selectedPica\.status === 'WAITING_HSE'[\s\S]*?Validasi & Close PICA/);
+  assert.match(picaUiSource, /canClosePica && selectedPica\\.status === 'WAITING_HSE'[\\s\\S]*?Validasi & Close PICA/);
   assert.match(picaStoreSource, /const canReturnToPIC = sessionUser\?\.roleVerified === true && \(sessionUser\.roles \|\| \[\]\)\.some\(\(candidateRole\) => \['Foreman Safety', 'SPV HSE'\]\.includes\(candidateRole\)\)/);
   assert.match(picaStoreSource, /if \(!canReturnToPIC\) throw new Error\('Pengembalian PICA hanya dapat dilakukan Foreman Safety atau SPV HSE yang telah diverifikasi\.'/);
 });
@@ -3349,5 +3349,6 @@ test('Admin CGG can close submitted PICA in frontend UI and local store without 
   assert.match(picaUiSource, /isAdminCGG \|\| \(approvalStagesFor\(selectedPica\)\.foreman && approvalStagesFor\(selectedPica\)\.spvHse\)/);
   assert.match(picaStoreSource, /if \(!isAdminCGG && !isHSEValidator\)/);
   assert.match(picaStoreSource, /if \(!isAdminCGG && \(currentStages\.foreman !== true \|\| currentStages\.spvHse !== true\)\)/);
-  assert.match(source, /isAdminCGG_\(user\) \? 'Admin CGG' : role/);
+  assert.match(source, /requestedPayload\\.adminOverride = isAdmin/);
+  assert.match(source, /'adminOverride', 'updatedAt'/);
 });
