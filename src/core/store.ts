@@ -112,7 +112,7 @@ export class HDOSCentralStore {
     const verificationRequiredRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'SPV HSE', 'Foreman Safety', 'PJO'];
     const readOnlyControllerRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'];
     if (roles.includes('Admin CGG')) return;
-    if (role === 'Employee' && !['inspection', 'hazard'].includes(action)) {
+    if (roles.includes('Employee') && !roles.includes('Admin CGG') && !roles.includes('Company Admin') && !['inspection', 'hazard'].includes(action)) {
       throw new Error('Akun umum hanya dapat membuat laporan Inspeksi dan Hazard.');
     }
     if (roles.some(candidate => verificationRequiredRoles.includes(candidate)) &&
