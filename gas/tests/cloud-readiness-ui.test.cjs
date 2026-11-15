@@ -34,18 +34,21 @@ test('sync workspace distinguishes device connectivity from actual GAS backend r
   assert.match(syncUiSource, /Struktur sheet/);
   assert.match(syncUiSource, /Google OAuth/);
   assert.match(syncUiSource, /Kebijakan email CGG/);
-  assert.match(syncUiSource, /Status ini memeriksa konfigurasi backend, akses folder backup Drive, dan trigger backup harian/);
+  assert.match(syncUiSource, /Backup sukses ≤30 jam/);
+  assert.match(syncUiSource, /Status ini memeriksa konfigurasi backend, akses folder backup Drive, trigger backup harian, dan backup sukses dalam 30 jam terakhir/);
 });
 
 test('backend readiness requires an accessible backup folder and installed daily backup trigger', () => {
   assert.match(gasSource, /backupFolderAccessible = Boolean\(backupFolder && backupFolder\.getId\(\) === backupFolderId\)/);
   assert.match(gasSource, /trigger\.getHandlerFunction\(\) === 'createDatabaseBackup'/);
-  assert.match(gasSource, /const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled/);
+  assert.match(gasSource, /const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled && recentSuccessfulBackup/);
   assert.match(gasSource, /&& backupReady/);
   assert.match(apiSource, /backupFolderAccessible: boolean/);
   assert.match(apiSource, /dailyBackupTriggerInstalled: boolean/);
+  assert.match(apiSource, /recentSuccessfulBackup: boolean/);
   assert.match(syncUiSource, /Folder backup Drive/);
   assert.match(syncUiSource, /Trigger backup harian/);
+  assert.match(syncUiSource, /Backup sukses ≤30 jam/);
 });
 
 test('cloud readiness failure is visible and does not mark the backend ready', () => {
