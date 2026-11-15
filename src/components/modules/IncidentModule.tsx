@@ -23,7 +23,9 @@ export const IncidentModule: React.FC = () => {
   const primaryRole = String(assignedRoles[0] || 'Employee');
   const incidentReportRoles = ['Company Admin', 'Contractor', 'Subkon', 'Crew', 'Foreman', 'Supervisor', 'Superintendent', 'Safety Officer', 'Paramedis', 'Contractor PIC'];
   const incidentVerificationRoles = ['KTT', 'SPT', 'SPV', 'Project Manager', 'Superintendent', 'Supervisor', 'Foreman', 'PJO', 'SPV HSE', 'Foreman Safety'];
+  const employeeRestricted = assignedRoles.includes('Employee') && !isAdminCGG && !assignedRoles.includes('Company Admin');
   const canCreateIncident = isAdminCGG || (
+    !employeeRestricted &&
     incidentReportRoles.includes(primaryRole) &&
     !(['KTT', 'SPT', 'SPV', 'Project Manager', 'PJO', 'SPV HSE', 'Foreman Safety'].includes(primaryRole)) &&
     (!incidentVerificationRoles.includes(primaryRole) || isVerified)
