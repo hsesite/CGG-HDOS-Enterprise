@@ -2318,21 +2318,43 @@ test('login attempt reservation atomically checks and increments the five-minute
   assert.doesNotMatch(login, /isLoginRateLimited_|recordLoginFailure_/);
 });
 
-test('Concurrent operational CREATE allocates row-dependent codes inside the Script Lock', () => {
+test('Operational CREATE allocates a monotonic unique register code inside the Script Lock', () => {
   const start = source.indexOf('function createRecord_(');
   const end = source.indexOf('function isExpectedPicaStateCurrent_(', start + 1);
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   const create = source.slice(start, end);
   const lockStart = create.indexOf('lock.waitLock(');
-  const rowAllocation = create.indexOf('const rowNum = sheet.getLastRow()');
-  const codeAllocation = create.indexOf('buildEntityCode_(entity, rowNum)');
+  const codeAllocation = create.indexOf('buildEntityCode_(entity, sheet)');
+  const uniquenessCheck = create.indexOf('isEntityCodeInUse_(sheet, code)');
   const append = create.indexOf('sheet.appendRow(');
-  assert.ok(lockStart >= 0 && rowAllocation > lockStart);
-  assert.ok(codeAllocation > rowAllocation);
-  assert.ok(append > codeAllocation);
-  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user, safePayload)') < rowAllocation);
+  assert.ok(lockStart >= 0 && codeAllocation > lockStart);
+  assert.ok(uniquenessCheck > codeAllocation);
+  assert.ok(append > uniquenessCheck);
+  assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user, safePayload)') < codeAllocation);
   assert.ok(create.indexOf('getExistingRecordForCreate_(sheet, id, user, safePayload)', create.indexOf('lock.waitLock(')) > lockStart);
+});
+
+test('Register code generator advances from the highest existing sequence, not row count', () => {
+  const start = source.indexOf('function getEntityCodePrefix_(');
+  const end = source.indexOf('// ============================================================\\n// AUDIT TRAIL', start);
+  assert.ok(start >= 0 && end > start);
+  const context = {
+    Date: class extends Date { constructor() { super('2026-11-15T00:00:00Z'); } },
+    String, Math,
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(start, end), context);
+  const rows = [['id','code'],['1','HAZ-2026-001'],['2','HAZ-2026-008'],['3','HAZ-2026-ABC']];
+  const sheet = {
+    getName: () => 'hazards',
+    getLastRow: () => rows.length,
+    getLastColumn: () => 2,
+    getRange: (r,c,n,w) => ({ getValues: () => rows.slice(r-1,r-1+n).map(row => row.slice(c-1,c-1+w)) })
+  };
+  assert.equal(context.buildEntityCode_('hazards', sheet), 'HAZ-2026-009');
+  assert.equal(context.isEntityCodeInUse_(sheet, 'HAZ-2026-008'), true);
+  assert.equal(context.isEntityCodeInUse_(sheet, 'HAZ-2026-009'), false);
 });
 
 
