@@ -3282,3 +3282,9 @@ test('PICA UI reviewer visibility and return permissions match backend HSE roles
   assert.match(picaStoreSource, /const canReturnToPIC = sessionUser\?\.roleVerified === true && \(sessionUser\.roles \|\| \[\]\)\.some\(\(candidateRole\) => \['Foreman Safety', 'SPV HSE'\]\.includes\(candidateRole\)\)/);
   assert.match(picaStoreSource, /if \(!canReturnToPIC\) throw new Error\('Pengembalian PICA hanya dapat dilakukan Foreman Safety atau SPV HSE yang telah diverifikasi\.'/);
 });
+
+
+test('unverified supervisory roles cannot receive client-side elevated permissions', () => {
+  assert.match(authStateSource, /verificationRequiredRoles[\s\S]*?user\.roleVerified !== true[\s\S]*?return false/);
+  assert.match(authStateSource, /'SPV HSE', 'Foreman Safety'/);
+});
