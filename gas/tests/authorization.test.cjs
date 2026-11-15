@@ -82,6 +82,7 @@ test('closing a Hazard-origin PICA closes only its linked Hazard in the same ten
   const sheet = {
     getLastRow: () => rows.length + 1,
     getRange: (rowNumber) => ({
+      getValues: () => [rows[rowNumber - 2]],
       setValues: values => { rows[rowNumber - 2] = values[0]; writes.push({ rowNumber, value: values[0] }); }
     })
   };
@@ -105,6 +106,63 @@ test('closing a Hazard-origin PICA closes only its linked Hazard in the same ten
   assert.equal(context.syncHazardClosedFromPica_({
     source: 'INSPECTION', sourceRefCode: 'INS-1', companyCode: 'CGG'
   }), null);
+  assert.throws(() => context.syncHazardClosedFromPica_({
+    source: 'HAZARD', sourceRefCode: 'HAZ-MISSING', companyCode: 'CGG'
+  }), /tidak ditemukan/);
+});
+
+test('PICA and linked Hazard closure roll back together when the Spreadsheet commit fails', () => {
+  const updateFunction = extractFunction('updateRecord_', 'syncHazardClosedFromPica_');
+  const helperFunction = extractFunction('syncHazardClosedFromPica_', 'parseRowValues_');
+  const oldPica = {
+    id: 'p1', code: 'PICA-1', source: 'HAZARD', sourceRefCode: 'HAZ-1',
+    companyCode: 'CGG', status: 'WAITING_HSE',
+    approvalStages: { foreman: true, spvHse: true }, updatedAt: '2026-11-15T00:00:00.000Z',
+    createdAt: '2026-11-14T00:00:00.000Z'
+  };
+  const oldHazard = { id: 'h1', code: 'HAZ-1', companyCode: 'CGG', status: 'PICA_ISSUED' };
+  let picaRow = oldPica;
+  let hazardRow = oldHazard;
+  let flushCalls = 0;
+  const picaSheet = {
+    getRange: () => ({
+      getValues: () => [picaRow],
+      setValues: values => { picaRow = values[0]; }
+    })
+  };
+  const hazardSheet = {
+    getLastRow: () => 2,
+    getRange: () => ({
+      getValues: () => [hazardRow],
+      setValues: values => { hazardRow = values[0]; }
+    })
+  };
+  const context = {
+    ENTITY_SCHEMAS: { picas: ['id','code','status','payload'], hazards: ['id','code','companyCode','status','payload'] },
+    getSheet_: entity => entity === 'picas' ? picaSheet : hazardSheet,
+    findRecordRow_: () => 2,
+    parseRow_: sheet => sheet === picaSheet ? oldPica : hazardRow,
+    isExpectedRecordVersionCurrent_: () => true,
+    isUpdatePayloadAlreadyApplied_: () => false,
+    isExpectedPicaStateCurrent_: () => true,
+    isObject_: value => value !== null && typeof value === 'object' && !Array.isArray(value),
+    buildEntityRow_: (_entity, item) => item,
+    LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
+    SpreadsheetApp: { flush: () => { flushCalls += 1; if (flushCalls === 1) throw new Error('simulated flush failure'); } },
+    logAudit_: () => {},
+    Date,
+    String,
+    Object,
+    Error
+  };
+  vm.createContext(context);
+  vm.runInContext(helperFunction + '\n' + updateFunction, context);
+  assert.throws(() => context.updateRecord_(
+    'picas', 'p1', { status: 'CLOSED' }, { email: 'hse@cgg.co.id' }, null, {}, '2026-11-15T00:00:00.000Z'
+  ), /simulated flush failure/);
+  assert.equal(picaRow.status, 'WAITING_HSE');
+  assert.equal(hazardRow.status, 'PICA_ISSUED');
+  assert.equal(flushCalls, 2);
 });
 
 test('local Hazard register mirrors the linked PICA final-closure state without queuing a second cloud mutation', () => {
