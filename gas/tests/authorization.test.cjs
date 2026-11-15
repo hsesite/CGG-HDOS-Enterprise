@@ -518,6 +518,7 @@ test('Oversight scope follows all active Contractor roots and excludes inactive 
 test('Inactive company accounts cannot read or create operational records', () => {
   const context = {
     isAdminCGG_: () => false,
+    isCompanyAdmin_: () => false,
     isReadOnlyController_: () => false,
     requiresRoleVerification_: () => false,
     isCompanyScopedRole_: () => true,
