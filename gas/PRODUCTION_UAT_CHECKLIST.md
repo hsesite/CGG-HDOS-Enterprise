@@ -1,11 +1,14 @@
 # HDOS Production UAT Checklist
 
-Status: prepared for execution after the latest Google Apps Script backend is deployed.
+Status: deployment URL received from operator; live runtime validation pending. Source-level CI and tests are separate from live Google Apps Script UAT.
 Scope: live Google Apps Script Web App, central Google Spreadsheet, Google Drive photo/repository/backup folders, and representative user accounts.
 
 > A green GitHub Actions workflow validates source code, automated tests, and the GitHub Pages build. It does not prove that the live Apps Script deployment, Spreadsheet permissions, Drive folders, OAuth configuration, or real user workflows are correct. Do not approve production until every critical test below has recorded evidence.
 
 ## 1. Deployment and central database
+
+- [ ] Run `npm run uat:live` using the supplied `/exec` deployment URL and dedicated UAT account(s); retain the sanitized `UAT_RESULT_JSON` output.
+- [ ] Confirm the live `health/live` version equals the deployed `gas/Code.gs` release identifier (`C-1E-D` at the current source revision).
 
 - [ ] Confirm the deployed Apps Script version is the same source revision as the release commit in GitHub.
 - [ ] Confirm the Web App deployment URL used by the frontend points to the intended Apps Script project.
