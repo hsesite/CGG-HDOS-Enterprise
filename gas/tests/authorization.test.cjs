@@ -2970,7 +2970,7 @@ test('backup and recovery copies preserve every required sheet dimension and hea
   const names = ['users','companies','locations','forms','inspections','hazards','picas','incidents','audit_logs','backup_logs','contractor_reports','contractor_fleet','contractor_p2h_history','repository'];
   const context = { CONFIG: { SHEETS: names.slice(0, -1) } };
   vm.createContext(context);
-  const start = source.indexOf('function compareDatabaseSpreadsheetSnapshots_(');
+  const start = source.indexOf('function normalizeDatabaseCellForComparison_(');
   const end = source.indexOf('function getHealthReadiness_(', start + 1);
   assert.ok(start >= 0 && end > start);
   vm.runInContext(source.slice(start, end), context);
@@ -2981,7 +2981,10 @@ test('backup and recovery copies preserve every required sheet dimension and hea
       sheets[name] = {
         getLastRow: () => rows.length,
         getLastColumn: () => rows[0].length,
-        getRange: () => ({ getValues: () => [rows[0]] })
+        getRange: (row, column, rowCount, columnCount) => ({
+          getValues: () => rows.slice(row - 1, row - 1 + rowCount)
+            .map(line => line.slice(column - 1, column - 1 + columnCount))
+        })
       };
     });
     return { getSheetByName: name => sheets[name] || null };
@@ -2993,6 +2996,9 @@ test('backup and recovery copies preserve every required sheet dimension and hea
   const headerMismatch = context.compareDatabaseSpreadsheetSnapshots_(makeSpreadsheet(), makeSpreadsheet({picas:[['id','wrong'],['p1','{}']]}));
   assert.equal(headerMismatch.valid, false);
   assert.ok(headerMismatch.mismatches.some(item => item.includes('picas: header berbeda')));
+  const contentMismatch = context.compareDatabaseSpreadsheetSnapshots_(makeSpreadsheet(), makeSpreadsheet({hazards:[['id','payload'],['record-1','{"status":"CLOSED"}']]}));
+  assert.equal(contentMismatch.valid, false);
+  assert.ok(contentMismatch.mismatches.some(item => item.includes('hazards: isi berbeda')));
 });
 
 
