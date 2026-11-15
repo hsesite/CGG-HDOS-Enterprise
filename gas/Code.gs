@@ -3613,6 +3613,32 @@ function compareDatabaseSpreadsheetSnapshots_(sourceSpreadsheet, copySpreadsheet
   return { valid: mismatches.length === 0, mismatches: mismatches };
 }
 
+function hasRecentSuccessfulDatabaseBackup_(spreadsheet, maxAgeHours) {
+  const sheet = spreadsheet && spreadsheet.getSheetByName('backup_logs');
+  if (!sheet) return false;
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return false;
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(value) {
+    return String(value || '').trim();
+  });
+  const createdAtIndex = headers.indexOf('createdAt');
+  const fileIdIndex = headers.indexOf('fileId');
+  const statusIndex = headers.indexOf('status');
+  if (createdAtIndex < 0 || fileIdIndex < 0 || statusIndex < 0) return false;
+
+  const startRow = Math.max(2, lastRow - 29);
+  const rows = sheet.getRange(startRow, 1, lastRow - startRow + 1, lastColumn).getValues();
+  const now = Date.now();
+  const cutoff = now - Math.max(1, Number(maxAgeHours) || 30) * 60 * 60 * 1000;
+  return rows.some(function(row) {
+    const timestamp = Date.parse(String(row[createdAtIndex] || ''));
+    return String(row[statusIndex] || '').trim().toUpperCase() === 'SUCCESS' &&
+      Boolean(String(row[fileIdIndex] || '').trim()) &&
+      Number.isFinite(timestamp) && timestamp >= cutoff && timestamp <= now + 5 * 60 * 1000;
+  });
+}
+
 function getHealthReadiness_() {
   const properties = PropertiesService.getScriptProperties();
   const spreadsheetId = String(properties.getProperty('HDOS_SPREADSHEET_ID') || CONFIG.SPREADSHEET_ID || '').trim();
@@ -3649,7 +3675,8 @@ function getHealthReadiness_() {
   } catch (triggerError) {
     dailyBackupTriggerInstalled = false;
   }
-  const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled;
+  const recentSuccessfulBackup = hasRecentSuccessfulDatabaseBackup_(spreadsheet, 30);
+  const backupReady = backupFolderAccessible && dailyBackupTriggerInstalled && recentSuccessfulBackup;
   const ready = validation.valid && googleOAuthConfigured && cggRegistrationPolicyConfigured && backupReady;
   return success_({
     status: ready ? 'ready' : 'not_ready',
@@ -3660,6 +3687,7 @@ function getHealthReadiness_() {
       cggRegistrationPolicyConfigured: cggRegistrationPolicyConfigured,
       backupFolderAccessible: backupFolderAccessible,
       dailyBackupTriggerInstalled: dailyBackupTriggerInstalled,
+      recentSuccessfulBackup: recentSuccessfulBackup,
       backupReady: backupReady,
       missingSheetCount: validation.missingSheets.length,
       invalidSchemaSheetCount: validation.invalidSheets.length
