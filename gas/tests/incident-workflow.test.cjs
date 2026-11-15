@@ -34,7 +34,8 @@ test('incident reporting UI is limited to roles accepted by the backend', () => 
   assert.match(incidentUiSource, /const employeeRestricted = assignedRoles\.includes\('Employee'\)/);
   assert.match(incidentUiSource, /!canCreateIncident/);
   assert.match(incidentUiSource, /\{canCreateIncident && <button/);
-  assert.match(backendSource, /if \(role === 'Employee' && \['inspections', 'hazards'\]\.indexOf\(entity\) === -1\)/);
+  assert.match(backendSource, /const isLimitedEmployee = roles\.indexOf\('Employee'\) >= 0 && !isAdminCGG_\(user\) && !isCompanyAdmin_\(user\)/);
+  assert.match(backendSource, /if \(isLimitedEmployee && \['inspections', 'hazards', 'picas'\]\.indexOf\(entity\) === -1\)/);
   assert.match(backendSource, /function isReadOnlyController_\(user\)/);
 });
 
@@ -42,4 +43,14 @@ test('incident reporter role eligibility remains distinct from investigator, rev
   assert.match(incidentUiSource, /const canEditInvestigation = isAdminCGG \|\| \(isVerified && assignedRoles\.some\(role => \['Foreman Safety', 'SPV HSE'\]/);
   assert.match(incidentUiSource, /const canReviewIncident = isAdminCGG \|\| \(isVerified && assignedRoles\.some\(role => \['KTT', 'SPT', 'SPV'\]/);
   assert.match(incidentUiSource, /const canCloseIncident = isAdminCGG \|\| \(isVerified && assignedRoles\.includes\('KTT'\)\)/);
+});
+
+test('backend does not let Employee role override Admin CGG or Company Admin on multi-role accounts', () => {
+  const gateStart = backendSource.indexOf("const isLimitedEmployee = roles.indexOf('Employee')");
+  const gateEnd = backendSource.indexOf("const id =", gateStart);
+  assert.ok(gateStart >= 0 && gateEnd > gateStart);
+  const gate = backendSource.slice(gateStart, gateEnd);
+  assert.match(gate, /!isAdminCGG_\(user\) && !isCompanyAdmin_\(user\)/);
+  assert.match(gate, /if \(isLimitedEmployee &&/);
+  assert.doesNotMatch(gate, /roles\.indexOf\('Employee'\) !== -1/);
 });
