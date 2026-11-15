@@ -1242,6 +1242,11 @@ function handleRoute_(
     const input = isObject_(params.payload) ? params.payload : {};
     const base64 = String(input.fileBase64 || '');
     if (!base64 || base64.length > 14000000) return error_(400, 'Berkas wajib diisi dan maksimal 10 MB.');
+    const bytes = Utilities.base64Decode(base64);
+    if (!bytes.length || bytes.length > 10 * 1024 * 1024) return error_(400, 'Ukuran berkas Repository maksimal 10 MB.');
+    const fileName = String(input.fileName || '').trim();
+    if (!fileName) return error_(400, 'Nama berkas Repository wajib diisi.');
+    const fileMetadata = getRepositoryFileMetadata_(fileName, bytes);
     const companyCode = String(isAdminCGG_(user) ? (input.companyCode || user.companyCode || 'CGG') : (user.companyCode || '')).trim().toUpperCase();
     if (!companyCode) return error_(403, 'Akun belum memiliki perusahaan untuk Repository.');
     if (!isAdminCGG_(user) && companyCode !== String(user.companyCode || '').trim().toUpperCase()) return error_(403, 'Anda hanya dapat mengunggah dokumen untuk perusahaan Anda.');
