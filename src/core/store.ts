@@ -1201,7 +1201,9 @@ export class HDOSCentralStore {
       findingDescription: `Temuan Hazard ${hazard.riskMatrix.level}: ${hazard.title}`,
       correctiveAction: hazard.actionTaken?.trim() ? hazard.actionTaken : 'Laksanakan tindakan pengendalian sesuai hasil penilaian risiko dan pastikan kondisi aman.',
       preventiveAction: 'Lakukan evaluasi penyebab, verifikasi efektivitas pengendalian, dan cegah terulangnya kondisi serupa.',
-      picDepartment: 'Operations', picName: 'PIC Belum Ditentukan',
+      picDepartment: String(hazard.picaDepartment || '').trim(),
+      picName: String(hazard.picaPicName || '').trim(),
+      assignedToEmail: String(hazard.picaPicEmail || '').trim().toLowerCase(),
       targetDate: picaTarget.toISOString().split('T')[0], status: 'OPEN', daysAging: 0,
       approvalStages: { foreman: false, spvHse: false }, createdAt: now,
     };
