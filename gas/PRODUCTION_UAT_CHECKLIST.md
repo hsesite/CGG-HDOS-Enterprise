@@ -49,7 +49,9 @@ Use separate, real test accounts for CGG Admin, CGG KTT/SPT/SPV/Foreman Safety/S
 
 - [ ] Assigned PIC sees only PICA assigned to their account and can submit corrective action/evidence.
 - [ ] Foreman Safety validates first; SPV HSE validates second; reversed or skipped stages are rejected.
-- [ ] Only verified SPV HSE can perform final closure after both required approvals.
+- [ ] Normal final closure is performed by verified SPV HSE after Foreman Safety and SPV HSE approvals are complete.
+- [ ] Admin CGG can close a PICA only after the assigned PIC submits it to `WAITING_HSE`, even when the normal approval stages are incomplete; verify `adminOverride`, actor, role, and timestamp are recorded in the audit trail.
+- [ ] Company Admin and other non-authorized roles cannot use the Admin CGG override.
 - [ ] Rejection/return requires a reason and returns the item to the assigned PIC.
 - [ ] Closing a Hazard-origin PICA closes only its matching Hazard in the same tenant.
 - [ ] Simulate a failed Spreadsheet flush in test environment; verify PICA and linked Hazard roll back together.
@@ -58,7 +60,9 @@ Use separate, real test accounts for CGG Admin, CGG KTT/SPT/SPV/Foreman Safety/S
 ## 5. Incident workflow
 
 - [ ] Eligible roles can submit an incident; ineligible and unverified elevated roles cannot.
-- [ ] Verified Foreman Safety/SPV HSE can complete investigation fields.
+- [ ] Verified Foreman Safety/SPV HSE can complete investigation fields through the Incident-specific local and backend authorization paths.
+- [ ] Verified KTT/SPT/SPV can review only after mandatory investigation fields are present; unverified accounts are rejected.
+- [ ] Admin CGG retains the explicitly authorized Incident review/closure authority without granting that authority to Company Admin.
 - [ ] Reviewer role can review only after mandatory investigation fields are present.
 - [ ] Only the authorized closer can close the incident.
 - [ ] Every state transition records actor, role, timestamp, and audit event.
