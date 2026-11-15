@@ -54,3 +54,25 @@ test('backend does not let Employee role override Admin CGG or Company Admin on 
   assert.match(gate, /if \(isLimitedEmployee &&/);
   assert.doesNotMatch(gate, /roles\.indexOf\('Employee'\) !== -1/);
 });
+
+test('verified Incident workflow roles reach action-specific store authorization', () => {
+  const storeSource = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'core', 'store.ts'),
+    'utf8'
+  );
+  const start = storeSource.indexOf('private assertMutationAllowed(');
+  const end = storeSource.indexOf('public inspections:', start);
+  assert.ok(start >= 0 && end > start);
+  const policy = storeSource.slice(start, end);
+  // Incident edits are not generic writes: updateIncident applies the
+  // investigator/reviewer/closer role and status checks immediately after.
+  assert.match(policy, /if \(action !== 'incident' && user\?\.roleVerified === true && roles\.some\(candidate => readOnlyControllerRoles\.includes\(candidate\)\)\)/);
+  const updateStart = storeSource.indexOf('async updateIncident(');
+  const updateEnd = storeSource.indexOf('async updatePICAStatus(', updateStart);
+  assert.ok(updateStart >= 0 && updateEnd > updateStart);
+  const incidentUpdate = storeSource.slice(updateStart, updateEnd);
+  assert.match(incidentUpdate, /isInvestigator/);
+  assert.match(incidentUpdate, /isReviewer/);
+  assert.match(incidentUpdate, /roles\.includes\('KTT'\)/);
+  assert.match(incidentUpdate, /current\.status !== 'REVIEWED_KTT'/);
+});
