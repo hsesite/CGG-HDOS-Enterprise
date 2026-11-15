@@ -66,7 +66,7 @@ test('database backup comparison detects changed cell values even when dimension
 
 test('database backup comparison reads large sheets in bounded chunks', () => {
   assert.match(backend, /const chunkSize = 500/);
-  assert.match(backend, /for \(let startRow = 1; startRow <= sourceLastRow; startRow \+= chunkSize\)/);
+  assert.match(backend, /for \(let startRow = 2; startRow <= sourceLastRow; startRow \+= chunkSize\)/);
   assert.match(backend, /normalizeDatabaseCellForComparison_\(sourceValues\[row\]\[column\]\)/);
 });
 
