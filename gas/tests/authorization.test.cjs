@@ -2463,7 +2463,7 @@ test('PICA closure rules reject unauthorized, incomplete, and invalid status tra
 });
 
 test('PICA two-stage approval is required before final HSE closure', () => {
-  assert.ok(source.includes("const approvalStages = existingRecord.approvalStages || {};\n    if (approvalStages.foreman !== true || approvalStages.spvHse !== true)"));
+  assert.ok(source.includes("const approvalStages = existingRecord.approvalStages || {};\n    if (!isAdmin && (approvalStages.foreman !== true || approvalStages.spvHse !== true))"));
   assert.ok(source.includes("PICA tidak dapat dikembalikan setelah proses persetujuan dimulai."));
   assert.ok(source.includes("Persetujuan PICA hanya dapat dilakukan setelah PIC mengajukan penyelesaian."));
   assert.ok(source.includes("const requiredRole = stageKey === 'foreman' ? 'Foreman Safety' : 'SPV HSE';"));
@@ -2473,7 +2473,7 @@ test('PICA two-stage approval is required before final HSE closure', () => {
 test('PICA close action requires only Foreman Safety and SPV HSE approvals', () => {
   assert.match(picaUiSource, /approvalStagesFor\(selectedPica\)\.foreman\s*&&\s*approvalStagesFor\(selectedPica\)\.spvHse\s*\?/);
   assert.doesNotMatch(picaUiSource, /approvalStagesFor\(selectedPica\)\.ktt/);
-  assert.match(picaUiSource, /Penutupan memerlukan persetujuan berurutan Foreman Safety dan SPV HSE/);
+  assert.match(picaUiSource, /Penutupan normal memerlukan persetujuan berurutan Foreman Safety dan SPV HSE/);
   assert.match(picaStoreSource, /approvalStages: current\.approvalStages \|\| \{ foreman: false, spvHse: false \}/);
   assert.match(picaStoreSource, /if \(currentStages\.foreman !== true \|\| currentStages\.spvHse !== true\)/);
   assert.match(picaStoreSource, /const requiredRole = stage === 'foreman' \? 'Foreman Safety' : 'SPV HSE'/);
