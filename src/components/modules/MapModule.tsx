@@ -38,8 +38,26 @@ export const MapModule: React.FC = () => {
     };
   };
 
-  const alertCount = store.locations.filter(location => location.safetyStatus === 'ALERT').length;
-  const warningCount = store.locations.filter(location => location.safetyStatus === 'WARNING').length;
+  // The operational Hazard register is the source of truth. Location summary
+  // fields are only a cache and may lag after cloud refresh or PICA closure.
+  const locationRiskById = useMemo(() => {
+    const summary = new Map<string, { activeHazards: number; safetyStatus: 'SAFE' | 'WARNING' | 'ALERT' }>();
+    for (const location of store.locations) {
+      const activeHazards = store.hazards.filter(hazard =>
+        hazard.location === location.name && hazard.status !== 'CLOSED'
+      );
+      const hasCritical = activeHazards.some(hazard => hazard.riskMatrix.level === 'CRITICAL');
+      const hasHigh = activeHazards.some(hazard => hazard.riskMatrix.level === 'HIGH');
+      summary.set(location.id, {
+        activeHazards: activeHazards.length,
+        safetyStatus: hasCritical ? 'ALERT' : hasHigh ? 'WARNING' : 'SAFE',
+      });
+    }
+    return summary;
+  }, [store.locations, store.hazards]);
+
+  const alertCount = store.locations.filter(location => locationRiskById.get(location.id)?.safetyStatus === 'ALERT').length;
+  const warningCount = store.locations.filter(location => locationRiskById.get(location.id)?.safetyStatus === 'WARNING').length;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -97,13 +115,14 @@ export const MapModule: React.FC = () => {
                   <text x="20" y="300" textAnchor="middle" fill="#94a3b8" fontSize="13" transform="rotate(-90 20 300)">Latitude (°)</text>
                   {mappedLocations.map(location => {
                     const point = getPoint(Number(location.lat), Number(location.lng));
-                    const fill = location.safetyStatus === 'ALERT' ? '#f87171' : location.safetyStatus === 'WARNING' ? '#fbbf24' : '#34d399';
+                    const safetyStatus = locationRiskById.get(location.id)?.safetyStatus || 'SAFE';
+                    const fill = safetyStatus === 'ALERT' ? '#f87171' : safetyStatus === 'WARNING' ? '#fbbf24' : '#34d399';
                     return (
                       <g key={location.id}>
                         <circle cx={point.x} cy={point.y} r="17" fill={fill} opacity="0.15"/>
                         <circle cx={point.x} cy={point.y} r="7" fill={fill} stroke="#07111b" strokeWidth="2"/>
                         <text x={point.x + 12} y={point.y - 12} fill="#e2e8f0" fontSize="13" fontWeight="600">{location.name.length > 22 ? location.name.slice(0, 20) + '…' : location.name}</text>
-                        <title>{location.name} — {location.lat}, {location.lng} — {location.safetyStatus}</title>
+                        <title>{location.name} — {location.lat}, {location.lng} — {safetyStatus}</title>
                       </g>
                     );
                   })}
@@ -116,19 +135,23 @@ export const MapModule: React.FC = () => {
           <section className="space-y-3">
             <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-white">Daftar Master Area</h3><span className="text-xs text-neutral-500">{store.locations.length} area</span></div>
             <div className="grid gap-3 md:grid-cols-2">
-              {store.locations.map(location => (
-                <article key={location.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div><h4 className="font-semibold text-white">{location.name}</h4><p className="mt-1 text-xs text-neutral-400">{location.description || 'Tidak ada deskripsi'}</p></div>
-                    <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold ${location.safetyStatus === 'ALERT' ? 'border-red-400/30 bg-red-400/10 text-red-300' : location.safetyStatus === 'WARNING' ? 'border-amber-400/30 bg-amber-400/10 text-amber-300' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'}`}>{location.safetyStatus}</span>
-                  </div>
-                  <div className="mt-3 grid gap-2 text-xs text-neutral-400 sm:grid-cols-3">
-                    <div>Zona: <strong className="text-neutral-200">{location.zoneType}</strong></div>
-                    <div>UTM: <strong className="text-neutral-200">{location.utm || 'Belum diisi'}</strong></div>
-                    <div>Koordinat: <strong className="text-neutral-200">{location.lat}, {location.lng}</strong></div>
-                  </div>
-                </article>
-              ))}
+              {store.locations.map(location => {
+                const risk = locationRiskById.get(location.id) || { activeHazards: 0, safetyStatus: 'SAFE' as const };
+                return (
+                  <article key={location.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><h4 className="font-semibold text-white">{location.name}</h4><p className="mt-1 text-xs text-neutral-400">{location.description || 'Tidak ada deskripsi'}</p></div>
+                      <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold ${risk.safetyStatus === 'ALERT' ? 'border-red-400/30 bg-red-400/10 text-red-300' : risk.safetyStatus === 'WARNING' ? 'border-amber-400/30 bg-amber-400/10 text-amber-300' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'}`}>{risk.safetyStatus}</span>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs text-neutral-400 sm:grid-cols-4">
+                      <div>Temuan aktif: <strong className="text-neutral-200">{risk.activeHazards}</strong></div>
+                      <div>Zona: <strong className="text-neutral-200">{location.zoneType}</strong></div>
+                      <div>UTM: <strong className="text-neutral-200">{location.utm || 'Belum diisi'}</strong></div>
+                      <div>Koordinat: <strong className="text-neutral-200">{location.lat}, {location.lng}</strong></div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         </>
