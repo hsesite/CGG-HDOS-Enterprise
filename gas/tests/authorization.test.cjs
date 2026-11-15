@@ -72,7 +72,7 @@ test('KTT client permission matrix does not expose PICA create, update, or overs
 });
 
 test('closing a Hazard-origin PICA closes only its linked Hazard in the same tenant', () => {
-  assert.match(source, /linkedHazardUpdate = syncHazardClosedFromPica_\(item\)/);
+  assert.match(source, /linkedHazardUpdate = syncHazardClosedFromPica_\(item, linkedHazardRollback\)/);
   const helper = extractFunction('syncHazardClosedFromPica_', 'parseRowValues_');
   const rows = [
     { id: 'h1', code: 'HAZ-2026-AAA', companyCode: 'CGG', status: 'PICA_ISSUED' },
