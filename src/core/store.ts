@@ -1185,6 +1185,11 @@ export class HDOSCentralStore {
     hazard: Omit<Hazard, 'id' | 'code' | 'createdAt'>
   ): Promise<Hazard> {
     this.assertMutationAllowed('hazard');
+    if (!String(hazard.picaDepartment || '').trim() ||
+        !String(hazard.picaPicName || '').trim() ||
+        !String(hazard.picaPicEmail || '').trim()) {
+      throw new Error('Departemen tujuan, nama PIC, dan email PIC wajib diisi sebelum Hazard disimpan.');
+    }
     const year = new Date().getFullYear();
     const id = createEntityId();
     const code = `HAZ-${year}-${id.slice(0, 8).toUpperCase()}`;
