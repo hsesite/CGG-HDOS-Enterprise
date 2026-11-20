@@ -104,7 +104,7 @@ function collectReadOnlyIntegritySummary_(spreadsheet) {
   });
   result.picas.orphanSourceReferences = picas.rows.filter(function(row) {
     const sourceCode = String(row.sourceRefCode || '').trim();
-    return sourceCode && !hazardCodes[sourceCode];
+    return String(row.source || '').toUpperCase() === 'HAZARD' && sourceCode && !hazardCodes[sourceCode];
   }).length;
 
   return result;
