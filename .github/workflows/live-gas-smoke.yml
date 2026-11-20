@@ -1,0 +1,47 @@
+name: HDOS live GAS smoke test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/live-gas-smoke.yml'
+      - 'scripts/live-gas-uat.mjs'
+      - 'gas/Code.gs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hdos-live-gas-smoke
+  cancel-in-progress: false
+
+jobs:
+  live-smoke-test:
+    name: Read-only GAS deployment and readiness checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate configured deployment URL
+        env:
+          HDOS_GAS_URL: ${{ secrets.VITE_GAS_URL }}
+        run: |
+          if [ -z "$HDOS_GAS_URL" ]; then
+            echo "::error::Repository secret VITE_GAS_URL belum dikonfigurasi."
+            exit 1
+          fi
+          case "$HDOS_GAS_URL" in
+            https://script.google.com/macros/s/*/exec) ;;
+            *) echo "::error::VITE_GAS_URL bukan URL Google Apps Script /exec yang valid."; exit 1 ;;
+          esac
+      - name: Run non-destructive live smoke test
+        env:
+          HDOS_GAS_URL: ${{ secrets.VITE_GAS_URL }}
+        run: node scripts/live-gas-uat.mjs
