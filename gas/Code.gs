@@ -859,6 +859,14 @@ function handleRoute_(
 
 
   // ----------------------------------------------------------
+  // READ-ONLY DIAGNOSTICS — separate secret, no user session required
+  // ----------------------------------------------------------
+  if (path === '/api/diagnostics/report') {
+    if (method !== 'POST') return error_(405, 'Diagnostic API hanya menerima POST.');
+    return handleReadOnlyDiagnostics_(params);
+  }
+
+  // ----------------------------------------------------------
   // LOGIN
   // ----------------------------------------------------------
 
